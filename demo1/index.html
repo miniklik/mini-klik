@@ -1,0 +1,3188 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<title>Edytor gier</title>
+<style>
+  body { margin:0; font-family:Arial; background:#111; color:white; display:flex; flex-direction:column; align-items:center; }
+  #editor { width:1200px; max-width:95vw; }
+  #topbar { background:#222; padding:10px; display:flex; justify-content:center; gap:10px; flex-wrap:wrap; }
+  button { padding:6px 10px; cursor:pointer; background:#444; border:1px solid #555; color:white; }
+  button.active { background:#4CAF50 !important; border-color:#388E3C; box-shadow:0 0 8px #4CAF50; }
+  #deleteBtn.active { background:#c33 !important; border-color:#933; box-shadow:0 0 8px #c33; }
+  #main { display:flex; gap:10px; }
+  #lewy, #prawy { width:220px; background:#222; padding:10px; }
+  canvas { background:#87CEEB; }
+  .selected { outline:3px solid red; }
+  .item { cursor:pointer; text-align:center; margin:10px 0; }
+  .keybox { border:1px solid #888; padding:6px; margin:3px 0; text-align:center; cursor:pointer; background:#333; }
+  input[type="number"] { width:80px; }
+  .fx-list { margin:10px 0; }
+  .fx-row { background:#333; padding:8px; margin:6px 0; border-radius:4px; display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .fx-name { font-weight:bold; min-width:90px; }
+  .fx-params { color:#aaa; font-size:0.9em; flex:1; }
+  .small { font-size:0.85em; padding:4px 8px; }
+  .danger { background:#933; }
+  .blink {
+    animation: blinkAnim 1s infinite;
+  }
+
+  @keyframes blinkAnim {
+    0%   { opacity: 1; }
+    50%  { opacity: 0.2; }
+    100% { opacity: 1; }
+  }  
+</style>
+</head>
+<body>
+
+
+<div id="editor">
+
+<div id="topbar">
+  <button id="runBtn" onclick="uruchom()">URUCHOM</button>
+  <button id="editBtn" onclick="edytuj()">EDYTUJ</button>
+  <button id="deleteBtn" onclick="trybUsun()">USUŃ OBIEKT</button>
+  <button id="gridBtn" onclick="toggleGrid()">SIATKA</button>
+  <button id="fxBtn" onclick="toggleFX()">FX</button>
+  <button id="pauseFxBtn" onclick="togglePauseEffects()">FX - STOP</button>
+  <button onclick="zapiszProjekt()">SAVE</button>
+  <button onclick="wczytajProjekt()">LOAD</button>
+  <button onclick="loadDemo()">🎮 DEMO (Netlify)</button>
+</div>
+
+<div id="main">
+<div id="lewy">
+  <h3>OBIEKTY</h3>
+  <button onclick="pokazGraczy()">GRACZ</button>
+  <br><br>
+  <button onclick="pokazPlatformy()">PLATFORMA</button>
+  <br><br>
+  <button onclick="pokazBloki()">BLOK</button><br><br>
+  <button onclick="pokazPrzeciwniki()">PRZECIWNIK</button><br><br>
+  <button onclick="wlaczBonusy()">BONUSY</button><br><br>
+  <button onclick="pokazLiczniki()">LICZNIKI</button><br><br>
+  <button onclick="pokazKoniec()">KONIEC GRY</button><br><br>
+  <button onclick="dodajTekst()">TEKST</button><br><br>
+  <button onclick="pokazTloPanel()">TŁO</button><br><br>
+  <button onclick="pokazUstawienia()">⚙ Ustawienia</button>
+  <div id="sterowanie"></div>
+</div>
+
+  <div style="display:flex; flex-direction:column; align-items:center;">
+    <canvas id="scena" width="800" height="450"></canvas>
+    <input type="range" id="scrollX" min="0" value="0" step="1" 
+           style="width:800px; margin:8px 0; accent-color:#4CAF50; background:#333; height:12px; border-radius:6px;">
+  </div>
+
+  <div id="prawy">
+    <div id="panel">
+      <h3>PANEL</h3>
+      <div>Wybierz narzędzie z góry.</div>
+    </div>
+  </div>
+</div>
+
+<script>
+const canvas = document.getElementById("scena")
+canvas.setAttribute("tabindex", "0")
+const ctx = canvas.getContext("2d")
+
+let trybGry = false
+let trybHTML = false
+let trybKasowania = false
+let trybBonusy = false
+let trybFX = false
+let ustawianieStartu = false;
+let gridEnabled = false
+let gridSize = 20
+let gravity = 0.4
+
+
+let players = []
+let platforms = []
+let blocks = []
+let enemies = []
+let texts = []
+let gameData = {
+  stats: {}
+}
+let gameOver = false
+let gameOverTriggered = false
+let playerStartX = 100;   // ← możesz później odczytać z pierwszego gracza przy starcie
+let playerStartY = 100;
+
+// === ❤️ SYSTEM ŻYĆ I RESPAWN ===
+let invulnerable = 0;              // klatki nieśmiertelności po trafieniu
+let invulnerabilityTime = 80;      // czas nieśmiertelności (~1.3s przy 60fps)
+let hitPause = 0;                  // pauza animacji po śmierci
+let fallTimer = 0;
+const FALL_TIME_LIMIT = 180;   // 3 sekundy przy 60 fps
+let hitPauseTime = 60;             // pauza przed respawnem (~1s)
+let pendingRespawn = false;        // flaga: czeka na respawn
+let deathRespawnX = 300;           // X: miejsce ostatniej śmierci
+let deathRespawnY = 300;           // Y: miejsce ostatniej śmierci
+let useLives = true;               // czy używać systemu żyć?
+let respawnPlayer = null;          // (zostaw to)
+let hitEffect = null;              // (zostaw to)
+let respawnMode = "death"; 
+// "death" = w miejscu śmierci
+// "start" = w punkcie startowym
+let diedByFalling = false;   // flaga: czy śmierć była przez wypadnięcie poza 
+let warningText = null;     // { time: liczba klatek, alpha: przezroczystość }
+let gameState = "game"
+let bonuses = []
+let fileHandle = null
+
+
+let resultsBall = { x: 400, y: 220, r: 20 }
+let resultsEnemies = []
+
+let counters = {
+  lives: 3,
+  points: 0,
+  time: 60
+}
+let startTime = counters.time
+let useTimer = true;
+let autorGry = "Nieznany"
+let showIntro = false   // 🔥 NOWE
+let backgroundType = "none";
+
+let lastTime = Date.now()
+let fps = 70
+let frameDelay = 1000 / fps
+let lastFrame = 0
+
+
+function pokazLiczniki(){
+  document.getElementById("panel").innerHTML = `
+    <h3>LICZNIKI</h3>
+
+    ❤️ Życia: 
+    <input type="number" id="editLives" value="${counters.lives}" style="width:60px;">
+    <br><br>
+
+    <label>
+      <input type="checkbox" id="useLives" ${useLives ? "checked" : ""}>
+      Licz życia
+    </label>
+    <br><br>
+
+    ⭐ Punkty: <span>${counters.points}</span><br><br>
+
+    <button onclick="resetPoints()">🔄 Reset punktów</button>
+    <br><br>
+
+    ⏱ Czas: 
+    <input type="number" id="editTime" value="${Math.ceil(counters.time)}" style="width:60px;">
+    <br><br>
+
+    <label>
+      <input type="checkbox" id="useTimer" ${useTimer ? "checked" : ""}>
+      Licz czas
+    </label>
+
+
+    <br><br><br>
+
+    🌍 Długość świata:
+    <br><br>
+    min. 800
+    <br><br>
+    <input type="number" id="editWorld" value="${worldWidth}" style="width:80px;">
+    <br><br>
+    <button onclick="zapiszLiczniki()">ZAPISZ</button>
+  `;
+}
+
+function resetPoints(){
+  counters.points = 0
+}
+
+function zapiszZycia(){
+  let val = Number(document.getElementById("editLives").value)
+
+  if (isNaN(val) || val < 0) return
+
+  counters.lives = val
+}
+
+let keys = {}
+let copiedObject = null
+let trybKopiowania = false
+
+let sterowanie = { lewo:null, prawo:null, skok:null }
+let aktywnePole = null
+
+let dragging = null
+let resizing = null
+let dragOffsetX = 0
+let dragOffsetY = 0
+
+const floorY = 430
+
+let editingFxIndex = -1
+let effectsPaused = false
+
+// ──────────────────────── KAMERA ────────────────────────
+let cameraX = 0
+let autoScroll = false
+let autoScrollSpeed = 2
+
+// === NOWE – PASEK PRzewijania ===
+let worldWidth = 2000;  // ← możesz zmienić na 4000 / 10000 itd.
+
+const scrollX = document.getElementById("scrollX");
+scrollX.max = worldWidth - canvas.width;
+
+function syncScrollbar() {
+  scrollX.value = Math.max(0, Math.min(cameraX, worldWidth - canvas.width));
+}
+
+scrollX.addEventListener("input", () => {
+  cameraX = Number(scrollX.value);
+});
+
+// ================= AKTUALIZACJA PODŚWIETLENIA =================
+function updateButtonStates() {
+  document.getElementById("runBtn").classList.toggle("active", trybGry)
+  document.getElementById("editBtn").classList.toggle("active", !trybGry)
+  document.getElementById("fxBtn").classList.toggle("active", trybFX)
+  document.getElementById("gridBtn").classList.toggle("active", gridEnabled)
+  document.getElementById("pauseFxBtn").classList.toggle("active", effectsPaused)
+  document.getElementById("deleteBtn").classList.toggle("active", trybKasowania)
+
+  document.getElementById("pauseFxBtn").textContent = effectsPaused ? "WZNÓW EFEKTY" : "ZATRZYMAJ EFEKTY"
+}
+
+// ================= FX PAUSE =================
+function togglePauseEffects() {
+  effectsPaused = !effectsPaused
+  updateButtonStates()
+}
+
+// ================= GRID =================
+function toggleGrid(){
+  gridEnabled = !gridEnabled
+  updateButtonStates()
+  if (gridEnabled) snapAll()
+}
+
+function snap(v){
+  return Math.round(v / gridSize) * gridSize
+}
+
+function snapAll(){
+  for (let p of players) {
+    p.x = snap(p.x); p.y = snap(p.y)
+  }
+  for (let pl of platforms) {
+    pl.x = snap(pl.x); pl.y = snap(pl.y); pl.w = snap(pl.w)
+  }
+  for (let b of blocks) {
+    b.x = snap(b.x); b.y = snap(b.y); b.w = snap(b.w); b.h = snap(b.h)
+  }
+}
+
+// ================= TRYBY =================
+function uruchom(){
+  trybGry = true
+  updateButtonStates()
+}
+
+function edytuj(){
+  trybGry = false
+  updateButtonStates()
+}
+
+function trybUsun(){
+  trybKasowania = !trybKasowania
+  trybFX = false
+  updateButtonStates()
+}
+
+function wlaczBonusy(){
+  trybBonusy = false   // ❗ jeszcze nie aktywujemy
+
+  document.getElementById("panel").innerHTML = `
+    <h3>BONUSY</h3>
+    <div class="item" onclick="dodajBonus()" style="font-size:40px;">💎</div>
+    <p style="text-align:center;">Kliknij 💎 aby wstawić</p>
+  `
+}
+
+// ================= FX =================
+function toggleFX(){
+  trybFX = !trybFX
+  trybKasowania = false
+  updateButtonStates()
+  if (trybFX) {
+    document.getElementById("panel").innerHTML = "<h3>FX</h3>Kliknij obiekt na scenie aby edytować efekty"
+  } else if (!selectedObject) {
+    document.getElementById("panel").innerHTML = "<h3>PANEL</h3><div>Wybierz narzędzie z góry.</div>"
+  }
+}
+
+let selectedObject = null; // <--- brakowało deklaracji w oryginalnym kodzie
+
+function showFxList(){
+  if (!selectedObject) return;
+
+  if (selectedObject.r) {
+    document.getElementById("panel").innerHTML = `
+      <h3>Gracz</h3>
+      <p style="color:#aaa">Gracz nie obsługuje efektów</p>
+      <p style="color:#888; font-size:0.9em; margin-top:12px;">
+        Ruch gracza sterowany jest klawiaturą.
+      </p>
+    `;
+    return;
+  }
+  trybFX = false
+  updateButtonStates()
+
+  let html = `<h3>Efekty</h3>`
+  if (selectedObject.effects.length === 0) {
+    html += `<p style="color:#888">Brak efektów</p>`
+  } else {
+    html += `<div class="fx-list">`
+    selectedObject.effects.forEach((fx, i) => {
+      let params = ""
+      if (fx.type === "move") {
+        let dir = fx.dx > 0 ? "→" : fx.dx < 0 ? "←" : fx.dy > 0 ? "↓" : "↑"
+        params = `${dir} speed:${fx.speed} dist:${fx.distance} ${fx.loop?"loop":"jednoraz"}`
+      }
+      html += `
+        <div class="fx-row">
+          <input type="checkbox" ${fx.enabled!==false?"checked":""} onchange="toggleFx(${i})">
+          <span class="fx-name">${fx.type.toUpperCase()}</span>
+          <span class="fx-params">${params}</span>
+          <button class="small" onclick="editFx(${i})">✏ edytuj</button>
+          <button class="small danger" onclick="removeFx(${i})">🗑 usuń</button>
+        </div>
+      `
+    })
+    html += `</div>`
+  }
+  html += `
+  <button onclick="showAddFxMenu()">+ DODAJ EFEKT</button>
+  <br><br>
+  <button onclick="kopiujObiekt()">📋 KOPIUJ</button>
+`
+  document.getElementById("panel").innerHTML = html
+}
+
+function toggleFx(index){
+  if (!selectedObject) return
+  let fx = selectedObject.effects[index]
+  fx.enabled = !(fx.enabled === false)
+}
+
+function removeFx(index){
+  if (!selectedObject) return
+  selectedObject.effects.splice(index, 1)
+  showFxList()
+}
+
+function editFx(index){
+  editingFxIndex = index
+  showMove()
+}
+
+function showAddFxMenu(){
+  editingFxIndex = -1
+  document.getElementById("panel").innerHTML = `
+    <h3>Dodaj efekt</h3>
+    <button onclick="showMove()">RUCH (move)</button>
+    <br><br>
+    <button onclick="showFxList()">← powrót</button>
+    <br><br>
+    <button onclick="addNeonFx()">NEON</button>
+  `
+}
+
+function addNeonFx(){
+  if (!selectedObject) return
+
+  if (selectedObject.effects.length >= 2) {
+    alert("❌ Max 2 efekty")
+    return
+  }
+
+  selectedObject.effects.push({
+    type: "neon",
+    enabled: true
+  })
+
+  showFxList()
+}
+
+function showMove(){
+  let initial = {dx:1, dy:0, speed:2, distance:200, loop:true}
+  if (editingFxIndex >= 0 && selectedObject.effects[editingFxIndex]?.type === "move") {
+    initial = {...selectedObject.effects[editingFxIndex]}
+  }
+
+  document.getElementById("panel").innerHTML = `
+    <h3>${editingFxIndex >= 0 ? "Edytuj RUCH" : "Dodaj RUCH"}</h3>
+    kierunek<br>
+    <button onclick="setDir('left')">←</button>
+    <button onclick="setDir('right')">→</button>
+    <button onclick="setDir('up')">↑</button>
+    <button onclick="setDir('down')">↓</button>
+    <br><br>
+    szybkość <input id="speed" type="number" value="${initial.speed}"><br>
+    długość <input id="dist" type="number" value="${initial.distance}"><br>
+    pętla <input type="checkbox" id="loop" ${initial.loop?"checked":""}><br><br>
+    <button onclick="saveMove()">${editingFxIndex >= 0 ? "ZAPISZ ZMIANY" : "DODAJ FX"}</button>
+    <button onclick="showFxList()">anuluj</button>
+  `
+  moveDir = {dx: initial.dx, dy: initial.dy}
+}
+
+let moveDir = {dx:1, dy:0}
+
+function setDir(d){
+  if (d=="right") moveDir={dx:1,dy:0}
+  if (d=="left")  moveDir={dx:-1,dy:0}
+  if (d=="down")  moveDir={dx:0,dy:1}
+  if (d=="up")    moveDir={dx:0,dy:-1}
+}
+
+function saveMove(){
+
+  if (!selectedObject) return
+
+  if (editingFxIndex === -1 && selectedObject.effects.length >= 2) {
+    alert("❌ Maksymalnie 2 efekty na obiekt")
+    return
+  }
+
+  let speed = Number(document.getElementById("speed")?.value) || 2
+  let dist  = Number(document.getElementById("dist")?.value)  || 200
+  let loop  = document.getElementById("loop")?.checked ?? true
+
+  let effect = {
+    type: "move",
+    dx: moveDir.dx,
+    dy: moveDir.dy,
+    speed, distance: dist, loop,
+    travel: 0,
+    enabled: true
+  }
+
+  if (editingFxIndex >= 0) {
+    selectedObject.effects[editingFxIndex] = effect
+  } else {
+    selectedObject.effects.push(effect)
+  }
+
+  showFxList()
+}
+
+// ================= DODAWANIE OBIEKTÓW =================
+function pokazGraczy() {
+  document.getElementById("panel").innerHTML = `
+
+    <div style="text-align:center; color:#aaa; margin-bottom:10px;">
+      kliknij gracza
+    </div>
+
+    <!-- 🔴 PIŁECZKA -->
+    <div class="item" onclick="dodajGracza()" 
+      style="display:flex; justify-content:center; margin:10px 0;">
+      <div style="
+        width:40px;
+        height:40px;
+        background:red;
+        border-radius:50%;
+      "></div>
+    </div>
+
+    <!-- 📍 START -->
+    <div style="margin-bottom:10px;">
+      <button style="width:100%;" onclick="ustawStartGracza()">📍 Ustaw start gracza</button>
+    </div>
+
+    <!-- 🔄 ODRADZANIE -->
+    <h4>ODRADZANIE</h4>
+
+    <div style="display:flex; gap:6px; margin-bottom:10px;">
+      <button style="flex:1;" onclick="setRespawnMode('start')" id="respStart">
+        Początek
+      </button>
+      <button style="flex:1;" onclick="setRespawnMode('death')" id="respDeath">
+        Skucha
+      </button>
+    </div>
+
+    <!-- 🎮 STEROWANIE -->
+    <h4>STEROWANIE</h4>
+
+    <!-- SKOK -->
+    <div style="margin-bottom:6px;">
+      <div class="keybox" onclick="wybierzPole('skok')" id="skok">?</div>
+    </div>
+
+    <!-- LEWO / PRAWO -->
+    <div style="display:flex; gap:6px;">
+      <div class="keybox" style="flex:1;" onclick="wybierzPole('lewo')" id="lewo">?</div>
+      <div class="keybox" style="flex:1;" onclick="wybierzPole('prawo')" id="prawo">?</div>
+    </div>
+
+    <!-- 🌍 RUCH ŚWIATA -->
+    <h4>RUCH ŚWIATA</h4>
+
+    <label>
+      <input type="checkbox" id="autoScrollToggle" 
+       ${autoScroll ? "checked" : ""} 
+       onchange="updateRespawnLock()">
+      Auto ruch świata
+    </label>
+
+    <br><br>
+
+    Prędkość:
+    <input type="range" id="scrollSpeed" min="0" max="10" step="0.5" value="${autoScrollSpeed}">
+    <span id="speedVal">${autoScrollSpeed}</span>
+
+    <br><br>
+
+    <button class="blink" onclick="zapiszUstawienia()">ZAPISZ - koniecznie</button>
+  `;
+
+  // 🔥 PODŚWIETLENIE (NIE RUSZAMY)
+  setRespawnMode(respawnMode, false);
+
+  // 🔥 RUCH ŚWIATA (UI sync)
+  document.getElementById("autoScrollToggle").checked = autoScroll;
+  document.getElementById("scrollSpeed").value = autoScrollSpeed;
+  document.getElementById("speedVal").innerText = autoScrollSpeed;
+
+  document.getElementById("scrollSpeed").oninput = function(){
+    document.getElementById("speedVal").innerText = this.value;
+  }
+updateRespawnLock()  
+}
+
+function ustawRespawnTutaj() {
+  if (players.length === 0) {
+    alert("Najpierw dodaj gracza!");
+    return;
+  }
+  deathRespawnX = players[0].x;
+  deathRespawnY = players[0].y;
+  alert("✅ Resp. ustawiony: " + Math.round(deathRespawnX) + ", " + Math.round(deathRespawnY));
+}
+
+function pokazPlatformy(){
+  document.getElementById("panel").innerHTML = `
+    <h3>PLATFORMA</h3>
+    <div style="color:#aaa; text-align:center; margin-bottom:15px;">
+      wybierz typ platformy
+    </div>
+
+    <div style="display:flex; flex-direction:column; gap:16px; align-items:center; margin:20px 0;">
+
+      <!-- Prostokąt -->
+      <div onclick="dodajPlatforme('rect')" class="platform-preview">
+        <canvas id="previewRect" width="180" height="46"></canvas>
+        <div class="preview-label">prostokąt</div>
+      </div>
+
+      <!-- Zaokrąglony -->
+      <div onclick="dodajPlatforme('round')" class="platform-preview">
+        <canvas id="previewRound" width="180" height="46"></canvas>
+        <div class="preview-label">zaokrąglony</div>
+      </div>
+
+      <!-- Linia -->
+      <div onclick="dodajPlatforme('line')" class="platform-preview">
+        <canvas id="previewLine" width="180" height="32"></canvas>
+        <div class="preview-label">linia (cienka)</div>
+      </div>
+
+    </div>
+
+    <hr style="border-color:#444; margin:25px 0 15px 0;">
+
+    <h4 style="margin-bottom:8px;">KOLIZJA</h4>
+    <label style="display:block; margin:8px 0; color:#ddd;">
+      <input type="radio" name="solid" value="top" checked> tylko z góry
+    </label>
+    <label style="display:block; margin:8px 0; color:#ddd;">
+      <input type="radio" name="solid" value="full"> góra + dół
+    </label>
+
+    <style>
+      .platform-preview {
+        cursor: pointer;
+        transition: all 0.15s ease;
+      }
+      .platform-preview:hover {
+        transform: scale(1.05);
+      }
+      .platform-preview canvas {
+        border: 2px solid #555;
+        border-radius: 8px;
+        background: #1e1e1e;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.4);
+      }
+      .preview-label {
+        margin-top: 6px;
+        font-size: 14px;
+        color: #ccc;
+        text-align: center;
+      }
+    </style>
+  `;
+
+  // Rysujemy previewy
+  setTimeout(() => {
+    drawPlatformPreview("previewRect", "rect");
+    drawPlatformPreview("previewRound", "round");
+    drawPlatformPreview("previewLine", "line");
+  }, 80);
+}
+
+// ==================== POPRAWIONA FUNKCJA RYSUJĄCA ====================
+function drawPlatformPreview(canvasId, typ) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+  const pctx = canvas.getContext("2d");
+
+  const w = canvas.width;
+  const h = canvas.height;
+
+  pctx.clearRect(0, 0, w, h);
+
+  if (typ === "line") {
+    // ==================== LINIA - BARDZO CIENKA ====================
+    const y = h / 2;
+
+    // drewniana powierzchnia
+    pctx.fillStyle = "#8B5A2B";
+    pctx.fillRect(15, y - 3, w - 30, 6);
+
+    // ciemna ramka
+    pctx.strokeStyle = "#3F2A1D";
+    pctx.lineWidth = 2.5;
+    pctx.strokeRect(15, y - 5, w - 30, 10);
+
+    // słoje drewna (bardzo subtelne na cienkiej linii)
+    pctx.strokeStyle = "#A67C5D";
+    pctx.lineWidth = 1;
+    pctx.beginPath();
+    pctx.moveTo(22, y);
+    pctx.lineTo(w - 22, y);
+    pctx.stroke();
+
+  } else {
+    // ==================== PROSTOKĄT i ZAOKRĄGLONY ====================
+    const padding = 12;
+    const ph = h - padding * 2;   // wysokość platformy
+
+    // drewno
+    pctx.fillStyle = "#8B5A2B";
+    if (typ === "round") {
+      pctx.beginPath();
+      pctx.roundRect(padding, padding, w - padding*2, ph, 14);
+      pctx.fill();
+    } else {
+      pctx.fillRect(padding, padding, w - padding*2, ph);
+    }
+
+    // ciemna ramka
+    pctx.strokeStyle = "#3F2A1D";
+    pctx.lineWidth = 3.5;
+    if (typ === "round") {
+      pctx.beginPath();
+      pctx.roundRect(padding + 2, padding + 2, w - padding*2 - 4, ph - 4, 12);
+      pctx.stroke();
+    } else {
+      pctx.strokeRect(padding + 2, padding + 2, w - padding*2 - 4, ph - 4);
+    }
+
+    // słoje drewna
+    pctx.strokeStyle = "#A67C5D";
+    pctx.lineWidth = 2.2;
+
+    const lineCount = 4;
+    for (let i = 1; i < lineCount; i++) {
+      let py = padding + (ph * i / lineCount);
+
+      pctx.beginPath();
+      pctx.moveTo(padding + 10, py);
+      pctx.quadraticCurveTo(
+        w * 0.38, py + (i % 2 === 0 ? -1.5 : 1.5),
+        w - padding - 10, py
+      );
+      pctx.stroke();
+    }
+
+    // dodatkowe subtelne słoje
+    pctx.strokeStyle = "#6B4426";
+    pctx.lineWidth = 1.4;
+    pctx.beginPath();
+    pctx.moveTo(padding + 25, padding + 10);
+    pctx.quadraticCurveTo(w * 0.6, padding + 22, padding + 40, padding + ph - 12);
+    pctx.stroke();
+  }
+}
+
+function pokazBloki(){
+  document.getElementById("panel").innerHTML = `
+    <h3>BLOK</h3>
+    
+    <div style="text-align:center; margin:20px 0;">
+      <canvas id="blokPreview" width="90" height="90" style="background:#222; border:2px solid #555; border-radius:8px;"></canvas>
+    </div>
+
+    <p style="color:#aaa; text-align:center; margin-top:10px;">
+      Solidny kwadrat – zatrzymuje z każdej strony
+    </p>
+
+    <div style="text-align:center; margin-top:20px;">
+      <button onclick="dodajBlok()" style="font-size:16px; padding:8px 16px;">
+        ➕ Dodaj blok
+      </button>
+    </div>
+  `;
+
+  // Po wstawieniu HTML-a rysujemy preview
+  setTimeout(() => {
+    const previewCanvas = document.getElementById("blokPreview");
+    if (!previewCanvas) return;
+    
+    const pctx = previewCanvas.getContext("2d");
+
+    const x = 8;
+    const y = 8;
+    const w = 74;
+    const h = 74;
+
+    // Główna powierzchnia drewna
+    pctx.fillStyle = "#8B5A2B";
+    pctx.fillRect(x, y, w, h);
+
+    // Cienka ciemna ramka
+    pctx.strokeStyle = "#3F2A1D";
+    pctx.lineWidth = 4;
+    pctx.strokeRect(x + 2, y + 2, w - 4, h - 4);
+
+    // Imitacja słojów drewna
+    pctx.strokeStyle = "#A67C5D";
+    pctx.lineWidth = 2.5;
+
+    for (let i = 1; i < 6; i++) {
+      let py = y + (h * i / 6);
+      pctx.beginPath();
+      pctx.moveTo(x + 6, py);
+      pctx.quadraticCurveTo(
+        x + w * 0.38, py + (i % 2 === 0 ? -2 : 2),
+        x + w - 6, py
+      );
+      pctx.stroke();
+    }
+
+    // Dodatkowe słoje
+    pctx.lineWidth = 1.8;
+    pctx.strokeStyle = "#6B4426";
+
+    pctx.beginPath();
+    pctx.moveTo(x + w*0.25, y + 10);
+    pctx.quadraticCurveTo(x + w*0.58, y + h*0.45, x + w*0.22, y + h - 12);
+    pctx.stroke();
+
+    pctx.beginPath();
+    pctx.moveTo(x + w*0.72, y + 14);
+    pctx.quadraticCurveTo(x + w*0.48, y + h*0.65, x + w*0.75, y + h - 10);
+    pctx.stroke();
+  }, 50);
+}
+
+function pokazPrzeciwniki(){
+  document.getElementById("panel").innerHTML = `
+    <h3>PRZECIWNIK</h3>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+      <div class="item" onclick="dodajEnemy()" style="font-size:24px;">👾</div>
+      <div class="item" onclick="dodajGhost()" style="font-size:24px;">👻</div>
+      <div class="item" onclick="dodajWorm()" style="font-size:24px;">👹</div>
+      <div class="item" onclick="dodajFire()" style="font-size:24px;">🔥</div>
+      <div class="item" onclick="dodajSpikes()" style="font-size:24px;">🔺</div>
+      <div class="item" onclick="dodajWater()" style="font-size:24px;">🌊</div>
+    </div>
+    <br>
+    <h4>Z GRAWITACJĄ</h4>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+      <div class="item" onclick="dodajWalker()" style="font-size:24px;">👽</div>
+      <div class="item" onclick="dodajWalker2()" style="font-size:24px;">🐍</div>
+    </div>
+  `
+}
+
+function kopiujObiekt(){
+  if (!selectedObject) return
+  if (selectedObject.r) {
+    alert("❌ Nie można kopiować gracza")
+    return
+  }
+
+  copiedObject = JSON.parse(JSON.stringify(selectedObject))
+  trybKopiowania = true
+
+  document.getElementById("panel").innerHTML = `
+    <h3>KOPIOWANIE</h3>
+    Kliknij na planszy aby wkleić obiekt
+    <br><br>
+    <button onclick="showFxList()">anuluj</button>
+  `
+}
+
+function dodajGracza() {
+    if (players.length > 0) {
+        alert("Możliwy tylko jeden gracz!");
+        return;
+    }
+
+    let x = cameraX + canvas.width / 2;     // środek ekranu
+    let y = canvas.height / 2;              // środek ekranu (wysokość)
+
+    if (gridEnabled) {
+        x = snap(x);
+        y = snap(y);
+    }
+
+    players.push({
+        x: x,
+        y: y,
+        vx: 0,
+        vy: 0,
+        r: 20,
+        effects: []
+    });
+
+    selectedObject = players[players.length - 1];
+    showFxList();   // ← jeśli chcesz od razu pokazać panel FX (można usunąć)
+
+    // Zapamiętujemy punkt startowy gracza
+    if (players.length === 1) {
+        playerStartX = players[0].x;
+        playerStartY = players[0].y;
+    }
+}
+
+function ustawStartGracza() {
+  if (players.length === 0) return;
+
+  playerStartX = players[0].x;
+  playerStartY = players[0].y;
+
+  alert("📍 Punkt startowy zapisany");
+}
+
+function dodajPlatforme(typ) {
+  let solid = document.querySelector('input[name="solid"]:checked')?.value || "top";
+  
+  let x = cameraX + canvas.width / 2 - 60;   // środek ekranu - połowa szerokości
+  let y = canvas.height / 2 - 10;            // lekko powyżej środka (częściej wygodniej)
+  
+  if (gridEnabled) { 
+    x = snap(x); 
+    y = snap(y); 
+  }
+  
+  platforms.push({x, y, w:120, h:20, typ, solid, effects:[]});
+  selectedObject = platforms[platforms.length-1];
+  showFxList();
+}
+
+function dodajBlok() {
+  let x = cameraX + canvas.width / 2 - 80;   // środek - połowa szerokości bloku
+  let y = canvas.height / 2 - 80;            // środek - połowa wysokości
+  
+  if (gridEnabled) { 
+    x = snap(x); 
+    y = snap(y); 
+  }
+  
+  blocks.push({x, y, w:60, h:60, typ:"block", solid:"full", effects:[]});
+  selectedObject = blocks[blocks.length-1];
+  showFxList();
+}
+
+function dodajEnemy() {
+  let x = cameraX + canvas.width / 2 - 20;   // centrowanie kwadratu 40×40
+  let y = canvas.height / 2 - 20;
+  
+  if (gridEnabled) { 
+    x = snap(x); 
+    y = snap(y); 
+  }
+  
+  enemies.push({x, y, w:40, h:40, type:"enemy1", effects:[]});
+  selectedObject = enemies[enemies.length-1];
+  showFxList();
+}
+
+function dodajBonus(){
+  trybBonusy = false
+
+  let x = cameraX + canvas.width / 2
+  let y = canvas.height / 2
+
+  if (gridEnabled) {
+    x = snap(x)
+    y = snap(y)
+  }
+
+  bonuses.push({
+    x: x,
+    y: y,
+    r: 12,
+    angle: 0,        // 🔥 obrót
+    scale: 1,        // 🔥 puls
+    pulseTime: 0     // 🔥 czas animacji
+  })
+}
+
+function dodajKluczWin(){
+  let x = cameraX + canvas.width / 2
+  let y = canvas.height / 2
+
+  bonuses.push({
+    x, y,
+    r: 12,
+    type: "key_win",   // 🔥 ważne
+    pulseTime: 0,
+    scale: 1
+  })
+}
+
+function dodajGhost() {
+  let x = cameraX + canvas.width / 2 - 20;
+  let y = canvas.height / 2 - 20;
+  
+  if (gridEnabled) { 
+    x = snap(x); 
+    y = snap(y); 
+  }
+  
+  enemies.push({x, y, w:40, h:40, type:"ghost", effects:[]});
+  selectedObject = enemies[enemies.length-1];
+  showFxList();
+}
+
+function dodajWorm() {
+  let x = cameraX + canvas.width / 2 - 20;
+  let y = canvas.height / 2 - 20;
+  
+  if (gridEnabled) { 
+    x = snap(x); 
+    y = snap(y); 
+  }
+  
+  enemies.push({
+    x, y, w:40, h:40, type:"worm",
+    effects: [{type:"move", dx:1, dy:0, speed:0.8, distance:150, loop:true, travel:0, enabled:true}]
+  });
+  selectedObject = enemies[enemies.length-1];
+  showFxList();
+}
+
+function dodajFire() {
+  let x = cameraX + canvas.width / 2 - 20;
+  let y = canvas.height / 2 - 20;
+  
+  if (gridEnabled) { 
+    x = snap(x); 
+    y = snap(y); 
+  }
+  
+  enemies.push({x, y, w:40, h:40, type:"fire", effects:[]});
+  selectedObject = enemies[enemies.length-1];
+  showFxList();
+}
+
+function dodajSpikes() {
+  let x = cameraX + canvas.width / 2 - 20;
+  let y = canvas.height / 2 - 20;
+  
+  if (gridEnabled) { 
+    x = snap(x); 
+    y = snap(y); 
+  }
+  
+  enemies.push({x, y, w:40, h:40, type:"spikes", effects:[]});
+  selectedObject = enemies[enemies.length-1];
+  showFxList();
+}
+
+function dodajWater() {
+  let x = cameraX + canvas.width / 2 - 20;
+  let y = canvas.height / 2 - 20;
+  
+  if (gridEnabled) { 
+    x = snap(x); 
+    y = snap(y); 
+  }
+  
+  enemies.push({x, y, w:40, h:40, type:"water", effects:[]});
+  selectedObject = enemies[enemies.length-1];
+  showFxList();
+}
+
+function dodajWalker() {
+  let x = cameraX + canvas.width / 2 - 20;
+  let y = canvas.height / 2 - 20;
+  
+  if (gridEnabled) { 
+    x = snap(x); 
+    y = snap(y); 
+  }
+  
+  enemies.push({x, y, w:40, h:40, type:"walker", vx:1, vy:0, effects:[]});
+  selectedObject = enemies[enemies.length-1];
+  showFxList();
+}
+
+function dodajWalker2() {
+  let x = cameraX + canvas.width / 2 - 20;
+  let y = canvas.height / 2 - 20;
+  
+  if (gridEnabled) { 
+    x = snap(x); 
+    y = snap(y); 
+  }
+  
+  enemies.push({x, y, w:40, h:40, type:"walker2", vx:-1, vy:0, effects:[]});
+  selectedObject = enemies[enemies.length-1];
+  showFxList();
+}
+
+// ================= STEROWANIE =================
+function wybierzPole(pole){
+  aktywnePole = pole
+}
+
+document.addEventListener("keydown", e => {
+  if (aktywnePole) {
+    sterowanie[aktywnePole] = e.key
+    document.getElementById(aktywnePole).innerText = e.key
+    aktywnePole = null
+  }
+  keys[e.key] = true
+})
+
+document.addEventListener("keyup", e => {
+  keys[e.key] = false
+})
+
+// ================= MYSZ =================
+canvas.addEventListener("mousedown", e => {
+  if (trybGry || trybHTML) return
+  if (trybKopiowania && copiedObject) {
+    const rect = canvas.getBoundingClientRect()
+    const mx = e.clientX - rect.left + cameraX   // <--- poprawka na kamerę
+    const my = e.clientY - rect.top
+
+    let nowy = JSON.parse(JSON.stringify(copiedObject))
+
+    if (nowy.r) {
+      nowy.x = mx
+      nowy.y = my
+      players.push(nowy)
+    } else if (nowy.typ === "block") {
+      nowy.x = mx - (nowy.w || 80)/2
+      nowy.y = my - (nowy.h || 80)/2
+      blocks.push(nowy)
+    } else if (nowy.type !== undefined) {
+      nowy.x = mx - (nowy.w || 40)/2
+      nowy.y = my - (nowy.h || 40)/2
+      enemies.push(nowy)
+    } else {
+      nowy.x = mx - (nowy.w || 120)/2
+      nowy.y = my - (nowy.h || 20)/2
+      platforms.push(nowy)
+    }
+
+    trybKopiowania = false
+    selectedObject = nowy
+    showFxList()
+    return
+  }
+
+  const rect = canvas.getBoundingClientRect();
+  const mx = e.clientX - rect.left + cameraX;   // <--- + cameraX
+  const my = e.clientY - rect.top;
+
+  dragging = null;
+  resizing = null;
+
+  if (trybKasowania) {
+    for (const arr of [blocks, platforms, players, enemies]) {
+      for (let i = arr.length - 1; i >= 0; i--) {
+        const o = arr[i];
+        if (o.r) {
+          const dx = mx - o.x;
+          const dy = my - o.y;
+          if (Math.hypot(dx, dy) < o.r + 6) {
+            arr.splice(i, 1);
+            trybKasowania = false;
+            updateButtonStates();
+            return;
+          }
+        } else {
+          if (
+            mx >= o.x - 6 && mx <= o.x + o.w + 6 &&
+            my >= o.y - 6 && my <= o.y + o.h + 6
+          ) {
+            arr.splice(i, 1);
+            trybKasowania = false;
+            updateButtonStates();
+            return;
+          }
+        }
+      }
+    }
+    return;
+  }
+
+  if (trybFX) {
+    selectedObject = null;
+
+    for (const p of players) {
+      if (Math.hypot(mx - p.x, my - p.y) < p.r + 8) {
+        selectedObject = p;
+        showFxList();
+        return;
+      }
+    }
+
+    for (const arr of [platforms, blocks, enemies]) {
+      for (const obj of arr) {
+        if (
+          mx >= obj.x && mx <= obj.x + obj.w &&
+          my >= obj.y && my <= obj.y + obj.h
+        ) {
+          selectedObject = obj;
+          showFxList();
+          return;
+        }
+      }
+    }
+    return;
+  }
+
+  if (trybGry) return;
+
+
+  selectedObject = null;
+
+  // 🔥 BONUSY (łapanie myszą)
+  for (const bonus of bonuses) {
+    let dx = mx - bonus.x
+    let dy = my - bonus.y
+    let dist = Math.sqrt(dx*dx + dy*dy)
+
+    if (dist < bonus.r + 10) {
+      selectedObject = bonus
+      dragging = bonus
+
+      // 🔥 KLUCZOWE – zapamiętaj offset od środka
+      dragOffsetX = mx - bonus.x
+      dragOffsetY = my - bonus.y
+
+      return
+    }
+  }
+
+  // resize bloki
+  for (const b of blocks) {
+    if (mx > b.x + b.w - 12 && mx < b.x + b.w + 12 && my > b.y && my < b.y + b.h) {
+      resizing = b; resizing.resizeSide = "right"; selectedObject = b; return;
+    }
+
+    if (mx > b.x - 12 && mx < b.x + 12 && my > b.y && my < b.y + b.h) {
+      resizing = b; resizing.resizeSide = "left"; selectedObject = b; return;
+    }
+  }
+
+  for (const pl of platforms) {
+    if (mx > pl.x + pl.w - 12 && mx < pl.x + pl.w + 12 && my > pl.y && my < pl.y + pl.h) {
+      resizing = pl; resizing.resizeSide = "right"; selectedObject = pl; return;
+    }
+  }
+
+  // drag
+  for (const b of blocks) {
+    if (mx >= b.x && mx <= b.x + b.w && my >= b.y && my <= b.y + b.h) {
+      selectedObject = b;
+      dragging = b;
+      dragOffsetX = mx - b.x;
+      dragOffsetY = my - b.y;
+      return;
+    }
+  }
+
+    // ===== TEXTY (klik + drag) =====
+  for (const t of texts) {
+
+    if (
+      mx >= t.x - 60 &&
+      mx <= t.x + 60 &&
+      my >= t.y - 30 &&
+      my <= t.y + 30
+    ) {
+      selectedObject = t
+      dragging = t
+      dragOffsetX = mx - t.x
+      dragOffsetY = my - t.y
+      pokazPanelTekstu(t)   // 🔥 TO JEST KLUCZ
+      return
+    }
+  }    
+
+  for (const e of enemies) {
+    if (mx >= e.x && mx <= e.x + e.w && my >= e.y && my <= e.y + e.h) {
+      selectedObject = e;
+      dragging = e;
+      dragOffsetX = mx - e.x;
+      dragOffsetY = my - e.y;
+      return;
+    }
+  }
+
+  for (const pl of platforms) {
+    if (mx >= pl.x && mx <= pl.x + pl.w && my >= pl.y && my <= pl.y + pl.h) {
+      selectedObject = pl;
+      dragging = pl;
+      dragOffsetX = mx - pl.x;
+      dragOffsetY = my - pl.y;
+      return;
+    }
+  }
+
+  for (const p of players) {
+    if (Math.hypot(mx - p.x, my - p.y) < p.r + 8) {
+      selectedObject = p;
+      dragging = p;
+      dragOffsetX = mx - p.x;
+      dragOffsetY = my - p.y;
+      return;
+    }
+  }
+})
+
+canvas.addEventListener("mousemove", e => {
+  if (trybGry || trybHTML) return
+  const rect = canvas.getBoundingClientRect();
+  const mouseScreenX = e.clientX - rect.left;
+  const mouseScreenY = e.clientY - rect.top;
+
+  // Pozycja myszy w świecie (uwzględnia kamerę)
+  const mx = mouseScreenX + cameraX;
+  const my = mouseScreenY;
+
+  // ───────────────────────────── AUTO-SCROLL podczas dragowania ─────────────────────────────
+  if (dragging) {
+    const EDGE = 60;           // odległość od krawędzi ekranu (w pikselach)
+    const SCROLL_SPEED = 9;    // baza – będzie mnożona przez factor
+
+    // Lewa / prawa krawędź
+    if (mouseScreenX < EDGE) {
+      const factor = (EDGE - mouseScreenX) / EDGE;   // 0..1
+      cameraX -= SCROLL_SPEED * factor * factor;     // płynniejsze im bliżej krawędzi
+    }
+    else if (mouseScreenX > canvas.width - EDGE) {
+      const factor = (mouseScreenX - (canvas.width - EDGE)) / EDGE;
+      cameraX += SCROLL_SPEED * factor * factor;
+    }
+
+    // Opcjonalnie góra/dół – odkomentuj jeśli chcesz pionowy scroll
+    /*
+    if (mouseScreenY < EDGE) {
+      const factor = (EDGE - mouseScreenY) / EDGE;
+      // cameraY -= SCROLL_SPEED * factor * factor;   ← dodaj zmienną cameraY jeśli chcesz
+    }
+    else if (mouseScreenY > canvas.height - EDGE) {
+      const factor = (mouseScreenY - (canvas.height - EDGE)) / EDGE;
+      // cameraY += SCROLL_SPEED * factor * factor;
+    }
+    */
+  }
+
+  // ───────────────────────────── RESIZING ─────────────────────────────
+  if (resizing) {
+    let obj = resizing;
+
+    if (obj.resizeSide === "right") {
+      obj.w = mx - obj.x;
+      if (gridEnabled) obj.w = snap(obj.w);
+      if (obj.w < 20) obj.w = 20;
+    }
+    else if (obj.resizeSide === "bottom") {
+      obj.h = my - obj.y;
+      if (gridEnabled) obj.h = snap(obj.h);
+      if (obj.h < 20) obj.h = 20;
+    }
+    else if (obj.resizeSide === "left") {
+
+      const oldRight = obj.x + obj.w   // 🔥 zapamiętaj PRAWDZIWĄ prawą krawędź
+
+      let newX = mx
+      let newW = oldRight - newX
+
+      // 🔥 BLOKADA MIN SZEROKOŚCI
+      if (newW < 20) {
+        newW = 20
+        newX = oldRight - 20
+      }
+
+      if (gridEnabled) {
+        newX = snap(newX)              // snap tylko lewej
+      }
+
+      obj.x = newX
+      obj.w = oldRight - newX          // 🔥 prawa strona ZAWSZE stała
+    }
+    else if (obj.resizeSide === "top") {
+      const oldBottom = obj.y + obj.h;
+      obj.y = my;
+      obj.h = oldBottom - my;
+      if (gridEnabled) {
+        obj.y = snap(obj.y);
+        obj.h = snap(obj.h);
+      }
+      if (obj.h < 20) {
+        obj.h = 20;
+        obj.y = oldBottom - 20;
+      }
+    }
+
+    // Można tu dodać auto-scroll także podczas resizowania (opcjonalne)
+    // Wystarczy skopiować blok if(dragging) powyżej i zmienić dragging → resizing
+    return;
+  }
+
+  // ───────────────────────────── DRAG ─────────────────────────────
+  if (dragging) {
+    dragging.x = mx - dragOffsetX;
+    dragging.y = my - dragOffsetY;
+
+    if (gridEnabled) {
+      dragging.x = snap(dragging.x);
+      dragging.y = snap(dragging.y);
+    }
+
+    // Opcjonalnie – kamera podąża za przeciąganym obiektem (ładny efekt)
+    // const centerX = dragging.x + (dragging.w || dragging.r*2 || 40) / 2;
+    // const targetCam = centerX - canvas.width / 2;
+    // cameraX += (targetCam - cameraX) * 0.20;   // 0.12–0.25 = płynność
+  }
+});
+
+canvas.addEventListener("mouseup", () => {
+  dragging = null;
+  if (resizing) {
+    delete resizing.resizeSide;
+    resizing = null;
+  }
+});
+
+canvas.addEventListener("click", () => {
+
+  // 🔥 NA SAMEJ GÓRZE
+  if (showIntro) {
+    showIntro = false
+    return
+  }
+
+  if (gameState === "results" || gameState === "win") {
+    location.reload()
+  }
+
+})
+
+// ================= UPDATE =================
+function update(){
+
+  if (showIntro) return
+
+  if (gameState === "results" || gameState === "win") {
+    updateResults()
+    return
+  }
+  if (gameOver) return; 
+  // === CZAS ===
+  let now = Date.now()
+  let delta = (now - lastTime) / 1000
+  lastTime = now
+
+  if ((trybGry || trybHTML) && useTimer) {
+
+    if (counters.time > 0) {
+      counters.time = Math.max(0, counters.time - delta)
+    }
+
+    if (counters.time <= 0 && !pendingRespawn && hitPause === 0) {
+
+      if (useLives) counters.lives -= 1
+
+      // 🔥 NAJPIERW sprawdź koniec gry
+      if (useLives && counters.lives <= 0 && !gameOverTriggered) {
+
+        gameOverTriggered = true
+        gameOver = true
+
+        updateStats(false)
+
+        gameState = "results"
+        initResultsScene()
+
+        return   // 🔴 BLOKUJE reset czasu
+      }
+
+      // 🔥 dopiero potem efekt + reset
+      hitEffect = {
+        x: players[0]?.x || canvas.width/2,
+        y: players[0]?.y || canvas.height/2,
+        time: 60
+      }
+
+      hitPause = hitPauseTime
+
+      pendingRespawn = true
+      respawnPlayer = players[0]
+
+      counters.time = startTime   // ✅ tylko jeśli gra trwa dalej
+    }
+  }
+  if (hitPause > 0) {
+    hitPause--;
+
+    if (hitPause === 0 && pendingRespawn && players[0]) {
+      const p = players[0];
+
+      // === INTELIGENTNY RESPAWN ===
+      if (diedByFalling) {
+        // Śmierć przez wypadnięcie poza planszę → respawn przy lewej krawędzi
+        p.x = cameraX + 140;
+        p.y = 180;
+        console.log("Respawn przy lewej krawędzi (po wypadnięciu)");
+      } 
+      else if (respawnMode === "death") {
+        // Normalna śmierć + tryb "miejsce śmierci"
+        p.x = deathRespawnX;
+        p.y = deathRespawnY;
+      } 
+      else {
+        // Tryb "początek"
+        p.x = playerStartX;
+        p.y = playerStartY;
+      }
+
+      p.vx = diedByFalling ? 4 : 0;   // trochę większy rozpęd w prawo po wypadnięciu
+      p.y = Math.max(p.y, 100);       // bezpieczeństwo żeby nie respawnował pod ziemią
+      p.vy = -5;                    // mały podskok przy pojawieniu
+      invulnerable = invulnerabilityTime * 1.4;
+
+      pendingRespawn = false;
+      diedByFalling = false;        // reset flagi
+
+      console.log("Respawn wykonany");
+    }
+    return; // pauza ruchu podczas oczekiwania na respawn
+  }
+  if (!effectsPaused) {
+    for (let obj of [...platforms, ...blocks, ...enemies]) {
+      for (let fx of obj.effects) {
+        if (fx.enabled === false) continue
+        if (fx.type === "move") {
+          obj.x += fx.dx * fx.speed
+          obj.y += fx.dy * fx.speed
+          fx.travel += fx.speed
+          if (fx.travel >= fx.distance) {
+            if (fx.loop) {
+              fx.dx *= -1
+              fx.dy *= -1
+              fx.travel = 0
+            } else {
+              fx.speed = 0
+            }
+          }
+        }
+      }
+
+      if (obj.type === "ghost") {
+        if (dragging === obj) {
+          obj.baseY = obj.y
+          return
+        }
+        if (!obj.baseY) obj.baseY = obj.y
+        obj.floatTime = (obj.floatTime || 0) + 0.05
+        obj.y = obj.baseY + Math.sin(obj.floatTime) * 15
+      }
+
+      if (obj.type === "walker" || obj.type === "walker2") {
+        if (dragging === obj) return
+        obj.vy = (obj.vy || 0) + 0.5
+        obj.y += obj.vy
+        obj.x += obj.vx
+
+        if (obj.y > floorY - obj.h) {
+          obj.y = floorY - obj.h
+          obj.vy = 0
+        }
+
+        for (let pl of platforms) {
+          if (
+            obj.x + obj.w > pl.x &&
+            obj.x < pl.x + pl.w &&
+            obj.y + obj.h > pl.y &&
+            obj.y + obj.h < pl.y + pl.h + 10
+          ) {
+            obj.y = pl.y - obj.h
+            obj.vy = 0
+          }
+        }
+
+        // 🔥 KOLIZJA GÓRA ()
+        for (let b of blocks) {
+          if (
+            obj.x + obj.w > b.x &&
+            obj.x < b.x + b.w &&
+            obj.y + obj.h > b.y &&
+            obj.y + obj.h < b.y + 10
+          ) {
+            obj.y = b.y - obj.h
+            obj.vy = 0
+          }
+        }        
+
+        for (let b of blocks) {
+          if (
+            obj.x + obj.w > b.x &&
+            obj.x < b.x + b.w &&
+            obj.y + obj.h > b.y &&
+            obj.y < b.y + b.h
+          ) {
+            obj.vx = -obj.vx
+            obj.x += obj.vx
+            break
+          }
+        }
+
+        for (let pl of platforms) {
+          if (
+            obj.x + obj.w > pl.x &&
+            obj.x < pl.x + pl.w &&
+            obj.y + obj.h > pl.y &&
+            obj.y < pl.y + pl.h
+          ) {
+            obj.vx = -obj.vx
+            obj.x += obj.vx
+            break
+          }
+        }
+
+        if (obj.x < 0 || obj.x + obj.w > 10000) {   // szeroki świat
+          obj.vx = -obj.vx
+        }
+      }
+    }
+  }
+
+  if (!trybGry && !trybHTML) return
+
+  for (let p of players) {
+    p.vx = 0
+    if (keys[sterowanie.lewo]) p.vx = -4
+    if (keys[sterowanie.prawo]) p.vx = 4
+
+    if (keys[sterowanie.skok] && p.vy === 0) p.vy = -10
+
+    p.vy += gravity
+    p.x += p.vx
+    p.y += p.vy
+
+    if (p.y > floorY) {
+      p.y = floorY
+      p.vy = 0
+    }
+
+    for (let pl of platforms) {
+      if (p.x > pl.x - p.r && p.x < pl.x + pl.w + p.r) {
+        if (p.y + p.r > pl.y && p.y < pl.y + pl.h) {
+          if (pl.solid === "top" && p.vy > 0) {
+            p.y = pl.y - p.r
+            p.vy = 0
+          }
+          if (pl.solid === "full") {
+            if (p.vy > 0) { p.y = pl.y - p.r; p.vy = 0 }
+            if (p.vy < 0) { p.y = pl.y + pl.h + p.r; p.vy = 0 }
+          }
+        }
+      }
+    }
+
+    for (let b of blocks) {
+      if (
+        p.x + p.r > b.x &&
+        p.x - p.r < b.x + b.w &&
+        p.y + p.r > b.y &&
+        p.y - p.r < b.y + b.h
+      ) {
+        if (p.vy > 0 && p.y < b.y) {
+          p.y = b.y - p.r
+          p.vy = 0
+        }
+        else if (p.vy < 0 && p.y > b.y + b.h) {
+          p.y = b.y + b.h + p.r
+          p.vy = 0
+        }
+        else if (p.vx > 0 && p.x < b.x) {
+          p.x = b.x - p.r
+          p.vx = 0
+        }
+        else if (p.vx < 0 && p.x > b.x + b.w) {
+          p.x = b.x + b.w + p.r
+          p.vx = 0
+        }
+      }
+    }
+    
+  }
+
+  checkEnemyCollision();
+
+  // === SPADNIĘCIE POZA PLANSZĘ – 3 sekundy = strata życia ===
+  if (players.length > 0 && trybGry) {
+    const p = players[0];
+
+    const pozaPlansza = 
+      p.y > floorY + 150 || 
+      p.x < cameraX - 40 || 
+      p.x > cameraX + canvas.width + 40;
+
+    if (pozaPlansza) {
+      fallTimer++;
+
+// Napis pojawia się BARDZO szybko - po ~0.4 sekundy
+      if (fallTimer === 25 && !warningText) {
+        warningText = { time: 150 };   // pokazuje się przez ~2.5 sekundy
+      }
+
+      if (fallTimer >= FALL_TIME_LIMIT) {
+        console.log("💀 Śmierć przez wypadnięcie poza planszę");
+
+        diedByFalling = true;
+        if (useLives) counters.lives -= 1;
+
+        hitEffect = { x: p.x, y: Math.min(p.y, floorY), time: 60 };
+        hitPause = hitPauseTime;
+        pendingRespawn = true;
+        fallTimer = 0;
+        warningText = null;        // wyłączamy napis przy śmierci
+
+        if (useLives && counters.lives <= 0 && !gameOverTriggered) {
+          gameOverTriggered = true;
+          gameOver = true;
+          updateStats(false);
+          gameState = "results";
+          initResultsScene();
+          return;
+        }
+      }
+    } else {
+      fallTimer = 0;
+      warningText = null;   // gracz wrócił → znikamy napis
+    }
+  }
+
+  // 💎 ANIMACJA BONUSÓW
+  for (let b of bonuses) {
+
+    // zabezpieczenie (stare save'y)
+    if (!b.pulseTime) b.pulseTime = 0
+    if (!b.scale) b.scale = 1
+    if (!b.angle) b.angle = 0
+
+    b.pulseTime += 0.05
+
+    // 🔥 puls (0.9 – 1.1)
+    b.scale = 1 + Math.sin(b.pulseTime) * 0.05
+
+  }
+
+  // 💎 ZBIERANIE BONUSÓW
+  for (let i = bonuses.length - 1; i >= 0; i--) {
+    let b = bonuses[i]
+    let p = players[0]
+
+    if (!p) continue
+
+    let dx = p.x - b.x
+    let dy = p.y - b.y
+    let dist = Math.sqrt(dx*dx + dy*dy)
+
+    if (dist < p.r + b.r) {
+
+      // 🔑 WYGRANA
+      if (b.type === "key_win") {
+
+        gameOver = true
+        gameOverTriggered = true
+        updateStats(true)
+        gameState = "win"
+        initResultsScene()
+
+        return
+      }
+
+      // 💎 punkty
+      counters.points += 1
+      bonuses.splice(i, 1)
+    }
+  }
+
+  // ──────────────────────── KAMERA ────────────────────────
+  // KAMERA
+  if (players.length > 0 && (trybGry || trybHTML)) {
+
+    const player = players[0]
+
+    // 🔥 JEŚLI AUTO SCROLL WŁĄCZONY → kamera leci sama
+    if (autoScroll) {
+
+      cameraX += autoScrollSpeed
+
+    } else {
+
+      // normalne śledzenie gracza
+      const targetX = player.x - canvas.width / 2 + player.r
+      cameraX += (targetX - cameraX) * 0.12
+
+    }
+
+    // 🔒 ograniczenie do świata
+    cameraX = Math.max(0, Math.min(cameraX, worldWidth - canvas.width))
+
+    // 🔄 pasek scrolla
+    syncScrollbar()
+  }
+}
+
+// ================= DRAW =================
+function setBG(type){
+  backgroundType = type;
+  // opcjonalnie:
+  // zapiszProjekt()
+}
+
+function draw(){
+
+  if (showIntro) {
+
+    // półprzezroczyste tło
+    ctx.fillStyle = "rgba(0,0,0,0.7)"
+    ctx.fillRect(0, 0, canvas.width, canvas.height)
+
+    ctx.fillStyle = "white"
+    ctx.textAlign = "center"
+
+    ctx.font = "30px Arial"
+    ctx.fillText(
+      autorGry || projectName,
+      canvas.width / 2,
+      canvas.height / 2
+    )
+
+    ctx.font = "16px Arial"
+    ctx.fillText(
+      "Kliknij aby rozpocząć",
+      canvas.width / 2,
+      canvas.height / 2 + 40
+    )
+
+    return
+  }  
+
+  if (gameState === "results" || gameState === "win") {
+    drawResults()
+    return
+  }  
+  ctx.clearRect(0,0,canvas.width,canvas.height)
+  drawBackground();
+
+  ctx.save()
+  ctx.translate(-cameraX, 0)
+
+  if (gridEnabled) {
+    ctx.strokeStyle = "#88a"
+    for (let x = cameraX - 100; x < cameraX + canvas.width + 100; x += gridSize) {
+      ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,canvas.height); ctx.stroke()
+    }
+    for (let y = 0; y < canvas.height; y += gridSize) {
+      ctx.beginPath(); ctx.moveTo(cameraX - 100, y); ctx.lineTo(cameraX + canvas.width + 100, y); ctx.stroke()
+    }
+  }
+
+for (let pl of platforms) {
+
+  const x = pl.x;
+  const y = pl.y;
+  const w = pl.w;
+  const h = pl.h || 20;
+
+  // NEON (jeśli włączony)
+  let neon = pl.effects?.some(fx => fx.type === "neon" && fx.enabled !== false);
+  if (neon) {
+    let t = Date.now() * 0.001;
+    let pulse = 10 + Math.sin(t) * 10;
+    ctx.shadowColor = "#00ffff";
+    ctx.shadowBlur = pulse;
+  }
+
+  if (pl.typ === "line") {
+    // ==================== CIENKA LINIA ====================
+    ctx.fillStyle = "#8B5A2B";
+    ctx.fillRect(x, y + 7, w, 6);                    // bardzo cienka platforma
+
+    ctx.strokeStyle = "#3F2A1D";
+    ctx.lineWidth = 2.5;
+    ctx.strokeRect(x + 2, y + 5, w - 4, 10);
+
+    // subtelny słoj drewna
+    ctx.strokeStyle = "#A67C5D";
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.moveTo(x + 10, y + 10);
+    ctx.lineTo(x + w - 10, y + 10);
+    ctx.stroke();
+
+  } else if (pl.typ === "round") {
+    // ==================== ZAOKRĄGLONA PLATFORMY ====================
+    ctx.fillStyle = "#8B5A2B";
+    ctx.beginPath();
+    ctx.roundRect(x, y, w, h, 14);     // duże zaokrąglenie
+    ctx.fill();
+
+    ctx.strokeStyle = "#3F2A1D";
+    ctx.lineWidth = 3.5;
+    ctx.beginPath();
+    ctx.roundRect(x + 2, y + 2, w - 4, h - 4, 12);
+    ctx.stroke();
+
+    // słoje drewna
+    ctx.strokeStyle = "#A67C5D";
+    ctx.lineWidth = 2.2;
+    for (let i = 1; i < 5; i++) {
+      let py = y + (h * i / 5);
+      ctx.beginPath();
+      ctx.moveTo(x + 12, py);
+      ctx.quadraticCurveTo(x + w*0.4, py + (i%2 ? -2 : 2), x + w - 12, py);
+      ctx.stroke();
+    }
+
+  } else {
+    // ==================== PROSTOKĄT (domyślny) ====================
+    ctx.fillStyle = "#8B5A2B";
+    ctx.fillRect(x, y, w, h);
+
+    ctx.strokeStyle = "#3F2A1D";
+    ctx.lineWidth = 3.5;
+    ctx.strokeRect(x + 2, y + 2, w - 4, h - 4);
+
+    // słoje drewna
+    ctx.strokeStyle = "#A67C5D";
+    ctx.lineWidth = 2.2;
+    for (let i = 1; i < 5; i++) {
+      let py = y + (h * i / 5);
+      ctx.beginPath();
+      ctx.moveTo(x + 10, py);
+      ctx.quadraticCurveTo(x + w*0.45, py + (i%2 ? 2 : -2), x + w - 10, py);
+      ctx.stroke();
+    }
+  }
+
+  ctx.shadowBlur = 0;
+
+  // Zaznaczenie wybranego obiektu
+  if (pl === selectedObject) {
+    ctx.strokeStyle = "red";
+    ctx.lineWidth = 3;
+    ctx.setLineDash([4, 4]);
+    ctx.strokeRect(x - 3, y - 3, w + 6, h + 6);
+    ctx.setLineDash([]);
+  }
+}
+
+for (let b of blocks) {
+
+  const x = b.x;
+  const y = b.y;
+  const w = b.w;
+  const h = b.h;
+
+  // === NEON (jeśli jest włączony) ===
+  let neon = b.effects?.some(fx => fx.type === "neon" && fx.enabled !== false);
+  if (neon) {
+    let t = Date.now() * 0.001;
+    let pulse = 10 + Math.sin(t) * 10;
+    ctx.shadowColor = "#00ffff";
+    ctx.shadowBlur = pulse;
+  }
+
+  // 1. Główna powierzchnia - kolor drewna
+  ctx.fillStyle = "#8B5A2B";        // ładny brąz drewna
+  ctx.fillRect(x, y, w, h);
+
+  // 2. Delikatna ciemna ramka wokół (bardzo cienka)
+  ctx.strokeStyle = "#3F2A1D";
+  ctx.lineWidth = 3;
+  ctx.strokeRect(x + 1.5, y + 1.5, w - 3, h - 3);
+
+  // 3. Imitacja drewna / słoje wewnątrz
+
+  ctx.strokeStyle = "#A67C5D";      // jaśniejszy brąz na słoje
+  ctx.lineWidth = 2.5;
+
+  // Poziome deski / słoje drewna
+  for (let i = 1; i < 6; i++) {
+    let py = y + (h * i / 6);
+    
+    ctx.beginPath();
+    ctx.moveTo(x + 6, py);
+    ctx.quadraticCurveTo(
+      x + w * 0.35, py + (i % 2 === 0 ? -2 : 2),
+      x + w - 6, py
+    );
+    ctx.stroke();
+  }
+
+  // Dodatkowe lekkie pionowe/zakrzywione słoje dla naturalności
+  ctx.lineWidth = 1.8;
+  ctx.strokeStyle = "#6B4426";      // ciemniejsze słoje
+
+  ctx.beginPath();
+  ctx.moveTo(x + w*0.25, y + 8);
+  ctx.quadraticCurveTo(x + w*0.55, y + h*0.45, x + w*0.22, y + h - 10);
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.moveTo(x + w*0.72, y + 12);
+  ctx.quadraticCurveTo(x + w*0.45, y + h*0.6, x + w*0.78, y + h - 8);
+  ctx.stroke();
+
+  // Reset shadow po neonie
+  ctx.shadowBlur = 0;
+
+  // Zaznaczenie wybranego obiektu
+  if (b === selectedObject) {
+    ctx.strokeStyle = "red";
+    ctx.lineWidth = 3;
+    ctx.setLineDash([4, 4]);
+    ctx.strokeRect(x - 3, y - 3, w + 6, h + 6);
+    ctx.setLineDash([]);
+  }
+}
+
+  for (let p of players) {
+    // ✨ Migotanie podczas nieśmiertelności
+    if (invulnerable > 0 && Math.floor(invulnerable / 5) % 2 === 0) {
+      continue; // pomiń rysowanie tej klatki = efekt mrugania
+    }
+
+    ctx.fillStyle = "red";
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+    ctx.fill();
+
+    if (p === selectedObject) {
+      ctx.strokeStyle = "yellow";
+      ctx.lineWidth = 3;
+      ctx.stroke();
+    }
+  }
+
+  for (let e of enemies) {
+
+    ctx.globalAlpha = 1
+    ctx.fillStyle = "white"
+
+    const x = e.x;
+    const y = e.y;
+    const w = e.w || 40;
+    const h = e.h || 40;
+
+    if (e.type === "ghost") {
+      let float = 0;
+      let moving = e.effects && e.effects.some(fx => fx.type === "move" && fx.enabled !== false);
+      if (!moving && dragging !== e) {
+        float = Math.sin(Date.now() * 0.003 + e.x) * 6;
+      }
+      ctx.font = (h * 0.8) + "px Arial";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText("👻", x + w/2, y + h/2 + float);
+    }
+    else if (e.type === "worm") {
+      ctx.font = (h * 0.8) + "px Arial";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText("👹", x + w/2, y + h/2);
+    }
+    else if (e.type === "enemy1") {
+
+      let s = w / 8
+
+      // ciało (ciemny fiolet - dół)
+      ctx.fillStyle = "#6a35d4"
+      ctx.fillRect(x + 1*s, y + 2*s, 6*s, 4*s)
+
+      // góra (jaśniejszy pasek)
+      ctx.fillStyle = "#8a5cff"
+      ctx.fillRect(x + 2*s, y + 1*s, 4*s, 2*s)
+
+      // oczy
+      ctx.fillStyle = "white"
+      ctx.fillRect(x + 2*s, y + 2*s, s, s)
+      ctx.fillRect(x + 5*s, y + 2*s, s, s)
+
+      // źrenice (jasny błękit)
+      ctx.fillStyle = "#6ecbff"
+      ctx.fillRect(x + 2*s + 0.25*s, y + 2*s + 0.25*s, 0.5*s, 0.5*s)
+      ctx.fillRect(x + 5*s + 0.25*s, y + 2*s + 0.25*s, 0.5*s, 0.5*s)
+
+      // nogi (turkus)
+      ctx.fillStyle = "#00e5ff"
+      ctx.fillRect(x + 2*s, y + 6*s, s, s)
+      ctx.fillRect(x + 5*s, y + 6*s, s, s)
+    }
+    else if (e.type === "water") {
+      let float = Math.sin(Date.now() * 0.002) * 3;
+      ctx.font = (h * 0.8) + "px Arial";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText("🌊", x + w/2, y + h/2 + float);
+    }
+    else if (e.type === "fire") {
+      let float = Math.sin(Date.now() * 0.004) * 2;
+      ctx.font = (h * 0.8) + "px Arial";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText("🔥", x + w/2, y + h/2 + float);
+    }
+    else if (e.type === "spikes") {
+      ctx.font = (h * 0.8) + "px Arial";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText("🔺", x + w/2, y + h/2);
+    }
+    else if (e.type === "walker") {
+      ctx.font = (h * 0.8) + "px Arial";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText("👽", x + w/2, y + h/2);
+    }
+    else if (e.type === "walker2") {
+      ctx.font = (h * 0.8) + "px Arial";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText("🐍", x + w/2, y + h/2);
+    }
+    else {
+      ctx.fillStyle = "#7b3fe4";
+      ctx.fillRect(x, y, w, h);
+    }
+
+    if (e === selectedObject) {
+      ctx.strokeStyle = "red";
+      ctx.lineWidth = 3;
+      ctx.strokeRect(x, y, w, h);
+    }
+  }
+  
+  for (let b of bonuses) {
+
+    ctx.save()
+
+    ctx.translate(b.x, b.y)
+
+    let scale = b.scale || 1
+    ctx.scale(scale, scale)
+
+    ctx.font = "22px Arial"
+    ctx.textAlign = "center"
+    ctx.textBaseline = "middle"
+
+    ctx.fillText(
+      b.type === "key_win" ? "🔑" : "💎",
+      0, 0
+    )
+    ctx.restore()
+  }
+
+  ctx.restore()
+
+  // 💀 efekt trafienia
+  if (hitEffect) {
+    hitEffect.time--;
+
+    if (Math.floor(hitEffect.time / 5) % 2 === 0) {
+      ctx.font = "50px Arial";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText("💀", hitEffect.x - cameraX, hitEffect.y);
+    }
+
+    if (hitEffect.time <= 0) {
+      hitEffect = null;
+    }
+  }
+
+for (let t of texts) {
+
+  const screenX = t.x - cameraX;   // pozycja na ekranie
+
+  ctx.save();
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.font = t.size + "px " + (t.font || "Arial");
+
+  // === 1. Neon glow (kilka warstw shadow dla mocnego efektu) ===
+  if (t.neon === true) {                    // dodamy flagę neon
+    ctx.shadowColor = t.neonColor || "#00ffff";   // cyan, możesz zmienić na #ff00ff itp.
+    ctx.shadowBlur = 15;
+
+    // kilka warstw dla mocniejszego neonu
+    ctx.fillStyle = t.neonColor || "#00ffff";
+    ctx.fillText(t.text, screenX, t.y);
+
+    ctx.shadowBlur = 30;
+    ctx.fillText(t.text, screenX, t.y);
+
+    ctx.shadowBlur = 50;
+    ctx.fillText(t.text, screenX, t.y);
+  }
+
+  // === 2. Główny tekst (biały lub kolorowy) ===
+  ctx.shadowBlur = 0;                 // wyłączamy blur
+  ctx.fillStyle = t.color || "white";
+  ctx.fillText(t.text, screenX, t.y);
+
+  // === 3. Opcjonalna ramka / outline (stroke) ===
+  if (t.outline === true) {
+    ctx.strokeStyle = t.outlineColor || "#ffffff";
+    ctx.lineWidth = t.outlineWidth || 4;
+    ctx.lineJoin = "round";           // ładniejsze rogi
+    ctx.strokeText(t.text, screenX, t.y);
+  }
+
+  // zaznaczenie w trybie edycji
+  if (t === selectedObject) {
+    ctx.strokeStyle = "red";
+    ctx.lineWidth = 3;
+    ctx.setLineDash([4, 4]);
+    ctx.strokeRect(screenX - 60, t.y - 35, 120, 70);
+    ctx.setLineDash([]);
+  }
+
+  ctx.restore();
+}
+
+  // === ❤️ HUD - ŻYCIA ===
+  ctx.fillStyle = "white";
+  ctx.font = "20px Arial";
+  ctx.textAlign = "left";
+  
+  ctx.fillText("❤️ ".repeat(Math.max(0, counters.lives)), 20, 30);
+  ctx.textAlign = "center";
+  ctx.fillText("⭐ " + counters.points, canvas.width / 2, 30);
+  ctx.textAlign = "right";
+  ctx.fillText("⏱ " + Math.ceil(counters.time), canvas.width - 20, 30);
+
+  // === OSTRZEŻENIE - WRACAJ SZYBKO! ===
+  if (warningText) {
+    warningText.time--;
+    if (warningText.time <= 0) warningText = null;
+
+    const alpha = Math.sin(Date.now() * 0.008) * 0.3 + 0.7;
+
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.shadowColor = "#ff0000";
+    ctx.shadowBlur = 30;
+    
+    ctx.font = "bold 58px Arial";
+    ctx.textAlign = "center";
+    ctx.fillStyle = "#ff2222";
+    ctx.fillText("WRACAJ SZYBKO!", canvas.width/2, canvas.height/2 - 40);
+
+    ctx.font = "bold 26px Arial";
+    ctx.fillStyle = "#ff8888";
+    ctx.fillText("Spadniesz za chwilę!", canvas.width/2, canvas.height/2 + 30);
+    ctx.restore();
+  }
+
+  // podłoga – zawsze na dole ekranu
+  ctx.fillStyle = "#444"
+  ctx.fillRect(0, 450, 800, 50)
+}
+
+// ================= ZAPIS / WCZYTANIE =================
+let folderHandle = null
+let projectName = "projekt"
+let loadedFromFile = false
+
+async function zapiszProjekt(){
+
+  const data = {
+    level: {
+      players,
+      platforms,
+      blocks,
+      enemies,
+      bonuses,
+      texts,
+      sterowanie,
+      counters,
+      startTime,
+      useTimer,
+      autorGry: autorGry,
+      backgroundType,
+      playerStart: {
+        x: playerStartX,
+        y: playerStartY
+      },
+      respawnMode: respawnMode,
+      autoScroll,
+      autoScrollSpeed,  
+      worldWidth: worldWidth,    
+    },
+    stats: gameData.stats || {}
+  }
+
+  // 🔥 jeśli nie mamy pliku → wybierz
+  if (!fileHandle) {
+    fileHandle = await window.showSaveFilePicker({
+      suggestedName: projectName + ".json",
+      types: [{
+        description: "JSON",
+        accept: { "application/json": [".json"] }
+      }]
+    })
+  }
+
+  const writable = await fileHandle.createWritable()
+  await writable.write(JSON.stringify(data, null, 2))
+  await writable.close()
+
+  alert("Gra zapisana ✔️")
+}
+
+function checkEnemyCollision() {
+  if (gameOver || players.length === 0) return;
+  if (invulnerable > 0) {
+    invulnerable--;
+    return;
+  }
+  
+  const player = players[0];
+
+  for (let enemy of enemies) {
+
+    let ex = enemy.x, ey = enemy.y;
+    let ew = enemy.w || 40, eh = enemy.h || 40;
+
+    const margin = 0; // 🔥 ile poza ekranem jeszcze liczymy wroga
+
+    // 🔥 poza ekranem (z marginesem) = brak kolizji
+    if (
+      ex + ew < cameraX - margin || 
+      ex > cameraX + canvas.width + margin
+    ) {
+      continue;
+    }
+
+    let px = player.x - player.r, py = player.y - player.r;
+    let pw = player.r * 2, ph = player.r * 2;
+
+    // Kolizja AABB
+    if (px < ex + ew && px + pw > ex && py < ey + eh && py + ph > ey) {
+      
+      // 💀 ZAPISZ MIEJSCE ŚMIERCI jako nowy respawn!
+      deathRespawnX = player.x;
+      deathRespawnY = player.y;
+
+      // Odejmij życie
+      if (useLives) counters.lives--;
+
+      // Efekt wizualny śmierci
+      hitEffect = { x: player.x, y: player.y, time: 60 };
+
+      // Game Over?
+      if (useLives && counters.lives <= 0 && !gameOverTriggered) {
+        gameOverTriggered = true;
+        gameOver = true;
+        updateStats(false);
+        gameState = "results";
+        initResultsScene();
+        return;
+      }
+
+      // 🔄 Przygotuj respawn w miejscu śmierci
+      hitPause = hitPauseTime;
+      pendingRespawn = true;
+      invulnerable = invulnerabilityTime;
+      
+      return; // jedno trafienie na klatkę
+    }
+  }
+}
+
+
+function initResultsScene(){
+  resultsEnemies = []
+
+  for (let i = 0; i < 6; i++) {
+    resultsEnemies.push({
+      angle: i * (Math.PI * 2 / 6),
+      dist: 120,
+      speed: 0.02 + Math.random() * 0.02
+    })
+  }
+}
+
+function drawResults(){
+
+  ctx.fillStyle = "black"
+  ctx.fillRect(0,0,canvas.width,canvas.height)
+
+  // 🔴 gracz
+  ctx.fillStyle = "red"
+  ctx.beginPath()
+  ctx.arc(resultsBall.x, resultsBall.y, resultsBall.r, 0, Math.PI*2)
+  ctx.fill()
+
+  let count = resultsEnemies.length
+
+  // 👻 duchy
+  for (let i = 0; i < count; i++) {
+
+    let e = resultsEnemies[i]
+
+    // 🔥 TWOJE SPOWOLNIENIE
+    let slowAngle = e.angle * 0.25
+
+    // 🔥 DODAJEMY ROZSTAWIENIE DOOKOŁA
+    let baseAngle = (i / count) * Math.PI * 2
+
+    let finalAngle = slowAngle + baseAngle
+
+    let x = resultsBall.x + Math.cos(finalAngle) * e.dist
+    let y = resultsBall.y + Math.sin(finalAngle) * e.dist
+
+    ctx.font = "32px Arial"
+    ctx.textAlign = "center"
+    ctx.textBaseline = "middle"
+    ctx.fillText("👻", x, y)
+  }
+
+  // tekst
+  ctx.fillStyle = "white"
+  ctx.textAlign = "center"
+
+  ctx.font = "40px Arial"
+  let isWin = (gameState === "win")
+
+  ctx.fillStyle = isWin ? "#00ff88" : "white"
+  ctx.fillText(
+    isWin ? "GRATULACJE!!!" : "KONIEC GRY",
+    canvas.width/2,
+    80
+  )
+  ctx.font = "22px Arial"
+  ctx.fillText("Punkty: " + counters.points, canvas.width/2, 300)
+  ctx.fillText("Życia: " + counters.lives, canvas.width/2, 330)
+  ctx.fillText("Czas: " + Math.ceil(counters.time), canvas.width/2, 360)
+
+  ctx.fillText("Kliknij aby zrestartować", canvas.width/2, 420)
+}
+
+function updateResults(){
+  for (let e of resultsEnemies) {
+    e.angle += e.speed
+  }
+}
+
+function wczytajProjekt(){
+  const input = document.createElement("input")
+  input.type = "file"
+
+  input.onchange = e => {
+    const file = e.target.files[0]
+    projectName = file.name.replace(".json", "")
+    loadedFromFile = true
+    const reader = new FileReader()
+
+    reader.onload = ev => {
+      const data = JSON.parse(ev.target.result)
+
+      gameData = data || {}
+      gameData.stats = gameData.stats || {}
+
+      players = gameData.level?.players || []
+      platforms = gameData.level?.platforms || []
+      blocks = gameData.level?.blocks || []
+      enemies = gameData.level?.enemies || []
+      bonuses = gameData.level?.bonuses || []
+      texts = gameData.level?.texts || []
+      backgroundType = gameData.level?.backgroundType || "none";
+      playerStartX = gameData.level?.playerStart?.x ?? players[0]?.x ?? 100;
+      playerStartY = gameData.level?.playerStart?.y ?? players[0]?.y ?? 100; 
+      respawnMode = gameData.level?.respawnMode || "death"
+      autoScroll = gameData.level?.autoScroll || false;
+      autoScrollSpeed = gameData.level?.autoScrollSpeed || 2;
+      worldWidth = gameData.level?.worldWidth || 6000;
+      scrollX.max = worldWidth - canvas.width;
+
+      sterowanie = gameData.level?.sterowanie || {lewo:null, prawo:null, skok:null}
+
+      counters = {
+        lives: gameData.level?.counters?.lives ?? 3,
+        points: gameData.level?.counters?.points ?? 0,
+        time: gameData.level?.counters?.time ?? 60
+      };
+
+      // 🔥 NAJWAŻNIEJSZE
+      startTime = gameData.level?.startTime ?? counters.time;
+
+      useTimer = gameData.level?.useTimer ?? true
+
+      autorGry = gameData.level?.autorGry || projectName
+      showIntro = true      
+
+      lastTime = Date.now()
+      selectedObject = null
+      trybKopiowania = false
+
+      updateButtonStates()
+    }
+
+    reader.readAsText(file)
+  }
+
+  input.click()
+}
+
+function zapiszHTML(){
+  trybHTML = true
+  document.getElementById("topbar").style.display = "none"
+  document.getElementById("lewy").style.display = "none"
+  document.getElementById("prawy").style.display = "none"
+  canvas.focus()
+}
+
+function otworzGre(){
+  document.getElementById("menuStart").style.display = "none"
+  document.getElementById("editor").style.display = "block"
+
+  setTimeout(() => {
+    const input = document.createElement("input")
+    input.type = "file"
+
+    input.onchange = e => {
+      const file = e.target.files[0]
+      const reader = new FileReader()
+
+      reader.onload = ev => {
+      const data = JSON.parse(ev.target.result)
+
+      gameData = data || {}
+      gameData.stats = gameData.stats || {}
+
+      players = gameData.level?.players || []
+      platforms = gameData.level?.platforms || []
+      blocks = gameData.level?.blocks || []
+      enemies = gameData.level?.enemies || []
+      bonuses = gameData.level?.bonuses || []
+      texts = gameData.level?.texts || []
+      backgroundType = gameData.level?.backgroundType || "none";
+
+      playerStartX = gameData.level?.playerStart?.x ?? players[0]?.x ?? 100;
+      playerStartY = gameData.level?.playerStart?.y ?? players[0]?.y ?? 100;
+
+        sterowanie = gameData.level?.sterowanie || {lewo:null, prawo:null, skok:null}
+        counters = {
+          lives: gameData.level?.counters?.lives ?? 3,
+          points: gameData.level?.counters?.points ?? 0,
+          time: gameData.level?.counters?.time ?? 60
+        };
+
+        // 🔥 TO DODAJESZ
+        startTime = gameData.level?.startTime ?? counters.time;
+
+        useTimer = gameData.level?.useTimer ?? true
+
+        lastTime = Date.now();
+
+        selectedObject = null
+        trybKopiowania = false
+        updateButtonStates()
+        zapiszHTML()
+      }
+
+      reader.readAsText(file)
+    }
+
+    input.click()
+  }, 50)
+}
+
+
+// ================= TEKST – DODAWANIE I EDYCJA =================
+
+function dodajTekst() {
+  pokazPanelTekstu(null);     // null = tryb dodawania nowego tekstu
+}
+
+function pokazPanelTekstu(t = null) {
+  const isEdit = !!t;
+
+  let html = `<h3>${isEdit ? "EDYTUJ TEKST" : "DODAJ TEKST"}</h3>`;
+
+  html += `
+    Treść:<br>
+    <input id="txtInput" type="text" style="width:100%" 
+           value="${isEdit ? (t.text || '') : ''}" placeholder="Wpisz tekst"><br><br>
+
+    Rozmiar:<br>
+    <input id="txtSize" type="number" value="${isEdit ? (t.size || 28) : 28}"><br><br>
+
+    Kolor tekstu:<br>
+    <input id="txtColor" type="color" value="${isEdit ? (t.color || '#ffffff') : '#ffffff'}"><br><br>
+
+    <label><input type="checkbox" id="txtNeon" ${isEdit && t.neon ? 'checked' : ''}> Neon glow</label><br>
+    Kolor neonu: <input id="txtNeonColor" type="color" value="${isEdit ? (t.neonColor || '#00ffff') : '#00ffff'}"><br><br>
+
+    <label><input type="checkbox" id="txtOutline" ${isEdit && t.outline ? 'checked' : ''}> Ramka (outline)</label><br>
+    Kolor ramki: <input id="txtOutlineColor" type="color" value="${isEdit ? (t.outlineColor || '#ffffff') : '#ffffff'}"><br>
+    Grubość ramki: <input id="txtOutlineWidth" type="number" value="${isEdit ? (t.outlineWidth || 5) : 5}" style="width:70px;"><br><br>
+
+    Font:<br>
+    <select id="txtFont">
+      <option value="Arial" ${isEdit && t.font === "Arial" ? "selected" : ""}>Arial</option>
+      <option value="Verdana" ${isEdit && t.font === "Verdana" ? "selected" : ""}>Verdana</option>
+      <option value="Impact" ${isEdit && t.font === "Impact" ? "selected" : ""}>Impact</option>
+      <option value="Courier New" ${isEdit && t.font === "Courier New" ? "selected" : ""}>Courier New</option>
+    </select>
+
+    <br><br>
+  `;
+
+  if (isEdit) {
+    html += `
+      <button onclick="zapiszEdycjeTekstu()">💾 ZAPISZ ZMIANY</button>
+      <button onclick="usunAktualnyTekst()" class="danger">🗑 USUŃ TEKST</button>
+      <button onclick="zamknijPanel()">Anuluj</button>
+    `;
+  } else {
+    html += `
+      <button onclick="zapiszNowyTekst()">✅ DODAJ TEKST</button>
+      <button onclick="zamknijPanel()">Anuluj</button>
+    `;
+  }
+
+  document.getElementById("panel").innerHTML = html;
+}
+
+function zamknijPanel() {
+  document.getElementById("panel").innerHTML = `<h3>PANEL</h3><div>Wybierz narzędzie z góry.</div>`;
+}
+
+function pokazTloPanel(){
+  let html = `
+    <h3>TŁO</h3>
+
+    <button onclick="setBG('city')">Miasto</button><br><br>
+    <button onclick="setBG('stars')">Gwiazdy</button><br><br>
+    <button onclick="setBG('west')">Dziki zachód</button><br><br>
+    <button onclick="setBG('rain')">Deszcz</button><br><br>
+    <button onclick="setBG('neon')">Las</button><br><br>
+    <button onclick="setBG('snow')">Śnieg</button><br><br>
+    <button onclick="setBG('space')">Góry</button><br><br>   
+
+    <!-- NOWY PRZYCISK - ZERUJE TŁO -->
+    <button onclick="resetBackground()" class="danger" style="margin-top:15px;">
+      ❌ Wyłącz tło
+    </button>
+  `;
+
+  document.getElementById("panel").innerHTML = html;
+}
+
+function zapiszNowyTekst() {
+  let txt = document.getElementById("txtInput").value.trim();
+  if (!txt) {
+    alert("Wpisz jakąś treść tekstu!");
+    return;
+  }
+
+  texts.push({
+    x: cameraX + canvas.width / 2,
+    y: canvas.height / 2,
+    text: txt,
+    size: Number(document.getElementById("txtSize").value) || 28,
+    font: document.getElementById("txtFont").value,
+    color: document.getElementById("txtColor").value,
+
+    neon: document.getElementById("txtNeon").checked,
+    neonColor: document.getElementById("txtNeonColor").value,
+
+    outline: document.getElementById("txtOutline").checked,
+    outlineColor: document.getElementById("txtOutlineColor").value,
+    outlineWidth: Number(document.getElementById("txtOutlineWidth").value) || 5
+  });
+
+  zamknijPanel();
+}
+
+function zapiszEdycjeTekstu() {
+  if (!selectedObject || selectedObject.text === undefined) return;
+
+  selectedObject.text = document.getElementById("txtInput").value.trim() || "Tekst";
+  selectedObject.size = Number(document.getElementById("txtSize").value) || 28;
+  selectedObject.font = document.getElementById("txtFont").value;
+  selectedObject.color = document.getElementById("txtColor").value;
+
+  selectedObject.neon = document.getElementById("txtNeon").checked;
+  selectedObject.neonColor = document.getElementById("txtNeonColor").value;
+
+  selectedObject.outline = document.getElementById("txtOutline").checked;
+  selectedObject.outlineColor = document.getElementById("txtOutlineColor").value;
+  selectedObject.outlineWidth = Number(document.getElementById("txtOutlineWidth").value) || 5;
+
+  pokazPanelTekstu(selectedObject);   // odśwież panel
+}
+
+function usunAktualnyTekst() {
+  if (!selectedObject || selectedObject.text === undefined) return;
+
+  if (confirm("Czy na pewno chcesz usunąć ten tekst?")) {
+    const index = texts.indexOf(selectedObject);
+    if (index !== -1) {
+      texts.splice(index, 1);
+    }
+    selectedObject = null;
+    zamknijPanel();
+  }
+}
+
+function zapiszUstawienia(){
+  gravity = Number(document.getElementById("grav").value) || 0.6
+  gridSize = Number(document.getElementById("grid").value) || 40
+  alert("Zapisano")
+}
+
+function startTworzenie(){
+  document.getElementById("menuStart").style.display = "none"
+  document.getElementById("editor").style.display = "block"
+}
+
+function powrotDoMenu() {
+
+  // 🔥 NAJPIERW RESET
+  gameOver = false;
+  gameOverTriggered = false;
+  hitPause = 0;
+  pendingRespawn = false;
+
+  // 🔥 RESET LICZNIKÓW (WAŻNE)
+  counters.lives = 3;
+  counters.points = 0;
+  counters.time = startTime;
+
+  bonuses = []
+
+  // 🔥 NA KONIEC UI
+  document.getElementById("editor").style.display = "none";
+  document.getElementById("menuStart").style.display = "block";
+}
+
+function zapiszLiczniki(){
+
+  let lives = Number(document.getElementById("editLives").value)
+  let time = Number(document.getElementById("editTime").value)
+  let timerOn = document.getElementById("useTimer").checked
+  let livesOn = document.getElementById("useLives").checked
+
+  // ❤️ życia
+  if (!isNaN(lives) && lives >= 0) {
+    counters.lives = lives
+  }
+
+  // ⏱ czas
+  if (!isNaN(time) && time >= 0) {
+    counters.time = time
+    startTime = time
+  }
+
+  // 🔘 checkboxy
+  useTimer = timerOn
+  useLives = livesOn
+
+  // 🌍 długość świata
+  let el = document.getElementById("editWorld")
+
+  if (el) {
+    let w = Number(el.value)
+
+    if (!isNaN(w) && w > 500) {
+      worldWidth = w
+      scrollX.max = worldWidth - canvas.width
+    }
+  }
+}
+
+function pokazKoniec(){
+  document.getElementById("panel").innerHTML = `
+    <h3>KONIEC GRY</h3>
+
+    <div style="margin-top:10px;">
+      <button onclick="dodajKluczWin()" style="font-size:18px;">
+        🔑 Klucz → wygrana
+      </button>
+    </div>
+    <h3>O TWÓRCY GRY</h3>
+    <div style="margin-top:10px;">
+      <button onclick="ustawAutora()">
+        ✍️ krótki opis
+      </button>
+    </div>
+  `
+}
+
+function loadDemo() {
+  fetch("demo.json")
+    .then(res => res.json())
+    .then(data => {
+
+      console.log("DEMO wczytane:", data)
+
+      // === LOAD (tak jak z pliku) ===
+      gameData = data || {}
+      gameData.stats = gameData.stats || {}
+
+      players = gameData.level?.players || []
+      platforms = gameData.level?.platforms || []
+      blocks = gameData.level?.blocks || []
+      enemies = gameData.level?.enemies || []
+      bonuses = gameData.level?.bonuses || []
+      texts = gameData.level?.texts || []
+
+      sterowanie = gameData.level?.sterowanie || {lewo:null, prawo:null, skok:null}
+
+      counters = {
+        lives: gameData.level?.counters?.lives ?? 3,
+        points: gameData.level?.counters?.points ?? 0,
+        time: gameData.level?.counters?.time ?? 60
+      }
+
+      startTime = gameData.level?.startTime ?? counters.time
+      useTimer = gameData.level?.useTimer ?? true
+      autorGry = gameData.level?.autorGry || "DEMO"
+      backgroundType = gameData.level?.backgroundType || "city"
+
+      lastTime = Date.now()
+      selectedObject = null
+      trybKopiowania = false
+
+      updateButtonStates()
+
+      trybGry = true
+    })
+    .catch(err => {
+      console.error("Błąd wczytania DEMO:", err)
+      alert("Nie udało się wczytać demo.json")
+    })
+}
+
+function updateStats(isWin) {
+  const today = new Date().toISOString().split('T')[0]
+
+  if (!gameData.stats[today]) {
+    gameData.stats[today] = { wins: 0, losses: 0 }
+  }
+
+  if (isWin) gameData.stats[today].wins++
+  else gameData.stats[today].losses++
+}
+
+function ustawAutora(){
+  let name = prompt("Podaj twórcę gry:", autorGry)
+
+  if (name && name.trim() !== "") {
+    autorGry = name.trim()
+    alert("Ustawiono autora: " + autorGry)
+  }
+}
+
+function drawBackground(){
+
+  if(backgroundType === "none") return;
+
+  // ================= ❄️ ŚNIEG
+  if(backgroundType === "snow"){
+
+    ctx.fillStyle = "#0f1a2b";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    ctx.fillStyle = "#ffffff";
+
+    for(let i = 0; i < 120; i++){
+      let x = (i * 97 - cameraX * 0.1) % 2000;
+      let y = (i * 53 + Date.now() * 0.2) % canvas.height;
+
+      ctx.beginPath();
+      ctx.arc(x, y, 2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  // ================= 🚀 KOSMOS
+  if(backgroundType === "space"){
+
+    // 🌄 niebo (gradient)
+    let g = ctx.createLinearGradient(0,0,0,canvas.height);
+    g.addColorStop(0,"#1e3c72");
+    g.addColorStop(1,"#2a5298");
+    ctx.fillStyle = g;
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+
+    // ⛰️ dalekie góry
+    for (let i=0; i<20; i++){
+
+      let x = (i * 200 - cameraX * 0.2) % (canvas.width + 200);
+      let h = 100 + (i*47 % 120);
+
+      ctx.fillStyle = "#1a2a44";
+
+      ctx.beginPath();
+      ctx.moveTo(x, canvas.height);
+      ctx.lineTo(x + 100, canvas.height - h);
+      ctx.lineTo(x + 200, canvas.height);
+      ctx.fill();
+    }
+
+    // ⛰️ bliższe góry
+    for (let i=0; i<15; i++){
+
+      let x = (i * 250 - cameraX * 0.4) % (canvas.width + 200);
+      let h = 150 + (i*63 % 150);
+
+      ctx.fillStyle = "#0f1b2e";
+
+      ctx.beginPath();
+      ctx.moveTo(x, canvas.height);
+      ctx.lineTo(x + 120, canvas.height - h);
+      ctx.lineTo(x + 240, canvas.height);
+      ctx.fill();
+    }
+
+    // 🌫 mgła (lekka)
+    ctx.fillStyle = "rgba(255,255,255,0.05)";
+    ctx.fillRect(0, canvas.height - 200, canvas.width, 200);
+  }
+
+  // ================= 🌧️ DESZCZ
+  if(backgroundType === "rain"){
+
+    ctx.fillStyle = "#0b0f1a";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    ctx.strokeStyle = "#88aaff";
+    ctx.lineWidth = 1;
+
+    for(let i = 0; i < 120; i++){
+      let x = (i * 97 - cameraX * 0.2) % 2000;
+      let y = (i * 53 + Date.now() * 0.5) % canvas.height;
+
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.lineTo(x + 3, y + 10);
+      ctx.stroke();
+    }
+
+    if(Math.random() < 0.005){
+      ctx.fillStyle = "rgba(255,255,255,0.2)";
+      ctx.fillRect(0,0,canvas.width,canvas.height);
+    }
+  }
+
+if(backgroundType === "neon"){
+
+  // 🌌 NIEBO
+  ctx.fillStyle = "#0b1a2f";
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+
+  // ⭐ GWIAZDY (delikatne)
+  for (let i=0; i<60; i++){
+    let x = (i * 173) % canvas.width;
+    let y = (i * 97) % 250;
+
+    let glow = Math.sin((Date.now() + i*80) * 0.003) * 0.5 + 0.5;
+
+    ctx.globalAlpha = glow;
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(x, y, 1.5, 1.5);
+  }
+  ctx.globalAlpha = 1;
+
+  // 🌲 LAS (warstwowy — wygląda jak prawdziwy)
+
+  // dalekie drzewa (ciemne)
+  for (let i=0; i<30; i++){
+    let x = (i * 120 - cameraX * 0.2) % (canvas.width + 200);
+    let h = 120 + (i*47 % 120);
+
+    ctx.fillStyle = "#0e2a1c";
+    ctx.beginPath();
+    ctx.moveTo(x, canvas.height);
+    ctx.lineTo(x + 30, canvas.height - h);
+    ctx.lineTo(x + 60, canvas.height);
+    ctx.fill();
+  }
+
+  // bliższe drzewa (jaśniejsze)
+  for (let i=0; i<20; i++){
+    let x = (i * 160 - cameraX * 0.4) % (canvas.width + 200);
+    let h = 140 + (i*63 % 160);
+
+    ctx.fillStyle = "#1f5f2e";
+
+    // pień
+    ctx.fillRect(x + 28, canvas.height - h, 6, h);
+
+    // korona (trójkąt jak sosna)
+    ctx.beginPath();
+    ctx.moveTo(x, canvas.height - h + 40);
+    ctx.lineTo(x + 30, canvas.height - h - 40);
+    ctx.lineTo(x + 60, canvas.height - h + 40);
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.moveTo(x + 5, canvas.height - h + 70);
+    ctx.lineTo(x + 30, canvas.height - h - 10);
+    ctx.lineTo(x + 55, canvas.height - h + 70);
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.moveTo(x + 10, canvas.height - h + 100);
+    ctx.lineTo(x + 30, canvas.height - h + 20);
+    ctx.lineTo(x + 50, canvas.height - h + 100);
+    ctx.fill();
+  }
+
+  // ziemia (ciemna)
+  ctx.fillStyle = "#0a1a12";
+  ctx.fillRect(0, canvas.height - 40, canvas.width, 40);
+}
+
+  // ================= 🤠 WEST
+  if(backgroundType === "west"){
+
+    let grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+    grad.addColorStop(0, "#ff9966");
+    grad.addColorStop(1, "#ff5e62");
+
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    ctx.beginPath();
+    ctx.arc(canvas.width - 120, 100, 50, 0, Math.PI * 2);
+    ctx.fillStyle = "#ffcc66";
+    ctx.fill();
+
+    ctx.fillStyle = "#c68642";
+    ctx.fillRect(0, canvas.height - 100, canvas.width, 100);
+
+    ctx.fillStyle = "#8b5a2b";
+    for(let i = 0; i < 6; i++){
+      let x = (i * 300 - cameraX * 0.1) % 2000;
+
+      ctx.beginPath();
+      ctx.moveTo(x, canvas.height - 100);
+      ctx.lineTo(x + 150, canvas.height - 220);
+      ctx.lineTo(x + 300, canvas.height - 100);
+      ctx.fill();
+    }
+
+    for(let i = 0; i < 10; i++){
+      let x = (i * 300 - cameraX * 0.3) % 2000;
+      let y = canvas.height - 100;
+
+      ctx.fillStyle = "#2e8b57";
+      ctx.fillRect(x, y - 60, 20, 60);
+      ctx.fillRect(x - 10, y - 40, 10, 15);
+      ctx.fillRect(x + 20, y - 50, 10, 20);
+    }
+  }
+
+  // ================= 🌌 CITY + STARS
+
+if(backgroundType === "city"){
+
+  ctx.fillStyle = "#0a1f3d";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  for (let i = 0; i < 120; i++){
+
+    let x = (Math.sin(i * 999) * 10000) % canvas.width;
+    let y = (Math.cos(i * 777) * 10000) % 300;
+
+    if (x < 0) x += canvas.width;
+    if (y < 0) y += 300;
+
+    let size = (i % 3) + 1;
+
+    ctx.fillStyle = "white";
+    ctx.fillRect(x, y, size, size);
+  }
+
+
+  // 🏙️ MIASTO
+  for (let i=0; i<20; i++){
+
+    let x = (i * 160 - cameraX * 0.3) % (canvas.width + 200);
+
+    let h = 120 + (i*37 % 200);
+    let w = 100;
+
+    // budynek
+    ctx.fillStyle = "#1e2a3a";
+    ctx.fillRect(x, canvas.height - h, w, h);
+
+    // okna (losowe)
+    for (let wy=0; wy<h; wy+=30){
+      for (let wx=0; wx<w; wx+=25){
+
+        if ((wx + wy + i) % 3 !== 0) continue;
+
+        ctx.fillStyle = ((wx + wy + i) % 5 === 0) ? "#333" : "#ffd966";
+
+        ctx.fillRect(x + wx + 5, canvas.height - h + wy + 5, 8, 12);
+      }
+    }
+
+    // komin
+    if (i % 3 === 0){
+      ctx.fillStyle = "#444";
+      ctx.fillRect(x + w - 15, canvas.height - h - 20, 10, 20);
+    }
+
+    // antena
+    if (i % 2 === 0){
+      ctx.strokeStyle = "#888";
+      ctx.beginPath();
+      ctx.moveTo(x + w/2, canvas.height - h);
+      ctx.lineTo(x + w/2, canvas.height - h - 20);
+      ctx.stroke();
+    }
+  }
+}
+
+  if(backgroundType === "stars"){
+
+    // 🌌 tło kosmosu
+    let g = ctx.createLinearGradient(0,0,0,canvas.height);
+    g.addColorStop(0,"#050510");
+    g.addColorStop(1,"#0b1a2f");
+    ctx.fillStyle = g;
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+
+    // ⭐ GWIAZDY (jak w Twojej grze — LOSOWE, NIE SIATKA)
+    for (let i=0; i<150; i++){
+
+      let x = (Math.sin(i * 999) * 10000) % canvas.width;
+      let y = (Math.cos(i * 777) * 10000) % canvas.height;
+
+      if (x < 0) x += canvas.width;
+      if (y < 0) y += canvas.height;
+
+      let size = (i % 3) + 1;
+
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(x, y, size, size);
+    }
+  }
+}
+
+function zapiszUstawienia(){
+  autoScroll = document.getElementById("autoScrollToggle").checked
+  autoScrollSpeed = Number(document.getElementById("scrollSpeed").value)
+}
+
+function setRespawnMode(mode, showAlert = true){
+  respawnMode = mode;
+
+  if (showAlert) {
+    alert("Tryb respawn: " + (mode === "death" ? "miejsce śmierci" : "punkt startowy"));
+  }
+
+  document.getElementById("respDeath")?.classList.toggle("active", mode === "death");
+  document.getElementById("respStart")?.classList.toggle("active", mode === "start");
+}
+
+function updateRespawnLock(){
+  const checkbox = document.getElementById("autoScrollToggle")
+  const btnStart = document.getElementById("respStart")
+
+  if (!checkbox || !btnStart) return
+
+  if (checkbox.checked) {
+    setRespawnMode("death", false)
+
+    btnStart.disabled = true
+    btnStart.style.opacity = 0.4
+    btnStart.style.pointerEvents = "none"
+
+  } else {
+    btnStart.disabled = false
+    btnStart.style.opacity = 1
+    btnStart.style.pointerEvents = "auto"
+  }
+
+}
+
+function resetBackground(){
+  backgroundType = "none";
+}
+
+// ================= START =================
+updateButtonStates()
+document.getElementById("menuStart").style.display = "block"
+document.getElementById("editor").style.display = "none"
+
+function loop(time){
+
+  if (time - lastFrame < frameDelay) {
+    requestAnimationFrame(loop)
+    return
+  }
+
+  lastFrame = time
+
+  update()
+  draw()
+
+  requestAnimationFrame(loop)
+}
+
+// START
+requestAnimationFrame(loop)
+</script>
+</body>
+</html>
