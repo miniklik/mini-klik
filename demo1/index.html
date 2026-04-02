@@ -1395,19 +1395,33 @@ canvas.addEventListener("mouseup", () => {
   }
 });
 
-canvas.addEventListener("click", () => {
+canvas.addEventListener("click", (e) => {
 
-  // 🔥 NA SAMEJ GÓRZE
   if (showIntro) {
-    showIntro = false
-    return
+    showIntro = false;
+    return;
   }
+
+  const rect = canvas.getBoundingClientRect();
+  const mx = e.clientX - rect.left;
+  const my = e.clientY - rect.top;
 
   if (gameState === "results" || gameState === "win") {
-    location.reload()
+
+    // WRÓĆ DO EDYTORA
+    if (mx > 250 && mx < 390 && my > 300 && my < 350) {
+      wrocDoEdytora();
+      return;
+    }
+
+    // WYJDŹ (RESET)
+    if (mx > 410 && mx < 550 && my > 300 && my < 350) {
+      wyjdzDoMenu();
+      return;
+    }
   }
 
-})
+});
 
 // ================= UPDATE =================
 function update(){
@@ -2414,6 +2428,19 @@ function drawResults(){
   ctx.fillText("Czas: " + Math.ceil(counters.time), canvas.width/2, 360)
 
   ctx.fillText("Kliknij aby zrestartować", canvas.width/2, 420)
+
+  // 🔘 PRZYCISKI
+  ctx.fillStyle = "#333";
+  ctx.fillRect(250, 300, 140, 50);
+  ctx.fillRect(410, 300, 140, 50);
+
+  ctx.fillStyle = "white";
+  ctx.font = "16px Arial";
+  ctx.textAlign = "center";
+
+  ctx.fillText("WRÓĆ", 320, 330);
+  ctx.fillText("WYJDŹ", 480, 330);
+
 }
 
 function updateResults(){
@@ -3163,6 +3190,30 @@ function updateRespawnLock(){
 
 function resetBackground(){
   backgroundType = "none";
+}
+
+
+function wyjdzDoMenu() {
+  location.reload(); // pełny reset jak teraz
+}
+
+function wrocDoEdytora() {
+  trybGry = false;
+  gameState = "game";
+  gameOver = false;
+  gameOverTriggered = false;
+
+  // reset gracza do startu
+  if (players.length > 0) {
+    players[0].x = playerStartX;
+    players[0].y = playerStartY;
+    players[0].vx = 0;
+    players[0].vy = 0;
+  }
+
+  counters.time = startTime;
+
+  alert("🛠 Wracasz do edytora");
 }
 
 // ================= START =================
