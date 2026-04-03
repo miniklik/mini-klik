@@ -151,6 +151,8 @@ let counters = {
 let startTime = counters.time
 let useTimer = true;
 let autorGry = "Nieznany"
+let nazwaGry = "Moja gra"
+let opisGry = ""
 let showIntro = false   // 🔥 NOWE
 let backgroundType = "none";
 
@@ -1804,29 +1806,94 @@ function draw(){
 
   if (showIntro) {
 
-    // półprzezroczyste tło
+    // tło
     ctx.fillStyle = "rgba(0,0,0,0.7)"
     ctx.fillRect(0, 0, canvas.width, canvas.height)
 
-    ctx.fillStyle = "white"
     ctx.textAlign = "center"
 
-    ctx.font = "30px Arial"
+    // 🌈 NEON + FALA (TYTUŁ)
+    let t = Date.now() * 0.003
+    let titleY = canvas.height / 2 - 120
+
+    ctx.font = "36px Arial"
+
+    // 🔥 NEON
+    for (let i = 0; i < 3; i++) {
+      ctx.shadowColor = "#00ffff"
+      ctx.shadowBlur = 20 + i * 15
+      ctx.fillStyle = "#00ffff"
+
+      ctx.fillText(
+        nazwaGry,
+        canvas.width / 2,
+        titleY + Math.sin(t) * 6
+      )
+    }
+
+    // 🔥 biały tekst (rdzeń)
+    ctx.shadowBlur = 0
+    ctx.fillStyle = "white"
+
     ctx.fillText(
-      autorGry || projectName,
+      nazwaGry,
       canvas.width / 2,
-      canvas.height / 2
+      titleY + Math.sin(t) * 6
     )
 
-    ctx.font = "16px Arial"
+    // ✨ OPIS (wyżej niż autor)
+    let t2 = Date.now() * 0.002
+
+    ctx.font = "15px Arial"
+
+    let alpha = 0.7 + Math.sin(t2) * 0.3
+    ctx.globalAlpha = alpha
+
+    ctx.fillStyle = "#aaaaaa"
+
     ctx.fillText(
-      "Kliknij aby rozpocząć",
+      opisGry,
       canvas.width / 2,
-      canvas.height / 2 + 40
+      canvas.height / 2 + 40 + Math.sin(t2) * 2
+    )
+
+    ctx.globalAlpha = 1
+
+    // 🌈 AUTOR – neon + prawa strona
+    let t3 = Date.now() * 0.003
+
+    ctx.font = "14px Arial"
+    ctx.textAlign = "right"
+
+    let authorX = canvas.width - 80
+    let authorY = canvas.height - 20
+
+    // 🔥 lekki neon (2 warstwy – słabszy niż tytuł)
+    for (let i = 0; i < 2; i++) {
+
+      ctx.shadowColor = "#00ffff"
+      ctx.shadowBlur = 10 + i * 10
+      ctx.fillStyle = "#00ffff"
+
+      ctx.fillText(
+        "by " + autorGry,
+        authorX,
+        authorY + Math.sin(t3) * 2
+      )
+    }
+
+    // biały tekst
+    ctx.shadowBlur = 0
+    ctx.fillStyle = "#dddddd"
+
+    ctx.fillText(
+      "by " + autorGry,
+      authorX,
+      authorY + Math.sin(t3) * 2
     )
 
     return
-  }  
+  }
 
   if (gameState === "results" || gameState === "win") {
     drawResults()
@@ -2260,6 +2327,9 @@ async function zapiszProjekt(){
 
   const data = {
     level: {
+      nazwaGry: nazwaGry,
+      autorGry: autorGry,
+      opisGry: opisGry,
       players,
       platforms,
       blocks,
@@ -2287,7 +2357,7 @@ async function zapiszProjekt(){
   // 🔥 jeśli nie mamy pliku → wybierz
   if (!fileHandle) {
     fileHandle = await window.showSaveFilePicker({
-      suggestedName: projectName + ".json",
+      suggestedName: (nazwaGry || "projekt") + ".json",
       types: [{
         description: "JSON",
         accept: { "application/json": [".json"] }
@@ -2472,6 +2542,9 @@ function wczytajProjekt(){
       enemies = gameData.level?.enemies || []
       bonuses = gameData.level?.bonuses || []
       texts = gameData.level?.texts || []
+      nazwaGry = gameData.level?.nazwaGry || "Moja gra"
+      autorGry = gameData.level?.autorGry || projectName
+      opisGry = gameData.level?.opisGry || ""
       backgroundType = gameData.level?.backgroundType || "none";
       playerStartX = gameData.level?.playerStart?.x ?? players[0]?.x ?? 100;
       playerStartY = gameData.level?.playerStart?.y ?? players[0]?.y ?? 100; 
@@ -2788,12 +2861,6 @@ function pokazKoniec(){
         🔑 Klucz → wygrana
       </button>
     </div>
-    <h3>O TWÓRCY GRY</h3>
-    <div style="margin-top:10px;">
-      <button onclick="ustawAutora()">
-        ✍️ krótki opis
-      </button>
-    </div>
   `
 }
 
@@ -2826,6 +2893,7 @@ function loadDemo() {
       startTime = gameData.level?.startTime ?? counters.time
       useTimer = gameData.level?.useTimer ?? true
       autorGry = gameData.level?.autorGry || "DEMO"
+      opisGry = gameData.level?.opisGry || ""
       backgroundType = gameData.level?.backgroundType || "city"
 
       lastTime = Date.now()
@@ -2854,12 +2922,7 @@ function updateStats(isWin) {
 }
 
 function ustawAutora(){
-  let name = prompt("Podaj twórcę gry:", autorGry)
-
-  if (name && name.trim() !== "") {
-    autorGry = name.trim()
-    alert("Ustawiono autora: " + autorGry)
-  }
+  pokazAutorModal()
 }
 
 function drawBackground(){
@@ -3217,6 +3280,54 @@ function wrocDoEdytora() {
   alert("🛠 Wracasz do edytora");
 }
 
+function pokazAutorModal(){
+  document.getElementById("autorModal").style.display = "flex"
+
+  document.getElementById("nazwaInput").value = nazwaGry || ""
+  document.getElementById("autorInput").value = autorGry || ""
+  document.getElementById("opisInput").value  = opisGry  || ""
+}
+
+function zapiszAutora(){
+
+  let nazwa = document.getElementById("nazwaInput").value
+  let autor = document.getElementById("autorInput").value
+  let opis  = document.getElementById("opisInput").value
+
+  if (nazwa && nazwa.trim() !== "") {
+    nazwaGry = nazwa.trim()
+  }
+
+  if (autor && autor.trim() !== "") {
+    autorGry = autor.trim()
+  }
+
+  opisGry = opis || ""
+
+  document.getElementById("autorModal").style.display = "none"
+
+  alert("Zapisano dane gry ✔️")
+}
+
+function pokazUstawienia() {
+
+  let html = `
+    <br><br>
+    <h3>O TWÓRCY GRY</h3>
+
+    <div style="margin-top:10px;">
+      <button onclick="ustawAutora()">
+        ✍️ krótki opis
+      </button>
+    </div>
+
+    
+  `
+
+  // 🔥 TU WRZUCA DO PANELU (dopasuj ID jeśli masz inne)
+  document.getElementById("panel").innerHTML = html
+}
+
 // ================= START =================
 updateButtonStates()
 startTworzenie()
@@ -3239,5 +3350,44 @@ function loop(time){
 // START
 requestAnimationFrame(loop)
 </script>
+<!-- 🔵 MODAL AUTORA -->
+<div id="autorModal" style="
+  position:fixed;
+  top:0; left:0;
+  width:100%; height:100%;
+  background:rgba(0, 0, 0, 0.5);
+  display:none;
+  justify-content:center;
+  align-items:center;
+  z-index:9999;
+">
+
+  <div style="
+    background:#fff;
+    padding:20px;
+    border-radius:10px;
+    color:black;
+    text-align:center;
+  ">
+    <p>Nazwa gry:</p>
+    <input id="nazwaInput">
+
+    <br><br>
+
+    <p>Opis gry:</p>
+    <textarea id="opisInput" style="width:100%; height:60px;"></textarea>
+
+    <br><br>    
+
+    <p>Autor:</p>
+    <input id="autorInput">
+
+    <br><br>
+
+    <button onclick="zapiszAutora()">OK</button>
+  </div>
+
+</div>
+
 </body>
 </html>
