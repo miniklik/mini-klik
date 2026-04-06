@@ -3335,37 +3335,39 @@ function pokazKoniec(){
 }
 
 function loadDemo() {
-  // ←←← ZMIEŃ TEN LINK NA SWÓJ RAW LINK Z GITHUBA
-  const demoUrl = "https://raw.githubusercontent.com/miniklik/mini-klik/main/demo1/demo.json";
+  // Względna ścieżka – plik musi być w folderze demo1 obok index.html
+  const demoUrl = "./demo1/demo.json";   
 
   fetch(demoUrl)
     .then(res => {
-      if (!res.ok) throw new Error("HTTP " + res.status);
+      if (!res.ok) throw new Error(`Błąd HTTP: ${res.status} — sprawdź czy plik istnieje`);
       return res.json();
     })
     .then(data => {
-      console.log("✅ Demo JSON wczytany", data);
+      console.log("✅ Demo wczytane z lokalnego folderu", data);
 
-      // Pełne wczytanie danych (tak jak w normalnym LOAD)
+      // === Pełne wczytywanie danych (tak jak wcześniej) ===
       gameData = data || {};
       gameData.stats = gameData.stats || {};
 
       levels = gameData.levels || [];
       if (levels.length === 0) {
-        levels.push({ players: [], platforms: [], blocks: [], enemies: [], bonuses: [], texts: [], backgroundType: "none" });
+        levels.push({
+          players: [], platforms: [], blocks: [], enemies: [], 
+          bonuses: [], texts: [], backgroundType: "none",
+          playerStartX: 100, playerStartY: 100
+        });
       }
 
       currentLevel = 0;
-      syncLevelData();           // ← TO JEST NAJWAŻNIEJSZE!
+      syncLevelData();
       renderLevelsBar();
 
-      // Ustawienia poziomu
       const lvl = getLevel() || {};
       backgroundType = lvl.backgroundType || "none";
       playerStartX = lvl.playerStartX ?? 100;
       playerStartY = lvl.playerStartY ?? 100;
 
-      // Globalne ustawienia gry
       let s = gameData.settings || {};
       nazwaGry   = s.nazwaGry   || "Moja gra";
       autorGry   = s.autorGry   || "DEMO";
@@ -3385,24 +3387,25 @@ function loadDemo() {
       autoScroll      = !!s.autoScroll;
       autoScrollSpeed = Number(s.autoScrollSpeed) || 2;
       worldWidth      = Number(s.worldWidth) || 2000;
+
       scrollX.max = worldWidth - canvas.width;
 
-      // Reset stanu
       selectedObject = null;
       trybKopiowania = false;
       cameraX = 0;
 
       updateButtonStates();
 
-      // Start gry
       trybGry = true;
       respawnPlayer();
 
-      alert("🎮 Demo wczytane poprawnie!\nPoziomy, tło, przeciwnicy, bonusy – wszystko powinno być.");
+      alert("🎮 Demo wczytane z folderu demo1/demo.json");
     })
     .catch(err => {
       console.error(err);
-      alert("❌ Nie udało się wczytać demo.\n\nSprawdź czy link raw jest poprawny i publiczny.\nBłąd: " + err.message);
+      alert("❌ Nie udało się wczytać demo.json\n\n" + 
+            "Sprawdź czy plik istnieje w folderze demo1/\n" + 
+            "Błąd: " + err.message);
     });
 }
 
