@@ -3340,23 +3340,18 @@ function loadDemo() {
 
   fetch(demoUrl)
     .then(res => {
-      if (!res.ok) throw new Error(`Błąd HTTP: ${res.status} — sprawdź czy plik istnieje`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       return res.json();
     })
     .then(data => {
-      console.log("✅ Demo wczytane z lokalnego folderu", data);
+      console.log("✅ Demo wczytane", data);
 
-      // === Pełne wczytywanie danych (tak jak wcześniej) ===
       gameData = data || {};
       gameData.stats = gameData.stats || {};
 
       levels = gameData.levels || [];
       if (levels.length === 0) {
-        levels.push({
-          players: [], platforms: [], blocks: [], enemies: [], 
-          bonuses: [], texts: [], backgroundType: "none",
-          playerStartX: 100, playerStartY: 100
-        });
+        levels.push({ players: [], platforms: [], blocks: [], enemies: [], bonuses: [], texts: [], backgroundType: "none", playerStartX: 100, playerStartY: 100 });
       }
 
       currentLevel = 0;
@@ -3368,6 +3363,7 @@ function loadDemo() {
       playerStartX = lvl.playerStartX ?? 100;
       playerStartY = lvl.playerStartY ?? 100;
 
+      // === USTAWIENIA GRY ===
       let s = gameData.settings || {};
       nazwaGry   = s.nazwaGry   || "Moja gra";
       autorGry   = s.autorGry   || "DEMO";
@@ -3387,25 +3383,26 @@ function loadDemo() {
       autoScroll      = !!s.autoScroll;
       autoScrollSpeed = Number(s.autoScrollSpeed) || 2;
       worldWidth      = Number(s.worldWidth) || 2000;
-
       scrollX.max = worldWidth - canvas.width;
 
+      // 🔥 TO JEST NAJWAŻNIEJSZE – pokazuje intro!
+      showIntro = true;
+
+      // Reset stanu
       selectedObject = null;
       trybKopiowania = false;
       cameraX = 0;
+      gameState = "game";
+      gameOver = false;
 
       updateButtonStates();
 
-      trybGry = true;
-      respawnPlayer();
-
-      alert("🎮 Demo wczytane z folderu demo1/demo.json");
+      // Nie uruchamiamy od razu trybGry = true – niech intro się pokaże
+      // trybGry = false;   // zostawiamy false, intro samo obsłuży przejście
     })
     .catch(err => {
       console.error(err);
-      alert("❌ Nie udało się wczytać demo.json\n\n" + 
-            "Sprawdź czy plik istnieje w folderze demo1/\n" + 
-            "Błąd: " + err.message);
+      alert("❌ Nie udało się wczytać demo.json\nBłąd: " + err.message);
     });
 }
 
