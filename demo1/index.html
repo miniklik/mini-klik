@@ -3334,32 +3334,32 @@ function pokazKoniec(){
 }
 
 function loadDemo() {
-  fetch("demo.json")
+  fetch("demo1/demo.json")   // 🔥 poprawiona ścieżka!
     .then(res => res.json())
     .then(data => {
 
       console.log("DEMO wczytane:", data)
 
+      // === PODSTAWA ===
       gameData = data || {}
       gameData.stats = gameData.stats || {}
 
-      // 🔥 LEVEL
-      let level = gameData.levels?.[0] || {}
+      // 🔥 KLUCZ — ustawiamy CAŁE levele (jak LOAD)
+      levels = gameData.levels || []
+      currentLevel = 0
 
-      players = level.players || []
-      platforms = level.platforms || []
-      blocks = level.blocks || []
-      enemies = level.enemies || []
-      bonuses = level.bonuses || []
-      texts = level.texts || []
+      // 🔥 synchronizacja (to zasila players, platforms itd.)
+      syncLevelData()
 
-      backgroundType = level.backgroundType || "city"
+      // 🔥 LEVEL SETTINGS
+      const lvl = getLevel() || {}
 
-      // 🔥 START
-      playerStartX = level.playerStartX ?? 100
-      playerStartY = level.playerStartY ?? 100
+      backgroundType = lvl.backgroundType || "city"
 
-      // 🔥 SETTINGS (ZAMIAST gameData.level ❌)
+      playerStartX = lvl.playerStartX ?? 100
+      playerStartY = lvl.playerStartY ?? 100
+
+      // 🔥 GLOBAL SETTINGS
       let settings = gameData.settings || {}
 
       sterowanie = settings.sterowanie || {lewo:null, prawo:null, skok:null}
@@ -3375,14 +3375,18 @@ function loadDemo() {
       autorGry = settings.autorGry || "DEMO"
       opisGry = settings.opisGry || ""
 
-      // 🔥 RESET
+      // 🔥 UI + RESET
+      renderLevelsBar()
+
       lastTime = Date.now()
       selectedObject = null
       trybKopiowania = false
 
       updateButtonStates()
 
+      // 🔥 START GRY
       trybGry = true
+      respawnPlayer()
 
     })
     .catch(err => {
