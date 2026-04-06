@@ -2940,35 +2940,6 @@ function updateResults(){
   }
 }
 
-function loadGameFromData(data) {
-
-  gameData = data || {}
-  gameData.stats = gameData.stats || {}
-
-  levels = gameData.levels || []
-  currentLevel = 0
-
-  syncLevelData()
-
-  const lvl = getLevel() || {}
-
-  backgroundType = lvl.backgroundType || "city"
-  playerStartX = lvl.playerStartX ?? 100
-  playerStartY = lvl.playerStartY ?? 100
-
-  let settings = gameData.settings || {}
-
-  sterowanie = settings.sterowanie || {lewo:null, prawo:null, skok:null}
-
-  counters = {
-    lives: settings.counters?.lives ?? 3,
-    points: settings.counters?.points ?? 0,
-    time: settings.counters?.time ?? 60
-  }
-
-  startTime = settings.startTime ?? counters.time
-  useTimer = settings.useTimer ?? true
-}
 
 function wczytajProjekt(){
   const input = document.createElement("input")
@@ -3364,61 +3335,75 @@ function pokazKoniec(){
 }
 
 function loadDemo() {
-  fetch("demo.json")
-    .then(res => res.json())
+  // ←←← ZMIEŃ TEN LINK NA SWÓJ RAW LINK Z GITHUBA
+  const demoUrl = "https://raw.githubusercontent.com/miniklik/mini-klik/main/demo1/demo.json";
+
+  fetch(demoUrl)
+    .then(res => {
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      return res.json();
+    })
     .then(data => {
+      console.log("✅ Demo JSON wczytany", data);
 
-      console.log("DEMO wczytane:", data)
+      // Pełne wczytanie danych (tak jak w normalnym LOAD)
+      gameData = data || {};
+      gameData.stats = gameData.stats || {};
 
-      gameData = data || {}
-      gameData.stats = gameData.stats || {}
-
-      // 🔥 LEVEL
-      let level = gameData.levels?.[0] || {}
-
-      players = level.players || []
-      platforms = level.platforms || []
-      blocks = level.blocks || []
-      enemies = level.enemies || []
-      bonuses = level.bonuses || []
-      texts = level.texts || []
-
-      backgroundType = level.backgroundType || "city"
-
-      // 🔥 START
-      playerStartX = level.playerStartX ?? 100
-      playerStartY = level.playerStartY ?? 100
-
-      // 🔥 SETTINGS (ZAMIAST gameData.level ❌)
-      let settings = gameData.settings || {}
-
-      sterowanie = settings.sterowanie || {lewo:null, prawo:null, skok:null}
-
-      counters = {
-        lives: settings.counters?.lives ?? 3,
-        points: settings.counters?.points ?? 0,
-        time: settings.counters?.time ?? 60
+      levels = gameData.levels || [];
+      if (levels.length === 0) {
+        levels.push({ players: [], platforms: [], blocks: [], enemies: [], bonuses: [], texts: [], backgroundType: "none" });
       }
 
-      startTime = settings.startTime ?? counters.time
-      useTimer = settings.useTimer ?? true
-      autorGry = settings.autorGry || "DEMO"
-      opisGry = settings.opisGry || ""
+      currentLevel = 0;
+      syncLevelData();           // ← TO JEST NAJWAŻNIEJSZE!
+      renderLevelsBar();
 
-      // 🔥 RESET
-      lastTime = Date.now()
-      selectedObject = null
-      trybKopiowania = false
+      // Ustawienia poziomu
+      const lvl = getLevel() || {};
+      backgroundType = lvl.backgroundType || "none";
+      playerStartX = lvl.playerStartX ?? 100;
+      playerStartY = lvl.playerStartY ?? 100;
 
-      updateButtonStates()
+      // Globalne ustawienia gry
+      let s = gameData.settings || {};
+      nazwaGry   = s.nazwaGry   || "Moja gra";
+      autorGry   = s.autorGry   || "DEMO";
+      opisGry    = s.opisGry    || "";
 
-      trybGry = true
+      sterowanie = s.sterowanie || {lewo: null, prawo: null, skok: null};
 
+      counters = {
+        lives: s.counters?.lives ?? 3,
+        points: s.counters?.points ?? 0,
+        time: s.counters?.time ?? 60
+      };
+      startTime = s.startTime ?? counters.time;
+      useTimer  = !!s.useTimer;
+
+      respawnMode     = s.respawnMode     || "death";
+      autoScroll      = !!s.autoScroll;
+      autoScrollSpeed = Number(s.autoScrollSpeed) || 2;
+      worldWidth      = Number(s.worldWidth) || 2000;
+      scrollX.max = worldWidth - canvas.width;
+
+      // Reset stanu
+      selectedObject = null;
+      trybKopiowania = false;
+      cameraX = 0;
+
+      updateButtonStates();
+
+      // Start gry
+      trybGry = true;
+      respawnPlayer();
+
+      alert("🎮 Demo wczytane poprawnie!\nPoziomy, tło, przeciwnicy, bonusy – wszystko powinno być.");
     })
     .catch(err => {
-      console.error("Błąd wczytania DEMO:", err)
-      alert("Nie udało się wczytać demo.json")
-    })
+      console.error(err);
+      alert("❌ Nie udało się wczytać demo.\n\nSprawdź czy link raw jest poprawny i publiczny.\nBłąd: " + err.message);
+    });
 }
 
 function updateStats(isWin) {
