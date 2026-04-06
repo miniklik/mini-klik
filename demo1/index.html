@@ -36,13 +36,8 @@
 </head>
 <body>
 
-<div id="menuStart">
-  <h1>🎮 Kreator gier</h1>
-  <button onclick="startTworzenie()">▶ Twórz grę</button>
-  <button onclick="otworzGre()">📂 Otwórz grę</button>
-</div>
 
-<div id="editor" style="display:none;">
+<div id="editor">
 
 <div id="topbar">
   <button id="runBtn" onclick="uruchom()">URUCHOM</button>
@@ -67,7 +62,7 @@
   <button onclick="pokazPrzeciwniki()">PRZECIWNIK</button><br><br>
   <button onclick="wlaczBonusy()">BONUSY</button><br><br>
   <button onclick="pokazLiczniki()">LICZNIKI</button><br><br>
-  <button onclick="pokazKoniec()">KONIEC GRY</button><br><br>
+  <button onclick="pokazKoniec()">POZIOMY ➜ GRY</button><br><br>
   <button onclick="dodajTekst()">TEKST</button><br><br>
   <button onclick="pokazTloPanel()">TŁO</button><br><br>
   <button onclick="pokazUstawienia()">⚙ Ustawienia</button>
@@ -78,6 +73,17 @@
     <canvas id="scena" width="800" height="450"></canvas>
     <input type="range" id="scrollX" min="0" value="0" step="1" 
            style="width:800px; margin:8px 0; accent-color:#4CAF50; background:#333; height:12px; border-radius:6px;">
+
+    <div id="levelsBar" style="
+      width:800px;
+      display:flex;
+      align-items:center;
+      gap:6px;
+      background:#222;
+      padding:6px;
+      border-radius:6px;
+      margin-bottom:10px;
+    "></div>           
   </div>
 
   <div id="prawy">
@@ -109,6 +115,42 @@ let platforms = []
 let blocks = []
 let enemies = []
 let texts = []
+let selectedPlayerType = "ball"
+
+let levels = []
+let currentLevel = 0
+
+function getLevel(){
+  return levels[currentLevel]
+}
+function syncLevelData(){
+
+  const lvl = levels[currentLevel]
+  if (!lvl) return
+
+  players   = lvl.players   || []
+  platforms = lvl.platforms || []
+  blocks    = lvl.blocks    || []
+  enemies   = lvl.enemies   || []
+  bonuses   = lvl.bonuses   || []
+  texts     = lvl.texts     || []
+}
+
+if (levels.length === 0) {
+  levels.push({
+    players: [],
+    platforms: [],
+    blocks: [],
+    enemies: [],
+    bonuses: [],
+    texts: [],
+    backgroundType: "none",
+    playerStartX: 100,
+    playerStartY: 100
+  })
+}
+
+
 let gameData = {
   stats: {}
 }
@@ -127,8 +169,7 @@ let hitPauseTime = 60;             // pauza przed respawnem (~1s)
 let pendingRespawn = false;        // flaga: czeka na respawn
 let deathRespawnX = 300;           // X: miejsce ostatniej śmierci
 let deathRespawnY = 300;           // Y: miejsce ostatniej śmierci
-let useLives = true;               // czy używać systemu żyć?
-let respawnPlayer = null;          // (zostaw to)
+let useLives = true;               // czy używać systemu żyć?          // (zostaw to)
 let hitEffect = null;              // (zostaw to)
 let respawnMode = "death"; 
 // "death" = w miejscu śmierci
@@ -138,7 +179,10 @@ let warningText = null;     // { time: liczba klatek, alpha: przezroczystość }
 let gameState = "game"
 let bonuses = []
 let fileHandle = null
-
+let levelDelay = null
+let matrixCols = []
+let matrixFrame = 0
+let levelTextAnim = null
 
 let resultsBall = { x: 400, y: 220, r: 20 }
 let resultsEnemies = []
@@ -160,6 +204,106 @@ let lastTime = Date.now()
 let fps = 70
 let frameDelay = 1000 / fps
 let lastFrame = 0
+
+
+function renderLevelsBar(){
+  let html = `<b style="margin-right:10px; color:#0f0;">POZIOMY →</b>`;
+
+  levels.forEach((lvl, i) => {
+    const isActive = i === currentLevel;
+    html += `
+      <div onclick="switchLevelUI(${i})" 
+           style="
+             width:32px;
+             height:32px;
+             background:${isActive ? "#4CAF50" : "#444"};
+             color:${isActive ? "white" : "#ccc"};
+             display:flex;
+             align-items:center;
+             justify-content:center;
+             cursor:pointer;
+             border-radius:6px;
+             font-weight:${isActive ? "bold" : "normal"};
+             box-shadow:${isActive ? "0 0 10px #4CAF50" : "none"};
+           ">
+        ${i+1}
+      </div>
+    `;
+  });
+
+  html += `
+    <div onclick="addLevelUI()" 
+         style="
+           width:32px;
+           height:32px;
+           background:#ff9800;
+           color:white;
+           display:flex;
+           align-items:center;
+           justify-content:center;
+           cursor:pointer;
+           border-radius:6px;
+           font-size:20px;
+           font-weight:bold;
+         ">
+      +
+    </div>
+  `;
+
+  document.getElementById("levelsBar").innerHTML = html;
+}
+
+function addLevelUI(){
+  // 1. Dodaj nowy pusty poziom
+  levels.push({
+    players: [],
+    platforms: [],
+    blocks: [],
+    enemies: [],
+    bonuses: [],
+    texts: [],
+    backgroundType: "none",
+    playerStartX: 100,
+    playerStartY: 100
+  });
+
+  // 2. Przełącz na nowo dodany poziom
+  currentLevel = levels.length - 1;
+
+  // 3. WAŻNE – zsynchronizuj dane poziomu
+  syncLevelData();
+
+  // 4. Ustaw start gracza dla nowego poziomu
+  const lvl = getLevel();
+  playerStartX = lvl.playerStartX ?? 100;
+  playerStartY = lvl.playerStartY ?? 100;
+
+  // Jeśli gracz istnieje – przenieś go
+  if (players.length > 0) {
+    players[0].x = playerStartX;
+    players[0].y = playerStartY;
+  }
+
+  // 5. Odśwież pasek poziomów
+  renderLevelsBar();
+
+  // Opcjonalnie: mały feedback
+  // console.log(`Dodano poziom ${currentLevel + 1}`);
+}
+
+function switchLevelUI(i){
+  if (i < 0 || i >= levels.length) return;
+  
+  currentLevel = i;
+  syncLevelData();           // ← najważniejsze
+  
+  const lvl = getLevel();
+  playerStartX = lvl.playerStartX ?? 100;
+  playerStartY = lvl.playerStartY ?? 100;
+
+  respawnPlayer();           // lub ręcznie players[0].x/y jeśli gracz istnieje
+  renderLevelsBar();
+}
 
 
 function pokazLiczniki(){
@@ -193,12 +337,6 @@ function pokazLiczniki(){
 
     <br><br><br>
 
-    🌍 Długość świata:
-    <br><br>
-    min. 800
-    <br><br>
-    <input type="number" id="editWorld" value="${worldWidth}" style="width:80px;">
-    <br><br>
     <button onclick="zapiszLiczniki()">ZAPISZ</button>
   `;
 }
@@ -295,6 +433,9 @@ function snapAll(){
 // ================= TRYBY =================
 function uruchom(){
   trybGry = true
+
+  respawnPlayer()   // 🔥 TU!
+
   updateButtonStates()
 }
 
@@ -491,26 +632,28 @@ function saveMove(){
 // ================= DODAWANIE OBIEKTÓW =================
 function pokazGraczy() {
   document.getElementById("panel").innerHTML = `
-
+    <h4>DODAJ GRACZA</h4>
     <div style="text-align:center; color:#aaa; margin-bottom:10px;">
-      kliknij gracza
+      kliknij i dodaj
     </div>
 
-    <!-- 🔴 PIŁECZKA -->
-    <div class="item" onclick="dodajGracza()" 
-      style="display:flex; justify-content:center; margin:10px 0;">
-      <div style="
-        width:40px;
-        height:40px;
-        background:red;
-        border-radius:50%;
-      "></div>
+    <div style="display:flex; gap:25px; justify-content:center; margin:15px 0;">
+
+      <!-- 🔴 PIŁKA -->
+      <div class="item"
+        onclick="selectedPlayerType='ball'; dodajGracza()"
+        style="width:40px;height:40px;background:red;border-radius:50%;">
+      </div>
+
+      <!-- 🚗 AUTO -->
+      <div class="item"
+        onclick="selectedPlayerType='car'; dodajGracza()"
+        style="font-size:40px; text-align:center;">
+        🚗
+      </div>
+
     </div>
 
-    <!-- 📍 START -->
-    <div style="margin-bottom:10px;">
-      <button style="width:100%;" onclick="ustawStartGracza()">📍 Ustaw start gracza</button>
-    </div>
 
     <!-- 🔄 ODRADZANIE -->
     <h4>ODRADZANIE</h4>
@@ -556,7 +699,7 @@ function pokazGraczy() {
 
     <br><br>
 
-    <button class="blink" onclick="zapiszUstawienia()">ZAPISZ - koniecznie</button>
+    <button class="blink" onclick="zapiszUstawienia()">ZAPISZ - PRĘDKOŚĆ</button>
   `;
 
   // 🔥 PODŚWIETLENIE (NIE RUSZAMY)
@@ -594,19 +737,19 @@ function pokazPlatformy(){
 
       <!-- Prostokąt -->
       <div onclick="dodajPlatforme('rect')" class="platform-preview">
-        <canvas id="previewRect" width="180" height="46"></canvas>
+        <canvas id="previewRect" width="120" height="46"></canvas>
         <div class="preview-label">prostokąt</div>
       </div>
 
       <!-- Zaokrąglony -->
       <div onclick="dodajPlatforme('round')" class="platform-preview">
-        <canvas id="previewRound" width="180" height="46"></canvas>
+        <canvas id="previewRound" width="120" height="46"></canvas>
         <div class="preview-label">zaokrąglony</div>
       </div>
 
       <!-- Linia -->
       <div onclick="dodajPlatforme('line')" class="platform-preview">
-        <canvas id="previewLine" width="180" height="32"></canvas>
+        <canvas id="previewLine" width="120" height="32"></canvas>
         <div class="preview-label">linia (cienka)</div>
       </div>
 
@@ -849,91 +992,110 @@ function kopiujObiekt(){
 
 function dodajGracza() {
     if (players.length > 0) {
-        alert("Możliwy tylko jeden gracz!");
+        alert("⚠ Usuń aktualnego gracza, żeby dodać nowego!");
         return;
     }
 
-    let x = cameraX + canvas.width / 2;     // środek ekranu
-    let y = canvas.height / 2;              // środek ekranu (wysokość)
+    let x = cameraX + 80
+    let y = canvas.height / 2
 
     if (gridEnabled) {
-        x = snap(x);
-        y = snap(y);
+        x = snap(x)
+        y = snap(y)
     }
 
-    players.push({
-        x: x,
-        y: y,
-        vx: 0,
-        vy: 0,
-        r: 20,
-        effects: []
-    });
+    const lvl = getLevel()
 
-    selectedObject = players[players.length - 1];
-    showFxList();   // ← jeśli chcesz od razu pokazać panel FX (można usunąć)
-
-    // Zapamiętujemy punkt startowy gracza
-    if (players.length === 1) {
-        playerStartX = players[0].x;
-        playerStartY = players[0].y;
+    const nowy = {
+      x: x,
+      y: y,
+      vx: 0,
+      vy: 0,
+      r: 20,
+      effects: [],
+      type: selectedPlayerType
     }
-}
 
-function ustawStartGracza() {
-  if (players.length === 0) return;
+    lvl.players.push(nowy)
 
-  playerStartX = players[0].x;
-  playerStartY = players[0].y;
+    // 🔥 KLUCZ — synchronizacja
+    syncLevelData()
 
-  alert("📍 Punkt startowy zapisany");
+    // 🔥 teraz players działa
+    selectedObject = nowy
+
+    // start
+    playerStartX = x
+    playerStartY = y
 }
 
 function dodajPlatforme(typ) {
+
   let solid = document.querySelector('input[name="solid"]:checked')?.value || "top";
   
-  let x = cameraX + canvas.width / 2 - 60;   // środek ekranu - połowa szerokości
-  let y = canvas.height / 2 - 10;            // lekko powyżej środka (częściej wygodniej)
+  let x = cameraX + canvas.width / 2 - 60;
+  let y = canvas.height / 2 - 10;
   
   if (gridEnabled) { 
     x = snap(x); 
     y = snap(y); 
   }
-  
-  platforms.push({x, y, w:120, h:20, typ, solid, effects:[]});
-  selectedObject = platforms[platforms.length-1];
-  showFxList();
+
+  let lvl = getLevel()
+
+  lvl.platforms.push({
+    x, y, w:120, h:20, typ, solid, effects:[]
+  })
+
+  selectedObject = lvl.platforms[lvl.platforms.length - 1]
+
+  showFxList()
 }
 
 function dodajBlok() {
-  let x = cameraX + canvas.width / 2 - 80;   // środek - połowa szerokości bloku
-  let y = canvas.height / 2 - 80;            // środek - połowa wysokości
+
+  let x = cameraX + canvas.width / 2 - 80;
+  let y = canvas.height / 2 - 80;
   
   if (gridEnabled) { 
     x = snap(x); 
     y = snap(y); 
   }
-  
-  blocks.push({x, y, w:60, h:60, typ:"block", solid:"full", effects:[]});
-  selectedObject = blocks[blocks.length-1];
-  showFxList();
+
+  let lvl = getLevel()
+
+  lvl.blocks.push({
+    x, y, w:60, h:60, typ:"block", solid:"full", effects:[]
+  })
+
+  selectedObject = lvl.blocks[lvl.blocks.length - 1]
+
+  showFxList()
 }
 
 function dodajEnemy() {
-  let x = cameraX + canvas.width / 2 - 20;   // centrowanie kwadratu 40×40
+
+  let x = cameraX + canvas.width / 2 - 20;
   let y = canvas.height / 2 - 20;
   
   if (gridEnabled) { 
     x = snap(x); 
     y = snap(y); 
   }
-  
-  enemies.push({x, y, w:40, h:40, type:"enemy1", effects:[]});
-  selectedObject = enemies[enemies.length-1];
-  showFxList();
+
+  let lvl = getLevel()
+
+  lvl.enemies.push({
+    x, y, w:40, h:40, type:"enemy1", effects:[]
+  })
+
+  selectedObject = lvl.enemies[lvl.enemies.length - 1]
+
+  showFxList()
 }
 
 function dodajBonus(){
+
   trybBonusy = false
 
   let x = cameraX + canvas.width / 2
@@ -944,13 +1106,15 @@ function dodajBonus(){
     y = snap(y)
   }
 
-  bonuses.push({
+  let lvl = getLevel()
+
+  lvl.bonuses.push({
     x: x,
     y: y,
     r: 12,
-    angle: 0,        // 🔥 obrót
-    scale: 1,        // 🔥 puls
-    pulseTime: 0     // 🔥 czas animacji
+    angle: 0,
+    scale: 1,
+    pulseTime: 0
   })
 }
 
@@ -966,6 +1130,58 @@ function dodajKluczWin(){
     scale: 1
   })
 }
+
+function dodajKluczLevel(){
+
+  let x = cameraX + canvas.width / 2
+  let y = canvas.height / 2
+
+  bonuses.push({
+    x: x,
+    y: y,
+    r: 12,
+    type: "key_level",
+    targetLevel: 0,
+    pulseTime: 0,
+    scale: 1
+  })
+}
+
+function pokazPanelKlucza(obj){
+
+  if (obj.type !== "key_level") return
+
+  document.getElementById("panel").innerHTML = `
+    <h3>KLUCZ → POZIOM</h3>
+
+    <p>Podaj poziom:</p>
+
+    <input type="number" id="targetLevelInput"
+           value="${(obj.targetLevel || 0) + 1}"
+           min="1" style="width:80px; font-size:20px;">
+
+    <br><br>
+
+    <button onclick="zapiszKluczLevel()">
+      💾 ZAPISZ
+    </button>
+  `
+
+  selectedObject = obj
+}
+
+function zapiszKluczLevel(){
+
+  let val = Number(document.getElementById("targetLevelInput").value)
+
+  if (isNaN(val) || val < 1) return
+
+  if (selectedObject && selectedObject.type === "key_level") {
+    selectedObject.targetLevel = val - 1
+    alert("✅ ustawiono poziom: " + val)
+  }
+}
+
 
 function dodajGhost() {
   let x = cameraX + canvas.width / 2 - 20;
@@ -1128,7 +1344,7 @@ canvas.addEventListener("mousedown", e => {
   resizing = null;
 
   if (trybKasowania) {
-    for (const arr of [blocks, platforms, players, enemies]) {
+    for (const arr of [blocks, platforms, players, enemies, bonuses]) {
       for (let i = arr.length - 1; i >= 0; i--) {
         const o = arr[i];
         if (o.r) {
@@ -1196,6 +1412,11 @@ canvas.addEventListener("mousedown", e => {
     if (dist < bonus.r + 10) {
       selectedObject = bonus
       dragging = bonus
+
+    if (bonus.type === "key_level") {
+      pokazPanelKlucza(bonus)
+      return
+    }      
 
       // 🔥 KLUCZOWE – zapamiętaj offset od środka
       dragOffsetX = mx - bonus.x
@@ -1435,6 +1656,40 @@ function update(){
     updateResults()
     return
   }
+
+  // ⏸️ PAUZA PRZED TELEPORTEM
+  if (levelDelay) {
+
+    levelDelay.time--
+
+    if (levelDelay.time <= 0) {
+
+      let target = levelDelay.target
+
+      // 🔥 TU WRACA TWÓJ ORYGINALNY TELEPORT
+      currentLevel = target
+
+      syncLevelData()
+
+      const lvl = getLevel()
+
+      playerStartX = lvl.playerStartX ?? 100
+      playerStartY = lvl.playerStartY ?? 100
+
+      renderLevelsBar()
+
+      respawnPlayer()
+      cameraX = 0
+
+      levelDelay = null
+      levelTextAnim = null
+      trybGry = true
+    }
+
+    return
+  }
+
+
   if (gameOver) return; 
   // === CZAS ===
   let now = Date.now()
@@ -1608,7 +1863,7 @@ function update(){
           }
         }
 
-        if (obj.x < 0 || obj.x + obj.w > 10000) {   // szeroki świat
+        if (obj.x < 0 || obj.x + obj.w > worldWidth) {
           obj.vx = -obj.vx
         }
       }
@@ -1739,6 +1994,7 @@ function update(){
 
   // 💎 ZBIERANIE BONUSÓW
   for (let i = bonuses.length - 1; i >= 0; i--) {
+
     let b = bonuses[i]
     let p = players[0]
 
@@ -1749,6 +2005,36 @@ function update(){
     let dist = Math.sqrt(dx*dx + dy*dy)
 
     if (dist < p.r + b.r) {
+
+      if (b.type === "key_level") {
+
+        let target = b.targetLevel || 0
+
+        if (target >= levels.length) {
+          alert("❌ Ten poziom nie istnieje")
+          return
+        }
+
+        // 🔥 start pauzy
+        levelDelay = {
+          time: 180,
+          target: target
+        }
+
+        levelTextAnim = {
+          time: 180
+        }        
+
+        matrixCols = []
+
+        for (let i = 0; i < canvas.width / 8; i++) {
+          matrixCols[i] = Math.random() * 50
+        }        
+
+        trybGry = false
+
+        return
+      }
 
       // 🔑 WYGRANA
       if (b.type === "key_win") {
@@ -1797,103 +2083,137 @@ function update(){
 
 // ================= DRAW =================
 function setBG(type){
-  backgroundType = type;
-  // opcjonalnie:
-  // zapiszProjekt()
+  getLevel().backgroundType = type
 }
 
 function draw(){
 
-  if (showIntro) {
+  if (levelDelay) {
 
-    // tło
-    ctx.fillStyle = "rgba(0,0,0,0.7)"
-    ctx.fillRect(0, 0, canvas.width, canvas.height)
+    drawMatrix()
 
-    ctx.textAlign = "center"
+    // 🔥 NAPIS NA WIERZCHU MATRIXA
+    if (levelTextAnim) {
 
-    // 🌈 NEON + FALA (TYTUŁ)
-    let t = Date.now() * 0.003
-    let titleY = canvas.height / 2 - 120
+      let progress = 1 - (levelTextAnim.time / 180)
+      progress = Math.min(progress / 0.7, 1)
 
-    ctx.font = "36px Arial"
+      ctx.font = "bold 40px monospace"
+      ctx.textAlign = "center"
+      ctx.fillStyle = "#00ffcc"
 
-    // 🔥 NEON
-    for (let i = 0; i < 3; i++) {
-      ctx.shadowColor = "#00ffff"
-      ctx.shadowBlur = 20 + i * 15
-      ctx.fillStyle = "#00ffff"
+      ctx.shadowColor = "#00ffcc"
+      ctx.shadowBlur = 25
 
-      ctx.fillText(
-        nazwaGry,
-        canvas.width / 2,
-        titleY + Math.sin(t) * 6
-      )
+      let nextX = -200 + progress * (canvas.width / 2 + 200)
+      ctx.fillText("NEXT", nextX, canvas.height / 2 - 20)
+
+      let levelX = canvas.width + 200 - progress * (canvas.width / 2 + 200)
+      ctx.fillText("LEVEL", levelX, canvas.height / 2 + 30)
+
+      ctx.shadowBlur = 0
+
+      levelTextAnim.time--
+
+      if (levelTextAnim.time <= 0) {
+        levelTextAnim = null
+      }
     }
-
-    // 🔥 biały tekst (rdzeń)
-    ctx.shadowBlur = 0
-    ctx.fillStyle = "white"
-
-    ctx.fillText(
-      nazwaGry,
-      canvas.width / 2,
-      titleY + Math.sin(t) * 6
-    )
-
-    // ✨ OPIS (wyżej niż autor)
-    let t2 = Date.now() * 0.002
-
-    ctx.font = "15px Arial"
-
-    let alpha = 0.7 + Math.sin(t2) * 0.3
-    ctx.globalAlpha = alpha
-
-    ctx.fillStyle = "#aaaaaa"
-
-    ctx.fillText(
-      opisGry,
-      canvas.width / 2,
-      canvas.height / 2 + 40 + Math.sin(t2) * 2
-    )
-
-    ctx.globalAlpha = 1
-
-    // 🌈 AUTOR – neon + prawa strona
-    let t3 = Date.now() * 0.003
-
-    ctx.font = "14px Arial"
-    ctx.textAlign = "right"
-
-    let authorX = canvas.width - 80
-    let authorY = canvas.height - 20
-
-    // 🔥 lekki neon (2 warstwy – słabszy niż tytuł)
-    for (let i = 0; i < 2; i++) {
-
-      ctx.shadowColor = "#00ffff"
-      ctx.shadowBlur = 10 + i * 10
-      ctx.fillStyle = "#00ffff"
-
-      ctx.fillText(
-        "by " + autorGry,
-        authorX,
-        authorY + Math.sin(t3) * 2
-      )
-    }
-
-    // biały tekst
-    ctx.shadowBlur = 0
-    ctx.fillStyle = "#dddddd"
-
-    ctx.fillText(
-      "by " + autorGry,
-      authorX,
-      authorY + Math.sin(t3) * 2
-    )
 
     return
+  }  
+
+  if (levelDelay) {
+    drawMatrix()
+    return
+  }  
+
+  if (levelTextAnim) {
+    levelTextAnim.time--
+  }  
+
+  if (showIntro) {
+    const time = Date.now() * 0.001;   // do animacji
+    const cx = canvas.width / 2;
+
+    // === Tło z animacjami ===
+    const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+    grad.addColorStop(0, "#0a001f");
+    grad.addColorStop(1, "#1a0033");
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Animowane linie ukośne (cyber grid)
+    ctx.strokeStyle = "rgba(0, 255, 200, 0.08)";
+    ctx.lineWidth = 1.5;
+    for (let i = -5; i < 25; i++) {
+      const offset = (time * 40 + i * 80) % (canvas.height + 300) - 150;
+      ctx.beginPath();
+      ctx.moveTo(0, offset);
+      ctx.lineTo(canvas.width, offset + 80);
+      ctx.stroke();
+    }
+
+    // Neonowe "deszcze" pionowe
+    ctx.strokeStyle = "rgba(100, 255, 220, 0.25)";
+    for (let i = 0; i < 35; i++) {
+      const x = ((i * 47) + Math.sin(time + i) * 30) % (canvas.width + 100);
+      const speed = 80 + (i % 40);
+      const y1 = (time * speed + i * 60) % (canvas.height + 400) - 200;
+      ctx.beginPath();
+      ctx.moveTo(x, y1);
+      ctx.lineTo(x + Math.sin(time + i) * 8, y1 + 90);
+      ctx.stroke();
+    }
+
+    // Delikatne unoszące się kropki
+    ctx.fillStyle = "#00ffcc";
+    for (let i = 0; i < 45; i++) {
+      const px = (i * 73 + time * 15) % (canvas.width + 80) - 40;
+      const py = (i * 51 + Math.sin(time * 0.6 + i) * 80) % (canvas.height + 100);
+      const size = 1.8 + Math.sin(time * 2 + i) * 0.8;
+      ctx.globalAlpha = 0.4 + Math.sin(time * 3 + i) * 0.3;
+      ctx.fillRect(px, py, size, size);
+    }
+    ctx.globalAlpha = 1;
+
+    // === Tytuł + tekst ===
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+
+    const titleY = 165;
+    const pulse = Math.sin(time * 3) * 4;
+
+    // Neon pod spodem
+    ctx.shadowColor = "#00ffff";
+    ctx.shadowBlur = 35;
+    ctx.fillStyle = "#00ffff";
+    ctx.font = "bold 88px Arial";
+    ctx.fillText(nazwaGry || "Moja gra", cx, titleY + pulse)
+
+    ctx.shadowBlur = 65;
+    ctx.fillText(nazwaGry || "Moja gra", cx, titleY + pulse)
+
+    // Główny biały tytuł
+    ctx.shadowBlur = 25;
+    ctx.fillStyle = "#ffffff";
+    ctx.fillText(nazwaGry || "Moja gra", cx, titleY + pulse)
+
+    ctx.shadowBlur = 0;
+
+    // Podtytuł
+    ctx.font = "22px Arial";
+    ctx.fillStyle = "#aaccff";
+    ctx.fillText(opisGry || "gra sobie od Groka", cx, titleY + 75);
+
+    // Autor
+    ctx.font = "17px Arial";
+    ctx.fillStyle = "#556677";
+    ctx.fillText("by " + (autorGry || "ed"), cx, canvas.height - 28);
+
+    return;
   }
+
 
   if (gameState === "results" || gameState === "win") {
     drawResults()
@@ -2076,20 +2396,124 @@ for (let b of blocks) {
 }
 
   for (let p of players) {
+
     // ✨ Migotanie podczas nieśmiertelności
     if (invulnerable > 0 && Math.floor(invulnerable / 5) % 2 === 0) {
-      continue; // pomiń rysowanie tej klatki = efekt mrugania
+      continue;
     }
 
-    ctx.fillStyle = "red";
-    ctx.beginPath();
-    ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-    ctx.fill();
+    // 🔴 === PIŁKA
+    if (p.type === "ball") {
 
+      ctx.fillStyle = "red"
+      ctx.beginPath()
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2)
+      ctx.fill()
+
+    }
+
+    // 🚗 === AUTO
+    else {
+
+      let w = p.r * 2.8
+      let h = p.r * 1.4
+
+      ctx.save()
+
+      let tilt = -p.vx * 0.02
+      ctx.translate(p.x, p.y)
+      ctx.rotate(tilt)
+
+      // === KAROSERIA
+      ctx.beginPath()
+      ctx.moveTo(-w/2, h/2)
+      ctx.lineTo(-w/2 + 10, -h/4)
+      ctx.quadraticCurveTo(0, -h, w/3, -h/2)
+      ctx.lineTo(w/2, 0)
+      ctx.lineTo(w/2, h/2)
+      ctx.closePath()
+
+      let grad = ctx.createLinearGradient(-w/2, 0, w/2, 0)
+      grad.addColorStop(0, "#ff3a3a")
+      grad.addColorStop(1, "#990000")
+      ctx.fillStyle = grad
+      ctx.fill()
+
+      // === SZYBA
+      let glassOffset = 6
+
+      ctx.beginPath()
+      ctx.moveTo(-w/6, -h/2 + glassOffset)
+      ctx.lineTo(0, -h/2 - 6 + glassOffset)
+      ctx.lineTo(w/4, -h/2 + glassOffset)
+      ctx.closePath()
+
+      ctx.fillStyle = "#66ccff"
+      ctx.fill()
+
+      // === KOŁA
+      ctx.fillStyle = "black"
+      ctx.beginPath()
+      ctx.arc(-w/3, h/2, p.r/2.2, 0, Math.PI*2)
+      ctx.arc(w/3, h/2, p.r/2.2, 0, Math.PI*2)
+      ctx.fill()
+
+      // === FELGI
+      ctx.fillStyle = "#ccc"
+      ctx.beginPath()
+      ctx.arc(-w/3, h/2, p.r/4, 0, Math.PI*2)
+      ctx.arc(w/3, h/2, p.r/4, 0, Math.PI*2)
+      ctx.fill()
+
+      // === ŚWIATŁO PRZEDNIE
+      ctx.fillStyle = "#ffffaa"
+      ctx.shadowColor = "#ffff88"
+      ctx.shadowBlur = 20
+      ctx.fillRect(w/2 - 6, -4, 6, 6)
+      ctx.shadowBlur = 0
+
+      // === ŚWIATŁO TYLNE
+      ctx.fillStyle = "#ff2222"
+      ctx.fillRect(-w/2, -4, 5, 5)
+
+      // === WYDECH 🔥
+      if (p.vx > 0.5) {
+        ctx.save()
+        ctx.translate(-w/2 - 10, h/2 - 3)
+
+        for(let i = 0; i < 3; i++) {
+          let flameSize = 6 + Math.random() * 4
+
+          let gradient = ctx.createLinearGradient(0, 0, -flameSize*2, 0)
+          gradient.addColorStop(0, "rgba(255,255,100,0.9)")
+          gradient.addColorStop(0.5, "rgba(255,100,0,0.7)")
+          gradient.addColorStop(1, "rgba(255,0,0,0)")
+
+          ctx.fillStyle = gradient
+          ctx.beginPath()
+          ctx.ellipse(-flameSize, 0, flameSize, 3 + Math.random()*2, 0, 0, Math.PI*2)
+          ctx.fill()
+        }
+
+        ctx.restore()
+      }
+
+      // === LINIA
+      ctx.strokeStyle = "#222"
+      ctx.lineWidth = 2
+      ctx.beginPath()
+      ctx.moveTo(-w/2, h/2)
+      ctx.lineTo(w/2, h/2)
+      ctx.stroke()
+
+      ctx.restore()
+    }
+
+    // 🟡 SELECT
     if (p === selectedObject) {
-      ctx.strokeStyle = "yellow";
-      ctx.lineWidth = 3;
-      ctx.stroke();
+      ctx.strokeStyle = "yellow"
+      ctx.lineWidth = 3
+      ctx.stroke()
     }
   }
 
@@ -2204,10 +2628,12 @@ for (let b of blocks) {
     ctx.textAlign = "center"
     ctx.textBaseline = "middle"
 
-    ctx.fillText(
-      b.type === "key_win" ? "🔑" : "💎",
-      0, 0
-    )
+    let icon = "💎"
+
+    if (b.type === "key_win") icon = "🏁"
+    if (b.type === "key_level") icon = "🔑"
+
+    ctx.fillText(icon, 0, 0)
     ctx.restore()
   }
 
@@ -2326,35 +2752,29 @@ let loadedFromFile = false
 async function zapiszProjekt(){
 
   const data = {
-    level: {
-      nazwaGry: nazwaGry,
-      autorGry: autorGry,
-      opisGry: opisGry,
-      players,
-      platforms,
-      blocks,
-      enemies,
-      bonuses,
-      texts,
+    levels: levels,   // 🔥 CAŁA GRA (wszystkie poziomy)
+
+    settings: {
+      nazwaGry,
+      autorGry,
+      opisGry,
       sterowanie,
       counters,
       startTime,
       useTimer,
-      autorGry: autorGry,
       backgroundType,
-      playerStart: {
-        x: playerStartX,
-        y: playerStartY
-      },
-      respawnMode: respawnMode,
+      playerStartX,
+      playerStartY,
+      respawnMode,
       autoScroll,
-      autoScrollSpeed,  
-      worldWidth: worldWidth,    
+      autoScrollSpeed,
+      worldWidth
     },
+
     stats: gameData.stats || {}
   }
 
-  // 🔥 jeśli nie mamy pliku → wybierz
+  // 🔥 wybór pliku (jak było u Ciebie)
   if (!fileHandle) {
     fileHandle = await window.showSaveFilePicker({
       suggestedName: (nazwaGry || "projekt") + ".json",
@@ -2526,55 +2946,82 @@ function wczytajProjekt(){
 
   input.onchange = e => {
     const file = e.target.files[0]
+    if (!file) return;
+
     projectName = file.name.replace(".json", "")
     loadedFromFile = true
+
     const reader = new FileReader()
 
     reader.onload = ev => {
-      const data = JSON.parse(ev.target.result)
+      try {
+        const data = JSON.parse(ev.target.result)
 
-      gameData = data || {}
-      gameData.stats = gameData.stats || {}
+        gameData = data || {}
+        gameData.stats = gameData.stats || {}
 
-      players = gameData.level?.players || []
-      platforms = gameData.level?.platforms || []
-      blocks = gameData.level?.blocks || []
-      enemies = gameData.level?.enemies || []
-      bonuses = gameData.level?.bonuses || []
-      texts = gameData.level?.texts || []
-      nazwaGry = gameData.level?.nazwaGry || "Moja gra"
-      autorGry = gameData.level?.autorGry || projectName
-      opisGry = gameData.level?.opisGry || ""
-      backgroundType = gameData.level?.backgroundType || "none";
-      playerStartX = gameData.level?.playerStart?.x ?? players[0]?.x ?? 100;
-      playerStartY = gameData.level?.playerStart?.y ?? players[0]?.y ?? 100; 
-      respawnMode = gameData.level?.respawnMode || "death"
-      autoScroll = gameData.level?.autoScroll || false;
-      autoScrollSpeed = gameData.level?.autoScrollSpeed || 2;
-      worldWidth = gameData.level?.worldWidth || 6000;
-      scrollX.max = worldWidth - canvas.width;
+        // Poziomy
+        levels = gameData.levels || []
+        if (levels.length === 0) {
+          levels.push({
+            players: [], platforms: [], blocks: [], enemies: [], bonuses: [], texts: [],
+            backgroundType: "none",
+            playerStartX: 100,
+            playerStartY: 100
+          })
+        }
 
-      sterowanie = gameData.level?.sterowanie || {lewo:null, prawo:null, skok:null}
+        currentLevel = 0
+        syncLevelData()
+        renderLevelsBar()
 
-      counters = {
-        lives: gameData.level?.counters?.lives ?? 3,
-        points: gameData.level?.counters?.points ?? 0,
-        time: gameData.level?.counters?.time ?? 60
-      };
+        const lvl = getLevel()
+        playerStartX = lvl.playerStartX ?? 100
+        playerStartY = lvl.playerStartY ?? 100
 
-      // 🔥 NAJWAŻNIEJSZE
-      startTime = gameData.level?.startTime ?? counters.time;
+        // ==================== NAJWAŻNIEJSZE – WCZYTANIE SETTINGS ====================
+        let s = gameData.settings || {}
 
-      useTimer = gameData.level?.useTimer ?? true
+        nazwaGry   = s.nazwaGry   || "Moja gra"
+        autorGry   = s.autorGry   || projectName
+        opisGry    = s.opisGry    || "gra sobie od Groka"
 
-      autorGry = gameData.level?.autorGry || projectName
-      showIntro = true      
+        backgroundType = s.backgroundType || "none"
 
-      lastTime = Date.now()
-      selectedObject = null
-      trybKopiowania = false
+        respawnMode     = s.respawnMode     || "death"
+        autoScroll      = !!s.autoScroll
+        autoScrollSpeed = Number(s.autoScrollSpeed) || 2
+        worldWidth      = Number(s.worldWidth) || 6000
 
-      updateButtonStates()
+        scrollX.max = worldWidth - canvas.width
+
+        sterowanie = s.sterowanie || {lewo: null, prawo: null, skok: null}
+
+        counters = {
+          lives: s.counters?.lives ?? 3,
+          points: s.counters?.points ?? 0,
+          time: s.counters?.time ?? 60
+        }
+
+        startTime = s.startTime ?? counters.time
+        useTimer  = !!s.useTimer
+
+        // Pokazujemy intro po wczytaniu
+        showIntro = true
+
+        lastTime = Date.now()
+        selectedObject = null
+        trybKopiowania = false
+
+        updateButtonStates()
+        initAfterLoad()
+
+        console.log(`Wczytano grę: "${nazwaGry}" by ${autorGry}`)
+
+      } catch (err) {
+        alert("Błąd podczas wczytywania pliku JSON")
+        console.error(err)
+      }
     }
 
     reader.readAsText(file)
@@ -2592,7 +3039,7 @@ function zapiszHTML(){
 }
 
 function otworzGre(){
-  document.getElementById("menuStart").style.display = "none"
+
   document.getElementById("editor").style.display = "block"
 
   setTimeout(() => {
@@ -2617,8 +3064,8 @@ function otworzGre(){
       texts = gameData.level?.texts || []
       backgroundType = gameData.level?.backgroundType || "none";
 
-      playerStartX = gameData.level?.playerStart?.x ?? players[0]?.x ?? 100;
-      playerStartY = gameData.level?.playerStart?.y ?? players[0]?.y ?? 100;
+      playerStartX = getLevel().playerStartX ?? 100
+      playerStartY = getLevel().playerStartY ?? 100
 
         sterowanie = gameData.level?.sterowanie || {lewo:null, prawo:null, skok:null}
         counters = {
@@ -2792,10 +3239,6 @@ function zapiszUstawienia(){
   alert("Zapisano")
 }
 
-function startTworzenie(){
-  document.getElementById("menuStart").style.display = "none"
-  document.getElementById("editor").style.display = "block"
-}
 
 function powrotDoMenu() {
 
@@ -2856,11 +3299,17 @@ function pokazKoniec(){
   document.getElementById("panel").innerHTML = `
     <h3>KONIEC GRY</h3>
 
-    <div style="margin-top:10px;">
-      <button onclick="dodajKluczWin()" style="font-size:18px;">
-        🔑 Klucz → wygrana
-      </button>
+    <div class="item" onclick="dodajKluczWin()" style="font-size:40px;">
+      🏁
     </div>
+    <br><br>
+    <h4>POZIOMY ➜ teleport</h4>
+    
+    <div class="item" onclick="dodajKluczLevel()" style="font-size:40px;">
+      🔑
+    </div>
+
+    <p style="text-align:center;">Kliknij aby wstawić<br>teleport do wybranego<br>poziomu</p>
   `
 }
 
@@ -2926,6 +3375,8 @@ function ustawAutora(){
 }
 
 function drawBackground(){
+
+  let backgroundType = getLevel().backgroundType || "none"  
 
   if(backgroundType === "none") return;
 
@@ -3312,7 +3763,7 @@ function zapiszAutora(){
 function pokazUstawienia() {
 
   let html = `
-    <br><br>
+
     <h3>O TWÓRCY GRY</h3>
 
     <div style="margin-top:10px;">
@@ -3321,16 +3772,146 @@ function pokazUstawienia() {
       </button>
     </div>
 
-    
+    <br><br>
+
+    <h3>USTAWIENIA ŚWIATA</h3>
+
+    🌍 Długość świata:
+    <br><br>
+    min. 800
+    <br><br>
+    <input type="number" id="editWorld"
+          value="${worldWidth}"
+          min="800"
+          max="20000"
+          step="100"
+          style="width:80px;"
+          oninput="limitWorldInput(this)">
+    <br><br>
+
+    <button onclick="zapiszUstawieniaSwiata()">ZAPISZ</button>
   `
 
-  // 🔥 TU WRZUCA DO PANELU (dopasuj ID jeśli masz inne)
   document.getElementById("panel").innerHTML = html
+}
+
+function zapiszUstawieniaSwiata(){
+
+  let val = Number(document.getElementById("editWorld").value)
+
+  if (isNaN(val)) return
+
+  if (val < 800) val = 800
+  if (val > 10000) val = 10000   // 🔥 LIMIT
+
+  worldWidth = val
+
+  scrollX.max = worldWidth - canvas.width
+
+  alert("✅ Długość świata: " + worldWidth)
+}
+
+function limitWorldInput(el){
+
+  let val = Number(el.value)
+
+  if (val > 10000) el.value = 10000
+  if (val < 800) el.value = 800
+}
+
+function respawnPlayer(){
+
+  if (!players[0]) return
+
+  players[0].x = 40        // 🔥 LEWA KRAWĘDŹ
+  players[0].y = canvas.height / 2
+
+  players[0].vx = 0
+  players[0].vy = 0
+
+  cameraX = 0
+}
+
+function initAfterLoad(){
+
+  if (!levels || levels.length === 0) {
+    levels = [{
+      platforms: [],
+      blocks: [],
+      enemies: [],
+      bonuses: [],
+      texts: [],
+      backgroundType: "none",
+      playerStartX: 100,
+      playerStartY: 100
+    }]
+  }
+
+  currentLevel = 0
+
+  syncLevelData()
+  renderLevelsBar()
+
+  // 🔥 DODAJ TO
+  const lvl = getLevel()
+
+  playerStartX = lvl.playerStartX ?? 100
+  playerStartY = lvl.playerStartY ?? 100
+
+  respawnPlayer()   // 🔥 i to też
+
+  cameraX = 0
+
+  selectedObject = null
+  trybKopiowania = false
+
+  updateButtonStates()
+}
+
+function drawMatrix(){
+
+  matrixFrame++
+  
+  ctx.fillStyle = "rgba(0,0,0,0.2)"
+  ctx.fillRect(0, 0, canvas.width, canvas.height)
+
+  ctx.fillStyle = "#0f0"
+  ctx.font = "22px monospace"
+
+  for (let i = 0; i < matrixCols.length; i++) {
+
+    let text
+
+    if (matrixFrame % 4 === 0) {
+      text = String.fromCharCode(48 + Math.floor(Math.random() * 10))
+    } else {
+      text = " "
+    }
+
+    let x = i * 14
+    let y = matrixCols[i] * 14
+
+    ctx.fillText(text, x, y)
+
+    if (y > canvas.height && Math.random() > 0.975) {
+      matrixCols[i] = 0
+    }
+
+    matrixCols[i] += 0.2
+  }
 }
 
 // ================= START =================
 updateButtonStates()
-startTworzenie()
+renderLevelsBar()
+syncLevelData()
+
+const lvl = getLevel()
+
+playerStartX = lvl.playerStartX ?? 100
+playerStartY = lvl.playerStartY ?? 100
+
+respawnPlayer()
 
 function loop(time){
 
