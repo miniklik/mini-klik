@@ -3051,40 +3051,60 @@ function otworzGre(){
       const reader = new FileReader()
 
       reader.onload = ev => {
-      const data = JSON.parse(ev.target.result)
 
-      gameData = data || {}
-      gameData.stats = gameData.stats || {}
+        try {
 
-      players = gameData.level?.players || []
-      platforms = gameData.level?.platforms || []
-      blocks = gameData.level?.blocks || []
-      enemies = gameData.level?.enemies || []
-      bonuses = gameData.level?.bonuses || []
-      texts = gameData.level?.texts || []
-      backgroundType = gameData.level?.backgroundType || "none";
+          const data = JSON.parse(ev.target.result)
 
-      playerStartX = getLevel().playerStartX ?? 100
-      playerStartY = getLevel().playerStartY ?? 100
+          gameData = data || {}
+          gameData.stats = gameData.stats || {}
 
-        sterowanie = gameData.level?.sterowanie || {lewo:null, prawo:null, skok:null}
-        counters = {
-          lives: gameData.level?.counters?.lives ?? 3,
-          points: gameData.level?.counters?.points ?? 0,
-          time: gameData.level?.counters?.time ?? 60
-        };
+          // 🔥 LEVEL (MAPA)
+          let level = gameData.levels?.[0] || {}
 
-        // 🔥 TO DODAJESZ
-        startTime = gameData.level?.startTime ?? counters.time;
+          players = level.players || []
+          platforms = level.platforms || []
+          blocks = level.blocks || []
+          enemies = level.enemies || []
+          bonuses = level.bonuses || []
+          texts = level.texts || []
+          backgroundType = level.backgroundType || "city"
 
-        useTimer = gameData.level?.useTimer ?? true
+          // 🔥 START POZYCJI
+          playerStartX = level.playerStartX ?? 100
+          playerStartY = level.playerStartY ?? 100
 
-        lastTime = Date.now();
+          // 🔥 SETTINGS (USTAWIENIA GRY)
+          sterowanie = gameData.settings?.sterowanie || {lewo:null, prawo:null, skok:null}
 
-        selectedObject = null
-        trybKopiowania = false
-        updateButtonStates()
-        zapiszHTML()
+          counters = {
+            lives: gameData.settings?.counters?.lives ?? 3,
+            points: gameData.settings?.counters?.points ?? 0,
+            time: gameData.settings?.counters?.time ?? 60
+          }
+
+          startTime = gameData.settings?.startTime ?? counters.time
+          useTimer = gameData.settings?.useTimer ?? true
+
+          // 🔥 META
+          autorGry = gameData.settings?.autorGry || "DEMO"
+          opisGry = gameData.settings?.opisGry || ""
+
+          // 🔥 RESET
+          lastTime = Date.now()
+          selectedObject = null
+          trybKopiowania = false
+
+          updateButtonStates()
+          zapiszHTML()
+
+          console.log("✅ Gra wczytana poprawnie")
+
+        } catch (err) {
+          console.error("❌ Błąd JSON:", err)
+          alert("Błąd pliku JSON")
+        }
+
       }
 
       reader.readAsText(file)
@@ -3320,31 +3340,42 @@ function loadDemo() {
 
       console.log("DEMO wczytane:", data)
 
-      // === LOAD (tak jak z pliku) ===
       gameData = data || {}
       gameData.stats = gameData.stats || {}
 
-      players = gameData.level?.players || []
-      platforms = gameData.level?.platforms || []
-      blocks = gameData.level?.blocks || []
-      enemies = gameData.level?.enemies || []
-      bonuses = gameData.level?.bonuses || []
-      texts = gameData.level?.texts || []
+      // 🔥 LEVEL
+      let level = gameData.levels?.[0] || {}
 
-      sterowanie = gameData.level?.sterowanie || {lewo:null, prawo:null, skok:null}
+      players = level.players || []
+      platforms = level.platforms || []
+      blocks = level.blocks || []
+      enemies = level.enemies || []
+      bonuses = level.bonuses || []
+      texts = level.texts || []
+
+      backgroundType = level.backgroundType || "city"
+
+      // 🔥 START
+      playerStartX = level.playerStartX ?? 100
+      playerStartY = level.playerStartY ?? 100
+
+      // 🔥 SETTINGS (ZAMIAST gameData.level ❌)
+      let settings = gameData.settings || {}
+
+      sterowanie = settings.sterowanie || {lewo:null, prawo:null, skok:null}
 
       counters = {
-        lives: gameData.level?.counters?.lives ?? 3,
-        points: gameData.level?.counters?.points ?? 0,
-        time: gameData.level?.counters?.time ?? 60
+        lives: settings.counters?.lives ?? 3,
+        points: settings.counters?.points ?? 0,
+        time: settings.counters?.time ?? 60
       }
 
-      startTime = gameData.level?.startTime ?? counters.time
-      useTimer = gameData.level?.useTimer ?? true
-      autorGry = gameData.level?.autorGry || "DEMO"
-      opisGry = gameData.level?.opisGry || ""
-      backgroundType = gameData.level?.backgroundType || "city"
+      startTime = settings.startTime ?? counters.time
+      useTimer = settings.useTimer ?? true
+      autorGry = settings.autorGry || "DEMO"
+      opisGry = settings.opisGry || ""
 
+      // 🔥 RESET
       lastTime = Date.now()
       selectedObject = null
       trybKopiowania = false
@@ -3352,6 +3383,7 @@ function loadDemo() {
       updateButtonStates()
 
       trybGry = true
+
     })
     .catch(err => {
       console.error("Błąd wczytania DEMO:", err)
