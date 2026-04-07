@@ -7,11 +7,59 @@
   body { margin:0; font-family:Arial; background:#111; color:white; display:flex; flex-direction:column; align-items:center; }
   #editor { width:1200px; max-width:95vw; }
   #topbar { background:#222; padding:10px; display:flex; justify-content:center; gap:10px; flex-wrap:wrap; }
-  button { padding:6px 10px; cursor:pointer; background:#444; border:1px solid #555; color:white; }
+  button {
+  padding: 12px 16px;
+  font-size: 14px;
+  font-weight: bold;
+  background: linear-gradient(180deg, #555, #222);
+  border: 2px solid #666;
+  border-radius: 10px;
+  color: white;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  box-shadow: 0 4px 0 #111, 0 0 10px rgba(0,0,0,0.5);
+}
+
+/* HOVER */
+button:hover {
+  background: linear-gradient(180deg, #666, #333);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 0 #111, 0 0 12px rgba(0,0,0,0.7);
+}
+
+/* CLICK */
+button:active {
+  transform: translateY(2px);
+  box-shadow: 0 2px 0 #111;
+}
+
+/* AKTYWNY (zielony jak masz teraz) */
+button.active {
+  background: linear-gradient(180deg, #4CAF50, #2e7d32) !important;
+  border-color: #1b5e20;
+  box-shadow: 0 0 12px #4CAF50, 0 4px 0 #0a3d12;
+}
   button.active { background:#4CAF50 !important; border-color:#388E3C; box-shadow:0 0 8px #4CAF50; }
   #deleteBtn.active { background:#c33 !important; border-color:#933; box-shadow:0 0 8px #c33; }
   #main { display:flex; gap:10px; }
-  #lewy, #prawy { width:220px; background:#222; padding:10px; }
+#lewy button {
+  width: 160px; 
+  height: 40px;              /* 🔥 STAŁA WYSOKOŚĆ */
+  box-sizing: border-box;    /* 🔥 klucz */
+
+  margin-bottom: 10px;
+  padding-left: 14px;
+  
+
+  display: flex;             /* 🔥 wyrównanie */
+  align-items: center;
+}
+#prawy button {
+  height: 40px;
+  box-sizing: border-box;
+  margin-bottom: 8px;   /* 🔥 TO JEST KLUCZ */
+}
+  #prawy { width:220px; background:#222; padding:10px; }
   canvas { background:#87CEEB; }
   .selected { outline:3px solid red; }
   .item { cursor:pointer; text-align:center; margin:10px 0; }
@@ -54,18 +102,16 @@
 <div id="main">
 <div id="lewy">
   <h3>OBIEKTY</h3>
-  <button onclick="pokazGraczy()">GRACZ</button>
-  <br><br>
-  <button onclick="pokazPlatformy()">PLATFORMA</button>
-  <br><br>
-  <button onclick="pokazBloki()">BLOK</button><br><br>
-  <button onclick="pokazPrzeciwniki()">PRZECIWNIK</button><br><br>
-  <button onclick="wlaczBonusy()">BONUSY</button><br><br>
-  <button onclick="pokazLiczniki()">LICZNIKI</button><br><br>
-  <button onclick="pokazKoniec()">POZIOMY ➜ GRY</button><br><br>
-  <button onclick="dodajTekst()">TEKST</button><br><br>
-  <button onclick="pokazTloPanel()">TŁO</button><br><br>
-  <button onclick="pokazUstawienia()">⚙ Ustawienia</button>
+  <button onclick="pokazGraczy()">👤 GRACZ</button>
+  <button onclick="pokazPlatformy()">🧱 PLATFORMA</button>
+  <button onclick="pokazBloki()">⬛ BLOK</button>
+  <button onclick="pokazPrzeciwniki()">👾 PRZECIWNIK</button>
+  <button onclick="wlaczBonusy()">💎 BONUSY</button>
+  <button onclick="pokazLiczniki()">📊 LICZNIKI</button>
+  <button onclick="pokazKoniec()">🏁 POZIOMY ➜ GRY</button>
+  <button onclick="dodajTekst()">✍ TEKST</button>
+  <button onclick="pokazTloPanel()">🌄 TŁO</button>
+  <button onclick="pokazUstawienia()">⚙ USTAWIENIA</button>
   <div id="sterowanie"></div>
 </div>
 
@@ -124,16 +170,18 @@ function getLevel(){
   return levels[currentLevel]
 }
 function syncLevelData(){
+  const lvl = levels[currentLevel];
+  if (!lvl) return;
 
-  const lvl = levels[currentLevel]
-  if (!lvl) return
+  players   = lvl.players   || [];
+  platforms = lvl.platforms || [];
+  blocks    = lvl.blocks    || [];
+  enemies   = lvl.enemies   || [];
+  bonuses   = lvl.bonuses   || [];   // ← DODANE
+  texts     = lvl.texts     || [];
 
-  players   = lvl.players   || []
-  platforms = lvl.platforms || []
-  blocks    = lvl.blocks    || []
-  enemies   = lvl.enemies   || []
-  bonuses   = lvl.bonuses   || []
-  texts     = lvl.texts     || []
+  // dodatkowe bezpieczeństwo
+  if (!Array.isArray(bonuses)) bonuses = [];
 }
 
 if (levels.length === 0) {
@@ -183,6 +231,7 @@ let levelDelay = null
 let matrixCols = []
 let matrixFrame = 0
 let levelTextAnim = null
+
 
 let resultsBall = { x: 400, y: 220, r: 20 }
 let resultsEnemies = []
@@ -471,6 +520,7 @@ function toggleFX(){
     document.getElementById("panel").innerHTML = "<h3>PANEL</h3><div>Wybierz narzędzie z góry.</div>"
   }
 }
+
 
 let selectedObject = null; // <--- brakowało deklaracji w oryginalnym kodzie
 
@@ -1095,27 +1145,29 @@ function dodajEnemy() {
 }
 
 function dodajBonus(){
-
-  trybBonusy = false
-
-  let x = cameraX + canvas.width / 2
-  let y = canvas.height / 2
+  let x = cameraX + canvas.width / 2;
+  let y = canvas.height / 2;
 
   if (gridEnabled) {
-    x = snap(x)
-    y = snap(y)
+    x = snap(x);
+    y = snap(y);
   }
 
-  let lvl = getLevel()
+  const lvl = getLevel();
+  if (!lvl.bonuses) lvl.bonuses = [];
 
-  lvl.bonuses.push({
+  const nowyBonus = {
     x: x,
     y: y,
     r: 12,
-    angle: 0,
-    scale: 1,
-    pulseTime: 0
-  })
+    type: "normal",           // domyślny
+    pulseTime: 0,
+    scale: 1
+  };
+
+  lvl.bonuses.push(nowyBonus);
+  bonuses = lvl.bonuses;      // synchronizacja
+  selectedObject = nowyBonus;
 }
 
 function dodajKluczWin(){
@@ -2974,6 +3026,7 @@ function wczytajProjekt(){
 
         currentLevel = 0
         syncLevelData()
+        bonuses = levels[0]?.bonuses || [];
         renderLevelsBar()
 
         const lvl = getLevel()
@@ -3359,6 +3412,7 @@ function loadDemo() {
       renderLevelsBar();
 
       const lvl = getLevel() || {};
+      bonuses = lvl.bonuses || [];
       backgroundType = lvl.backgroundType || "none";
       playerStartX = lvl.playerStartX ?? 100;
       playerStartY = lvl.playerStartY ?? 100;
@@ -3867,16 +3921,16 @@ function limitWorldInput(el){
 }
 
 function respawnPlayer(){
+  if (!players[0]) return;
 
-  if (!players[0]) return
+  const lvl = getLevel();
+  players[0].x = lvl.playerStartX ?? 150;
+  players[0].y = lvl.playerStartY ?? 300;
+  players[0].vx = 0;
+  players[0].vy = 0;
 
-  players[0].x = 40        // 🔥 LEWA KRAWĘDŹ
-  players[0].y = canvas.height / 2
-
-  players[0].vx = 0
-  players[0].vy = 0
-
-  cameraX = 0
+  cameraX = Math.max(0, players[0].x - canvas.width / 2);
+  syncScrollbar();
 }
 
 function initAfterLoad(){
