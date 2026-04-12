@@ -2,7 +2,6 @@
 <html lang="pl">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>Edytor gier</title>
 <style>
   body { margin:0; font-family:Arial; background:#111; color:white; display:flex; flex-direction:column; align-items:center; }
@@ -51,7 +50,7 @@ button.active {
   margin-bottom: 8px;
 }
   #prawy { width:220px; background:#222; padding:10px; }
-  canvas { background:#87CEEB; display:block; }
+  canvas { background:#87CEEB; }
   .selected { outline:3px solid red; }
   .item { cursor:pointer; text-align:center; margin:10px 0; }
   .keybox { border:1px solid #888; padding:6px; margin:3px 0; text-align:center; cursor:pointer; background:#333; }
@@ -69,65 +68,6 @@ button.active {
     0%   { opacity: 1; }
     50%  { opacity: 0.2; }
     100% { opacity: 1; }
-  }
-
-  /* ===== DPAD W PANELU USTAWIEŃ ===== */
-  .dpad-panel {
-    position: relative;
-    width: 150px;
-    height: 150px;
-    margin: 10px auto;
-    user-select: none;
-    -webkit-user-select: none;
-  }
-
-  .dpad-btn {
-    position: absolute;
-    width: 46px;
-    height: 46px;
-    background: linear-gradient(180deg, #444, #222);
-    border: 2px solid #666;
-    border-radius: 10px;
-    color: white;
-    font-size: 20px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    box-shadow: 0 5px 0 #000, inset 0 1px 0 rgba(255,255,255,0.1);
-    transition: all 0.07s ease;
-    touch-action: none;
-    -webkit-tap-highlight-color: transparent;
-  }
-
-  .dpad-btn:active,
-  .dpad-btn.pressed {
-    background: linear-gradient(180deg, #3a8fff, #1a5fd4) !important;
-    border-color: #2277ff;
-    box-shadow: 0 2px 0 #000, 0 0 14px #3a8fff, inset 0 1px 0 rgba(255,255,255,0.15);
-    transform: translateY(3px);
-  }
-
-  .dpad-up    { top:0;    left:50%; transform:translateX(-50%); border-radius:10px 10px 6px 6px; }
-  .dpad-down  { bottom:0; left:50%; transform:translateX(-50%); border-radius:6px 6px 10px 10px; }
-  .dpad-left  { left:0;  top:50%;  transform:translateY(-50%); border-radius:10px 6px 6px 10px; }
-  .dpad-right { right:0; top:50%;  transform:translateY(-50%); border-radius:6px 10px 10px 6px; }
-
-  .dpad-up:active    { transform: translateX(-50%) translateY(3px); }
-  .dpad-down:active  { transform: translateX(-50%) translateY(3px); }
-  .dpad-left:active  { transform: translateY(-50%) translateX(3px); }
-  .dpad-right:active { transform: translateY(-50%) translateX(-3px); }
-
-  .dpad-center-dot {
-    position: absolute;
-    width: 46px;
-    height: 46px;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    background: #1a1a1a;
-    border-radius: 8px;
-    border: 2px solid #333;
   }
 </style>
 </head>
@@ -165,9 +105,6 @@ button.active {
 
   <div style="display:flex; flex-direction:column; align-items:center;">
     <canvas id="scena" width="800" height="450"></canvas>
-
-
-
     <input type="range" id="scrollX" min="0" value="0" step="1"
            style="width:800px; margin:8px 0; accent-color:#4CAF50; background:#333; height:12px; border-radius:6px;">
 
@@ -256,6 +193,7 @@ let gameOverTriggered = false
 let playerStartX = 100
 let playerStartY = 100
 
+// === SYSTEM ŻYĆ I RESPAWN ===
 let invulnerable = 0
 let invulnerabilityTime = 80
 let hitPause = 0
@@ -298,24 +236,6 @@ let lastTime = Date.now()
 let fps = 70
 let frameDelay = 1000 / fps
 let lastFrame = 0
-
-// ===== MOBILE DPAD (w panelu ustawień) =====
-function navPress(dir) {
-  const el = document.querySelector('.dpad-' + dir)
-  if (el) el.classList.add('pressed')
-  if (dir === 'left'  && sterowanie.lewo)  keys[sterowanie.lewo]  = true
-  if (dir === 'right' && sterowanie.prawo) keys[sterowanie.prawo] = true
-  if (dir === 'up'    && sterowanie.skok)  keys[sterowanie.skok]  = true
-  if (dir === 'down'  && sterowanie.skok)  keys[sterowanie.skok]  = false
-}
-
-function navRelease(dir) {
-  const el = document.querySelector('.dpad-' + dir)
-  if (el) el.classList.remove('pressed')
-  if (dir === 'left'  && sterowanie.lewo)  keys[sterowanie.lewo]  = false
-  if (dir === 'right' && sterowanie.prawo) keys[sterowanie.prawo] = false
-  if (dir === 'up'    && sterowanie.skok)  keys[sterowanie.skok]  = false
-}
 
 function renderLevelsBar(){
   let html = `<b style="margin-right:10px; color:#0f0;">POZIOMY →</b>`
@@ -467,6 +387,7 @@ const floorY = 430
 let editingFxIndex = -1
 let effectsPaused = false
 
+// KAMERA
 let cameraX = 0
 let autoScroll = false
 let autoScrollSpeed = 2
@@ -718,6 +639,7 @@ function saveMove(){
   showFxList()
 }
 
+// ================= DODAWANIE OBIEKTÓW =================
 function pokazGraczy() {
   document.getElementById("panel").innerHTML = `
     <h4>DODAJ GRACZA</h4>
@@ -933,6 +855,7 @@ function drawPlatformPreview(canvasId, typ) {
 }
 
 function drawCar(cx, cy, r, vx){
+
   const W = r * 3;
   const H = r * 1.4;
 
@@ -942,6 +865,7 @@ function drawCar(cx, cy, r, vx){
   let tilt = -vx * 0.015
   ctx.rotate(tilt)
 
+  // 🔵 KAROSERIA (lekko zaokrąglona)
   ctx.fillStyle = "#3a86ff";
   ctx.beginPath();
   ctx.moveTo(-W/2, H/2);
@@ -953,25 +877,33 @@ function drawCar(cx, cy, r, vx){
   ctx.closePath();
   ctx.fill();
 
+  // 🪟 SZYBA
   ctx.fillStyle = "#a5d8ff";
   ctx.fillRect(-W*0.15, -H*0.4, W*0.3, H*0.3);
 
+  // ⚫ KOŁA
   ctx.fillStyle = "black";
+
   ctx.beginPath();
   ctx.arc(-W*0.3, H/2, r*0.45, 0, Math.PI*2);
   ctx.fill();
+
   ctx.beginPath();
   ctx.arc(W*0.3, H/2, r*0.45, 0, Math.PI*2);
   ctx.fill();
 
+  // ⚪ FELGI
   ctx.fillStyle = "#ccc";
+
   ctx.beginPath();
   ctx.arc(-W*0.3, H/2, r*0.2, 0, Math.PI*2);
   ctx.fill();
+
   ctx.beginPath();
   ctx.arc(W*0.3, H/2, r*0.2, 0, Math.PI*2);
   ctx.fill();
 
+  // 💡 ŚWIATŁO (z przodu)
   ctx.fillStyle = "#fff3b0";
   ctx.fillRect(W/2 - 4, 0, 4, 6);
 
@@ -1351,6 +1283,7 @@ function dodajWalker2() {
   showFxList()
 }
 
+// ================= STEROWANIE =================
 function wybierzPole(pole){
   aktywnePole = pole
 }
@@ -1369,6 +1302,7 @@ document.addEventListener("keyup", e => {
   keys[e.key] = false
 })
 
+// ================= MYSZ =================
 canvas.addEventListener("mousedown", e => {
   if (trybGry || trybHTML) return
   if (trybKopiowania && copiedObject) {
@@ -1474,6 +1408,7 @@ canvas.addEventListener("mousedown", e => {
 
   selectedObject = null
 
+  // BONUSY
   for (const bonus of bonuses) {
     let dx = mx - bonus.x
     let dy = my - bonus.y
@@ -1492,6 +1427,7 @@ canvas.addEventListener("mousedown", e => {
     }
   }
 
+  // resize bloki
   for (const b of blocks) {
     if (mx > b.x + b.w - 12 && mx < b.x + b.w + 12 && my > b.y && my < b.y + b.h) {
       resizing = b; resizing.resizeSide = "right"; selectedObject = b; return
@@ -1507,6 +1443,7 @@ canvas.addEventListener("mousedown", e => {
     }
   }
 
+  // drag bloki
   for (const b of blocks) {
     if (mx >= b.x && mx <= b.x + b.w && my >= b.y && my <= b.y + b.h) {
       selectedObject = b
@@ -1517,6 +1454,7 @@ canvas.addEventListener("mousedown", e => {
     }
   }
 
+  // texty
   for (const t of texts) {
     if (
       mx >= t.x - 60 &&
@@ -1656,6 +1594,7 @@ canvas.addEventListener("click", (e) => {
   }
 })
 
+// ================= UPDATE =================
 function update(){
   if (showIntro) return
 
@@ -1690,6 +1629,7 @@ function update(){
 
   if (gameOver) return
 
+  // === CZAS ===
   let now = Date.now()
   let delta = (now - lastTime) / 1000
   lastTime = now
@@ -1719,6 +1659,7 @@ function update(){
 
       hitPause = hitPauseTime
       pendingRespawn = true
+      // BŁĄD POPRAWIONY: było `respawnPlayer = players[0]` (nadpisanie funkcji), teraz tylko flaga
       counters.time = startTime
     }
   }
@@ -1775,6 +1716,7 @@ function update(){
       if (obj.type === "ghost") {
         if (dragging === obj) {
           obj.baseY = obj.y
+          // Użyj continue zamiast return, żeby nie przerywać całej pętli
           continue
         }
         if (!obj.baseY) obj.baseY = obj.y
@@ -1783,7 +1725,7 @@ function update(){
       }
 
       if (obj.type === "walker" || obj.type === "walker2") {
-        if (dragging === obj) continue
+        if (dragging === obj) continue  // BŁĄD POPRAWIONY: było return, przerywało całą pętlę
         obj.vy = (obj.vy || 0) + 0.5
         obj.y += obj.vy
         obj.x += obj.vx || 0
@@ -1909,6 +1851,7 @@ function update(){
 
   checkEnemyCollision()
 
+  // Spadnięcie poza planszę
   if (players.length > 0 && trybGry) {
     const p = players[0]
 
@@ -1949,6 +1892,7 @@ function update(){
     }
   }
 
+  // Animacja bonusów
   for (let b of bonuses) {
     if (!b.pulseTime) b.pulseTime = 0
     if (!b.scale) b.scale = 1
@@ -1957,6 +1901,7 @@ function update(){
     b.scale = 1 + Math.sin(b.pulseTime) * 0.05
   }
 
+  // Zbieranie bonusów
   for (let i = bonuses.length - 1; i >= 0; i--) {
     let b = bonuses[i]
     let p = players[0]
@@ -1998,11 +1943,13 @@ function update(){
 
       counters.points += 1
       bonuses.splice(i, 1)
+      // Synchronizuj z poziomem
       const lvl = getLevel()
       if (lvl) lvl.bonuses = bonuses
     }
   }
 
+  // KAMERA
   if (players.length > 0 && (trybGry || trybHTML)) {
     const player = players[0]
 
@@ -2018,6 +1965,7 @@ function update(){
   }
 }
 
+// ================= DRAW =================
 function setBG(type){
   getLevel().backgroundType = type
 }
@@ -2071,6 +2019,27 @@ function draw(){
       ctx.stroke()
     }
 
+    ctx.strokeStyle = "rgba(100, 255, 220, 0.25)"
+    for (let i = 0; i < 35; i++) {
+      const x = ((i * 47) + Math.sin(time + i) * 30) % (canvas.width + 100)
+      const speed = 80 + (i % 40)
+      const y1 = (time * speed + i * 60) % (canvas.height + 400) - 200
+      ctx.beginPath()
+      ctx.moveTo(x, y1)
+      ctx.lineTo(x + Math.sin(time + i) * 8, y1 + 90)
+      ctx.stroke()
+    }
+
+    ctx.fillStyle = "#00ffcc"
+    for (let i = 0; i < 45; i++) {
+      const px = (i * 73 + time * 15) % (canvas.width + 80) - 40
+      const py = (i * 51 + Math.sin(time * 0.6 + i) * 80) % (canvas.height + 100)
+      const size = 1.8 + Math.sin(time * 2 + i) * 0.8
+      ctx.globalAlpha = 0.4 + Math.sin(time * 3 + i) * 0.3
+      ctx.fillRect(px, py, size, size)
+    }
+    ctx.globalAlpha = 1
+
     ctx.textAlign = "center"
     ctx.textBaseline = "middle"
 
@@ -2081,6 +2050,13 @@ function draw(){
     ctx.shadowBlur = 35
     ctx.fillStyle = "#00ffff"
     ctx.font = "bold 88px Arial"
+    ctx.fillText(nazwaGry || "Moja gra", cx, titleY + pulse)
+
+    ctx.shadowBlur = 65
+    ctx.fillText(nazwaGry || "Moja gra", cx, titleY + pulse)
+
+    ctx.shadowBlur = 25
+    ctx.fillStyle = "#ffffff"
     ctx.fillText(nazwaGry || "Moja gra", cx, titleY + pulse)
 
     ctx.shadowBlur = 0
@@ -2395,6 +2371,7 @@ function draw(){
 
   ctx.restore()
 
+  // efekt trafienia
   if (hitEffect) {
     hitEffect.time--
     if (Math.floor(hitEffect.time / 5) % 2 === 0) {
@@ -2447,6 +2424,7 @@ function draw(){
     ctx.restore()
   }
 
+  // HUD
   ctx.fillStyle = "white"
   ctx.font = "20px Arial"
   ctx.textAlign = "left"
@@ -2475,15 +2453,18 @@ function draw(){
     ctx.restore()
   }
 
+  // podłoga
   ctx.fillStyle = "#444"
   ctx.fillRect(0, 450, 800, 50)
 }
 
+// ================= ZAPIS / WCZYTANIE =================
 let folderHandle = null
 let projectName = "projekt"
 let loadedFromFile = false
 
 async function zapiszProjekt(){
+  // Zsynchronizuj dane bieżącego poziomu przed zapisem
   const lvl = getLevel()
   if (lvl) {
     lvl.players = players
@@ -2724,6 +2705,8 @@ function wczytajProjekt(){
         updateButtonStates()
         initAfterLoad()
 
+        console.log(`Wczytano grę: "${nazwaGry}" by ${autorGry}`)
+
       } catch (err) {
         alert("Błąd podczas wczytywania pliku JSON")
         console.error(err)
@@ -2736,6 +2719,80 @@ function wczytajProjekt(){
   input.click()
 }
 
+function zapiszHTML(){
+  trybHTML = true
+  document.getElementById("topbar").style.display = "none"
+  document.getElementById("lewy").style.display = "none"
+  document.getElementById("prawy").style.display = "none"
+  canvas.focus()
+}
+
+function otworzGre(){
+  document.getElementById("editor").style.display = "block"
+
+  setTimeout(() => {
+    const input = document.createElement("input")
+    input.type = "file"
+
+    input.onchange = e => {
+      const file = e.target.files[0]
+      const reader = new FileReader()
+
+      reader.onload = ev => {
+        try {
+          const data = JSON.parse(ev.target.result)
+
+          gameData = data || {}
+          gameData.stats = gameData.stats || {}
+
+          let level = gameData.levels?.[0] || {}
+
+          players = level.players || []
+          platforms = level.platforms || []
+          blocks = level.blocks || []
+          enemies = level.enemies || []
+          bonuses = level.bonuses || []
+          texts = level.texts || []
+          backgroundType = level.backgroundType || "city"
+
+          playerStartX = level.playerStartX ?? 100
+          playerStartY = level.playerStartY ?? 100
+
+          sterowanie = gameData.settings?.sterowanie || {lewo:null, prawo:null, skok:null}
+
+          counters = {
+            lives: gameData.settings?.counters?.lives ?? 3,
+            points: gameData.settings?.counters?.points ?? 0,
+            time: gameData.settings?.counters?.time ?? 60
+          }
+
+          startTime = gameData.settings?.startTime ?? counters.time
+          useTimer = gameData.settings?.useTimer ?? true
+
+          autorGry = gameData.settings?.autorGry || "DEMO"
+          opisGry = gameData.settings?.opisGry || ""
+
+          lastTime = Date.now()
+          selectedObject = null
+          trybKopiowania = false
+
+          updateButtonStates()
+          zapiszHTML()
+
+        } catch (err) {
+          console.error("❌ Błąd JSON:", err)
+          alert("Błąd pliku JSON")
+        }
+      }
+
+      reader.readAsText(file)
+    }
+
+    input.click()
+  }, 50)
+}
+
+// ================= TEKST =================
 function dodajTekst() {
   pokazPanelTekstu(null)
 }
@@ -3023,6 +3080,54 @@ function drawBackground(){
       ctx.lineTo(x + 80, canvas.height - h)
       ctx.lineTo(x + 190, canvas.height)
       ctx.fill()
+      ctx.beginPath()
+      ctx.moveTo(x + 70, canvas.height)
+      ctx.lineTo(x + 130, canvas.height - h * 0.65)
+      ctx.lineTo(x + 220, canvas.height)
+      ctx.fill()
+    }
+
+    for (let i = 0; i < 16; i++) {
+      let x = (i * 260 - cameraX * 0.3) % (canvas.width + 350)
+      let h = 140 + (i * 67 % 140)
+      ctx.fillStyle = "#16243f"
+      ctx.beginPath()
+      ctx.moveTo(x, canvas.height)
+      ctx.lineTo(x + 95, canvas.height - h)
+      ctx.lineTo(x + 240, canvas.height)
+      ctx.fill()
+      ctx.beginPath()
+      ctx.moveTo(x + 110, canvas.height)
+      ctx.lineTo(x + 175, canvas.height - h * 0.7)
+      ctx.lineTo(x + 260, canvas.height)
+      ctx.fill()
+    }
+
+    for (let i = 0; i < 12; i++) {
+      let x = (i * 320 - cameraX * 0.5) % (canvas.width + 400)
+      let h = 175 + (i * 81 % 160)
+      ctx.fillStyle = "#0f1a2e"
+      ctx.beginPath()
+      ctx.moveTo(x - 30, canvas.height)
+      ctx.lineTo(x + 110, canvas.height - h)
+      ctx.lineTo(x + 280, canvas.height)
+      ctx.fill()
+      ctx.beginPath()
+      ctx.moveTo(x + 130, canvas.height)
+      ctx.lineTo(x + 215, canvas.height - h * 0.75)
+      ctx.lineTo(x + 310, canvas.height)
+      ctx.fill()
+    }
+
+    ctx.fillStyle = "#0a1324"
+    for (let i = 0; i < 10; i++) {
+      let x = (i * 380 - cameraX * 0.65) % (canvas.width + 450)
+      let h = 80 + (i * 40 % 70)
+      ctx.beginPath()
+      ctx.moveTo(x, canvas.height)
+      ctx.lineTo(x + 140, canvas.height - h)
+      ctx.lineTo(x + 320, canvas.height)
+      ctx.fill()
     }
   }
 
@@ -3039,6 +3144,10 @@ function drawBackground(){
       ctx.lineTo(x + 3, y + 10)
       ctx.stroke()
     }
+    if (Math.random() < 0.005){
+      ctx.fillStyle = "rgba(255,255,255,0.2)"
+      ctx.fillRect(0, 0, canvas.width, canvas.height)
+    }
   }
 
   if (bgType === "west") {
@@ -3050,11 +3159,68 @@ function drawBackground(){
     ctx.fillStyle = skyGrad
     ctx.fillRect(0, 0, canvas.width, canvas.height)
 
+    let purpleGrad = ctx.createLinearGradient(0, 0, 0, canvas.height * 0.35)
+    purpleGrad.addColorStop(0, "rgba(120, 40, 140, 0.25)")
+    purpleGrad.addColorStop(1, "rgba(120, 40, 140, 0)")
+    ctx.fillStyle = purpleGrad
+    ctx.fillRect(0, 0, canvas.width, canvas.height)
+
+    let sunX = canvas.width - 140
+    let sunY = 110
+    ctx.fillStyle = "rgba(255, 220, 100, 0.35)"
+    ctx.beginPath(); ctx.arc(sunX, sunY, 75, 0, Math.PI * 2); ctx.fill()
+    ctx.fillStyle = "rgba(255, 200, 80, 0.25)"
+    ctx.beginPath(); ctx.arc(sunX, sunY, 110, 0, Math.PI * 2); ctx.fill()
+    ctx.fillStyle = "#ffdd77"
+    ctx.beginPath(); ctx.arc(sunX, sunY, 48, 0, Math.PI * 2); ctx.fill()
+
+    ctx.fillStyle = "#c46a2e"
+    for (let i = 0; i < 8; i++) {
+      let x = (i * 280 - cameraX * 0.1) % (canvas.width + 400) - 100
+      let h = 95 + (i * 37 % 70)
+      ctx.beginPath()
+      ctx.moveTo(x, canvas.height - 100)
+      ctx.lineTo(x + 140, canvas.height - 100 - h)
+      ctx.lineTo(x + 290, canvas.height - 100)
+      ctx.fill()
+    }
+
+    ctx.fillStyle = "#a04d1f"
+    for (let i = 0; i < 7; i++) {
+      let x = (i * 340 - cameraX * 0.25) % (canvas.width + 500) - 80
+      let h = 135 + (i * 51 % 110)
+      ctx.beginPath()
+      ctx.moveTo(x, canvas.height - 100)
+      ctx.lineTo(x + 160, canvas.height - 100 - h)
+      ctx.lineTo(x + 340, canvas.height - 100)
+      ctx.fill()
+    }
+
     let groundGrad = ctx.createLinearGradient(0, canvas.height - 130, 0, canvas.height)
     groundGrad.addColorStop(0, "#e8b57c")
     groundGrad.addColorStop(1, "#c17f3f")
     ctx.fillStyle = groundGrad
     ctx.fillRect(0, canvas.height - 130, canvas.width, 130)
+    ctx.fillStyle = "#9f5f2a"
+    ctx.fillRect(0, canvas.height - 55, canvas.width, 55)
+
+    ctx.fillStyle = "#2a8c4a"
+    for (let i = 0; i < 12; i++) {
+      let x = (i * 190 - cameraX * 0.7) % (canvas.width + 300) - 30
+      let baseY = canvas.height - 95
+      ctx.fillRect(x + 8, baseY - 65, 18, 70)
+      ctx.fillRect(x - 6, baseY - 48, 16, 22)
+      ctx.fillRect(x + 24, baseY - 38, 14, 18)
+    }
+
+    ctx.fillStyle = "#b36d38"
+    for (let i = 0; i < 15; i++) {
+      let x = (i * 85 - cameraX * 0.85) % (canvas.width + 150)
+      let size = 18 + (i % 5) * 7
+      ctx.beginPath()
+      ctx.ellipse(x, canvas.height - 48, size, size * 0.45, 0, 0, Math.PI * 2)
+      ctx.fill()
+    }
   }
 
   if (bgType === "city"){
@@ -3111,9 +3277,25 @@ function drawBackground(){
 function drawForest() {
   ctx.fillStyle = "#0b1a2f"
   ctx.fillRect(0, 0, canvas.width, canvas.height)
-  drawNewStars()
 
-  for (let i = 0; i < 20; i++) {
+  drawNewStars()
+  drawRealFog()
+
+  for (let i = 0; i < 40; i++) {
+    if (i % 3 === 0) continue
+    let x = (i * 90 - cameraX * 0.2) % (canvas.width + 200)
+    let h = 80 + (i * 37 % 60)
+    let w = 40 + (i * 23 % 30)
+    ctx.fillStyle = "#0a1f16"
+    ctx.beginPath()
+    ctx.moveTo(x, canvas.height)
+    ctx.lineTo(x + w/2, canvas.height - h)
+    ctx.lineTo(x + w, canvas.height)
+    ctx.fill()
+  }
+
+  for (let i = 0; i < 30; i++) {
+    if (i % 3 === 0) continue
     let x = (i * 120 - cameraX * 0.4) % (canvas.width + 200)
     let h = 120 + (i * 47 % 100)
     let w = 50 + (i * 31 % 40)
@@ -3126,8 +3308,55 @@ function drawForest() {
     ctx.fill()
   }
 
+  for (let i = 0; i < 20; i++) {
+    if (i % 3 !== 0) continue
+    let x = (i * 160 - cameraX * 0.7) % (canvas.width + 200)
+    let h = 160 + (i * 63 % 120)
+    let w = 60 + (i * 27 % 40)
+    ctx.fillStyle = "#1f5f2e"
+    ctx.fillRect(x + w/2 - 4, canvas.height - h, 8, h)
+    ctx.beginPath()
+    ctx.moveTo(x, canvas.height - h + 60)
+    ctx.lineTo(x + w/2, canvas.height - h - 60)
+    ctx.lineTo(x + w, canvas.height - h + 60)
+    ctx.fill()
+    ctx.beginPath()
+    ctx.moveTo(x + 10, canvas.height - h + 90)
+    ctx.lineTo(x + w/2, canvas.height - h - 20)
+    ctx.lineTo(x + w - 10, canvas.height - h + 90)
+    ctx.fill()
+  }
+
   ctx.fillStyle = "#0a1a12"
   ctx.fillRect(0, canvas.height - 40, canvas.width, 40)
+}
+
+function drawRealFog() {
+  const w = canvas.width
+  const h = canvas.height
+
+  ctx.fillStyle = "rgba(20, 45, 55, 0.25)"
+  ctx.fillRect(0, 0, w, h)
+
+  const fogGradient = ctx.createLinearGradient(0, h * 0.4, 0, h)
+  fogGradient.addColorStop(0, "rgba(25, 55, 65, 0.0)")
+  fogGradient.addColorStop(0.4, "rgba(25, 55, 65, 0.35)")
+  fogGradient.addColorStop(0.7, "rgba(18, 48, 55, 0.55)")
+  fogGradient.addColorStop(1, "rgba(10, 35, 40, 0.65)")
+  ctx.fillStyle = fogGradient
+  ctx.fillRect(0, 0, w, h)
+
+  ctx.globalAlpha = 0.25
+  for (let i = 0; i < 5; i++) {
+    const y = h * 0.45 + i * 45
+    const alpha = 0.12 - i * 0.015
+    ctx.fillStyle = `rgba(30, 70, 75, ${alpha})`
+    ctx.fillRect(0, y, w, 90)
+  }
+  ctx.globalAlpha = 1.0
+
+  ctx.fillStyle = "rgba(40, 80, 90, 0.08)"
+  ctx.fillRect(0, 0, w, h * 0.35)
 }
 
 function setRespawnMode(mode, showAlert = true){
@@ -3157,6 +3386,10 @@ function updateRespawnLock(){
     btnStart.style.opacity = 1
     btnStart.style.pointerEvents = "auto"
   }
+}
+
+function resetBackground(){
+  backgroundType = "none"
 }
 
 function wyjdzDoMenu() {
@@ -3206,7 +3439,7 @@ function pokazUstawienia() {
     <div style="margin-top:10px;">
       <button onclick="ustawAutora()">✍️ krótki opis</button>
     </div>
-    <br>
+    <br><br>
     <h3>USTAWIENIA ŚWIATA</h3>
     🌍 Długość świata:
     <br><br>
@@ -3221,23 +3454,6 @@ function pokazUstawienia() {
           oninput="limitWorldInput(this)">
     <br><br>
     <button onclick="zapiszUstawieniaSwiata()">ZAPISZ</button>
-    <br><br>
-    <hr style="border-color:#444;">
-    <div class="dpad-panel">
-      <div class="dpad-btn dpad-up"
-        ontouchstart="navPress('up')" ontouchend="navRelease('up')" ontouchcancel="navRelease('up')"
-        onmousedown="navPress('up')" onmouseup="navRelease('up')" onmouseleave="navRelease('up')">▲</div>
-      <div class="dpad-btn dpad-down"
-        ontouchstart="navPress('down')" ontouchend="navRelease('down')" ontouchcancel="navRelease('down')"
-        onmousedown="navPress('down')" onmouseup="navRelease('down')" onmouseleave="navRelease('down')">▼</div>
-      <div class="dpad-btn dpad-left"
-        ontouchstart="navPress('left')" ontouchend="navRelease('left')" ontouchcancel="navRelease('left')"
-        onmousedown="navPress('left')" onmouseup="navRelease('left')" onmouseleave="navRelease('left')">◀</div>
-      <div class="dpad-btn dpad-right"
-        ontouchstart="navPress('right')" ontouchend="navRelease('right')" ontouchcancel="navRelease('right')"
-        onmousedown="navPress('right')" onmouseup="navRelease('right')" onmouseleave="navRelease('right')">▶</div>
-      <div class="dpad-center-dot"></div>
-    </div>
   `
   document.getElementById("panel").innerHTML = html
 }
@@ -3417,6 +3633,7 @@ function pokazMsg(txt){
   setTimeout(() => msg.remove(), 2000)
 }
 
+// ================= START =================
 updateButtonStates()
 renderLevelsBar()
 syncLevelData()
@@ -3472,6 +3689,5 @@ requestAnimationFrame(loop)
   </div>
 </div>
 
-</div>
 </body>
 </html>
