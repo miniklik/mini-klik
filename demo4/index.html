@@ -1,1427 +1,376 @@
-<!DOCTYPE html>
-<html lang="pl">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>Game Player</title>
-<style>
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body {
-    font-family: Arial, sans-serif;
-    background: #111;
-    color: white;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: flex-start;
-    min-height: 100vh;
-    padding: 12px 20px;
-    gap: 10px;
-  }
-
-  #playerFrame {
-    background: #1a1a1a;
-    border: 3px solid #444;
-    border-radius: 16px;
-    padding: 12px 16px 10px 16px;
-    box-shadow: 0 0 40px rgba(0,0,0,0.8), 0 0 80px rgba(0,100,255,0.08);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 8px;
-    max-width: 840px;
-    width: 100%;
-  }
-
-  #titleBar {
-    width: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0 4px;
-  }
-
-  #gameTitle {
-    font-size: 18px;
-    font-weight: bold;
-    color: #adf;
-    letter-spacing: 1px;
-    text-shadow: 0 0 10px #4af;
-  }
-
-  #topControls {
-    display: flex;
-    gap: 10px;
-    align-items: center;
-    justify-content: center;
-    flex-wrap: wrap;
-  }
-
-  .ctrl-btn {
-    padding: 10px 22px;
-    font-size: 14px;
-    font-weight: bold;
-    background: linear-gradient(180deg, #555, #222);
-    border: 2px solid #666;
-    border-radius: 10px;
-    color: white;
-    cursor: pointer;
-    transition: all 0.15s ease;
-    box-shadow: 0 4px 0 #111, 0 0 10px rgba(0,0,0,0.5);
-    user-select: none;
-    -webkit-tap-highlight-color: transparent;
-  }
-  .ctrl-btn:hover {
-    background: linear-gradient(180deg, #666, #333);
-    transform: translateY(-2px);
-    box-shadow: 0 6px 0 #111, 0 0 12px rgba(0,0,0,0.7);
-  }
-  .ctrl-btn:active {
-    transform: translateY(2px);
-    box-shadow: 0 2px 0 #111;
-  }
-  .ctrl-btn.demo-btn {
-    background: linear-gradient(180deg, #665500, #332900);
-    border-color: #aa8800;
-    color: #ffd700;
-  }
-  .ctrl-btn.demo-btn:hover {
-    background: linear-gradient(180deg, #887700, #443300);
-  }
-  .ctrl-btn.nav-btn {
-    background: linear-gradient(180deg, #005533, #002218);
-    border-color: #00aa66;
-    color: #00ff99;
-    padding: 10px 14px;
-    font-size: 13px;
-  }
-  .ctrl-btn.nav-btn:hover {
-    background: linear-gradient(180deg, #007744, #003322);
-  }
-  .ctrl-btn.nav-btn.active {
-    background: linear-gradient(180deg, #00aa66, #005533);
-    border-color: #00ff99;
-    color: #fff;
-    box-shadow: 0 4px 0 #001a0f, 0 0 14px rgba(0,255,150,0.4);
-  }
-
-  #canvasWrapper {
-    position: relative;
-    border: 2px solid #333;
-    border-radius: 8px;
-    overflow: hidden;
-    box-shadow: inset 0 0 20px rgba(0,0,0,0.5);
-    width: 100%;
-    max-width: 800px;
-  }
-
-  canvas {
-    background: #87CEEB;
-    display: block;
-    width: 100%;
-    height: auto;
-  }
-
-  #noGameMsg {
-    position: absolute;
-    top: 0; left: 0; right: 0; bottom: 0;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    background: rgba(0,0,0,0.75);
-    gap: 16px;
-  }
-  #noGameMsg.hidden { display: none; }
-
-  #noGameMsg h2 {
-    font-size: 26px;
-    color: #adf;
-    text-shadow: 0 0 12px #48f;
-  }
-  #noGameMsg p {
-    color: #888;
-    font-size: 14px;
-  }
-
-  /* ===== ON-CANVAS NAV BUTTONS ===== */
-  /* These are absolutely positioned INSIDE #canvasWrapper */
-  .canvas-nav-group {
-    position: absolute;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 6px;
-    top: 50%;
-    transform: translateY(-50%);
-    z-index: 10;
-    pointer-events: auto;
-    transition: opacity 0.2s;
-  }
-  .canvas-nav-group.hidden-nav {
-    opacity: 0;
-    pointer-events: none;
-  }
-  .canvas-nav-group.left-group {
-    left: 6px;
-  }
-  .canvas-nav-group.right-group {
-    right: 6px;
-  }
-
-  .nav-arrow {
-    width: 48px;
-    height: 48px;
-    background: linear-gradient(180deg, rgba(80,80,80,0.85), rgba(30,30,30,0.85));
-    border: 2px solid rgba(150,150,150,0.7);
-    border-radius: 12px;
-    color: white;
-    font-size: 22px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    box-shadow: 0 4px 0 rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.12);
-    touch-action: none;
-    -webkit-tap-highlight-color: transparent;
-    user-select: none;
-    -webkit-user-select: none;
-    transition: all 0.07s ease;
-    backdrop-filter: blur(2px);
-  }
-  .nav-arrow:hover {
-    background: linear-gradient(180deg, rgba(100,100,100,0.9), rgba(50,50,50,0.9));
-    border-color: rgba(200,200,200,0.8);
-  }
-  .nav-arrow.pressed,
-  .nav-arrow:active {
-    background: linear-gradient(180deg, rgba(58,143,255,0.9), rgba(26,95,212,0.9)) !important;
-    border-color: rgba(34,119,255,0.9);
-    box-shadow: 0 2px 0 rgba(0,0,0,0.5), 0 0 16px rgba(58,143,255,0.7), inset 0 1px 0 rgba(255,255,255,0.15);
-    transform: translateY(3px);
-  }
-  /* The middle horizontal button (left/right direction) */
-  .nav-arrow.nav-horizontal {
-    background: linear-gradient(180deg, rgba(100,100,100,0.88), rgba(40,40,40,0.88));
-    border-color: rgba(180,180,180,0.75);
-  }
-
-  #scrollWrapper {
-    width: 100%;
-    max-width: 800px;
-  }
-
-  #scrollX {
-    width: 100%;
-    accent-color: #4CAF50;
-    background: #333;
-    height: 10px;
-    border-radius: 6px;
-    cursor: pointer;
-  }
-
-  #statusBar {
-    font-size: 12px;
-    color: #666;
-    text-align: center;
-    padding: 2px 0;
-  }
-
-  .blink {
-    animation: blinkAnim 1s infinite;
-  }
-  @keyframes blinkAnim {
-    0%   { opacity: 1; }
-    50%  { opacity: 0.2; }
-    100% { opacity: 1; }
-  }
-</style>
-</head>
-<body>
-
-<div id="playerFrame">
-
-  <div id="titleBar">
-    <div id="gameTitle">🎮 GAME PLAYER</div>
-    <div id="topControls">
-      <button class="ctrl-btn" onclick="wczytajProjekt()">📂 LOAD</button>
-      <button class="ctrl-btn nav-btn" id="navToggleBtn" onclick="toggleNav()">🕹 NAWIGACJA</button>
-      <button class="ctrl-btn demo-btn" onclick="loadDemo()">🎮 DEMO</button>
-    </div>
-  </div>
-
-  <div id="canvasWrapper">
-    <canvas id="scena" width="800" height="450"></canvas>
-
-    <!-- LEFT nav group: up top, left middle, down bottom -->
-    <div class="canvas-nav-group left-group hidden-nav" id="navLeft">
-      <div class="nav-arrow"
-        ontouchstart="navPress('up',event)" ontouchend="navRelease('up')" ontouchcancel="navRelease('up')"
-        onmousedown="navPress('up',event)" onmouseup="navRelease('up')" onmouseleave="navRelease('up')"
-        id="btn-left-up">▲</div>
-      <div class="nav-arrow nav-horizontal"
-        ontouchstart="navPress('left',event)" ontouchend="navRelease('left')" ontouchcancel="navRelease('left')"
-        onmousedown="navPress('left',event)" onmouseup="navRelease('left')" onmouseleave="navRelease('left')"
-        id="btn-left-mid">◀</div>
-      <div class="nav-arrow"
-        ontouchstart="navPress('down',event)" ontouchend="navRelease('down')" ontouchcancel="navRelease('down')"
-        onmousedown="navPress('down',event)" onmouseup="navRelease('down')" onmouseleave="navRelease('down')"
-        id="btn-left-down">▼</div>
-    </div>
-
-    <!-- RIGHT nav group: up top, right middle, down bottom -->
-    <div class="canvas-nav-group right-group hidden-nav" id="navRight">
-      <div class="nav-arrow"
-        ontouchstart="navPress('up',event)" ontouchend="navRelease('up')" ontouchcancel="navRelease('up')"
-        onmousedown="navPress('up',event)" onmouseup="navRelease('up')" onmouseleave="navRelease('up')"
-        id="btn-right-up">▲</div>
-      <div class="nav-arrow nav-horizontal"
-        ontouchstart="navPress('right',event)" ontouchend="navRelease('right')" ontouchcancel="navRelease('right')"
-        onmousedown="navPress('right',event)" onmouseup="navRelease('right')" onmouseleave="navRelease('right')"
-        id="btn-right-mid">▶</div>
-      <div class="nav-arrow"
-        ontouchstart="navPress('down',event)" ontouchend="navRelease('down')" ontouchcancel="navRelease('down')"
-        onmousedown="navPress('down',event)" onmouseup="navRelease('down')" onmouseleave="navRelease('down')"
-        id="btn-right-down">▼</div>
-    </div>
-
-    <div id="noGameMsg">
-      <h2>Brak załadowanej gry</h2>
-      <p>Kliknij <strong>LOAD</strong> aby wczytać plik .json</p>
-      <p>lub <strong>DEMO</strong> aby zagrać w demonstrację</p>
-    </div>
-  </div>
-
-  <div id="scrollWrapper">
-    <input type="range" id="scrollX" min="0" value="0" step="1">
-  </div>
-
-  <div id="statusBar">Wczytaj grę aby rozpocząć</div>
-
-</div>
-
-<!-- MODAL AUTORA -->
-<div id="autorModal" style="
-  position:fixed; top:0; left:0; width:100%; height:100%;
-  background:rgba(0,0,0,0.6); display:none;
-  justify-content:center; align-items:center; z-index:9999;">
-  <div style="background:#1e1e1e; padding:24px; border-radius:14px; color:white;
-              text-align:center; border:2px solid #444; min-width:280px;">
-    <h3 style="margin-bottom:16px; color:#adf;">ℹ️ O grze</h3>
-    <div id="autorContent" style="line-height:1.8; color:#ccc;"></div>
-    <br>
-    <button class="ctrl-btn" onclick="document.getElementById('autorModal').style.display='none'">ZAMKNIJ</button>
-  </div>
-</div>
-
-<script>
-const canvas = document.getElementById("scena")
-canvas.setAttribute("tabindex", "0")
-const ctx = canvas.getContext("2d")
-const scrollXEl = document.getElementById("scrollX")
-const noGameMsg = document.getElementById("noGameMsg")
-const statusBar = document.getElementById("statusBar")
-
-// ===== NAV TOGGLE =====
-let navVisible = false
-
-function toggleNav() {
-  navVisible = !navVisible
-  const btn = document.getElementById("navToggleBtn")
-  const navL = document.getElementById("navLeft")
-  const navR = document.getElementById("navRight")
-  if (navVisible) {
-    navL.classList.remove("hidden-nav")
-    navR.classList.remove("hidden-nav")
-    btn.classList.add("active")
-  } else {
-    navL.classList.add("hidden-nav")
-    navR.classList.add("hidden-nav")
-    btn.classList.remove("active")
-  }
-}
-
-// ===== STATE =====
-let gameLoaded = false
-let trybGry = false
-let gravity = 0.4
-let players = []
-let platforms = []
-let blocks = []
-let enemies = []
-let texts = []
-let bonuses = []
-let levels = []
-let currentLevel = 0
-let keys = {}
-let sterowanie = { lewo: null, prawo: null, skok: null }
-let cameraX = 0
-let worldWidth = 2000
-let autoScroll = false
-let autoScrollSpeed = 2
-let backgroundType = "none"
-let playerStartX = 100
-let playerStartY = 100
-let respawnMode = "death"
-let nazwaGry = "Game Player"
-let autorGry = ""
-let opisGry = ""
-let showIntro = false
-let counters = { lives: 3, points: 0, time: 60 }
-let startTime = 60
-let useTimer = true
-let useLives = true
-let invulnerable = 0
-let invulnerabilityTime = 80
-let hitPause = 0
-let hitPauseTime = 60
-let pendingRespawn = false
-let deathRespawnX = 100
-let deathRespawnY = 300
-let hitEffect = null
-let fallTimer = 0
-const FALL_TIME_LIMIT = 180
-let diedByFalling = false
-let warningText = null
-let gameState = "game"
-let gameOver = false
-let gameOverTriggered = false
-let levelDelay = null
-let matrixCols = []
-let matrixFrame = 0
-let levelTextAnim = null
-let effectsPaused = false
-let gameData = { stats: {} }
-const floorY = 430
-let lastTime = Date.now()
-let fps = 70
-let frameDelay = 1000 / fps
-let lastFrame = 0
-
-let resultsBall = { x: 400, y: 220, r: 20 }
-let resultsEnemies = []
-
-// ===== HELPERS =====
-function getLevel(){ return levels[currentLevel] }
-
-function syncLevelData(){
-  const lvl = levels[currentLevel]
-  if (!lvl) return
-  players   = lvl.players   || []
-  platforms = lvl.platforms || []
-  blocks    = lvl.blocks    || []
-  enemies   = lvl.enemies   || []
-  bonuses   = Array.isArray(lvl.bonuses) ? lvl.bonuses : []
-  texts     = lvl.texts     || []
-}
-
-function syncScrollbar(){
-  scrollXEl.value = Math.max(0, Math.min(cameraX, worldWidth - canvas.width))
-}
-
-scrollXEl.addEventListener("input", () => {
-  cameraX = Number(scrollXEl.value)
-})
-
-// ===== DPAD — pressed state synced across left/right groups =====
-function navPress(dir, e) {
-  if (e) e.preventDefault()
-  // highlight all matching direction buttons
-  document.querySelectorAll('[id$="-up"]').forEach(el => { if (dir === 'up') el.classList.add('pressed') })
-  document.querySelectorAll('[id$="-down"]').forEach(el => { if (dir === 'down') el.classList.add('pressed') })
-  if (dir === 'left')  document.getElementById('btn-left-mid')?.classList.add('pressed')
-  if (dir === 'right') document.getElementById('btn-right-mid')?.classList.add('pressed')
-
-  if (dir === 'left'  && sterowanie.lewo)  keys[sterowanie.lewo]  = true
-  if (dir === 'right' && sterowanie.prawo) keys[sterowanie.prawo] = true
-  if (dir === 'up'    && sterowanie.skok)  keys[sterowanie.skok]  = true
-}
-
-function navRelease(dir) {
-  document.querySelectorAll('[id$="-up"]').forEach(el => { if (dir === 'up') el.classList.remove('pressed') })
-  document.querySelectorAll('[id$="-down"]').forEach(el => { if (dir === 'down') el.classList.remove('pressed') })
-  if (dir === 'left')  document.getElementById('btn-left-mid')?.classList.remove('pressed')
-  if (dir === 'right') document.getElementById('btn-right-mid')?.classList.remove('pressed')
-
-  if (dir === 'left'  && sterowanie.lewo)  keys[sterowanie.lewo]  = false
-  if (dir === 'right' && sterowanie.prawo) keys[sterowanie.prawo] = false
-  if (dir === 'up'    && sterowanie.skok)  keys[sterowanie.skok]  = false
-}
-
-// ===== KEYBOARD =====
-document.addEventListener("keydown", e => { keys[e.key] = true })
-document.addEventListener("keyup",   e => { keys[e.key] = false })
-
-// ===== LOAD =====
-function wczytajProjekt(){
-  const input = document.createElement("input")
-  input.type = "file"
-  input.accept = ".json"
-  input.onchange = e => {
-    const file = e.target.files[0]
-    if (!file) return
-    const reader = new FileReader()
-    reader.onload = ev => {
-      try {
-        const data = JSON.parse(ev.target.result)
-        applyGameData(data)
-      } catch(err) {
-        alert("Błąd podczas wczytywania pliku JSON")
-        console.error(err)
-      }
+{
+  "levels": [
+    {
+      "players": [
+        {
+          "x": 100,
+          "y": 350,
+          "vx": 0,
+          "vy": 0,
+          "r": 20,
+          "type": "ball",
+          "effects": []
+        }
+      ],
+      "platforms": [
+        {
+          "x": 0,
+          "y": 400,
+          "w": 300,
+          "h": 20,
+          "typ": "rect",
+          "solid": "top",
+          "effects": []
+        },
+        {
+          "x": 350,
+          "y": 350,
+          "w": 200,
+          "h": 20,
+          "typ": "round",
+          "solid": "top",
+          "effects": []
+        },
+        {
+          "x": 600,
+          "y": 300,
+          "w": 180,
+          "h": 20,
+          "typ": "rect",
+          "solid": "top",
+          "effects": []
+        },
+        {
+          "x": 830,
+          "y": 380,
+          "w": 250,
+          "h": 20,
+          "typ": "round",
+          "solid": "top",
+          "effects": []
+        },
+        {
+          "x": 1130,
+          "y": 320,
+          "w": 200,
+          "h": 20,
+          "typ": "rect",
+          "solid": "top",
+          "effects": []
+        },
+        {
+          "x": 1380,
+          "y": 280,
+          "w": 240,
+          "h": 20,
+          "typ": "round",
+          "solid": "top",
+          "effects": []
+        },
+        {
+          "x": 1729.5,
+          "y": 380,
+          "w": 320,
+          "h": 20,
+          "typ": "rect",
+          "solid": "top",
+          "effects": [
+            {
+              "type": "move",
+              "dx": 1,
+              "dy": 0,
+              "speed": 1.5,
+              "distance": 150,
+              "loop": true,
+              "travel": 49.5,
+              "enabled": true
+            }
+          ]
+        },
+        {
+          "x": 1177,
+          "y": 173,
+          "w": 120,
+          "h": 20,
+          "typ": "line",
+          "solid": "top",
+          "effects": [
+            {
+              "type": "move",
+              "dx": -1,
+              "dy": 0,
+              "speed": 2,
+              "distance": 200,
+              "loop": true,
+              "travel": 82,
+              "enabled": true
+            }
+          ]
+        }
+      ],
+      "blocks": [
+        {
+          "x": 420,
+          "y": 382,
+          "w": 60,
+          "h": 60,
+          "typ": "block",
+          "solid": "full",
+          "effects": []
+        },
+        {
+          "x": 993,
+          "y": 174,
+          "w": 60,
+          "h": 60,
+          "typ": "block",
+          "solid": "full",
+          "effects": []
+        }
+      ],
+      "enemies": [
+        {
+          "x": 743,
+          "y": 147.7676280286493,
+          "w": 40,
+          "h": 40,
+          "type": "ghost",
+          "effects": [],
+          "baseY": 161.51084188540761,
+          "floatTime": 1424.2999999992523
+        },
+        {
+          "x": 994.3999999999987,
+          "y": 344,
+          "w": 40,
+          "h": 40,
+          "type": "worm",
+          "effects": [
+            {
+              "type": "move",
+              "dx": 1,
+              "dy": 0,
+              "speed": 0.8,
+              "distance": 150,
+              "loop": true,
+              "travel": 64.7999999999999,
+              "enabled": true
+            }
+          ]
+        },
+        {
+          "x": 1477,
+          "y": 247,
+          "w": 40,
+          "h": 40,
+          "type": "fire",
+          "effects": []
+        },
+        {
+          "x": 568,
+          "y": 363,
+          "w": 40,
+          "h": 40,
+          "type": "spikes",
+          "effects": [
+            {
+              "type": "move",
+              "dx": 0,
+              "dy": 1,
+              "speed": 1,
+              "distance": 200,
+              "loop": true,
+              "travel": 145,
+              "enabled": true
+            }
+          ]
+        },
+        {
+          "x": 785.5,
+          "y": 190.5999984741211,
+          "w": 40,
+          "h": 40,
+          "type": "spikes",
+          "effects": [
+            {
+              "type": "move",
+              "dx": 0,
+              "dy": -1,
+              "speed": 1,
+              "distance": 200,
+              "loop": true,
+              "travel": 197,
+              "enabled": true
+            },
+            {
+              "type": "move",
+              "dx": -1,
+              "dy": 0,
+              "speed": 0.5,
+              "distance": 3,
+              "loop": true,
+              "travel": 2,
+              "enabled": true
+            }
+          ]
+        },
+        {
+          "x": 1248,
+          "y": 412,
+          "w": 40,
+          "h": 40,
+          "type": "enemy1",
+          "effects": []
+        },
+        {
+          "x": 674,
+          "y": 416,
+          "w": 40,
+          "h": 40,
+          "type": "fire",
+          "effects": []
+        },
+        {
+          "x": 1341.5,
+          "y": 290.5999984741211,
+          "w": 40,
+          "h": 40,
+          "type": "spikes",
+          "effects": [
+            {
+              "type": "move",
+              "dx": 0,
+              "dy": -1,
+              "speed": 1,
+              "distance": 200,
+              "loop": true,
+              "travel": 116,
+              "enabled": true
+            },
+            {
+              "type": "move",
+              "dx": 1,
+              "dy": 0,
+              "speed": 0.5,
+              "distance": 3,
+              "loop": true,
+              "travel": 0.5,
+              "enabled": true
+            }
+          ]
+        }
+      ],
+      "bonuses": [
+        {
+          "x": 500,
+          "y": 220,
+          "r": 12,
+          "type": "normal",
+          "pulseTime": 0,
+          "scale": 1
+        },
+        {
+          "x": 900,
+          "y": 300,
+          "r": 12,
+          "type": "normal",
+          "pulseTime": 0,
+          "scale": 1
+        },
+        {
+          "x": 1300,
+          "y": 230,
+          "r": 12,
+          "type": "normal",
+          "pulseTime": 0,
+          "scale": 1
+        },
+        {
+          "x": 1910,
+          "y": 340,
+          "r": 12,
+          "type": "key_win",
+          "pulseTime": 0,
+          "scale": 1
+        },
+        {
+          "x": 367,
+          "y": 332,
+          "r": 12,
+          "type": "normal",
+          "pulseTime": 0,
+          "scale": 1
+        },
+        {
+          "x": 1024,
+          "y": 142,
+          "r": 12,
+          "type": "normal",
+          "pulseTime": 0,
+          "scale": 1
+        },
+        {
+          "x": 1910,
+          "y": 304,
+          "r": 12,
+          "type": "normal",
+          "pulseTime": 0,
+          "scale": 1
+        }
+      ],
+      "texts": [
+        {
+          "x": 200,
+          "y": 60,
+          "text": "Zbieraj 💎 i dotrzyj do 🏁",
+          "size": 22,
+          "color": "#fff",
+          "font": "Arial",
+          "neon": false,
+          "outline": false
+        },
+        {
+          "x": 766,
+          "y": 139,
+          "text": "Edek",
+          "size": 28,
+          "font": "Courier New",
+          "color": "#ffffff",
+          "neon": true,
+          "neonColor": "#00ffff",
+          "outline": false,
+          "outlineColor": "#ffffff",
+          "outlineWidth": 5
+        }
+      ],
+      "backgroundType": "city",
+      "playerStartX": 100,
+      "playerStartY": 350
     }
-    reader.readAsText(file)
-  }
-  input.click()
-}
-
-function loadDemo(){
-  fetch("demo.json")
-    .then(r => { if (!r.ok) throw new Error("HTTP " + r.status); return r.json() })
-    .then(data => applyGameData(data))
-    .catch(err => {
-      applyGameData(generateBuiltinDemo())
-    })
-}
-
-function generateBuiltinDemo(){
-  return {
-    levels: [{
-      players: [{ x:100, y:350, vx:0, vy:0, r:20, type:"ball", effects:[] }],
-      platforms: [
-        { x:0,   y:400, w:300, h:20, typ:"rect", solid:"top", effects:[] },
-        { x:350, y:350, w:200, h:20, typ:"round", solid:"top", effects:[] },
-        { x:600, y:300, w:180, h:20, typ:"rect", solid:"top", effects:[] },
-        { x:830, y:380, w:250, h:20, typ:"round", solid:"top", effects:[] },
-        { x:1130,y:320, w:200, h:20, typ:"rect", solid:"top", effects:[] },
-        { x:1380,y:280, w:240, h:20, typ:"round", solid:"top", effects:[] },
-        { x:1680,y:380, w:320, h:20, typ:"rect", solid:"top", effects:[{type:"move",dx:1,dy:0,speed:1.5,distance:150,loop:true,travel:0,enabled:true}] }
-      ],
-      blocks: [
-        { x:450, y:260, w:60, h:60, typ:"block", solid:"full", effects:[] },
-        { x:1000, y:240, w:60, h:60, typ:"block", solid:"full", effects:[] }
-      ],
-      enemies: [
-        { x:700, y:260, w:40, h:40, type:"ghost", effects:[] },
-        { x:900, y:330, w:40, h:40, type:"worm", effects:[{type:"move",dx:1,dy:0,speed:0.8,distance:150,loop:true,travel:0,enabled:true}] },
-        { x:1200, y:270, w:40, h:40, type:"fire", effects:[] }
-      ],
-      bonuses: [
-        { x:500, y:220, r:12, type:"normal", pulseTime:0, scale:1 },
-        { x:900, y:300, r:12, type:"normal", pulseTime:0, scale:1 },
-        { x:1300, y:230, r:12, type:"normal", pulseTime:0, scale:1 },
-        { x:1900, y:300, r:12, type:"key_win", pulseTime:0, scale:1 }
-      ],
-      texts: [
-        { x:200, y:60, text:"Zbieraj 💎 i dotrzyj do 🏁", size:22, color:"#fff", font:"Arial", neon:false, outline:false }
-      ],
-      backgroundType: "city",
-      playerStartX: 100,
-      playerStartY: 350
-    }],
-    settings: {
-      nazwaGry: "DEMO",
-      autorGry: "Game Player",
-      opisGry: "Przykładowa gra demonstracyjna",
-      sterowanie: { lewo:"ArrowLeft", prawo:"ArrowRight", skok:"ArrowUp" },
-      counters: { lives:3, points:0, time:90 },
-      startTime: 90,
-      useTimer: true,
-      backgroundType: "city",
-      playerStartX: 100,
-      playerStartY: 350,
-      respawnMode: "start",
-      autoScroll: false,
-      autoScrollSpeed: 2,
-      worldWidth: 2200
+  ],
+  "settings": {
+    "nazwaGry": "Gra - Edzia",
+    "autorGry": "Game Player",
+    "opisGry": "Przykładowa gra demonstracyjna",
+    "sterowanie": {
+      "lewo": "ArrowLeft",
+      "prawo": "ArrowRight",
+      "skok": "ArrowUp"
     },
-    stats: {}
-  }
+    "counters": {
+      "lives": 7,
+      "points": 0,
+      "time": 0
+    },
+    "startTime": 0,
+    "useTimer": false,
+    "backgroundType": "city",
+    "playerStartX": 100,
+    "playerStartY": 350,
+    "respawnMode": "start",
+    "autoScroll": false,
+    "autoScrollSpeed": 2,
+    "worldWidth": 2200
+  },
+  "stats": {}
 }
-
-function applyGameData(data){
-  gameData = data || {}
-  gameData.stats = gameData.stats || {}
-
-  levels = gameData.levels || []
-  if (levels.length === 0) {
-    levels.push({ players:[], platforms:[], blocks:[], enemies:[], bonuses:[], texts:[], backgroundType:"none", playerStartX:100, playerStartY:100 })
-  }
-
-  currentLevel = 0
-  syncLevelData()
-
-  const lvl = getLevel() || {}
-  bonuses = Array.isArray(lvl.bonuses) ? lvl.bonuses : []
-  backgroundType = lvl.backgroundType || "none"
-  playerStartX = lvl.playerStartX ?? 100
-  playerStartY = lvl.playerStartY ?? 100
-
-  const s = gameData.settings || {}
-  nazwaGry   = s.nazwaGry   || "Gra"
-  autorGry   = s.autorGry   || ""
-  opisGry    = s.opisGry    || ""
-  sterowanie = s.sterowanie || { lewo:"ArrowLeft", prawo:"ArrowRight", skok:"ArrowUp" }
-
-  counters = {
-    lives: s.counters?.lives ?? 3,
-    points: 0,
-    time: s.counters?.time ?? 60
-  }
-  startTime       = s.startTime ?? counters.time
-  useTimer        = s.useTimer !== undefined ? !!s.useTimer : true
-  useLives        = s.useLives !== undefined ? !!s.useLives : true
-  respawnMode     = s.respawnMode || "death"
-  autoScroll      = !!s.autoScroll
-  autoScrollSpeed = Number(s.autoScrollSpeed) || 2
-  worldWidth      = Number(s.worldWidth) || 2000
-
-  scrollXEl.max = worldWidth - canvas.width
-
-  gameLoaded = true
-  gameState = "game"
-  gameOver = false
-  gameOverTriggered = false
-  hitPause = 0
-  pendingRespawn = false
-  invulnerable = 0
-  fallTimer = 0
-  warningText = null
-  hitEffect = null
-  levelDelay = null
-  levelTextAnim = null
-  cameraX = 0
-
-  showIntro = true
-  lastTime = Date.now()
-
-  document.getElementById("gameTitle").textContent = "🎮 " + nazwaGry
-  statusBar.textContent = "Gra: " + nazwaGry + (autorGry ? " — " + autorGry : "")
-  noGameMsg.classList.add("hidden")
-
-  respawnPlayer()
-  window.bgParticles = null
-}
-
-// ===== RESPAWN =====
-function respawnPlayer(){
-  if (!players[0]) return
-  const lvl = getLevel()
-  players[0].x = lvl?.playerStartX ?? playerStartX
-  players[0].y = lvl?.playerStartY ?? playerStartY
-  players[0].vx = 0
-  players[0].vy = 0
-  cameraX = Math.max(0, players[0].x - canvas.width / 2)
-  syncScrollbar()
-}
-
-// ===== UPDATE =====
-function update(){
-  if (!gameLoaded) return
-  if (showIntro) return
-
-  if (gameState === "results" || gameState === "win") {
-    updateResults()
-    return
-  }
-
-  if (levelDelay) {
-    levelDelay.time--
-    if (levelDelay.time <= 0) {
-      let target = levelDelay.target
-      currentLevel = target
-      syncLevelData()
-      const lvl = getLevel()
-      playerStartX = lvl?.playerStartX ?? 100
-      playerStartY = lvl?.playerStartY ?? 100
-      respawnPlayer()
-      cameraX = 0
-      levelDelay = null
-      levelTextAnim = null
-      gameState = "game"
-      gameOver = false
-      window.bgParticles = null
-    }
-    return
-  }
-
-  if (gameOver) return
-
-  let now = Date.now()
-  let delta = (now - lastTime) / 1000
-  lastTime = now
-
-  if (useTimer) {
-    if (counters.time > 0) counters.time = Math.max(0, counters.time - delta)
-    if (counters.time <= 0 && !pendingRespawn && hitPause === 0) {
-      if (useLives) counters.lives -= 1
-      if (useLives && counters.lives <= 0 && !gameOverTriggered) {
-        gameOverTriggered = true
-        gameOver = true
-        gameState = "results"
-        initResultsScene()
-        return
-      }
-      hitEffect = { x: players[0]?.x || canvas.width/2, y: players[0]?.y || canvas.height/2, time: 60 }
-      hitPause = hitPauseTime
-      pendingRespawn = true
-      counters.time = startTime
-    }
-  }
-
-  if (hitPause > 0) {
-    hitPause--
-    if (hitPause === 0 && pendingRespawn && players[0]) {
-      const p = players[0]
-      if (diedByFalling) {
-        p.x = cameraX + 140; p.y = 180
-      } else if (respawnMode === "death") {
-        p.x = deathRespawnX; p.y = deathRespawnY
-      } else {
-        p.x = playerStartX; p.y = playerStartY
-      }
-      p.vx = diedByFalling ? 4 : 0
-      p.y = Math.max(p.y, 100)
-      p.vy = -5
-      invulnerable = invulnerabilityTime * 1.4
-      pendingRespawn = false
-      diedByFalling = false
-    }
-    return
-  }
-
-  // FX on objects
-  for (let obj of [...platforms, ...blocks, ...enemies]) {
-    if (!obj.effects) obj.effects = []
-    for (let fx of obj.effects) {
-      if (fx.enabled === false) continue
-      if (fx.type === "move") {
-        obj.x += fx.dx * fx.speed
-        obj.y += fx.dy * fx.speed
-        fx.travel += fx.speed
-        if (fx.travel >= fx.distance) {
-          if (fx.loop) { fx.dx *= -1; fx.dy *= -1; fx.travel = 0 }
-          else fx.speed = 0
-        }
-      }
-    }
-
-    if (obj.type === "ghost") {
-      if (!obj.baseY) obj.baseY = obj.y
-      obj.floatTime = (obj.floatTime || 0) + 0.05
-      obj.y = obj.baseY + Math.sin(obj.floatTime) * 15
-    }
-
-    if (obj.type === "walker" || obj.type === "walker2") {
-      obj.vy = (obj.vy || 0) + 0.5
-      obj.y += obj.vy
-      obj.x += obj.vx || 0
-      if (obj.y > floorY - obj.h) { obj.y = floorY - obj.h; obj.vy = 0 }
-      for (let pl of platforms) {
-        if (obj.x + obj.w > pl.x && obj.x < pl.x + pl.w &&
-            obj.y + obj.h > pl.y && obj.y + obj.h < pl.y + (pl.h||20) + 10) {
-          obj.y = pl.y - obj.h; obj.vy = 0
-        }
-      }
-      for (let b of blocks) {
-        if (obj.x + obj.w > b.x && obj.x < b.x + b.w &&
-            obj.y + obj.h > b.y && obj.y + obj.h < b.y + 10) {
-          obj.y = b.y - obj.h; obj.vy = 0
-        }
-      }
-      if (obj.x < 0 || obj.x + obj.w > worldWidth) obj.vx = -(obj.vx || 1)
-    }
-  }
-
-  // Player movement
-  for (let p of players) {
-    p.vx = 0
-    if (keys[sterowanie.lewo])  p.vx = -4
-    if (keys[sterowanie.prawo]) p.vx = 4
-    if (keys[sterowanie.skok] && p.vy === 0) p.vy = -10
-    p.vy += gravity
-    p.x += p.vx
-    p.y += p.vy
-
-    if (p.y > floorY) { p.y = floorY; p.vy = 0 }
-
-    for (let pl of platforms) {
-      if (p.x > pl.x - p.r && p.x < pl.x + pl.w + p.r) {
-        if (p.y + p.r > pl.y && p.y < pl.y + (pl.h||20)) {
-          if (pl.solid === "top" && p.vy > 0) { p.y = pl.y - p.r; p.vy = 0 }
-          if (pl.solid === "full") {
-            if (p.vy > 0) { p.y = pl.y - p.r; p.vy = 0 }
-            if (p.vy < 0) { p.y = pl.y + (pl.h||20) + p.r; p.vy = 0 }
-          }
-        }
-      }
-    }
-
-    for (let b of blocks) {
-      if (p.x + p.r > b.x && p.x - p.r < b.x + b.w && p.y + p.r > b.y && p.y - p.r < b.y + b.h) {
-        if (p.vy > 0 && p.y < b.y)             { p.y = b.y - p.r; p.vy = 0 }
-        else if (p.vy < 0 && p.y > b.y + b.h)  { p.y = b.y + b.h + p.r; p.vy = 0 }
-        else if (p.vx > 0 && p.x < b.x)        { p.x = b.x - p.r; p.vx = 0 }
-        else if (p.vx < 0 && p.x > b.x + b.w)  { p.x = b.x + b.w + p.r; p.vx = 0 }
-      }
-    }
-  }
-
-  checkEnemyCollision()
-
-  // Fall detection
-  if (players.length > 0) {
-    const p = players[0]
-    const outOfBounds = p.y > floorY + 150 || p.x < cameraX - 40 || p.x > cameraX + canvas.width + 40
-    if (outOfBounds) {
-      fallTimer++
-      if (fallTimer === 25 && !warningText) warningText = { time: 150 }
-      if (fallTimer >= FALL_TIME_LIMIT) {
-        diedByFalling = true
-        if (useLives) counters.lives -= 1
-        hitEffect = { x: p.x, y: Math.min(p.y, floorY), time: 60 }
-        hitPause = hitPauseTime
-        pendingRespawn = true
-        fallTimer = 0
-        warningText = null
-        if (useLives && counters.lives <= 0 && !gameOverTriggered) {
-          gameOverTriggered = true; gameOver = true; gameState = "results"; initResultsScene(); return
-        }
-      }
-    } else {
-      fallTimer = 0; warningText = null
-    }
-  }
-
-  // Bonuses
-  for (let b of bonuses) {
-    b.pulseTime = (b.pulseTime || 0) + 0.05
-    b.scale = 1 + Math.sin(b.pulseTime) * 0.05
-  }
-
-  for (let i = bonuses.length - 1; i >= 0; i--) {
-    let b = bonuses[i]
-    let p = players[0]
-    if (!p) continue
-    let dist = Math.hypot(p.x - b.x, p.y - b.y)
-    if (dist < p.r + (b.r || 12)) {
-      if (b.type === "key_level") {
-        let target = b.targetLevel || 0
-        if (target >= levels.length) { alert("❌ Ten poziom nie istnieje"); return }
-        levelDelay = { time: 180, target }
-        levelTextAnim = { time: 180 }
-        matrixCols = []
-        for (let j = 0; j < canvas.width / 8; j++) matrixCols[j] = Math.random() * 50
-        return
-      }
-      if (b.type === "key_win") {
-        gameOver = true; gameOverTriggered = true; gameState = "win"; initResultsScene(); return
-      }
-      counters.points += 1
-      bonuses.splice(i, 1)
-      const lvl = getLevel()
-      if (lvl) lvl.bonuses = bonuses
-    }
-  }
-
-  // Camera follow
-  if (players.length > 0) {
-    const player = players[0]
-    if (autoScroll) {
-      cameraX += autoScrollSpeed
-    } else {
-      const targetX = player.x - canvas.width / 2 + player.r
-      cameraX += (targetX - cameraX) * 0.12
-    }
-    cameraX = Math.max(0, Math.min(cameraX, worldWidth - canvas.width))
-    syncScrollbar()
-  }
-}
-
-// ===== ENEMY COLLISION =====
-function checkEnemyCollision(){
-  if (gameOver || players.length === 0) return
-  if (invulnerable > 0) { invulnerable--; return }
-  const player = players[0]
-  for (let enemy of enemies) {
-    let ew = enemy.w || 40, eh = enemy.h || 40
-    let px = player.x - player.r, py = player.y - player.r
-    let pw = player.r * 2, ph = player.r * 2
-    if (px < enemy.x + ew && px + pw > enemy.x && py < enemy.y + eh && py + ph > enemy.y) {
-      deathRespawnX = player.x; deathRespawnY = player.y
-      if (useLives) counters.lives--
-      hitEffect = { x: player.x, y: player.y, time: 60 }
-      if (useLives && counters.lives <= 0 && !gameOverTriggered) {
-        gameOverTriggered = true; gameOver = true; gameState = "results"; initResultsScene(); return
-      }
-      hitPause = hitPauseTime; pendingRespawn = true; invulnerable = invulnerabilityTime
-      return
-    }
-  }
-}
-
-// ===== RESULTS =====
-function initResultsScene(){
-  resultsEnemies = []
-  for (let i = 0; i < 6; i++) {
-    resultsEnemies.push({ angle: i * (Math.PI * 2 / 6), dist: 120, speed: 0.02 + Math.random() * 0.02 })
-  }
-}
-
-function updateResults(){
-  for (let en of resultsEnemies) en.angle += en.speed
-}
-
-function drawResults(){
-  ctx.fillStyle = "black"
-  ctx.fillRect(0, 0, canvas.width, canvas.height)
-  ctx.fillStyle = "red"
-  ctx.beginPath()
-  ctx.arc(resultsBall.x, resultsBall.y, resultsBall.r, 0, Math.PI*2)
-  ctx.fill()
-
-  for (let i = 0; i < resultsEnemies.length; i++) {
-    let en = resultsEnemies[i]
-    let baseAngle = (i / resultsEnemies.length) * Math.PI * 2
-    let finalAngle = en.angle * 0.25 + baseAngle
-    let x = resultsBall.x + Math.cos(finalAngle) * en.dist
-    let y = resultsBall.y + Math.sin(finalAngle) * en.dist
-    ctx.font = "32px Arial"
-    ctx.textAlign = "center"
-    ctx.textBaseline = "middle"
-    ctx.fillText("👻", x, y)
-  }
-
-  ctx.textAlign = "center"
-  ctx.font = "40px Arial"
-  ctx.fillStyle = gameState === "win" ? "#00ff88" : "white"
-  ctx.fillText(gameState === "win" ? "GRATULACJE!!!" : "KONIEC GRY", canvas.width/2, 80)
-  ctx.font = "22px Arial"
-  ctx.fillStyle = "white"
-  ctx.fillText("Punkty: " + counters.points, canvas.width/2, 300)
-  ctx.fillText("Życia: " + counters.lives, canvas.width/2, 330)
-  ctx.fillText("Czas: " + Math.ceil(counters.time), canvas.width/2, 360)
-
-  ctx.fillStyle = "#3a3a3a"
-  ctx.beginPath(); ctx.roundRect(255, 395, 140, 42, 8); ctx.fill()
-  ctx.fillStyle = "#aa2222"
-  ctx.beginPath(); ctx.roundRect(410, 395, 140, 42, 8); ctx.fill()
-
-  ctx.fillStyle = "white"; ctx.font = "bold 16px Arial"; ctx.textAlign = "center"
-  ctx.fillText("🔄 RESTART", 325, 421)
-  ctx.fillText("🏠 MENU", 480, 421)
-}
-
-canvas.addEventListener("click", e => {
-  if (!gameLoaded) return
-  if (showIntro) { showIntro = false; return }
-  if (gameState === "results" || gameState === "win") {
-    const rect = canvas.getBoundingClientRect()
-    const scaleX = canvas.width / rect.width
-    const mx = (e.clientX - rect.left) * scaleX
-    const my = (e.clientY - rect.top) * scaleX
-    if (mx > 255 && mx < 395 && my > 395 && my < 437) restartGame()
-    if (mx > 410 && mx < 550 && my > 395 && my < 437) location.reload()
-  }
-})
-
-function restartGame(){
-  gameOver = false; gameOverTriggered = false
-  gameState = "game"
-  currentLevel = 0
-  syncLevelData()
-  bonuses = Array.isArray(getLevel()?.bonuses) ? [...getLevel().bonuses] : []
-  counters.lives = gameData.settings?.counters?.lives ?? 3
-  counters.points = 0
-  counters.time = startTime
-  hitPause = 0; pendingRespawn = false; invulnerable = 0
-  fallTimer = 0; warningText = null; hitEffect = null
-  levelDelay = null; levelTextAnim = null
-  cameraX = 0
-  window.bgParticles = null
-  respawnPlayer()
-}
-
-// ===== DRAW =====
-function draw(){
-  if (!gameLoaded) {
-    ctx.fillStyle = "#111"
-    ctx.fillRect(0, 0, canvas.width, canvas.height)
-    return
-  }
-
-  if (levelDelay) { drawMatrix(); return }
-
-  if (showIntro) { drawIntro(); return }
-
-  if (gameState === "results" || gameState === "win") { drawResults(); return }
-
-  ctx.clearRect(0, 0, canvas.width, canvas.height)
-  drawBackground()
-
-  ctx.save()
-  ctx.translate(-cameraX, 0)
-
-  // Platforms
-  for (let pl of platforms) {
-    const x = pl.x, y = pl.y, w = pl.w, h = pl.h || 20
-    let neon = pl.effects?.some(fx => fx.type === "neon" && fx.enabled !== false)
-    if (neon) { ctx.shadowColor = "#00ffff"; ctx.shadowBlur = 10 + Math.sin(Date.now()*0.001)*10 }
-
-    if (pl.typ === "line") {
-      ctx.shadowColor = "#00ffff"; ctx.shadowBlur = 20
-      ctx.strokeStyle = "#00ffff"; ctx.lineWidth = 3
-      ctx.beginPath(); ctx.moveTo(x, y+10); ctx.lineTo(x+w, y+10); ctx.stroke()
-      ctx.shadowBlur = 0; ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 1
-      ctx.beginPath(); ctx.moveTo(x, y+10); ctx.lineTo(x+w, y+10); ctx.stroke()
-      ctx.shadowBlur = 0
-    } else if (pl.typ === "round") {
-      ctx.fillStyle = "#8B5A2B"
-      ctx.beginPath(); ctx.roundRect(x, y, w, h, 14); ctx.fill()
-      ctx.strokeStyle = "#3F2A1D"; ctx.lineWidth = 3.5
-      ctx.beginPath(); ctx.roundRect(x+2, y+2, w-4, h-4, 12); ctx.stroke()
-      ctx.strokeStyle = "#A67C5D"; ctx.lineWidth = 2.2
-      for (let i = 1; i < 5; i++) {
-        let py = y + (h*i/5)
-        ctx.beginPath(); ctx.moveTo(x+12, py); ctx.quadraticCurveTo(x+w*0.4, py+(i%2?-2:2), x+w-12, py); ctx.stroke()
-      }
-    } else {
-      ctx.fillStyle = "#8B5A2B"; ctx.fillRect(x, y, w, h)
-      ctx.strokeStyle = "#3F2A1D"; ctx.lineWidth = 3.5; ctx.strokeRect(x+2, y+2, w-4, h-4)
-      ctx.strokeStyle = "#A67C5D"; ctx.lineWidth = 2.2
-      for (let i = 1; i < 5; i++) {
-        let py = y + (h*i/5)
-        ctx.beginPath(); ctx.moveTo(x+10, py); ctx.quadraticCurveTo(x+w*0.45, py+(i%2?2:-2), x+w-10, py); ctx.stroke()
-      }
-    }
-    ctx.shadowBlur = 0
-  }
-
-  // Blocks
-  for (let b of blocks) {
-    const x = b.x, y = b.y, w = b.w, h = b.h
-    ctx.fillStyle = "#8B5A2B"; ctx.fillRect(x, y, w, h)
-    ctx.strokeStyle = "#3F2A1D"; ctx.lineWidth = 3; ctx.strokeRect(x+1.5, y+1.5, w-3, h-3)
-    ctx.strokeStyle = "#A67C5D"; ctx.lineWidth = 2.5
-    for (let i = 1; i < 6; i++) {
-      let py = y + (h*i/6)
-      ctx.beginPath(); ctx.moveTo(x+6, py); ctx.quadraticCurveTo(x+w*0.35, py+(i%2===0?-2:2), x+w-6, py); ctx.stroke()
-    }
-  }
-
-  // Players
-  for (let p of players) {
-    if (invulnerable > 0 && Math.floor(invulnerable/5) % 2 === 0) continue
-    if (p.type === "ball" || !p.type) drawPlayer(ctx, p.x, p.y, p.r, Date.now())
-    else drawCar(p.x, p.y, p.r, p.vx)
-  }
-
-  // Enemies
-  for (let en of enemies) {
-    const x = en.x, y = en.y, w = en.w||40, h = en.h||40
-    ctx.globalAlpha = 1
-    if (en.type === "ghost") {
-      let float = Math.sin(Date.now()*0.003 + en.x) * 6
-      ctx.font = (h*0.8)+"px Arial"; ctx.textAlign = "center"; ctx.textBaseline = "middle"
-      ctx.fillText("👻", x+w/2, y+h/2+float)
-    } else if (en.type === "worm") {
-      ctx.font = (h*0.8)+"px Arial"; ctx.textAlign = "center"; ctx.textBaseline = "middle"
-      ctx.fillText("👹", x+w/2, y+h/2)
-    } else if (en.type === "fire") {
-      let float = Math.sin(Date.now()*0.004)*2
-      ctx.font = (h*0.8)+"px Arial"; ctx.textAlign = "center"; ctx.textBaseline = "middle"
-      ctx.fillText("🔥", x+w/2, y+h/2+float)
-    } else if (en.type === "spikes") {
-      ctx.font = (h*0.8)+"px Arial"; ctx.textAlign = "center"; ctx.textBaseline = "middle"
-      ctx.fillText("🔺", x+w/2, y+h/2)
-    } else if (en.type === "walker") {
-      ctx.font = (h*0.8)+"px Arial"; ctx.textAlign = "center"; ctx.textBaseline = "middle"
-      ctx.fillText("👽", x+w/2, y+h/2)
-    } else if (en.type === "walker2") {
-      ctx.font = (h*0.8)+"px Arial"; ctx.textAlign = "center"; ctx.textBaseline = "middle"
-      ctx.fillText("🕷", x+w/2, y+h/2)
-    } else if (en.type === "enemy1") {
-      let s = w/8, t = Date.now()*0.005
-      let bx = x + Math.sin(t+en.x*0.05)*2, by = y + Math.cos(t*1.5)*2
-      ctx.fillStyle = "#6a35d4"; ctx.fillRect(bx+s, by+2*s, 6*s, 4*s)
-      ctx.fillStyle = "#8a5cff"; ctx.fillRect(bx+2*s, by+s, 4*s, 2*s)
-      ctx.fillStyle = "white"; ctx.fillRect(bx+2*s, by+2*s, s, s); ctx.fillRect(bx+5*s, by+2*s, s, s)
-      ctx.fillStyle = "#00e5ff"; ctx.fillRect(bx+2*s, by+6*s+Math.sin(t)*2, s, s); ctx.fillRect(bx+5*s, by+6*s-Math.sin(t)*2, s, s)
-    } else if (en.type === "water") {
-      let t = Date.now()*0.003
-      ctx.fillStyle = "#1e3a5f"; ctx.fillRect(x, y, w, h)
-      ctx.fillStyle = "#4fc3f7"
-      for (let i = 0; i < w; i += 4) { ctx.fillRect(x+i, y+Math.sin(t+i*0.05)*3, 4, 3) }
-    } else {
-      ctx.fillStyle = "#7b3fe4"; ctx.fillRect(x, y, w, h)
-    }
-  }
-
-  // Bonuses
-  for (let b of bonuses) {
-    ctx.save()
-    ctx.translate(b.x, b.y)
-    ctx.scale(b.scale||1, b.scale||1)
-    ctx.font = "22px Arial"; ctx.textAlign = "center"; ctx.textBaseline = "middle"
-    let icon = b.type === "key_win" ? "🏁" : b.type === "key_level" ? "🔑" : "💎"
-    ctx.fillText(icon, 0, 0)
-    ctx.restore()
-  }
-
-  // Texts
-  for (let t of texts) {
-    ctx.save()
-    ctx.textAlign = "center"; ctx.textBaseline = "middle"
-    ctx.font = t.size + "px " + (t.font || "Arial")
-    if (t.neon) {
-      ctx.shadowColor = t.neonColor || "#00ffff"; ctx.shadowBlur = 15
-      ctx.fillStyle = t.neonColor || "#00ffff"; ctx.fillText(t.text, t.x, t.y)
-      ctx.shadowBlur = 40; ctx.fillText(t.text, t.x, t.y)
-    }
-    ctx.shadowBlur = 0
-    if (t.outline) {
-      ctx.strokeStyle = t.outlineColor || "#ffffff"; ctx.lineWidth = t.outlineWidth || 4
-      ctx.lineJoin = "round"; ctx.strokeText(t.text, t.x, t.y)
-    }
-    ctx.fillStyle = t.color || "white"; ctx.fillText(t.text, t.x, t.y)
-    ctx.restore()
-  }
-
-  ctx.restore()
-
-  // HUD
-  if (hitEffect) {
-    hitEffect.time--
-    if (Math.floor(hitEffect.time/5) % 2 === 0) {
-      ctx.font = "50px Arial"; ctx.textAlign = "center"; ctx.textBaseline = "middle"
-      ctx.fillText("💀", hitEffect.x - cameraX, hitEffect.y)
-    }
-    if (hitEffect.time <= 0) hitEffect = null
-  }
-
-  ctx.fillStyle = "white"; ctx.font = "20px Arial"
-  ctx.textAlign = "left"
-  if (useLives) ctx.fillText("❤️ ".repeat(Math.max(0, counters.lives)), 20, 30)
-  ctx.textAlign = "center"
-  ctx.fillText("⭐ " + counters.points, canvas.width/2, 30)
-  ctx.textAlign = "right"
-  if (useTimer) ctx.fillText("⏱ " + Math.ceil(counters.time), canvas.width - 20, 30)
-
-  if (warningText) {
-    warningText.time--
-    if (warningText.time <= 0) warningText = null
-    const alpha = Math.sin(Date.now()*0.008)*0.3 + 0.7
-    ctx.save(); ctx.globalAlpha = alpha
-    ctx.shadowColor = "#ff0000"; ctx.shadowBlur = 30
-    ctx.font = "bold 58px Arial"; ctx.textAlign = "center"; ctx.fillStyle = "#ff2222"
-    ctx.fillText("WRACAJ SZYBKO!", canvas.width/2, canvas.height/2 - 40)
-    ctx.font = "bold 26px Arial"; ctx.fillStyle = "#ff8888"
-    ctx.fillText("Spadniesz za chwilę!", canvas.width/2, canvas.height/2 + 30)
-    ctx.restore()
-  }
-
-  ctx.fillStyle = "#333"
-  ctx.fillRect(0, 450, 800, 50)
-}
-
-// ===== INTRO =====
-function drawIntro(){
-  const time = Date.now() * 0.001
-  const cx = canvas.width / 2
-  const grad = ctx.createLinearGradient(0,0,0,canvas.height)
-  grad.addColorStop(0, "#0a001f"); grad.addColorStop(1, "#1a0033")
-  ctx.fillStyle = grad; ctx.fillRect(0,0,canvas.width,canvas.height)
-
-  ctx.strokeStyle = "rgba(0,255,200,0.08)"; ctx.lineWidth = 1.5
-  for (let i = -5; i < 25; i++) {
-    const offset = (time*40 + i*80) % (canvas.height+300) - 150
-    ctx.beginPath(); ctx.moveTo(0, offset); ctx.lineTo(canvas.width, offset+80); ctx.stroke()
-  }
-
-  ctx.textAlign = "center"; ctx.textBaseline = "middle"
-  const pulse = Math.sin(time*3)*4
-  ctx.shadowColor = "#00ffff"; ctx.shadowBlur = 35
-  ctx.fillStyle = "#00ffff"; ctx.font = "bold 72px Arial"
-  ctx.fillText(nazwaGry || "Gra", cx, 165 + pulse)
-  ctx.shadowBlur = 0
-  ctx.font = "22px Arial"; ctx.fillStyle = "#aaccff"
-  ctx.fillText(opisGry || "", cx, 255)
-  ctx.font = "17px Arial"; ctx.fillStyle = "#557799"
-  ctx.fillText("by " + (autorGry || "nieznany"), cx, canvas.height - 28)
-  ctx.font = "bold 18px Arial"; ctx.fillStyle = "#4af"
-  ctx.fillText("KLIKNIJ aby rozpocząć", cx, canvas.height/2 + 80)
-}
-
-// ===== BACKGROUND =====
-function drawBackground(){
-  let bgType = getLevel()?.backgroundType || backgroundType || "none"
-  if (bgType === "none") { ctx.fillStyle = "#87CEEB"; ctx.fillRect(0,0,canvas.width,canvas.height); return }
-  if (bgType === "forest") { drawForest(); return }
-  if (bgType === "snow") {
-    ctx.fillStyle = "#0f1a2b"; ctx.fillRect(0,0,canvas.width,canvas.height)
-    ctx.fillStyle = "#ffffff"
-    for (let i=0;i<120;i++) { let x=(i*97-cameraX*0.1)%2000,y=(i*53+Date.now()*0.2)%canvas.height; ctx.beginPath();ctx.arc(x,y,2,0,Math.PI*2);ctx.fill() }
-  }
-  if (bgType === "space") { drawStarsBg(); for(let i=0;i<18;i++){let x=(i*220-cameraX*0.15)%(canvas.width+300),h=95+(i*53%95);ctx.fillStyle="#1e2f52";ctx.beginPath();ctx.moveTo(x-20,canvas.height);ctx.lineTo(x+80,canvas.height-h);ctx.lineTo(x+190,canvas.height);ctx.fill()} }
-  if (bgType === "rain") {
-    ctx.fillStyle = "#0b0f1a"; ctx.fillRect(0,0,canvas.width,canvas.height)
-    ctx.strokeStyle = "#88aaff"; ctx.lineWidth = 1
-    for (let i=0;i<120;i++){let x=(i*97-cameraX*0.2)%2000,y=(i*53+Date.now()*0.5)%canvas.height;ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+3,y+10);ctx.stroke()}
-  }
-  if (bgType === "west") {
-    const t = Date.now() * 0.001
-    let sg = ctx.createLinearGradient(0, 0, 0, canvas.height * 0.72)
-    sg.addColorStop(0,   "#c0280a")
-    sg.addColorStop(0.25,"#e84a0a")
-    sg.addColorStop(0.55,"#f97c28")
-    sg.addColorStop(0.82,"#ffc166")
-    sg.addColorStop(1,   "#ffe8aa")
-    ctx.fillStyle = sg
-    ctx.fillRect(0, 0, canvas.width, canvas.height)
-    const sunX = (canvas.width * 0.78 - cameraX * 0.04 + 400) % (canvas.width + 200) - 100
-    const sunY = 90
-    const sunR = 52
-    ctx.save()
-    let sunGlow = ctx.createRadialGradient(sunX, sunY, sunR*0.5, sunX, sunY, sunR*2.2)
-    sunGlow.addColorStop(0, "rgba(255,220,80,0.55)")
-    sunGlow.addColorStop(1, "rgba(255,100,0,0)")
-    ctx.fillStyle = sunGlow
-    ctx.beginPath()
-    ctx.arc(sunX, sunY, sunR * 2.2, 0, Math.PI * 2)
-    ctx.fill()
-    let sunGrad = ctx.createRadialGradient(sunX - 12, sunY - 12, 4, sunX, sunY, sunR)
-    sunGrad.addColorStop(0, "#fff7c0")
-    sunGrad.addColorStop(0.4, "#ffdd55")
-    sunGrad.addColorStop(1, "#ff9900")
-    ctx.fillStyle = sunGrad
-    ctx.beginPath()
-    ctx.arc(sunX, sunY, sunR, 0, Math.PI * 2)
-    ctx.fill()
-    ctx.restore()
-    ctx.fillStyle = "#7a2a10"
-    for (let i = 0; i < 8; i++) {
-      let mx = ((i * 230 - cameraX * 0.06 + 5000) % (canvas.width + 320)) - 80
-      let mh = 80 + (i * 61 % 70)
-      let mw = 160 + (i * 37 % 80)
-      ctx.beginPath()
-      ctx.moveTo(mx - mw/2, canvas.height - 130)
-      ctx.lineTo(mx, canvas.height - 130 - mh)
-      ctx.lineTo(mx + mw/2, canvas.height - 130)
-      ctx.closePath()
-      ctx.fill()
-      if (i % 3 === 1) {
-        ctx.fillRect(mx - mw * 0.3, canvas.height - 130 - mh + 6, mw * 0.6, mh * 0.35)
-      }
-    }
-    ctx.fillStyle = "#b04520"
-    for (let i = 0; i < 5; i++) {
-      let rx = ((i * 340 + 80 - cameraX * 0.12 + 5000) % (canvas.width + 400)) - 100
-      let rh = 60 + (i * 43 % 55)
-      let rw = 70 + (i * 29 % 50)
-      ctx.beginPath()
-      ctx.moveTo(rx - rw/2 - 10, canvas.height - 130)
-      ctx.lineTo(rx - rw/2, canvas.height - 130 - rh)
-      ctx.lineTo(rx + rw/2, canvas.height - 130 - rh)
-      ctx.lineTo(rx + rw/2 + 10, canvas.height - 130)
-      ctx.closePath()
-      ctx.fill()
-      ctx.fillStyle = "#8a3010"
-      ctx.beginPath()
-      ctx.moveTo(rx + rw/2, canvas.height - 130 - rh)
-      ctx.lineTo(rx + rw/2 + 10, canvas.height - 130)
-      ctx.lineTo(rx + rw/2, canvas.height - 130)
-      ctx.closePath()
-      ctx.fill()
-      ctx.fillStyle = "#b04520"
-    }
-    let gg = ctx.createLinearGradient(0, canvas.height - 135, 0, canvas.height)
-    gg.addColorStop(0, "#d4894a")
-    gg.addColorStop(0.3, "#c07030")
-    gg.addColorStop(1, "#8a4a18")
-    ctx.fillStyle = gg
-    ctx.fillRect(0, canvas.height - 135, canvas.width, 135)
-    ctx.strokeStyle = "#9a5820"
-    ctx.lineWidth = 1
-    for (let i = 0; i < 12; i++) {
-      let lx = ((i * 180 - cameraX * 0.5 + 5000) % (canvas.width + 100)) - 30
-      ctx.beginPath()
-      ctx.moveTo(lx, canvas.height - 130)
-      ctx.lineTo(lx + 20 + (i*7%30), canvas.height - 90)
-      ctx.lineTo(lx + 50 + (i*11%40), canvas.height - 80)
-      ctx.stroke()
-    }
-    ctx.fillStyle = "#2d7a2a"
-    for (let i = 0; i < 7; i++) {
-      let cx2 = ((i * 270 + 60 - cameraX * 0.5 + 5000) % (canvas.width + 200)) - 50
-      let cy2 = canvas.height - 135
-      let ch = 55 + (i * 31 % 40)
-      let cw = 11 + (i * 5 % 6)
-      ctx.fillRect(cx2 - cw/2, cy2 - ch, cw, ch)
-      let armY = cy2 - ch * 0.55
-      ctx.fillRect(cx2 - cw/2 - 18, armY, 18, cw * 0.85)
-      ctx.fillRect(cx2 - cw/2 - 18, armY - 16, cw * 0.85, 16)
-      ctx.fillRect(cx2 + cw/2, armY + 8, 18, cw * 0.85)
-      ctx.fillRect(cx2 + cw/2, armY + 8 - 12, cw * 0.85, 12)
-      ctx.fillStyle = "#1f5a1f"
-      ctx.fillRect(cx2 - cw/2, cy2 - ch, 2, ch)
-      ctx.fillRect(cx2 - cw/2 - 18, armY, 18, 2)
-      ctx.fillStyle = "#2d7a2a"
-    }
-    for (let i = 0; i < 3; i++) {
-      let tw = ((i * 400 + 100 - cameraX * 0.7 + 5000) % (canvas.width + 100)) - 30
-      let ty = canvas.height - 135 - 14
-      let tr = 14 + (i * 7 % 10)
-      let wobble = Math.sin(t * 2.2 + i) * 3
-      ctx.save()
-      ctx.globalAlpha = 0.85
-      ctx.strokeStyle = "#8a5a20"
-      ctx.lineWidth = 1.5
-      ctx.beginPath()
-      ctx.arc(tw, ty + wobble, tr, 0, Math.PI * 2)
-      ctx.stroke()
-      for (let a = 0; a < 6; a++) {
-        let ang = (a / 6) * Math.PI + t * 1.5 + i
-        ctx.beginPath()
-        ctx.moveTo(tw - Math.cos(ang)*tr, ty + wobble - Math.sin(ang)*tr)
-        ctx.lineTo(tw + Math.cos(ang)*tr, ty + wobble + Math.sin(ang)*tr)
-        ctx.stroke()
-      }
-      ctx.globalAlpha = 1
-      ctx.restore()
-    }
-    ctx.strokeStyle = "#331100"
-    ctx.lineWidth = 1.8
-    for (let i = 0; i < 4; i++) {
-      let bx = ((i * 190 + 50 - cameraX * 0.08 + 5000) % (canvas.width + 100)) - 30
-      let by = 55 + (i * 23 % 50)
-      let flap = Math.sin(t * 3 + i * 1.7) * 6
-      ctx.beginPath()
-      ctx.moveTo(bx, by)
-      ctx.quadraticCurveTo(bx + 12, by - flap, bx + 22, by)
-      ctx.moveTo(bx, by)
-      ctx.quadraticCurveTo(bx - 12, by - flap, bx - 22, by)
-      ctx.stroke()
-    }
-    ctx.strokeStyle = "#f0b060"
-    ctx.lineWidth = 2
-    ctx.beginPath()
-    ctx.moveTo(0, canvas.height - 135)
-    ctx.lineTo(canvas.width, canvas.height - 135)
-    ctx.stroke()
-  }
-  if (bgType === "city") {
-    drawStarsBg()
-    for(let i=0;i<20;i++){
-      let x=(i*160-cameraX*0.3)%(canvas.width+200),h=120+(i*37%200),w=100
-      ctx.fillStyle="#1e2a3a";ctx.fillRect(x,canvas.height-h,w,h)
-      for(let wy=0;wy<h;wy+=30)for(let wx=0;wx<w;wx+=25){
-        if((wx+wy+i)%3!==0)continue
-        ctx.fillStyle=((wx+wy+i)%5===0)?"#333":"#ffd966"
-        ctx.fillRect(x+wx+5,canvas.height-h+wy+5,8,12)
-      }
-    }
-  }
-  if (bgType === "stars" || bgType === "neon") {
-    let g=ctx.createLinearGradient(0,0,0,canvas.height)
-    g.addColorStop(0,"#0a001f");g.addColorStop(1,"#1a0033")
-    ctx.fillStyle=g;ctx.fillRect(0,0,canvas.width,canvas.height)
-    drawParticles()
-  }
-}
-
-function drawStarsBg(){
-  let g=ctx.createLinearGradient(0,0,0,canvas.height)
-  g.addColorStop(0,"#0a001f");g.addColorStop(1,"#1a0033")
-  ctx.fillStyle=g;ctx.fillRect(0,0,canvas.width,canvas.height)
-  drawParticles()
-}
-
-function drawParticles(){
-  if (!window.bgParticles) {
-    window.bgParticles=[]
-    for(let i=0;i<90;i++) window.bgParticles.push({x:Math.random()*canvas.width,y:Math.random()*canvas.height,size:Math.random()*2.2+0.7,speed:Math.random()*0.9+0.4})
-  }
-  ctx.fillStyle="#99ffff"
-  window.bgParticles.forEach(p=>{
-    p.y+=p.speed; if(p.y>canvas.height)p.y=-5
-    ctx.globalAlpha=0.75+Math.sin(Date.now()/300+p.x)*0.25
-    ctx.fillRect(p.x,p.y,p.size,p.size)
-  })
-  ctx.globalAlpha=1
-}
-
-function drawForest(){
-  ctx.fillStyle="#0b1a2f";ctx.fillRect(0,0,canvas.width,canvas.height)
-  drawStarsBg()
-  for(let i=0;i<20;i++){
-    let x=(i*120-cameraX*0.4)%(canvas.width+200),h=120+(i*47%100),w=50+(i*31%40)
-    ctx.fillStyle="#123524";ctx.fillRect(x+w/2-3,canvas.height-h,6,h)
-    ctx.beginPath();ctx.moveTo(x,canvas.height-h+30);ctx.lineTo(x+w/2,canvas.height-h-40);ctx.lineTo(x+w,canvas.height-h+30);ctx.fill()
-  }
-  ctx.fillStyle="#0a1a12";ctx.fillRect(0,canvas.height-40,canvas.width,40)
-}
-
-// ===== MATRIX =====
-function drawMatrix(){
-  matrixFrame++
-  ctx.fillStyle="rgba(0,0,0,0.2)";ctx.fillRect(0,0,canvas.width,canvas.height)
-  ctx.fillStyle="#0f0";ctx.font="22px monospace"
-  for(let i=0;i<matrixCols.length;i++){
-    let text = matrixFrame%4===0 ? String.fromCharCode(48+Math.floor(Math.random()*10)) : " "
-    ctx.fillText(text, i*14, matrixCols[i]*14)
-    if(matrixCols[i]*14>canvas.height && Math.random()>0.975) matrixCols[i]=0
-    matrixCols[i]+=0.2
-  }
-
-  if (levelTextAnim) {
-    let progress = 1 - (levelTextAnim.time / 180)
-    progress = Math.min(progress/0.7, 1)
-    ctx.font = "bold 40px monospace"; ctx.textAlign = "center"
-    ctx.fillStyle = "#00ffcc"; ctx.shadowColor = "#00ffcc"; ctx.shadowBlur = 25
-    ctx.fillText("NEXT", -200 + progress*(canvas.width/2+200), canvas.height/2-20)
-    ctx.fillText("LEVEL", canvas.width+200-progress*(canvas.width/2+200), canvas.height/2+30)
-    ctx.shadowBlur = 0
-    levelTextAnim.time--
-    if (levelTextAnim.time <= 0) levelTextAnim = null
-  }
-}
-
-// ===== PLAYER DRAW =====
-function drawPlayer(ctx, x, y, r, time){
-  let pulse = Math.sin(time*0.005)*2.5
-  let grad = ctx.createRadialGradient(x-r*0.35,y-r*0.35,r*0.25,x,y,r+pulse)
-  grad.addColorStop(0,"#ffeb3b"); grad.addColorStop(1,"#ff5722")
-  ctx.shadowColor="#ff9800"; ctx.shadowBlur=25
-  ctx.fillStyle=grad; ctx.beginPath(); ctx.arc(x,y,r+pulse,0,Math.PI*2); ctx.fill()
-  ctx.shadowBlur=0
-  ctx.fillStyle="#111"
-  ctx.beginPath();ctx.arc(x-r*0.32,y-r*0.22,r*0.13,0,Math.PI*2);ctx.fill()
-  ctx.beginPath();ctx.arc(x+r*0.32,y-r*0.22,r*0.13,0,Math.PI*2);ctx.fill()
-  ctx.strokeStyle="#111"; ctx.lineWidth=2.5
-  ctx.beginPath();ctx.arc(x,y+r*0.15,r*0.35,0.2,Math.PI-0.2);ctx.stroke()
-}
-
-function drawCar(cx, cy, r, vx){
-  const W=r*3, H=r*1.4
-  ctx.save(); ctx.translate(cx,cy); ctx.rotate(-vx*0.015)
-  ctx.fillStyle="#3a86ff"
-  ctx.beginPath();ctx.moveTo(-W/2,H/2);ctx.lineTo(-W/2,0);ctx.quadraticCurveTo(-W/2,-H/2,-W/4,-H/2);ctx.lineTo(W/4,-H/2);ctx.quadraticCurveTo(W/2,-H/2,W/2,0);ctx.lineTo(W/2,H/2);ctx.closePath();ctx.fill()
-  ctx.fillStyle="#a5d8ff";ctx.fillRect(-W*0.15,-H*0.4,W*0.3,H*0.3)
-  ctx.fillStyle="black";ctx.beginPath();ctx.arc(-W*0.3,H/2,r*0.45,0,Math.PI*2);ctx.fill();ctx.beginPath();ctx.arc(W*0.3,H/2,r*0.45,0,Math.PI*2);ctx.fill()
-  ctx.fillStyle="#ccc";ctx.beginPath();ctx.arc(-W*0.3,H/2,r*0.2,0,Math.PI*2);ctx.fill();ctx.beginPath();ctx.arc(W*0.3,H/2,r*0.2,0,Math.PI*2);ctx.fill()
-  ctx.restore()
-}
-
-// ===== MAIN LOOP =====
-function loop(time){
-  if (time - lastFrame < frameDelay) { requestAnimationFrame(loop); return }
-  lastFrame = time
-  update()
-  draw()
-  requestAnimationFrame(loop)
-}
-
-requestAnimationFrame(loop)
-</script>
-</body>
-</html>
