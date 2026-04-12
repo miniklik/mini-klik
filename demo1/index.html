@@ -19,45 +19,35 @@
   transition: all 0.15s ease;
   box-shadow: 0 4px 0 #111, 0 0 10px rgba(0,0,0,0.5);
 }
-
-/* HOVER */
 button:hover {
   background: linear-gradient(180deg, #666, #333);
   transform: translateY(-2px);
   box-shadow: 0 6px 0 #111, 0 0 12px rgba(0,0,0,0.7);
 }
-
-/* CLICK */
 button:active {
   transform: translateY(2px);
   box-shadow: 0 2px 0 #111;
 }
-
-/* AKTYWNY (zielony jak masz teraz) */
 button.active {
   background: linear-gradient(180deg, #4CAF50, #2e7d32) !important;
   border-color: #1b5e20;
   box-shadow: 0 0 12px #4CAF50, 0 4px 0 #0a3d12;
 }
-  button.active { background:#4CAF50 !important; border-color:#388E3C; box-shadow:0 0 8px #4CAF50; }
   #deleteBtn.active { background:#c33 !important; border-color:#933; box-shadow:0 0 8px #c33; }
   #main { display:flex; gap:10px; }
 #lewy button {
-  width: 160px; 
-  height: 40px;              /* 🔥 STAŁA WYSOKOŚĆ */
-  box-sizing: border-box;    /* 🔥 klucz */
-
+  width: 160px;
+  height: 40px;
+  box-sizing: border-box;
   margin-bottom: 10px;
   padding-left: 14px;
-  
-
-  display: flex;             /* 🔥 wyrównanie */
+  display: flex;
   align-items: center;
 }
 #prawy button {
   height: 40px;
   box-sizing: border-box;
-  margin-bottom: 8px;   /* 🔥 TO JEST KLUCZ */
+  margin-bottom: 8px;
 }
   #prawy { width:220px; background:#222; padding:10px; }
   canvas { background:#87CEEB; }
@@ -74,16 +64,14 @@ button.active {
   .blink {
     animation: blinkAnim 1s infinite;
   }
-
   @keyframes blinkAnim {
     0%   { opacity: 1; }
     50%  { opacity: 0.2; }
     100% { opacity: 1; }
-  }  
+  }
 </style>
 </head>
 <body>
-
 
 <div id="editor">
 
@@ -117,7 +105,7 @@ button.active {
 
   <div style="display:flex; flex-direction:column; align-items:center;">
     <canvas id="scena" width="800" height="450"></canvas>
-    <input type="range" id="scrollX" min="0" value="0" step="1" 
+    <input type="range" id="scrollX" min="0" value="0" step="1"
            style="width:800px; margin:8px 0; accent-color:#4CAF50; background:#333; height:12px; border-radius:6px;">
 
     <div id="levelsBar" style="
@@ -129,7 +117,7 @@ button.active {
       padding:6px;
       border-radius:6px;
       margin-bottom:10px;
-    "></div>           
+    "></div>
   </div>
 
   <div id="prawy">
@@ -150,11 +138,10 @@ let trybHTML = false
 let trybKasowania = false
 let trybBonusy = false
 let trybFX = false
-let ustawianieStartu = false;
+let ustawianieStartu = false
 let gridEnabled = false
 let gridSize = 20
 let gravity = 0.4
-
 
 let players = []
 let platforms = []
@@ -169,19 +156,19 @@ let currentLevel = 0
 function getLevel(){
   return levels[currentLevel]
 }
+
 function syncLevelData(){
-  const lvl = levels[currentLevel];
-  if (!lvl) return;
+  const lvl = levels[currentLevel]
+  if (!lvl) return
 
-  players   = lvl.players   || [];
-  platforms = lvl.platforms || [];
-  blocks    = lvl.blocks    || [];
-  enemies   = lvl.enemies   || [];
-  bonuses   = lvl.bonuses   || [];   // ← DODANE
-  texts     = lvl.texts     || [];
+  players   = lvl.players   || []
+  platforms = lvl.platforms || []
+  blocks    = lvl.blocks    || []
+  enemies   = lvl.enemies   || []
+  bonuses   = lvl.bonuses   || []
+  texts     = lvl.texts     || []
 
-  // dodatkowe bezpieczeństwo
-  if (!Array.isArray(bonuses)) bonuses = [];
+  if (!Array.isArray(bonuses)) bonuses = []
 }
 
 if (levels.length === 0) {
@@ -198,32 +185,29 @@ if (levels.length === 0) {
   })
 }
 
-
 let gameData = {
   stats: {}
 }
 let gameOver = false
 let gameOverTriggered = false
-let playerStartX = 100;   // ← możesz później odczytać z pierwszego gracza przy starcie
-let playerStartY = 100;
+let playerStartX = 100
+let playerStartY = 100
 
-// === ❤️ SYSTEM ŻYĆ I RESPAWN ===
-let invulnerable = 0;              // klatki nieśmiertelności po trafieniu
-let invulnerabilityTime = 80;      // czas nieśmiertelności (~1.3s przy 60fps)
-let hitPause = 0;                  // pauza animacji po śmierci
-let fallTimer = 0;
-const FALL_TIME_LIMIT = 180;   // 3 sekundy przy 60 fps
-let hitPauseTime = 60;             // pauza przed respawnem (~1s)
-let pendingRespawn = false;        // flaga: czeka na respawn
-let deathRespawnX = 300;           // X: miejsce ostatniej śmierci
-let deathRespawnY = 300;           // Y: miejsce ostatniej śmierci
-let useLives = true;               // czy używać systemu żyć?          // (zostaw to)
-let hitEffect = null;              // (zostaw to)
-let respawnMode = "death"; 
-// "death" = w miejscu śmierci
-// "start" = w punkcie startowym
-let diedByFalling = false;   // flaga: czy śmierć była przez wypadnięcie poza 
-let warningText = null;     // { time: liczba klatek, alpha: przezroczystość }
+// === SYSTEM ŻYĆ I RESPAWN ===
+let invulnerable = 0
+let invulnerabilityTime = 80
+let hitPause = 0
+let fallTimer = 0
+const FALL_TIME_LIMIT = 180
+let hitPauseTime = 60
+let pendingRespawn = false
+let deathRespawnX = 300
+let deathRespawnY = 300
+let useLives = true
+let hitEffect = null
+let respawnMode = "death"
+let diedByFalling = false
+let warningText = null
 let gameState = "game"
 let bonuses = []
 let fileHandle = null
@@ -231,7 +215,6 @@ let levelDelay = null
 let matrixCols = []
 let matrixFrame = 0
 let levelTextAnim = null
-
 
 let resultsBall = { x: 400, y: 220, r: 20 }
 let resultsEnemies = []
@@ -242,26 +225,25 @@ let counters = {
   time: 60
 }
 let startTime = counters.time
-let useTimer = true;
+let useTimer = true
 let autorGry = "Nieznany"
 let nazwaGry = "Moja gra"
 let opisGry = ""
-let showIntro = false   // 🔥 NOWE
-let backgroundType = "none";
+let showIntro = false
+let backgroundType = "none"
 
 let lastTime = Date.now()
 let fps = 70
 let frameDelay = 1000 / fps
 let lastFrame = 0
 
-
 function renderLevelsBar(){
-  let html = `<b style="margin-right:10px; color:#0f0;">POZIOMY →</b>`;
+  let html = `<b style="margin-right:10px; color:#0f0;">POZIOMY →</b>`
 
   levels.forEach((lvl, i) => {
-    const isActive = i === currentLevel;
+    const isActive = i === currentLevel
     html += `
-      <div onclick="switchLevelUI(${i})" 
+      <div onclick="switchLevelUI(${i})"
            style="
              width:32px;
              height:32px;
@@ -277,11 +259,11 @@ function renderLevelsBar(){
            ">
         ${i+1}
       </div>
-    `;
-  });
+    `
+  })
 
   html += `
-    <div onclick="addLevelUI()" 
+    <div onclick="addLevelUI()"
          style="
            width:32px;
            height:32px;
@@ -297,13 +279,12 @@ function renderLevelsBar(){
          ">
       +
     </div>
-  `;
+  `
 
-  document.getElementById("levelsBar").innerHTML = html;
+  document.getElementById("levelsBar").innerHTML = html
 }
 
 function addLevelUI(){
-  // 1. Dodaj nowy pusty poziom
   levels.push({
     players: [],
     platforms: [],
@@ -314,52 +295,42 @@ function addLevelUI(){
     backgroundType: "none",
     playerStartX: 100,
     playerStartY: 100
-  });
+  })
 
-  // 2. Przełącz na nowo dodany poziom
-  currentLevel = levels.length - 1;
+  currentLevel = levels.length - 1
+  syncLevelData()
 
-  // 3. WAŻNE – zsynchronizuj dane poziomu
-  syncLevelData();
+  const lvl = getLevel()
+  playerStartX = lvl.playerStartX ?? 100
+  playerStartY = lvl.playerStartY ?? 100
 
-  // 4. Ustaw start gracza dla nowego poziomu
-  const lvl = getLevel();
-  playerStartX = lvl.playerStartX ?? 100;
-  playerStartY = lvl.playerStartY ?? 100;
-
-  // Jeśli gracz istnieje – przenieś go
   if (players.length > 0) {
-    players[0].x = playerStartX;
-    players[0].y = playerStartY;
+    players[0].x = playerStartX
+    players[0].y = playerStartY
   }
 
-  // 5. Odśwież pasek poziomów
-  renderLevelsBar();
-
-  // Opcjonalnie: mały feedback
-  // console.log(`Dodano poziom ${currentLevel + 1}`);
+  renderLevelsBar()
 }
 
 function switchLevelUI(i){
-  if (i < 0 || i >= levels.length) return;
-  
-  currentLevel = i;
-  syncLevelData();           // ← najważniejsze
-  
-  const lvl = getLevel();
-  playerStartX = lvl.playerStartX ?? 100;
-  playerStartY = lvl.playerStartY ?? 100;
+  if (i < 0 || i >= levels.length) return
 
-  respawnPlayer();           // lub ręcznie players[0].x/y jeśli gracz istnieje
-  renderLevelsBar();
+  currentLevel = i
+  syncLevelData()
+
+  const lvl = getLevel()
+  playerStartX = lvl.playerStartX ?? 100
+  playerStartY = lvl.playerStartY ?? 100
+
+  respawnPlayer()
+  renderLevelsBar()
 }
-
 
 function pokazLiczniki(){
   document.getElementById("panel").innerHTML = `
     <h3>LICZNIKI</h3>
 
-    ❤️ Życia: 
+    ❤️ Życia:
     <input type="number" id="editLives" value="${counters.lives}" style="width:60px;">
     <br><br>
 
@@ -374,7 +345,7 @@ function pokazLiczniki(){
     <button onclick="resetPoints()">🔄 Reset punktów</button>
     <br><br>
 
-    ⏱ Czas: 
+    ⏱ Czas:
     <input type="number" id="editTime" value="${Math.ceil(counters.time)}" style="width:60px;">
     <br><br>
 
@@ -383,11 +354,10 @@ function pokazLiczniki(){
       Licz czas
     </label>
 
-
     <br><br><br>
 
     <button onclick="zapiszLiczniki()">ZAPISZ</button>
-  `;
+  `
 }
 
 function resetPoints(){
@@ -396,9 +366,7 @@ function resetPoints(){
 
 function zapiszZycia(){
   let val = Number(document.getElementById("editLives").value)
-
   if (isNaN(val) || val < 0) return
-
   counters.lives = val
 }
 
@@ -419,26 +387,24 @@ const floorY = 430
 let editingFxIndex = -1
 let effectsPaused = false
 
-// ──────────────────────── KAMERA ────────────────────────
+// KAMERA
 let cameraX = 0
 let autoScroll = false
 let autoScrollSpeed = 2
 
-// === NOWE – PASEK PRzewijania ===
-let worldWidth = 2000;  // ← możesz zmienić na 4000 / 10000 itd.
+let worldWidth = 2000
 
-const scrollX = document.getElementById("scrollX");
-scrollX.max = worldWidth - canvas.width;
+const scrollX = document.getElementById("scrollX")
+scrollX.max = worldWidth - canvas.width
 
 function syncScrollbar() {
-  scrollX.value = Math.max(0, Math.min(cameraX, worldWidth - canvas.width));
+  scrollX.value = Math.max(0, Math.min(cameraX, worldWidth - canvas.width))
 }
 
 scrollX.addEventListener("input", () => {
-  cameraX = Number(scrollX.value);
-});
+  cameraX = Number(scrollX.value)
+})
 
-// ================= AKTUALIZACJA PODŚWIETLENIA =================
 function updateButtonStates() {
   document.getElementById("runBtn").classList.toggle("active", trybGry)
   document.getElementById("editBtn").classList.toggle("active", !trybGry)
@@ -446,17 +412,14 @@ function updateButtonStates() {
   document.getElementById("gridBtn").classList.toggle("active", gridEnabled)
   document.getElementById("pauseFxBtn").classList.toggle("active", effectsPaused)
   document.getElementById("deleteBtn").classList.toggle("active", trybKasowania)
-
   document.getElementById("pauseFxBtn").textContent = effectsPaused ? "WZNÓW EFEKTY" : "ZATRZYMAJ EFEKTY"
 }
 
-// ================= FX PAUSE =================
 function togglePauseEffects() {
   effectsPaused = !effectsPaused
   updateButtonStates()
 }
 
-// ================= GRID =================
 function toggleGrid(){
   gridEnabled = !gridEnabled
   updateButtonStates()
@@ -479,12 +442,9 @@ function snapAll(){
   }
 }
 
-// ================= TRYBY =================
 function uruchom(){
   trybGry = true
-
-  respawnPlayer()   // 🔥 TU!
-
+  respawnPlayer()
   updateButtonStates()
 }
 
@@ -500,7 +460,7 @@ function trybUsun(){
 }
 
 function wlaczBonusy(){
-  trybBonusy = false   // ❗ jeszcze nie aktywujemy
+  trybBonusy = false
 
   document.getElementById("panel").innerHTML = `
     <h3>BONUSY</h3>
@@ -509,7 +469,6 @@ function wlaczBonusy(){
   `
 }
 
-// ================= FX =================
 function toggleFX(){
   trybFX = !trybFX
   trybKasowania = false
@@ -521,27 +480,27 @@ function toggleFX(){
   }
 }
 
-
-let selectedObject = null; // <--- brakowało deklaracji w oryginalnym kodzie
+let selectedObject = null
 
 function showFxList(){
-  if (!selectedObject) return;
+  if (!selectedObject) return
 
-  if (selectedObject.r) {
+  if (selectedObject.r && !selectedObject.w) {
     document.getElementById("panel").innerHTML = `
       <h3>Gracz</h3>
       <p style="color:#aaa">Gracz nie obsługuje efektów</p>
       <p style="color:#888; font-size:0.9em; margin-top:12px;">
         Ruch gracza sterowany jest klawiaturą.
       </p>
-    `;
-    return;
+    `
+    return
   }
+
   trybFX = false
   updateButtonStates()
 
   let html = `<h3>Efekty</h3>`
-  if (selectedObject.effects.length === 0) {
+  if (!selectedObject.effects || selectedObject.effects.length === 0) {
     html += `<p style="color:#888">Brak efektów</p>`
   } else {
     html += `<div class="fx-list">`
@@ -564,10 +523,10 @@ function showFxList(){
     html += `</div>`
   }
   html += `
-  <button onclick="showAddFxMenu()">+ DODAJ EFEKT</button>
-  <br><br>
-  <button onclick="kopiujObiekt()">📋 KOPIUJ</button>
-`
+    <button onclick="showAddFxMenu()">+ DODAJ EFEKT</button>
+    <br><br>
+    <button onclick="kopiujObiekt()">📋 KOPIUJ</button>
+  `
   document.getElementById("panel").innerHTML = html
 }
 
@@ -602,6 +561,7 @@ function showAddFxMenu(){
 
 function addNeonFx(){
   if (!selectedObject) return
+  if (!selectedObject.effects) selectedObject.effects = []
 
   if (selectedObject.effects.length >= 2) {
     alert("❌ Max 2 efekty")
@@ -618,7 +578,7 @@ function addNeonFx(){
 
 function showMove(){
   let initial = {dx:1, dy:0, speed:2, distance:200, loop:true}
-  if (editingFxIndex >= 0 && selectedObject.effects[editingFxIndex]?.type === "move") {
+  if (editingFxIndex >= 0 && selectedObject.effects && selectedObject.effects[editingFxIndex]?.type === "move") {
     initial = {...selectedObject.effects[editingFxIndex]}
   }
 
@@ -649,8 +609,8 @@ function setDir(d){
 }
 
 function saveMove(){
-
   if (!selectedObject) return
+  if (!selectedObject.effects) selectedObject.effects = []
 
   if (editingFxIndex === -1 && selectedObject.effects.length >= 2) {
     alert("❌ Maksymalnie 2 efekty na obiekt")
@@ -688,24 +648,17 @@ function pokazGraczy() {
     </div>
 
     <div style="display:flex; gap:25px; justify-content:center; margin:15px 0;">
-
-      <!-- 🔴 PIŁKA -->
       <div class="item"
         onclick="selectedPlayerType='ball'; dodajGracza()"
         style="width:40px;height:40px;background:red;border-radius:50%;">
       </div>
-
-      <!-- 🚗 AUTO -->
       <div class="item"
         onclick="selectedPlayerType='car'; dodajGracza()"
         style="font-size:40px; text-align:center;">
         🚗
       </div>
-
     </div>
 
-
-    <!-- 🔄 ODRADZANIE -->
     <h4>ODRADZANIE</h4>
 
     <div style="display:flex; gap:6px; margin-bottom:10px;">
@@ -717,26 +670,22 @@ function pokazGraczy() {
       </button>
     </div>
 
-    <!-- 🎮 STEROWANIE -->
     <h4>STEROWANIE</h4>
 
-    <!-- SKOK -->
     <div style="margin-bottom:6px;">
       <div class="keybox" onclick="wybierzPole('skok')" id="skok">?</div>
     </div>
 
-    <!-- LEWO / PRAWO -->
     <div style="display:flex; gap:6px;">
       <div class="keybox" style="flex:1;" onclick="wybierzPole('lewo')" id="lewo">?</div>
       <div class="keybox" style="flex:1;" onclick="wybierzPole('prawo')" id="prawo">?</div>
     </div>
 
-    <!-- 🌍 RUCH ŚWIATA -->
     <h4>RUCH ŚWIATA</h4>
 
     <label>
-      <input type="checkbox" id="autoScrollToggle" 
-       ${autoScroll ? "checked" : ""} 
+      <input type="checkbox" id="autoScrollToggle"
+       ${autoScroll ? "checked" : ""}
        onchange="updateRespawnLock()">
       Auto ruch świata
     </label>
@@ -750,30 +699,28 @@ function pokazGraczy() {
     <br><br>
 
     <button class="blink" onclick="zapiszUstawienia()">ZAPISZ - PRĘDKOŚĆ</button>
-  `;
+  `
 
-  // 🔥 PODŚWIETLENIE (NIE RUSZAMY)
-  setRespawnMode(respawnMode, false);
+  setRespawnMode(respawnMode, false)
 
-  // 🔥 RUCH ŚWIATA (UI sync)
-  document.getElementById("autoScrollToggle").checked = autoScroll;
-  document.getElementById("scrollSpeed").value = autoScrollSpeed;
-  document.getElementById("speedVal").innerText = autoScrollSpeed;
+  document.getElementById("autoScrollToggle").checked = autoScroll
+  document.getElementById("scrollSpeed").value = autoScrollSpeed
+  document.getElementById("speedVal").innerText = autoScrollSpeed
 
   document.getElementById("scrollSpeed").oninput = function(){
-    document.getElementById("speedVal").innerText = this.value;
+    document.getElementById("speedVal").innerText = this.value
   }
-updateRespawnLock()  
+  updateRespawnLock()
 }
 
 function ustawRespawnTutaj() {
   if (players.length === 0) {
-    alert("Najpierw dodaj gracza!");
-    return;
+    alert("Najpierw dodaj gracza!")
+    return
   }
-  deathRespawnX = players[0].x;
-  deathRespawnY = players[0].y;
-  alert("✅ Resp. ustawiony: " + Math.round(deathRespawnX) + ", " + Math.round(deathRespawnY));
+  deathRespawnX = players[0].x
+  deathRespawnY = players[0].y
+  alert("✅ Resp. ustawiony: " + Math.round(deathRespawnX) + ", " + Math.round(deathRespawnY))
 }
 
 function pokazPlatformy(){
@@ -785,19 +732,16 @@ function pokazPlatformy(){
 
     <div style="display:flex; flex-direction:column; gap:16px; align-items:center; margin:20px 0;">
 
-      <!-- Prostokąt -->
       <div onclick="dodajPlatforme('rect')" class="platform-preview">
         <canvas id="previewRect" width="120" height="46"></canvas>
         <div class="preview-label">prostokąt</div>
       </div>
 
-      <!-- Zaokrąglony -->
       <div onclick="dodajPlatforme('round')" class="platform-preview">
         <canvas id="previewRound" width="120" height="46"></canvas>
         <div class="preview-label">zaokrąglony</div>
       </div>
 
-      <!-- Linia -->
       <div onclick="dodajPlatforme('line')" class="platform-preview">
         <canvas id="previewLine" width="120" height="32"></canvas>
         <div class="preview-label">linia (cienka)</div>
@@ -836,102 +780,84 @@ function pokazPlatformy(){
         text-align: center;
       }
     </style>
-  `;
+  `
 
-  // Rysujemy previewy
   setTimeout(() => {
-    drawPlatformPreview("previewRect", "rect");
-    drawPlatformPreview("previewRound", "round");
-    drawPlatformPreview("previewLine", "line");
-  }, 80);
+    drawPlatformPreview("previewRect", "rect")
+    drawPlatformPreview("previewRound", "round")
+    drawPlatformPreview("previewLine", "line")
+  }, 80)
 }
 
-// ==================== POPRAWIONA FUNKCJA RYSUJĄCA ====================
 function drawPlatformPreview(canvasId, typ) {
-  const canvas = document.getElementById(canvasId);
-  if (!canvas) return;
-  const pctx = canvas.getContext("2d");
+  const previewCanvas = document.getElementById(canvasId)
+  if (!previewCanvas) return
+  const pctx = previewCanvas.getContext("2d")
 
-  const w = canvas.width;
-  const h = canvas.height;
+  const w = previewCanvas.width
+  const h = previewCanvas.height
 
-  pctx.clearRect(0, 0, w, h);
+  pctx.clearRect(0, 0, w, h)
 
   if (typ === "line") {
-    // ==================== LINIA - BARDZO CIENKA ====================
-    const y = h / 2;
-
-    // neon line preview
-    pctx.strokeStyle = "#00dddd";
-    pctx.lineWidth = 4;
-
-    pctx.shadowColor = "#00ffff";
-    pctx.shadowBlur = 12;
-
-    pctx.beginPath();
-    pctx.moveTo(15, y);
-    pctx.lineTo(w - 15, y);
-    pctx.stroke();
-
-    pctx.shadowBlur = 0;
-
+    const y = h / 2
+    pctx.strokeStyle = "#00dddd"
+    pctx.lineWidth = 4
+    pctx.shadowColor = "#00ffff"
+    pctx.shadowBlur = 12
+    pctx.beginPath()
+    pctx.moveTo(15, y)
+    pctx.lineTo(w - 15, y)
+    pctx.stroke()
+    pctx.shadowBlur = 0
   } else {
-    // ==================== PROSTOKĄT i ZAOKRĄGLONY ====================
-    const padding = 12;
-    const ph = h - padding * 2;   // wysokość platformy
+    const padding = 12
+    const ph = h - padding * 2
 
-    // drewno
-    pctx.fillStyle = "#8B5A2B";
+    pctx.fillStyle = "#8B5A2B"
     if (typ === "round") {
-      pctx.beginPath();
-      pctx.roundRect(padding, padding, w - padding*2, ph, 14);
-      pctx.fill();
+      pctx.beginPath()
+      pctx.roundRect(padding, padding, w - padding*2, ph, 14)
+      pctx.fill()
     } else {
-      pctx.fillRect(padding, padding, w - padding*2, ph);
+      pctx.fillRect(padding, padding, w - padding*2, ph)
     }
 
-    // ciemna ramka
-    pctx.strokeStyle = "#3F2A1D";
-    pctx.lineWidth = 3.5;
+    pctx.strokeStyle = "#3F2A1D"
+    pctx.lineWidth = 3.5
     if (typ === "round") {
-      pctx.beginPath();
-      pctx.roundRect(padding + 2, padding + 2, w - padding*2 - 4, ph - 4, 12);
-      pctx.stroke();
+      pctx.beginPath()
+      pctx.roundRect(padding + 2, padding + 2, w - padding*2 - 4, ph - 4, 12)
+      pctx.stroke()
     } else {
-      pctx.strokeRect(padding + 2, padding + 2, w - padding*2 - 4, ph - 4);
+      pctx.strokeRect(padding + 2, padding + 2, w - padding*2 - 4, ph - 4)
     }
 
-    // słoje drewna
-    pctx.strokeStyle = "#A67C5D";
-    pctx.lineWidth = 2.2;
+    pctx.strokeStyle = "#A67C5D"
+    pctx.lineWidth = 2.2
 
-    const lineCount = 4;
+    const lineCount = 4
     for (let i = 1; i < lineCount; i++) {
-      let py = padding + (ph * i / lineCount);
-
-      pctx.beginPath();
-      pctx.moveTo(padding + 10, py);
-      pctx.quadraticCurveTo(
-        w * 0.38, py + (i % 2 === 0 ? -1.5 : 1.5),
-        w - padding - 10, py
-      );
-      pctx.stroke();
+      let py = padding + (ph * i / lineCount)
+      pctx.beginPath()
+      pctx.moveTo(padding + 10, py)
+      pctx.quadraticCurveTo(w * 0.38, py + (i % 2 === 0 ? -1.5 : 1.5), w - padding - 10, py)
+      pctx.stroke()
     }
 
-    // dodatkowe subtelne słoje
-    pctx.strokeStyle = "#6B4426";
-    pctx.lineWidth = 1.4;
-    pctx.beginPath();
-    pctx.moveTo(padding + 25, padding + 10);
-    pctx.quadraticCurveTo(w * 0.6, padding + 22, padding + 40, padding + ph - 12);
-    pctx.stroke();
+    pctx.strokeStyle = "#6B4426"
+    pctx.lineWidth = 1.4
+    pctx.beginPath()
+    pctx.moveTo(padding + 25, padding + 10)
+    pctx.quadraticCurveTo(w * 0.6, padding + 22, padding + 40, padding + ph - 12)
+    pctx.stroke()
   }
 }
 
 function pokazBloki(){
   document.getElementById("panel").innerHTML = `
     <h3>BLOK</h3>
-    
+
     <div style="text-align:center; margin:20px 0;">
       <canvas id="blokPreview" width="90" height="90" style="background:#222; border:2px solid #555; border-radius:8px;"></canvas>
     </div>
@@ -945,58 +871,46 @@ function pokazBloki(){
         ➕ Dodaj blok
       </button>
     </div>
-  `;
+  `
 
-  // Po wstawieniu HTML-a rysujemy preview
   setTimeout(() => {
-    const previewCanvas = document.getElementById("blokPreview");
-    if (!previewCanvas) return;
-    
-    const pctx = previewCanvas.getContext("2d");
+    const previewCanvas = document.getElementById("blokPreview")
+    if (!previewCanvas) return
 
-    const x = 8;
-    const y = 8;
-    const w = 74;
-    const h = 74;
+    const pctx = previewCanvas.getContext("2d")
+    const x = 8, y = 8, w = 74, h = 74
 
-    // Główna powierzchnia drewna
-    pctx.fillStyle = "#8B5A2B";
-    pctx.fillRect(x, y, w, h);
+    pctx.fillStyle = "#8B5A2B"
+    pctx.fillRect(x, y, w, h)
 
-    // Cienka ciemna ramka
-    pctx.strokeStyle = "#3F2A1D";
-    pctx.lineWidth = 4;
-    pctx.strokeRect(x + 2, y + 2, w - 4, h - 4);
+    pctx.strokeStyle = "#3F2A1D"
+    pctx.lineWidth = 4
+    pctx.strokeRect(x + 2, y + 2, w - 4, h - 4)
 
-    // Imitacja słojów drewna
-    pctx.strokeStyle = "#A67C5D";
-    pctx.lineWidth = 2.5;
+    pctx.strokeStyle = "#A67C5D"
+    pctx.lineWidth = 2.5
 
     for (let i = 1; i < 6; i++) {
-      let py = y + (h * i / 6);
-      pctx.beginPath();
-      pctx.moveTo(x + 6, py);
-      pctx.quadraticCurveTo(
-        x + w * 0.38, py + (i % 2 === 0 ? -2 : 2),
-        x + w - 6, py
-      );
-      pctx.stroke();
+      let py = y + (h * i / 6)
+      pctx.beginPath()
+      pctx.moveTo(x + 6, py)
+      pctx.quadraticCurveTo(x + w * 0.38, py + (i % 2 === 0 ? -2 : 2), x + w - 6, py)
+      pctx.stroke()
     }
 
-    // Dodatkowe słoje
-    pctx.lineWidth = 1.8;
-    pctx.strokeStyle = "#6B4426";
+    pctx.lineWidth = 1.8
+    pctx.strokeStyle = "#6B4426"
 
-    pctx.beginPath();
-    pctx.moveTo(x + w*0.25, y + 10);
-    pctx.quadraticCurveTo(x + w*0.58, y + h*0.45, x + w*0.22, y + h - 12);
-    pctx.stroke();
+    pctx.beginPath()
+    pctx.moveTo(x + w*0.25, y + 10)
+    pctx.quadraticCurveTo(x + w*0.58, y + h*0.45, x + w*0.22, y + h - 12)
+    pctx.stroke()
 
-    pctx.beginPath();
-    pctx.moveTo(x + w*0.72, y + 14);
-    pctx.quadraticCurveTo(x + w*0.48, y + h*0.65, x + w*0.75, y + h - 10);
-    pctx.stroke();
-  }, 50);
+    pctx.beginPath()
+    pctx.moveTo(x + w*0.72, y + 14)
+    pctx.quadraticCurveTo(x + w*0.48, y + h*0.65, x + w*0.75, y + h - 10)
+    pctx.stroke()
+  }, 50)
 }
 
 function pokazPrzeciwniki(){
@@ -1021,7 +935,7 @@ function pokazPrzeciwniki(){
 
 function kopiujObiekt(){
   if (!selectedObject) return
-  if (selectedObject.r) {
+  if (selectedObject.r && !selectedObject.w) {
     alert("❌ Nie można kopiować gracza")
     return
   }
@@ -1038,54 +952,48 @@ function kopiujObiekt(){
 }
 
 function dodajGracza() {
-    if (players.length > 0) {
-        alert("⚠ Usuń aktualnego gracza, żeby dodać nowego!");
-        return;
-    }
+  if (players.length > 0) {
+    alert("⚠ Usuń aktualnego gracza, żeby dodać nowego!")
+    return
+  }
 
-    let x = cameraX + 80
-    let y = canvas.height / 2
+  let x = cameraX + 80
+  let y = canvas.height / 2
 
-    if (gridEnabled) {
-        x = snap(x)
-        y = snap(y)
-    }
+  if (gridEnabled) {
+    x = snap(x)
+    y = snap(y)
+  }
 
-    const lvl = getLevel()
+  const lvl = getLevel()
 
-    const nowy = {
-      x: x,
-      y: y,
-      vx: 0,
-      vy: 0,
-      r: 20,
-      effects: [],
-      type: selectedPlayerType
-    }
+  const nowy = {
+    x: x,
+    y: y,
+    vx: 0,
+    vy: 0,
+    r: 20,
+    effects: [],
+    type: selectedPlayerType
+  }
 
-    lvl.players.push(nowy)
+  lvl.players.push(nowy)
+  syncLevelData()
 
-    // 🔥 KLUCZ — synchronizacja
-    syncLevelData()
-
-    // 🔥 teraz players działa
-    selectedObject = nowy
-
-    // start
-    playerStartX = x
-    playerStartY = y
+  selectedObject = nowy
+  playerStartX = x
+  playerStartY = y
 }
 
 function dodajPlatforme(typ) {
+  let solid = document.querySelector('input[name="solid"]:checked')?.value || "top"
 
-  let solid = document.querySelector('input[name="solid"]:checked')?.value || "top";
-  
-  let x = cameraX + canvas.width / 2 - 60;
-  let y = canvas.height / 2 - 10;
-  
-  if (gridEnabled) { 
-    x = snap(x); 
-    y = snap(y); 
+  let x = cameraX + canvas.width / 2 - 60
+  let y = canvas.height / 2 - 10
+
+  if (gridEnabled) {
+    x = snap(x)
+    y = snap(y)
   }
 
   let lvl = getLevel()
@@ -1094,19 +1002,18 @@ function dodajPlatforme(typ) {
     x, y, w:120, h:20, typ, solid, effects:[]
   })
 
-  selectedObject = lvl.platforms[lvl.platforms.length - 1]
-
+  syncLevelData()
+  selectedObject = platforms[platforms.length - 1]
   showFxList()
 }
 
 function dodajBlok() {
+  let x = cameraX + canvas.width / 2 - 80
+  let y = canvas.height / 2 - 80
 
-  let x = cameraX + canvas.width / 2 - 80;
-  let y = canvas.height / 2 - 80;
-  
-  if (gridEnabled) { 
-    x = snap(x); 
-    y = snap(y); 
+  if (gridEnabled) {
+    x = snap(x)
+    y = snap(y)
   }
 
   let lvl = getLevel()
@@ -1115,19 +1022,18 @@ function dodajBlok() {
     x, y, w:60, h:60, typ:"block", solid:"full", effects:[]
   })
 
-  selectedObject = lvl.blocks[lvl.blocks.length - 1]
-
+  syncLevelData()
+  selectedObject = blocks[blocks.length - 1]
   showFxList()
 }
 
 function dodajEnemy() {
+  let x = cameraX + canvas.width / 2 - 20
+  let y = canvas.height / 2 - 20
 
-  let x = cameraX + canvas.width / 2 - 20;
-  let y = canvas.height / 2 - 20;
-  
-  if (gridEnabled) { 
-    x = snap(x); 
-    y = snap(y); 
+  if (gridEnabled) {
+    x = snap(x)
+    y = snap(y)
   }
 
   let lvl = getLevel()
@@ -1136,56 +1042,62 @@ function dodajEnemy() {
     x, y, w:40, h:40, type:"enemy1", effects:[]
   })
 
-  selectedObject = lvl.enemies[lvl.enemies.length - 1]
-
+  syncLevelData()
+  selectedObject = enemies[enemies.length - 1]
   showFxList()
 }
 
 function dodajBonus(){
-  let x = cameraX + canvas.width / 2;
-  let y = canvas.height / 2;
+  let x = cameraX + canvas.width / 2
+  let y = canvas.height / 2
 
   if (gridEnabled) {
-    x = snap(x);
-    y = snap(y);
+    x = snap(x)
+    y = snap(y)
   }
 
-  const lvl = getLevel();
-  if (!lvl.bonuses) lvl.bonuses = [];
+  const lvl = getLevel()
+  if (!lvl.bonuses) lvl.bonuses = []
 
   const nowyBonus = {
     x: x,
     y: y,
     r: 12,
-    type: "normal",           // domyślny
+    type: "normal",
     pulseTime: 0,
     scale: 1
-  };
+  }
 
-  lvl.bonuses.push(nowyBonus);
-  bonuses = lvl.bonuses;      // synchronizacja
-  selectedObject = nowyBonus;
+  lvl.bonuses.push(nowyBonus)
+  bonuses = lvl.bonuses
+  selectedObject = nowyBonus
 }
 
 function dodajKluczWin(){
   let x = cameraX + canvas.width / 2
   let y = canvas.height / 2
 
-  bonuses.push({
+  const lvl = getLevel()
+  if (!lvl.bonuses) lvl.bonuses = []
+
+  lvl.bonuses.push({
     x, y,
     r: 12,
-    type: "key_win",   // 🔥 ważne
+    type: "key_win",
     pulseTime: 0,
     scale: 1
   })
+  bonuses = lvl.bonuses
 }
 
 function dodajKluczLevel(){
-
   let x = cameraX + canvas.width / 2
   let y = canvas.height / 2
 
-  bonuses.push({
+  const lvl = getLevel()
+  if (!lvl.bonuses) lvl.bonuses = []
+
+  lvl.bonuses.push({
     x: x,
     y: y,
     r: 12,
@@ -1194,33 +1106,25 @@ function dodajKluczLevel(){
     pulseTime: 0,
     scale: 1
   })
+  bonuses = lvl.bonuses
 }
 
 function pokazPanelKlucza(obj){
-
   if (obj.type !== "key_level") return
 
   document.getElementById("panel").innerHTML = `
     <h3>KLUCZ → POZIOM</h3>
-
     <p>Podaj poziom:</p>
-
     <input type="number" id="targetLevelInput"
            value="${(obj.targetLevel || 0) + 1}"
            min="1" style="width:80px; font-size:20px;">
-
     <br><br>
-
-    <button onclick="zapiszKluczLevel()">
-      💾 ZAPISZ
-    </button>
+    <button onclick="zapiszKluczLevel()">💾 ZAPISZ</button>
   `
-
   selectedObject = obj
 }
 
 function zapiszKluczLevel(){
-
   let input = document.getElementById("targetLevelInput")
   let val = Number(input.value)
 
@@ -1244,104 +1148,83 @@ function zapiszKluczLevel(){
 }
 
 function dodajGhost() {
-  let x = cameraX + canvas.width / 2 - 20;
-  let y = canvas.height / 2 - 20;
-  
-  if (gridEnabled) { 
-    x = snap(x); 
-    y = snap(y); 
-  }
-  
-  enemies.push({x, y, w:40, h:40, type:"ghost", effects:[]});
-  selectedObject = enemies[enemies.length-1];
-  showFxList();
+  let x = cameraX + canvas.width / 2 - 20
+  let y = canvas.height / 2 - 20
+  if (gridEnabled) { x = snap(x); y = snap(y) }
+  const lvl = getLevel()
+  lvl.enemies.push({x, y, w:40, h:40, type:"ghost", effects:[]})
+  syncLevelData()
+  selectedObject = enemies[enemies.length-1]
+  showFxList()
 }
 
 function dodajWorm() {
-  let x = cameraX + canvas.width / 2 - 20;
-  let y = canvas.height / 2 - 20;
-  
-  if (gridEnabled) { 
-    x = snap(x); 
-    y = snap(y); 
-  }
-  
-  enemies.push({
+  let x = cameraX + canvas.width / 2 - 20
+  let y = canvas.height / 2 - 20
+  if (gridEnabled) { x = snap(x); y = snap(y) }
+  const lvl = getLevel()
+  lvl.enemies.push({
     x, y, w:40, h:40, type:"worm",
     effects: [{type:"move", dx:1, dy:0, speed:0.8, distance:150, loop:true, travel:0, enabled:true}]
-  });
-  selectedObject = enemies[enemies.length-1];
-  showFxList();
+  })
+  syncLevelData()
+  selectedObject = enemies[enemies.length-1]
+  showFxList()
 }
 
 function dodajFire() {
-  let x = cameraX + canvas.width / 2 - 20;
-  let y = canvas.height / 2 - 20;
-  
-  if (gridEnabled) { 
-    x = snap(x); 
-    y = snap(y); 
-  }
-  
-  enemies.push({x, y, w:40, h:40, type:"fire", effects:[]});
-  selectedObject = enemies[enemies.length-1];
-  showFxList();
+  let x = cameraX + canvas.width / 2 - 20
+  let y = canvas.height / 2 - 20
+  if (gridEnabled) { x = snap(x); y = snap(y) }
+  const lvl = getLevel()
+  lvl.enemies.push({x, y, w:40, h:40, type:"fire", effects:[]})
+  syncLevelData()
+  selectedObject = enemies[enemies.length-1]
+  showFxList()
 }
 
 function dodajSpikes() {
-  let x = cameraX + canvas.width / 2 - 20;
-  let y = canvas.height / 2 - 20;
-  
-  if (gridEnabled) { 
-    x = snap(x); 
-    y = snap(y); 
-  }
-  
-  enemies.push({x, y, w:40, h:40, type:"spikes", effects:[]});
-  selectedObject = enemies[enemies.length-1];
-  showFxList();
+  let x = cameraX + canvas.width / 2 - 20
+  let y = canvas.height / 2 - 20
+  if (gridEnabled) { x = snap(x); y = snap(y) }
+  const lvl = getLevel()
+  lvl.enemies.push({x, y, w:40, h:40, type:"spikes", effects:[]})
+  syncLevelData()
+  selectedObject = enemies[enemies.length-1]
+  showFxList()
 }
 
 function dodajWater() {
-  let x = cameraX + canvas.width / 2 - 20;
-  let y = canvas.height / 2 - 20;
-  
-  if (gridEnabled) { 
-    x = snap(x); 
-    y = snap(y); 
-  }
-  
-  enemies.push({x, y, w:40, h:40, type:"water", effects:[]});
-  selectedObject = enemies[enemies.length-1];
-  showFxList();
+  let x = cameraX + canvas.width / 2 - 20
+  let y = canvas.height / 2 - 20
+  if (gridEnabled) { x = snap(x); y = snap(y) }
+  const lvl = getLevel()
+  lvl.enemies.push({x, y, w:40, h:40, type:"water", effects:[]})
+  syncLevelData()
+  selectedObject = enemies[enemies.length-1]
+  showFxList()
 }
 
 function dodajWalker() {
-  let x = cameraX + canvas.width / 2 - 20;
-  let y = canvas.height / 2 - 20;
-  
-  if (gridEnabled) { 
-    x = snap(x); 
-    y = snap(y); 
-  }
-  
-  enemies.push({x, y, w:40, h:40, type:"walker", vx:1, vy:0, effects:[]});
-  selectedObject = enemies[enemies.length-1];
-  showFxList();
+  let x = cameraX + canvas.width / 2 - 20
+  let y = canvas.height / 2 - 20
+  if (gridEnabled) { x = snap(x); y = snap(y) }
+  const lvl = getLevel()
+  lvl.enemies.push({x, y, w:40, h:40, type:"walker", vx:1, vy:0, effects:[]})
+  syncLevelData()
+  selectedObject = enemies[enemies.length-1]
+  showFxList()
 }
 
 function dodajWalker2() {
-  let x = cameraX + canvas.width / 2 - 20;
-  let y = canvas.height / 2 - 20;
-  
-  if (gridEnabled) { 
-    x = snap(x); 
-    y = snap(y); 
-  }
-  
-  enemies.push({x, y, w:40, h:40, type:"walker2", vx:-1, vy:0, effects:[]});
-  selectedObject = enemies[enemies.length-1];
-  showFxList();
+  let x = cameraX + canvas.width / 2 - 20
+  let y = canvas.height / 2 - 20
+  if (gridEnabled) { x = snap(x); y = snap(y) }
+  const lvl = getLevel()
+  lvl.enemies.push({x, y, w:40, h:40, type:"walker2", vx:-1, vy:0, effects:[]})
+  syncLevelData()
+  selectedObject = enemies[enemies.length-1]
+  showFxList()
 }
 
 // ================= STEROWANIE =================
@@ -1352,7 +1235,8 @@ function wybierzPole(pole){
 document.addEventListener("keydown", e => {
   if (aktywnePole) {
     sterowanie[aktywnePole] = e.key
-    document.getElementById(aktywnePole).innerText = e.key
+    const el = document.getElementById(aktywnePole)
+    if (el) el.innerText = e.key
     aktywnePole = null
   }
   keys[e.key] = true
@@ -1367,27 +1251,35 @@ canvas.addEventListener("mousedown", e => {
   if (trybGry || trybHTML) return
   if (trybKopiowania && copiedObject) {
     const rect = canvas.getBoundingClientRect()
-    const mx = e.clientX - rect.left + cameraX   // <--- poprawka na kamerę
+    const mx = e.clientX - rect.left + cameraX
     const my = e.clientY - rect.top
 
     let nowy = JSON.parse(JSON.stringify(copiedObject))
 
-    if (nowy.r) {
+    if (nowy.r && !nowy.w) {
       nowy.x = mx
       nowy.y = my
-      players.push(nowy)
-    } else if (nowy.typ === "block") {
+      const lvl = getLevel()
+      lvl.players.push(nowy)
+      syncLevelData()
+    } else if (nowy.typ === "block" || nowy.w && nowy.h && !nowy.type) {
       nowy.x = mx - (nowy.w || 80)/2
       nowy.y = my - (nowy.h || 80)/2
-      blocks.push(nowy)
-    } else if (nowy.type !== undefined) {
+      const lvl = getLevel()
+      lvl.blocks.push(nowy)
+      syncLevelData()
+    } else if (nowy.type !== undefined && nowy.w) {
       nowy.x = mx - (nowy.w || 40)/2
       nowy.y = my - (nowy.h || 40)/2
-      enemies.push(nowy)
+      const lvl = getLevel()
+      lvl.enemies.push(nowy)
+      syncLevelData()
     } else {
       nowy.x = mx - (nowy.w || 120)/2
       nowy.y = my - (nowy.h || 20)/2
-      platforms.push(nowy)
+      const lvl = getLevel()
+      lvl.platforms.push(nowy)
+      syncLevelData()
     }
 
     trybKopiowania = false
@@ -1396,50 +1288,50 @@ canvas.addEventListener("mousedown", e => {
     return
   }
 
-  const rect = canvas.getBoundingClientRect();
-  const mx = e.clientX - rect.left + cameraX;   // <--- + cameraX
-  const my = e.clientY - rect.top;
+  const rect = canvas.getBoundingClientRect()
+  const mx = e.clientX - rect.left + cameraX
+  const my = e.clientY - rect.top
 
-  dragging = null;
-  resizing = null;
+  dragging = null
+  resizing = null
 
   if (trybKasowania) {
     for (const arr of [blocks, platforms, players, enemies, bonuses]) {
       for (let i = arr.length - 1; i >= 0; i--) {
-        const o = arr[i];
-        if (o.r) {
-          const dx = mx - o.x;
-          const dy = my - o.y;
+        const o = arr[i]
+        if (o.r && !o.w) {
+          const dx = mx - o.x
+          const dy = my - o.y
           if (Math.hypot(dx, dy) < o.r + 6) {
-            arr.splice(i, 1);
-            trybKasowania = false;
-            updateButtonStates();
-            return;
+            arr.splice(i, 1)
+            trybKasowania = false
+            updateButtonStates()
+            return
           }
         } else {
           if (
-            mx >= o.x - 6 && mx <= o.x + o.w + 6 &&
-            my >= o.y - 6 && my <= o.y + o.h + 6
+            mx >= o.x - 6 && mx <= o.x + (o.w||40) + 6 &&
+            my >= o.y - 6 && my <= o.y + (o.h||40) + 6
           ) {
-            arr.splice(i, 1);
-            trybKasowania = false;
-            updateButtonStates();
-            return;
+            arr.splice(i, 1)
+            trybKasowania = false
+            updateButtonStates()
+            return
           }
         }
       }
     }
-    return;
+    return
   }
 
   if (trybFX) {
-    selectedObject = null;
+    selectedObject = null
 
     for (const p of players) {
       if (Math.hypot(mx - p.x, my - p.y) < p.r + 8) {
-        selectedObject = p;
-        showFxList();
-        return;
+        selectedObject = p
+        showFxList()
+        return
       }
     }
 
@@ -1449,39 +1341,32 @@ canvas.addEventListener("mousedown", e => {
           mx >= obj.x && mx <= obj.x + obj.w &&
           my >= obj.y && my <= obj.y + obj.h
         ) {
-          selectedObject = obj;
-          showFxList();
-          return;
+          selectedObject = obj
+          showFxList()
+          return
         }
       }
     }
-    return;
+    return
   }
 
-  if (trybGry) return;
+  selectedObject = null
 
-
-  selectedObject = null;
-
-  // 🔥 BONUSY (łapanie myszą) – POPRAWIONA WERSJA
+  // BONUSY
   for (const bonus of bonuses) {
     let dx = mx - bonus.x
     let dy = my - bonus.y
     let dist = Math.sqrt(dx*dx + dy*dy)
 
-    if (dist < bonus.r + 10) {
+    if (dist < (bonus.r || 12) + 10) {
       selectedObject = bonus
       dragging = bonus
-
-      // 🔥 ZAWSZE resetujemy offset – to naprawia skakanie klucza
       dragOffsetX = mx - bonus.x
       dragOffsetY = my - bonus.y
 
       if (bonus.type === "key_level") {
         pokazPanelKlucza(bonus)
-        // return zostawiamy – nadal blokujemy dalsze sprawdzanie obiektów
       }
-
       return
     }
   }
@@ -1489,34 +1374,32 @@ canvas.addEventListener("mousedown", e => {
   // resize bloki
   for (const b of blocks) {
     if (mx > b.x + b.w - 12 && mx < b.x + b.w + 12 && my > b.y && my < b.y + b.h) {
-      resizing = b; resizing.resizeSide = "right"; selectedObject = b; return;
+      resizing = b; resizing.resizeSide = "right"; selectedObject = b; return
     }
-
     if (mx > b.x - 12 && mx < b.x + 12 && my > b.y && my < b.y + b.h) {
-      resizing = b; resizing.resizeSide = "left"; selectedObject = b; return;
+      resizing = b; resizing.resizeSide = "left"; selectedObject = b; return
     }
   }
 
   for (const pl of platforms) {
-    if (mx > pl.x + pl.w - 12 && mx < pl.x + pl.w + 12 && my > pl.y && my < pl.y + pl.h) {
-      resizing = pl; resizing.resizeSide = "right"; selectedObject = pl; return;
+    if (mx > pl.x + pl.w - 12 && mx < pl.x + pl.w + 12 && my > pl.y && my < pl.y + (pl.h||20)) {
+      resizing = pl; resizing.resizeSide = "right"; selectedObject = pl; return
     }
   }
 
-  // drag
+  // drag bloki
   for (const b of blocks) {
     if (mx >= b.x && mx <= b.x + b.w && my >= b.y && my <= b.y + b.h) {
-      selectedObject = b;
-      dragging = b;
-      dragOffsetX = mx - b.x;
-      dragOffsetY = my - b.y;
-      return;
+      selectedObject = b
+      dragging = b
+      dragOffsetX = mx - b.x
+      dragOffsetY = my - b.y
+      return
     }
   }
 
-    // ===== TEXTY (klik + drag) =====
+  // texty
   for (const t of texts) {
-
     if (
       mx >= t.x - 60 &&
       mx <= t.x + 60 &&
@@ -1527,189 +1410,136 @@ canvas.addEventListener("mousedown", e => {
       dragging = t
       dragOffsetX = mx - t.x
       dragOffsetY = my - t.y
-      pokazPanelTekstu(t)   // 🔥 TO JEST KLUCZ
+      pokazPanelTekstu(t)
       return
     }
-  }    
+  }
 
-  for (const e of enemies) {
-    if (mx >= e.x && mx <= e.x + e.w && my >= e.y && my <= e.y + e.h) {
-      selectedObject = e;
-      dragging = e;
-      dragOffsetX = mx - e.x;
-      dragOffsetY = my - e.y;
-      return;
+  for (const en of enemies) {
+    if (mx >= en.x && mx <= en.x + en.w && my >= en.y && my <= en.y + en.h) {
+      selectedObject = en
+      dragging = en
+      dragOffsetX = mx - en.x
+      dragOffsetY = my - en.y
+      return
     }
   }
 
   for (const pl of platforms) {
-    if (mx >= pl.x && mx <= pl.x + pl.w && my >= pl.y && my <= pl.y + pl.h) {
-      selectedObject = pl;
-      dragging = pl;
-      dragOffsetX = mx - pl.x;
-      dragOffsetY = my - pl.y;
-      return;
+    if (mx >= pl.x && mx <= pl.x + pl.w && my >= pl.y && my <= pl.y + (pl.h||20)) {
+      selectedObject = pl
+      dragging = pl
+      dragOffsetX = mx - pl.x
+      dragOffsetY = my - pl.y
+      return
     }
   }
 
   for (const p of players) {
     if (Math.hypot(mx - p.x, my - p.y) < p.r + 8) {
-      selectedObject = p;
-      dragging = p;
-      dragOffsetX = mx - p.x;
-      dragOffsetY = my - p.y;
-      return;
+      selectedObject = p
+      dragging = p
+      dragOffsetX = mx - p.x
+      dragOffsetY = my - p.y
+      return
     }
   }
 })
 
 canvas.addEventListener("mousemove", e => {
   if (trybGry || trybHTML) return
-  const rect = canvas.getBoundingClientRect();
-  const mouseScreenX = e.clientX - rect.left;
-  const mouseScreenY = e.clientY - rect.top;
+  const rect = canvas.getBoundingClientRect()
+  const mouseScreenX = e.clientX - rect.left
+  const mouseScreenY = e.clientY - rect.top
 
-  // Pozycja myszy w świecie (uwzględnia kamerę)
-  const mx = mouseScreenX + cameraX;
-  const my = mouseScreenY;
+  const mx = mouseScreenX + cameraX
+  const my = mouseScreenY
 
-  // ───────────────────────────── AUTO-SCROLL podczas dragowania ─────────────────────────────
   if (dragging) {
-    const EDGE = 60;           // odległość od krawędzi ekranu (w pikselach)
-    const SCROLL_SPEED = 9;    // baza – będzie mnożona przez factor
+    const EDGE = 60
+    const SCROLL_SPEED = 9
 
-    // Lewa / prawa krawędź
     if (mouseScreenX < EDGE) {
-      const factor = (EDGE - mouseScreenX) / EDGE;   // 0..1
-      cameraX -= SCROLL_SPEED * factor * factor;     // płynniejsze im bliżej krawędzi
+      const factor = (EDGE - mouseScreenX) / EDGE
+      cameraX -= SCROLL_SPEED * factor * factor
+    } else if (mouseScreenX > canvas.width - EDGE) {
+      const factor = (mouseScreenX - (canvas.width - EDGE)) / EDGE
+      cameraX += SCROLL_SPEED * factor * factor
     }
-    else if (mouseScreenX > canvas.width - EDGE) {
-      const factor = (mouseScreenX - (canvas.width - EDGE)) / EDGE;
-      cameraX += SCROLL_SPEED * factor * factor;
-    }
-
-    // Opcjonalnie góra/dół – odkomentuj jeśli chcesz pionowy scroll
-    /*
-    if (mouseScreenY < EDGE) {
-      const factor = (EDGE - mouseScreenY) / EDGE;
-      // cameraY -= SCROLL_SPEED * factor * factor;   ← dodaj zmienną cameraY jeśli chcesz
-    }
-    else if (mouseScreenY > canvas.height - EDGE) {
-      const factor = (mouseScreenY - (canvas.height - EDGE)) / EDGE;
-      // cameraY += SCROLL_SPEED * factor * factor;
-    }
-    */
   }
 
-  // ───────────────────────────── RESIZING ─────────────────────────────
   if (resizing) {
-    let obj = resizing;
+    let obj = resizing
 
     if (obj.resizeSide === "right") {
-      obj.w = mx - obj.x;
-      if (gridEnabled) obj.w = snap(obj.w);
-      if (obj.w < 20) obj.w = 20;
-    }
-    else if (obj.resizeSide === "bottom") {
-      obj.h = my - obj.y;
-      if (gridEnabled) obj.h = snap(obj.h);
-      if (obj.h < 20) obj.h = 20;
-    }
-    else if (obj.resizeSide === "left") {
-
-      const oldRight = obj.x + obj.w   // 🔥 zapamiętaj PRAWDZIWĄ prawą krawędź
-
+      obj.w = mx - obj.x
+      if (gridEnabled) obj.w = snap(obj.w)
+      if (obj.w < 20) obj.w = 20
+    } else if (obj.resizeSide === "bottom") {
+      obj.h = my - obj.y
+      if (gridEnabled) obj.h = snap(obj.h)
+      if (obj.h < 20) obj.h = 20
+    } else if (obj.resizeSide === "left") {
+      const oldRight = obj.x + obj.w
       let newX = mx
       let newW = oldRight - newX
-
-      // 🔥 BLOKADA MIN SZEROKOŚCI
-      if (newW < 20) {
-        newW = 20
-        newX = oldRight - 20
-      }
-
-      if (gridEnabled) {
-        newX = snap(newX)              // snap tylko lewej
-      }
-
+      if (newW < 20) { newW = 20; newX = oldRight - 20 }
+      if (gridEnabled) newX = snap(newX)
       obj.x = newX
-      obj.w = oldRight - newX          // 🔥 prawa strona ZAWSZE stała
+      obj.w = oldRight - newX
+    } else if (obj.resizeSide === "top") {
+      const oldBottom = obj.y + obj.h
+      obj.y = my
+      obj.h = oldBottom - my
+      if (gridEnabled) { obj.y = snap(obj.y); obj.h = snap(obj.h) }
+      if (obj.h < 20) { obj.h = 20; obj.y = oldBottom - 20 }
     }
-    else if (obj.resizeSide === "top") {
-      const oldBottom = obj.y + obj.h;
-      obj.y = my;
-      obj.h = oldBottom - my;
-      if (gridEnabled) {
-        obj.y = snap(obj.y);
-        obj.h = snap(obj.h);
-      }
-      if (obj.h < 20) {
-        obj.h = 20;
-        obj.y = oldBottom - 20;
-      }
-    }
-
-    // Można tu dodać auto-scroll także podczas resizowania (opcjonalne)
-    // Wystarczy skopiować blok if(dragging) powyżej i zmienić dragging → resizing
-    return;
+    return
   }
 
-  // ───────────────────────────── DRAG ─────────────────────────────
   if (dragging) {
-    dragging.x = mx - dragOffsetX;
-    dragging.y = my - dragOffsetY;
+    dragging.x = mx - dragOffsetX
+    dragging.y = my - dragOffsetY
 
     if (gridEnabled) {
-      dragging.x = snap(dragging.x);
-      dragging.y = snap(dragging.y);
+      dragging.x = snap(dragging.x)
+      dragging.y = snap(dragging.y)
     }
-
-    // Opcjonalnie – kamera podąża za przeciąganym obiektem (ładny efekt)
-    // const centerX = dragging.x + (dragging.w || dragging.r*2 || 40) / 2;
-    // const targetCam = centerX - canvas.width / 2;
-    // cameraX += (targetCam - cameraX) * 0.20;   // 0.12–0.25 = płynność
   }
-});
+})
 
 canvas.addEventListener("mouseup", () => {
-  dragging = null;
+  dragging = null
   if (resizing) {
-    delete resizing.resizeSide;
-    resizing = null;
+    delete resizing.resizeSide
+    resizing = null
   }
-});
+})
 
 canvas.addEventListener("click", (e) => {
-
   if (showIntro) {
-    showIntro = false;
-    return;
+    showIntro = false
+    return
   }
 
-  const rect = canvas.getBoundingClientRect();
-  const mx = e.clientX - rect.left;
-  const my = e.clientY - rect.top;
+  const rect = canvas.getBoundingClientRect()
+  const mx = e.clientX - rect.left
+  const my = e.clientY - rect.top
 
   if (gameState === "results" || gameState === "win") {
-
-    // WRÓĆ DO EDYTORA
     if (mx > 250 && mx < 390 && my > 300 && my < 350) {
-      wrocDoEdytora();
-      return;
+      wrocDoEdytora()
+      return
     }
-
-    // WYJDŹ (RESET)
     if (mx > 410 && mx < 550 && my > 300 && my < 350) {
-      wyjdzDoMenu();
-      return;
+      wyjdzDoMenu()
+      return
     }
   }
-
-});
+})
 
 // ================= UPDATE =================
 function update(){
-
   if (showIntro) return
 
   if (gameState === "results" || gameState === "win") {
@@ -1717,27 +1547,19 @@ function update(){
     return
   }
 
-  // ⏸️ PAUZA PRZED TELEPORTEM
   if (levelDelay) {
-
     levelDelay.time--
 
     if (levelDelay.time <= 0) {
-
       let target = levelDelay.target
-
-      // 🔥 TU WRACA TWÓJ ORYGINALNY TELEPORT
       currentLevel = target
-
       syncLevelData()
 
       const lvl = getLevel()
-
       playerStartX = lvl.playerStartX ?? 100
       playerStartY = lvl.playerStartY ?? 100
 
       renderLevelsBar()
-
       respawnPlayer()
       cameraX = 0
 
@@ -1749,38 +1571,30 @@ function update(){
     return
   }
 
+  if (gameOver) return
 
-  if (gameOver) return; 
   // === CZAS ===
   let now = Date.now()
   let delta = (now - lastTime) / 1000
   lastTime = now
 
   if ((trybGry || trybHTML) && useTimer) {
-
     if (counters.time > 0) {
       counters.time = Math.max(0, counters.time - delta)
     }
 
     if (counters.time <= 0 && !pendingRespawn && hitPause === 0) {
-
       if (useLives) counters.lives -= 1
 
-      // 🔥 NAJPIERW sprawdź koniec gry
       if (useLives && counters.lives <= 0 && !gameOverTriggered) {
-
         gameOverTriggered = true
         gameOver = true
-
         updateStats(false)
-
         gameState = "results"
         initResultsScene()
-
-        return   // 🔴 BLOKUJE reset czasu
+        return
       }
 
-      // 🔥 dopiero potem efekt + reset
       hitEffect = {
         x: players[0]?.x || canvas.width/2,
         y: players[0]?.y || canvas.height/2,
@@ -1788,51 +1602,43 @@ function update(){
       }
 
       hitPause = hitPauseTime
-
       pendingRespawn = true
-      respawnPlayer = players[0]
-
-      counters.time = startTime   // ✅ tylko jeśli gra trwa dalej
+      // BŁĄD POPRAWIONY: było `respawnPlayer = players[0]` (nadpisanie funkcji), teraz tylko flaga
+      counters.time = startTime
     }
   }
+
   if (hitPause > 0) {
-    hitPause--;
+    hitPause--
 
     if (hitPause === 0 && pendingRespawn && players[0]) {
-      const p = players[0];
+      const p = players[0]
 
-      // === INTELIGENTNY RESPAWN ===
       if (diedByFalling) {
-        // Śmierć przez wypadnięcie poza planszę → respawn przy lewej krawędzi
-        p.x = cameraX + 140;
-        p.y = 180;
-        console.log("Respawn przy lewej krawędzi (po wypadnięciu)");
-      } 
-      else if (respawnMode === "death") {
-        // Normalna śmierć + tryb "miejsce śmierci"
-        p.x = deathRespawnX;
-        p.y = deathRespawnY;
-      } 
-      else {
-        // Tryb "początek"
-        p.x = playerStartX;
-        p.y = playerStartY;
+        p.x = cameraX + 140
+        p.y = 180
+      } else if (respawnMode === "death") {
+        p.x = deathRespawnX
+        p.y = deathRespawnY
+      } else {
+        p.x = playerStartX
+        p.y = playerStartY
       }
 
-      p.vx = diedByFalling ? 4 : 0;   // trochę większy rozpęd w prawo po wypadnięciu
-      p.y = Math.max(p.y, 100);       // bezpieczeństwo żeby nie respawnował pod ziemią
-      p.vy = -5;                    // mały podskok przy pojawieniu
-      invulnerable = invulnerabilityTime * 1.4;
+      p.vx = diedByFalling ? 4 : 0
+      p.y = Math.max(p.y, 100)
+      p.vy = -5
+      invulnerable = invulnerabilityTime * 1.4
 
-      pendingRespawn = false;
-      diedByFalling = false;        // reset flagi
-
-      console.log("Respawn wykonany");
+      pendingRespawn = false
+      diedByFalling = false
     }
-    return; // pauza ruchu podczas oczekiwania na respawn
+    return
   }
+
   if (!effectsPaused) {
     for (let obj of [...platforms, ...blocks, ...enemies]) {
+      if (!obj.effects) obj.effects = []
       for (let fx of obj.effects) {
         if (fx.enabled === false) continue
         if (fx.type === "move") {
@@ -1854,7 +1660,8 @@ function update(){
       if (obj.type === "ghost") {
         if (dragging === obj) {
           obj.baseY = obj.y
-          return
+          // Użyj continue zamiast return, żeby nie przerywać całej pętli
+          continue
         }
         if (!obj.baseY) obj.baseY = obj.y
         obj.floatTime = (obj.floatTime || 0) + 0.05
@@ -1862,10 +1669,10 @@ function update(){
       }
 
       if (obj.type === "walker" || obj.type === "walker2") {
-        if (dragging === obj) return
+        if (dragging === obj) continue  // BŁĄD POPRAWIONY: było return, przerywało całą pętlę
         obj.vy = (obj.vy || 0) + 0.5
         obj.y += obj.vy
-        obj.x += obj.vx
+        obj.x += obj.vx || 0
 
         if (obj.y > floorY - obj.h) {
           obj.y = floorY - obj.h
@@ -1877,14 +1684,13 @@ function update(){
             obj.x + obj.w > pl.x &&
             obj.x < pl.x + pl.w &&
             obj.y + obj.h > pl.y &&
-            obj.y + obj.h < pl.y + pl.h + 10
+            obj.y + obj.h < pl.y + (pl.h||20) + 10
           ) {
             obj.y = pl.y - obj.h
             obj.vy = 0
           }
         }
 
-        // 🔥 KOLIZJA GÓRA ()
         for (let b of blocks) {
           if (
             obj.x + obj.w > b.x &&
@@ -1895,7 +1701,7 @@ function update(){
             obj.y = b.y - obj.h
             obj.vy = 0
           }
-        }        
+        }
 
         for (let b of blocks) {
           if (
@@ -1904,7 +1710,7 @@ function update(){
             obj.y + obj.h > b.y &&
             obj.y < b.y + b.h
           ) {
-            obj.vx = -obj.vx
+            obj.vx = -(obj.vx || 1)
             obj.x += obj.vx
             break
           }
@@ -1915,16 +1721,16 @@ function update(){
             obj.x + obj.w > pl.x &&
             obj.x < pl.x + pl.w &&
             obj.y + obj.h > pl.y &&
-            obj.y < pl.y + pl.h
+            obj.y < pl.y + (pl.h||20)
           ) {
-            obj.vx = -obj.vx
+            obj.vx = -(obj.vx || 1)
             obj.x += obj.vx
             break
           }
         }
 
         if (obj.x < 0 || obj.x + obj.w > worldWidth) {
-          obj.vx = -obj.vx
+          obj.vx = -(obj.vx || 1)
         }
       }
     }
@@ -1950,14 +1756,14 @@ function update(){
 
     for (let pl of platforms) {
       if (p.x > pl.x - p.r && p.x < pl.x + pl.w + p.r) {
-        if (p.y + p.r > pl.y && p.y < pl.y + pl.h) {
+        if (p.y + p.r > pl.y && p.y < pl.y + (pl.h||20)) {
           if (pl.solid === "top" && p.vy > 0) {
             p.y = pl.y - p.r
             p.vy = 0
           }
           if (pl.solid === "full") {
             if (p.vy > 0) { p.y = pl.y - p.r; p.vy = 0 }
-            if (p.vy < 0) { p.y = pl.y + pl.h + p.r; p.vy = 0 }
+            if (p.vy < 0) { p.y = pl.y + (pl.h||20) + p.r; p.vy = 0 }
           }
         }
       }
@@ -1973,101 +1779,84 @@ function update(){
         if (p.vy > 0 && p.y < b.y) {
           p.y = b.y - p.r
           p.vy = 0
-        }
-        else if (p.vy < 0 && p.y > b.y + b.h) {
+        } else if (p.vy < 0 && p.y > b.y + b.h) {
           p.y = b.y + b.h + p.r
           p.vy = 0
-        }
-        else if (p.vx > 0 && p.x < b.x) {
+        } else if (p.vx > 0 && p.x < b.x) {
           p.x = b.x - p.r
           p.vx = 0
-        }
-        else if (p.vx < 0 && p.x > b.x + b.w) {
+        } else if (p.vx < 0 && p.x > b.x + b.w) {
           p.x = b.x + b.w + p.r
           p.vx = 0
         }
       }
     }
-    
   }
 
-  checkEnemyCollision();
+  checkEnemyCollision()
 
-  // === SPADNIĘCIE POZA PLANSZĘ – 3 sekundy = strata życia ===
+  // Spadnięcie poza planszę
   if (players.length > 0 && trybGry) {
-    const p = players[0];
+    const p = players[0]
 
-    const pozaPlansza = 
-      p.y > floorY + 150 || 
-      p.x < cameraX - 40 || 
-      p.x > cameraX + canvas.width + 40;
+    const pozaPlansza =
+      p.y > floorY + 150 ||
+      p.x < cameraX - 40 ||
+      p.x > cameraX + canvas.width + 40
 
     if (pozaPlansza) {
-      fallTimer++;
+      fallTimer++
 
-// Napis pojawia się BARDZO szybko - po ~0.4 sekundy
       if (fallTimer === 25 && !warningText) {
-        warningText = { time: 150 };   // pokazuje się przez ~2.5 sekundy
+        warningText = { time: 150 }
       }
 
       if (fallTimer >= FALL_TIME_LIMIT) {
-        console.log("💀 Śmierć przez wypadnięcie poza planszę");
+        diedByFalling = true
+        if (useLives) counters.lives -= 1
 
-        diedByFalling = true;
-        if (useLives) counters.lives -= 1;
-
-        hitEffect = { x: p.x, y: Math.min(p.y, floorY), time: 60 };
-        hitPause = hitPauseTime;
-        pendingRespawn = true;
-        fallTimer = 0;
-        warningText = null;        // wyłączamy napis przy śmierci
+        hitEffect = { x: p.x, y: Math.min(p.y, floorY), time: 60 }
+        hitPause = hitPauseTime
+        pendingRespawn = true
+        fallTimer = 0
+        warningText = null
 
         if (useLives && counters.lives <= 0 && !gameOverTriggered) {
-          gameOverTriggered = true;
-          gameOver = true;
-          updateStats(false);
-          gameState = "results";
-          initResultsScene();
-          return;
+          gameOverTriggered = true
+          gameOver = true
+          updateStats(false)
+          gameState = "results"
+          initResultsScene()
+          return
         }
       }
     } else {
-      fallTimer = 0;
-      warningText = null;   // gracz wrócił → znikamy napis
+      fallTimer = 0
+      warningText = null
     }
   }
 
-  // 💎 ANIMACJA BONUSÓW
+  // Animacja bonusów
   for (let b of bonuses) {
-
-    // zabezpieczenie (stare save'y)
     if (!b.pulseTime) b.pulseTime = 0
     if (!b.scale) b.scale = 1
     if (!b.angle) b.angle = 0
-
     b.pulseTime += 0.05
-
-    // 🔥 puls (0.9 – 1.1)
     b.scale = 1 + Math.sin(b.pulseTime) * 0.05
-
   }
 
-  // 💎 ZBIERANIE BONUSÓW
+  // Zbieranie bonusów
   for (let i = bonuses.length - 1; i >= 0; i--) {
-
     let b = bonuses[i]
     let p = players[0]
-
     if (!p) continue
 
     let dx = p.x - b.x
     let dy = p.y - b.y
     let dist = Math.sqrt(dx*dx + dy*dy)
 
-    if (dist < p.r + b.r) {
-
+    if (dist < p.r + (b.r||12)) {
       if (b.type === "key_level") {
-
         let target = b.targetLevel || 0
 
         if (target >= levels.length) {
@@ -2075,68 +1864,47 @@ function update(){
           return
         }
 
-        // 🔥 start pauzy
-        levelDelay = {
-          time: 180,
-          target: target
-        }
-
-        levelTextAnim = {
-          time: 180
-        }        
+        levelDelay = { time: 180, target: target }
+        levelTextAnim = { time: 180 }
 
         matrixCols = []
-
-        for (let i = 0; i < canvas.width / 8; i++) {
-          matrixCols[i] = Math.random() * 50
-        }        
+        for (let j = 0; j < canvas.width / 8; j++) {
+          matrixCols[j] = Math.random() * 50
+        }
 
         trybGry = false
-
         return
       }
 
-      // 🔑 WYGRANA
       if (b.type === "key_win") {
-
         gameOver = true
         gameOverTriggered = true
         updateStats(true)
         gameState = "win"
         initResultsScene()
-
         return
       }
 
-      // 💎 punkty
       counters.points += 1
       bonuses.splice(i, 1)
+      // Synchronizuj z poziomem
+      const lvl = getLevel()
+      if (lvl) lvl.bonuses = bonuses
     }
   }
 
-  // ──────────────────────── KAMERA ────────────────────────
   // KAMERA
   if (players.length > 0 && (trybGry || trybHTML)) {
-
     const player = players[0]
 
-    // 🔥 JEŚLI AUTO SCROLL WŁĄCZONY → kamera leci sama
     if (autoScroll) {
-
       cameraX += autoScrollSpeed
-
     } else {
-
-      // normalne śledzenie gracza
       const targetX = player.x - canvas.width / 2 + player.r
       cameraX += (targetX - cameraX) * 0.12
-
     }
 
-    // 🔒 ograniczenie do świata
     cameraX = Math.max(0, Math.min(cameraX, worldWidth - canvas.width))
-
-    // 🔄 pasek scrolla
     syncScrollbar()
   }
 }
@@ -2147,21 +1915,16 @@ function setBG(type){
 }
 
 function draw(){
-
   if (levelDelay) {
-
     drawMatrix()
 
-    // 🔥 NAPIS NA WIERZCHU MATRIXA
     if (levelTextAnim) {
-
       let progress = 1 - (levelTextAnim.time / 180)
       progress = Math.min(progress / 0.7, 1)
 
       ctx.font = "bold 40px monospace"
       ctx.textAlign = "center"
       ctx.fillStyle = "#00ffcc"
-
       ctx.shadowColor = "#00ffcc"
       ctx.shadowBlur = 25
 
@@ -2172,115 +1935,93 @@ function draw(){
       ctx.fillText("LEVEL", levelX, canvas.height / 2 + 30)
 
       ctx.shadowBlur = 0
-
       levelTextAnim.time--
 
-      if (levelTextAnim.time <= 0) {
-        levelTextAnim = null
-      }
+      if (levelTextAnim.time <= 0) levelTextAnim = null
     }
 
     return
-  }  
-
-  if (levelDelay) {
-    drawMatrix()
-    return
-  }  
-
-  if (levelTextAnim) {
-    levelTextAnim.time--
-  }  
-
-  if (showIntro) {
-    const time = Date.now() * 0.001;   // do animacji
-    const cx = canvas.width / 2;
-
-    // === Tło z animacjami ===
-    const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
-    grad.addColorStop(0, "#0a001f");
-    grad.addColorStop(1, "#1a0033");
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    // Animowane linie ukośne (cyber grid)
-    ctx.strokeStyle = "rgba(0, 255, 200, 0.08)";
-    ctx.lineWidth = 1.5;
-    for (let i = -5; i < 25; i++) {
-      const offset = (time * 40 + i * 80) % (canvas.height + 300) - 150;
-      ctx.beginPath();
-      ctx.moveTo(0, offset);
-      ctx.lineTo(canvas.width, offset + 80);
-      ctx.stroke();
-    }
-
-    // Neonowe "deszcze" pionowe
-    ctx.strokeStyle = "rgba(100, 255, 220, 0.25)";
-    for (let i = 0; i < 35; i++) {
-      const x = ((i * 47) + Math.sin(time + i) * 30) % (canvas.width + 100);
-      const speed = 80 + (i % 40);
-      const y1 = (time * speed + i * 60) % (canvas.height + 400) - 200;
-      ctx.beginPath();
-      ctx.moveTo(x, y1);
-      ctx.lineTo(x + Math.sin(time + i) * 8, y1 + 90);
-      ctx.stroke();
-    }
-
-    // Delikatne unoszące się kropki
-    ctx.fillStyle = "#00ffcc";
-    for (let i = 0; i < 45; i++) {
-      const px = (i * 73 + time * 15) % (canvas.width + 80) - 40;
-      const py = (i * 51 + Math.sin(time * 0.6 + i) * 80) % (canvas.height + 100);
-      const size = 1.8 + Math.sin(time * 2 + i) * 0.8;
-      ctx.globalAlpha = 0.4 + Math.sin(time * 3 + i) * 0.3;
-      ctx.fillRect(px, py, size, size);
-    }
-    ctx.globalAlpha = 1;
-
-    // === Tytuł + tekst ===
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-
-    const titleY = 165;
-    const pulse = Math.sin(time * 3) * 4;
-
-    // Neon pod spodem
-    ctx.shadowColor = "#00ffff";
-    ctx.shadowBlur = 35;
-    ctx.fillStyle = "#00ffff";
-    ctx.font = "bold 88px Arial";
-    ctx.fillText(nazwaGry || "Moja gra", cx, titleY + pulse)
-
-    ctx.shadowBlur = 65;
-    ctx.fillText(nazwaGry || "Moja gra", cx, titleY + pulse)
-
-    // Główny biały tytuł
-    ctx.shadowBlur = 25;
-    ctx.fillStyle = "#ffffff";
-    ctx.fillText(nazwaGry || "Moja gra", cx, titleY + pulse)
-
-    ctx.shadowBlur = 0;
-
-    // Podtytuł
-    ctx.font = "22px Arial";
-    ctx.fillStyle = "#aaccff";
-    ctx.fillText(opisGry || "gra sobie od Groka", cx, titleY + 75);
-
-    // Autor
-    ctx.font = "17px Arial";
-    ctx.fillStyle = "#556677";
-    ctx.fillText("by " + (autorGry || "ed"), cx, canvas.height - 28);
-
-    return;
   }
 
+  if (showIntro) {
+    const time = Date.now() * 0.001
+    const cx = canvas.width / 2
+
+    const grad = ctx.createLinearGradient(0, 0, 0, canvas.height)
+    grad.addColorStop(0, "#0a001f")
+    grad.addColorStop(1, "#1a0033")
+    ctx.fillStyle = grad
+    ctx.fillRect(0, 0, canvas.width, canvas.height)
+
+    ctx.strokeStyle = "rgba(0, 255, 200, 0.08)"
+    ctx.lineWidth = 1.5
+    for (let i = -5; i < 25; i++) {
+      const offset = (time * 40 + i * 80) % (canvas.height + 300) - 150
+      ctx.beginPath()
+      ctx.moveTo(0, offset)
+      ctx.lineTo(canvas.width, offset + 80)
+      ctx.stroke()
+    }
+
+    ctx.strokeStyle = "rgba(100, 255, 220, 0.25)"
+    for (let i = 0; i < 35; i++) {
+      const x = ((i * 47) + Math.sin(time + i) * 30) % (canvas.width + 100)
+      const speed = 80 + (i % 40)
+      const y1 = (time * speed + i * 60) % (canvas.height + 400) - 200
+      ctx.beginPath()
+      ctx.moveTo(x, y1)
+      ctx.lineTo(x + Math.sin(time + i) * 8, y1 + 90)
+      ctx.stroke()
+    }
+
+    ctx.fillStyle = "#00ffcc"
+    for (let i = 0; i < 45; i++) {
+      const px = (i * 73 + time * 15) % (canvas.width + 80) - 40
+      const py = (i * 51 + Math.sin(time * 0.6 + i) * 80) % (canvas.height + 100)
+      const size = 1.8 + Math.sin(time * 2 + i) * 0.8
+      ctx.globalAlpha = 0.4 + Math.sin(time * 3 + i) * 0.3
+      ctx.fillRect(px, py, size, size)
+    }
+    ctx.globalAlpha = 1
+
+    ctx.textAlign = "center"
+    ctx.textBaseline = "middle"
+
+    const titleY = 165
+    const pulse = Math.sin(time * 3) * 4
+
+    ctx.shadowColor = "#00ffff"
+    ctx.shadowBlur = 35
+    ctx.fillStyle = "#00ffff"
+    ctx.font = "bold 88px Arial"
+    ctx.fillText(nazwaGry || "Moja gra", cx, titleY + pulse)
+
+    ctx.shadowBlur = 65
+    ctx.fillText(nazwaGry || "Moja gra", cx, titleY + pulse)
+
+    ctx.shadowBlur = 25
+    ctx.fillStyle = "#ffffff"
+    ctx.fillText(nazwaGry || "Moja gra", cx, titleY + pulse)
+
+    ctx.shadowBlur = 0
+    ctx.font = "22px Arial"
+    ctx.fillStyle = "#aaccff"
+    ctx.fillText(opisGry || "gra sobie od Groka", cx, titleY + 75)
+
+    ctx.font = "17px Arial"
+    ctx.fillStyle = "#556677"
+    ctx.fillText("by " + (autorGry || "ed"), cx, canvas.height - 28)
+
+    return
+  }
 
   if (gameState === "results" || gameState === "win") {
     drawResults()
     return
-  }  
-  ctx.clearRect(0,0,canvas.width,canvas.height)
-  drawBackground();
+  }
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height)
+  drawBackground()
 
   ctx.save()
   ctx.translate(-cameraX, 0)
@@ -2288,208 +2029,166 @@ function draw(){
   if (gridEnabled) {
     ctx.strokeStyle = "#88a"
     for (let x = cameraX - 100; x < cameraX + canvas.width + 100; x += gridSize) {
-      ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,canvas.height); ctx.stroke()
+      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke()
     }
     for (let y = 0; y < canvas.height; y += gridSize) {
       ctx.beginPath(); ctx.moveTo(cameraX - 100, y); ctx.lineTo(cameraX + canvas.width + 100, y); ctx.stroke()
     }
   }
 
-for (let pl of platforms) {
+  for (let pl of platforms) {
+    const x = pl.x
+    const y = pl.y
+    const w = pl.w
+    const h = pl.h || 20
 
-  const x = pl.x;
-  const y = pl.y;
-  const w = pl.w;
-  const h = pl.h || 20;
-
-  // NEON (jeśli włączony)
-  let neon = pl.effects?.some(fx => fx.type === "neon" && fx.enabled !== false);
-  if (neon) {
-    let t = Date.now() * 0.001;
-    let pulse = 10 + Math.sin(t) * 10;
-    ctx.shadowColor = "#00ffff";
-    ctx.shadowBlur = pulse;
-  }
-
-  if (pl.typ === "line") {
-
-    // glow
-    ctx.shadowColor = "#00ffff";
-    ctx.shadowBlur = 20;
-
-    // główna linia (jasna)
-    ctx.strokeStyle = "#00ffff";
-    ctx.lineWidth = 3;
-
-    ctx.beginPath();
-    ctx.moveTo(x - cameraX, y + 10);
-    ctx.lineTo(x + w - cameraX, y + 10);
-    ctx.stroke();
-
-    // środek (biały rdzeń – robi efekt neon)
-    ctx.shadowBlur = 0;
-    ctx.strokeStyle = "#ffffff";
-    ctx.lineWidth = 1;
-
-    ctx.beginPath();
-    ctx.moveTo(x - cameraX, y + 10);
-    ctx.lineTo(x + w - cameraX, y + 10);
-    ctx.stroke();
-
-    ctx.shadowBlur = 0;
-
-  } else if (pl.typ === "round") {
-    // ==================== ZAOKRĄGLONA PLATFORMY ====================
-    ctx.fillStyle = "#8B5A2B";
-    ctx.beginPath();
-    ctx.roundRect(x, y, w, h, 14);     // duże zaokrąglenie
-    ctx.fill();
-
-    ctx.strokeStyle = "#3F2A1D";
-    ctx.lineWidth = 3.5;
-    ctx.beginPath();
-    ctx.roundRect(x + 2, y + 2, w - 4, h - 4, 12);
-    ctx.stroke();
-
-    // słoje drewna
-    ctx.strokeStyle = "#A67C5D";
-    ctx.lineWidth = 2.2;
-    for (let i = 1; i < 5; i++) {
-      let py = y + (h * i / 5);
-      ctx.beginPath();
-      ctx.moveTo(x + 12, py);
-      ctx.quadraticCurveTo(x + w*0.4, py + (i%2 ? -2 : 2), x + w - 12, py);
-      ctx.stroke();
+    let neon = pl.effects?.some(fx => fx.type === "neon" && fx.enabled !== false)
+    if (neon) {
+      let t = Date.now() * 0.001
+      let pulse = 10 + Math.sin(t) * 10
+      ctx.shadowColor = "#00ffff"
+      ctx.shadowBlur = pulse
     }
 
-  } else {
-    // ==================== PROSTOKĄT (domyślny) ====================
-    ctx.fillStyle = "#8B5A2B";
-    ctx.fillRect(x, y, w, h);
+    if (pl.typ === "line") {
+      ctx.shadowColor = "#00ffff"
+      ctx.shadowBlur = 20
+      ctx.strokeStyle = "#00ffff"
+      ctx.lineWidth = 3
+      ctx.beginPath()
+      ctx.moveTo(x, y + 10)
+      ctx.lineTo(x + w, y + 10)
+      ctx.stroke()
 
-    ctx.strokeStyle = "#3F2A1D";
-    ctx.lineWidth = 3.5;
-    ctx.strokeRect(x + 2, y + 2, w - 4, h - 4);
+      ctx.shadowBlur = 0
+      ctx.strokeStyle = "#ffffff"
+      ctx.lineWidth = 1
+      ctx.beginPath()
+      ctx.moveTo(x, y + 10)
+      ctx.lineTo(x + w, y + 10)
+      ctx.stroke()
+      ctx.shadowBlur = 0
+    } else if (pl.typ === "round") {
+      ctx.fillStyle = "#8B5A2B"
+      ctx.beginPath()
+      ctx.roundRect(x, y, w, h, 14)
+      ctx.fill()
 
-    // słoje drewna
-    ctx.strokeStyle = "#A67C5D";
-    ctx.lineWidth = 2.2;
-    for (let i = 1; i < 5; i++) {
-      let py = y + (h * i / 5);
-      ctx.beginPath();
-      ctx.moveTo(x + 10, py);
-      ctx.quadraticCurveTo(x + w*0.45, py + (i%2 ? 2 : -2), x + w - 10, py);
-      ctx.stroke();
+      ctx.strokeStyle = "#3F2A1D"
+      ctx.lineWidth = 3.5
+      ctx.beginPath()
+      ctx.roundRect(x + 2, y + 2, w - 4, h - 4, 12)
+      ctx.stroke()
+
+      ctx.strokeStyle = "#A67C5D"
+      ctx.lineWidth = 2.2
+      for (let i = 1; i < 5; i++) {
+        let py = y + (h * i / 5)
+        ctx.beginPath()
+        ctx.moveTo(x + 12, py)
+        ctx.quadraticCurveTo(x + w*0.4, py + (i%2 ? -2 : 2), x + w - 12, py)
+        ctx.stroke()
+      }
+    } else {
+      ctx.fillStyle = "#8B5A2B"
+      ctx.fillRect(x, y, w, h)
+
+      ctx.strokeStyle = "#3F2A1D"
+      ctx.lineWidth = 3.5
+      ctx.strokeRect(x + 2, y + 2, w - 4, h - 4)
+
+      ctx.strokeStyle = "#A67C5D"
+      ctx.lineWidth = 2.2
+      for (let i = 1; i < 5; i++) {
+        let py = y + (h * i / 5)
+        ctx.beginPath()
+        ctx.moveTo(x + 10, py)
+        ctx.quadraticCurveTo(x + w*0.45, py + (i%2 ? 2 : -2), x + w - 10, py)
+        ctx.stroke()
+      }
+    }
+
+    ctx.shadowBlur = 0
+
+    if (pl === selectedObject) {
+      ctx.strokeStyle = "red"
+      ctx.lineWidth = 3
+      ctx.setLineDash([4, 4])
+      ctx.strokeRect(x - 3, y - 3, w + 6, h + 6)
+      ctx.setLineDash([])
     }
   }
 
-  ctx.shadowBlur = 0;
+  for (let b of blocks) {
+    const x = b.x
+    const y = b.y
+    const w = b.w
+    const h = b.h
 
-  // Zaznaczenie wybranego obiektu
-  if (pl === selectedObject) {
-    ctx.strokeStyle = "red";
-    ctx.lineWidth = 3;
-    ctx.setLineDash([4, 4]);
-    ctx.strokeRect(x - 3, y - 3, w + 6, h + 6);
-    ctx.setLineDash([]);
+    let neon = b.effects?.some(fx => fx.type === "neon" && fx.enabled !== false)
+    if (neon) {
+      let t = Date.now() * 0.001
+      let pulse = 10 + Math.sin(t) * 10
+      ctx.shadowColor = "#00ffff"
+      ctx.shadowBlur = pulse
+    }
+
+    ctx.fillStyle = "#8B5A2B"
+    ctx.fillRect(x, y, w, h)
+
+    ctx.strokeStyle = "#3F2A1D"
+    ctx.lineWidth = 3
+    ctx.strokeRect(x + 1.5, y + 1.5, w - 3, h - 3)
+
+    ctx.strokeStyle = "#A67C5D"
+    ctx.lineWidth = 2.5
+
+    for (let i = 1; i < 6; i++) {
+      let py = y + (h * i / 6)
+      ctx.beginPath()
+      ctx.moveTo(x + 6, py)
+      ctx.quadraticCurveTo(x + w * 0.35, py + (i % 2 === 0 ? -2 : 2), x + w - 6, py)
+      ctx.stroke()
+    }
+
+    ctx.lineWidth = 1.8
+    ctx.strokeStyle = "#6B4426"
+
+    ctx.beginPath()
+    ctx.moveTo(x + w*0.25, y + 8)
+    ctx.quadraticCurveTo(x + w*0.55, y + h*0.45, x + w*0.22, y + h - 10)
+    ctx.stroke()
+
+    ctx.beginPath()
+    ctx.moveTo(x + w*0.72, y + 12)
+    ctx.quadraticCurveTo(x + w*0.45, y + h*0.6, x + w*0.78, y + h - 8)
+    ctx.stroke()
+
+    ctx.shadowBlur = 0
+
+    if (b === selectedObject) {
+      ctx.strokeStyle = "red"
+      ctx.lineWidth = 3
+      ctx.setLineDash([4, 4])
+      ctx.strokeRect(x - 3, y - 3, w + 6, h + 6)
+      ctx.setLineDash([])
+    }
   }
-}
-
-for (let b of blocks) {
-
-  const x = b.x;
-  const y = b.y;
-  const w = b.w;
-  const h = b.h;
-
-  // === NEON (jeśli jest włączony) ===
-  let neon = b.effects?.some(fx => fx.type === "neon" && fx.enabled !== false);
-  if (neon) {
-    let t = Date.now() * 0.001;
-    let pulse = 10 + Math.sin(t) * 10;
-    ctx.shadowColor = "#00ffff";
-    ctx.shadowBlur = pulse;
-  }
-
-  // 1. Główna powierzchnia - kolor drewna
-  ctx.fillStyle = "#8B5A2B";        // ładny brąz drewna
-  ctx.fillRect(x, y, w, h);
-
-  // 2. Delikatna ciemna ramka wokół (bardzo cienka)
-  ctx.strokeStyle = "#3F2A1D";
-  ctx.lineWidth = 3;
-  ctx.strokeRect(x + 1.5, y + 1.5, w - 3, h - 3);
-
-  // 3. Imitacja drewna / słoje wewnątrz
-
-  ctx.strokeStyle = "#A67C5D";      // jaśniejszy brąz na słoje
-  ctx.lineWidth = 2.5;
-
-  // Poziome deski / słoje drewna
-  for (let i = 1; i < 6; i++) {
-    let py = y + (h * i / 6);
-    
-    ctx.beginPath();
-    ctx.moveTo(x + 6, py);
-    ctx.quadraticCurveTo(
-      x + w * 0.35, py + (i % 2 === 0 ? -2 : 2),
-      x + w - 6, py
-    );
-    ctx.stroke();
-  }
-
-  // Dodatkowe lekkie pionowe/zakrzywione słoje dla naturalności
-  ctx.lineWidth = 1.8;
-  ctx.strokeStyle = "#6B4426";      // ciemniejsze słoje
-
-  ctx.beginPath();
-  ctx.moveTo(x + w*0.25, y + 8);
-  ctx.quadraticCurveTo(x + w*0.55, y + h*0.45, x + w*0.22, y + h - 10);
-  ctx.stroke();
-
-  ctx.beginPath();
-  ctx.moveTo(x + w*0.72, y + 12);
-  ctx.quadraticCurveTo(x + w*0.45, y + h*0.6, x + w*0.78, y + h - 8);
-  ctx.stroke();
-
-  // Reset shadow po neonie
-  ctx.shadowBlur = 0;
-
-  // Zaznaczenie wybranego obiektu
-  if (b === selectedObject) {
-    ctx.strokeStyle = "red";
-    ctx.lineWidth = 3;
-    ctx.setLineDash([4, 4]);
-    ctx.strokeRect(x - 3, y - 3, w + 6, h + 6);
-    ctx.setLineDash([]);
-  }
-}
 
   for (let p of players) {
+    if (invulnerable > 0 && Math.floor(invulnerable / 5) % 2 === 0) continue
 
-    // ✨ Migotanie podczas nieśmiertelności
-    if (invulnerable > 0 && Math.floor(invulnerable / 5) % 2 === 0) {
-      continue;
-    }
-
-    // 🔴 === PIŁKA
     if (p.type === "ball") {
-        drawPlayer(ctx, p.x, p.y, p.r, Date.now())
-    }
-
-    // 🚗 === AUTO
-    else {
-
+      drawPlayer(ctx, p.x, p.y, p.r, Date.now())
+    } else {
       let w = p.r * 2.8
       let h = p.r * 1.4
 
       ctx.save()
-
       let tilt = -p.vx * 0.02
       ctx.translate(p.x, p.y)
       ctx.rotate(tilt)
 
-      // === KAROSERIA
       ctx.beginPath()
       ctx.moveTo(-w/2, h/2)
       ctx.lineTo(-w/2 + 10, -h/4)
@@ -2498,72 +2197,63 @@ for (let b of blocks) {
       ctx.lineTo(w/2, h/2)
       ctx.closePath()
 
-      let grad = ctx.createLinearGradient(-w/2, 0, w/2, 0)
-      grad.addColorStop(0, "#ff3a3a")
-      grad.addColorStop(1, "#990000")
-      ctx.fillStyle = grad
+      let carGrad = ctx.createLinearGradient(-w/2, 0, w/2, 0)
+      carGrad.addColorStop(0, "#ff3a3a")
+      carGrad.addColorStop(1, "#990000")
+      ctx.fillStyle = carGrad
       ctx.fill()
 
-      // === SZYBA
       let glassOffset = 6
-
       ctx.beginPath()
       ctx.moveTo(-w/6, -h/2 + glassOffset)
       ctx.lineTo(0, -h/2 - 6 + glassOffset)
       ctx.lineTo(w/4, -h/2 + glassOffset)
       ctx.closePath()
-
       ctx.fillStyle = "#66ccff"
       ctx.fill()
 
-      // === KOŁA
       ctx.fillStyle = "black"
       ctx.beginPath()
       ctx.arc(-w/3, h/2, p.r/2.2, 0, Math.PI*2)
+      ctx.fill()
+      ctx.beginPath()
       ctx.arc(w/3, h/2, p.r/2.2, 0, Math.PI*2)
       ctx.fill()
 
-      // === FELGI
       ctx.fillStyle = "#ccc"
       ctx.beginPath()
       ctx.arc(-w/3, h/2, p.r/4, 0, Math.PI*2)
+      ctx.fill()
+      ctx.beginPath()
       ctx.arc(w/3, h/2, p.r/4, 0, Math.PI*2)
       ctx.fill()
 
-      // === ŚWIATŁO PRZEDNIE
       ctx.fillStyle = "#ffffaa"
       ctx.shadowColor = "#ffff88"
       ctx.shadowBlur = 20
       ctx.fillRect(w/2 - 6, -4, 6, 6)
       ctx.shadowBlur = 0
 
-      // === ŚWIATŁO TYLNE
       ctx.fillStyle = "#ff2222"
       ctx.fillRect(-w/2, -4, 5, 5)
 
-      // === WYDECH 🔥
       if (p.vx > 0.5) {
         ctx.save()
         ctx.translate(-w/2 - 10, h/2 - 3)
-
-        for(let i = 0; i < 3; i++) {
+        for (let i = 0; i < 3; i++) {
           let flameSize = 6 + Math.random() * 4
-
           let gradient = ctx.createLinearGradient(0, 0, -flameSize*2, 0)
           gradient.addColorStop(0, "rgba(255,255,100,0.9)")
           gradient.addColorStop(0.5, "rgba(255,100,0,0.7)")
           gradient.addColorStop(1, "rgba(255,0,0,0)")
-
           ctx.fillStyle = gradient
           ctx.beginPath()
           ctx.ellipse(-flameSize, 0, flameSize, 3 + Math.random()*2, 0, 0, Math.PI*2)
           ctx.fill()
         }
-
         ctx.restore()
       }
 
-      // === LINIA
       ctx.strokeStyle = "#222"
       ctx.lineWidth = 2
       ctx.beginPath()
@@ -2574,286 +2264,220 @@ for (let b of blocks) {
       ctx.restore()
     }
 
-    // 🟡 SELECT
     if (p === selectedObject) {
       ctx.strokeStyle = "yellow"
       ctx.lineWidth = 3
+      ctx.beginPath()
+      ctx.arc(p.x, p.y, p.r + 4, 0, Math.PI*2)
       ctx.stroke()
     }
   }
 
-  for (let e of enemies) {
-
+  for (let en of enemies) {
     ctx.globalAlpha = 1
     ctx.fillStyle = "white"
 
-    const x = e.x;
-    const y = e.y;
-    const w = e.w || 40;
-    const h = e.h || 40;
+    const x = en.x
+    const y = en.y
+    const w = en.w || 40
+    const h = en.h || 40
 
-    if (e.type === "ghost") {
-      let float = 0;
-      let moving = e.effects && e.effects.some(fx => fx.type === "move" && fx.enabled !== false);
-      if (!moving && dragging !== e) {
-        float = Math.sin(Date.now() * 0.003 + e.x) * 6;
+    if (en.type === "ghost") {
+      let float = 0
+      let moving = en.effects && en.effects.some(fx => fx.type === "move" && fx.enabled !== false)
+      if (!moving && dragging !== en) {
+        float = Math.sin(Date.now() * 0.003 + en.x) * 6
       }
-      ctx.font = (h * 0.8) + "px Arial";
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.fillText("👻", x + w/2, y + h/2 + float);
-    }
-    else if (e.type === "worm") {
-      ctx.font = (h * 0.8) + "px Arial";
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.fillText("👹", x + w/2, y + h/2);
-    }
-    else if (e.type === "enemy1") {
-
+      ctx.font = (h * 0.8) + "px Arial"
+      ctx.textAlign = "center"
+      ctx.textBaseline = "middle"
+      ctx.fillText("👻", x + w/2, y + h/2 + float)
+    } else if (en.type === "worm") {
+      ctx.font = (h * 0.8) + "px Arial"
+      ctx.textAlign = "center"
+      ctx.textBaseline = "middle"
+      ctx.fillText("👹", x + w/2, y + h/2)
+    } else if (en.type === "enemy1") {
       let s = w / 8
       let t = Date.now() * 0.005
-
-      // 🔥 lekki ruch (bounce + przesunięcie)
-      let waveX = Math.sin(t + e.x * 0.05) * 2
+      let waveX = Math.sin(t + en.x * 0.05) * 2
       let waveY = Math.cos(t * 1.5) * 2
-
       let bx = x + waveX
       let by = y + waveY
 
-      // ciało (ciemny fiolet - dół)
       ctx.fillStyle = "#6a35d4"
       ctx.fillRect(bx + 1*s, by + 2*s, 6*s, 4*s)
-
-      // góra (jaśniejszy pasek)
       ctx.fillStyle = "#8a5cff"
       ctx.fillRect(bx + 2*s, by + 1*s, 4*s, 2*s)
-
-      // oczy (lekko podążają za ruchem)
       ctx.fillStyle = "white"
       ctx.fillRect(bx + 2*s + waveX*0.3, by + 2*s, s, s)
       ctx.fillRect(bx + 5*s + waveX*0.3, by + 2*s, s, s)
-
-      // źrenice (żyją)
       ctx.fillStyle = "#6ecbff"
       ctx.fillRect(bx + 2*s + 0.25*s + waveX*0.5, by + 2*s + 0.25*s, 0.5*s, 0.5*s)
       ctx.fillRect(bx + 5*s + 0.25*s + waveX*0.5, by + 2*s + 0.25*s, 0.5*s, 0.5*s)
-
-      // nogi (naprzemienny ruch)
       ctx.fillStyle = "#00e5ff"
       ctx.fillRect(bx + 2*s, by + 6*s + Math.sin(t)*2, s, s)
       ctx.fillRect(bx + 5*s, by + 6*s - Math.sin(t)*2, s, s)
-    }
-    else if (e.type === "water") {
-
-      let t = Date.now() * 0.003;
-
-      // 🌊 baza
-      ctx.fillStyle = "#1e3a5f";
-      ctx.fillRect(x, y, w, h);
-
-      // 🌊 fala (tafla)
-      ctx.fillStyle = "#4fc3f7";
-
+    } else if (en.type === "water") {
+      let t = Date.now() * 0.003
+      ctx.fillStyle = "#1e3a5f"
+      ctx.fillRect(x, y, w, h)
+      ctx.fillStyle = "#4fc3f7"
       for (let i = 0; i < w; i += 4) {
-        let wave = Math.sin(t + i * 0.05) * 3;
-        ctx.fillRect(x + i, y + wave, 4, 3);
+        let wave = Math.sin(t + i * 0.05) * 3
+        ctx.fillRect(x + i, y + wave, 4, 3)
       }
-
-      // ✨ połysk ALE bez przezroczystości (ważne!)
-      ctx.fillStyle = "#8fe9ff";
-
+      ctx.fillStyle = "#8fe9ff"
       for (let i = 0; i < w; i += 20) {
-        let wave = Math.sin(t * 1.5 + i * 0.08) * 2;
-        ctx.fillRect(x + i, y + 6 + wave, 4, 1);
+        let wave = Math.sin(t * 1.5 + i * 0.08) * 2
+        ctx.fillRect(x + i, y + 6 + wave, 4, 1)
       }
-    }
-    else if (e.type === "fire") {
-      let float = Math.sin(Date.now() * 0.004) * 2;
-      ctx.font = (h * 0.8) + "px Arial";
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.fillText("🔥", x + w/2, y + h/2 + float);
-    }
-    else if (e.type === "spikes") {
-      ctx.font = (h * 0.8) + "px Arial";
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.fillText("🔺", x + w/2, y + h/2);
-    }
-    else if (e.type === "walker") {
-      ctx.font = (h * 0.8) + "px Arial";
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.fillText("👽", x + w/2, y + h/2);
-    }
-    else if (e.type === "walker2") {
+    } else if (en.type === "fire") {
+      let float = Math.sin(Date.now() * 0.004) * 2
+      ctx.font = (h * 0.8) + "px Arial"
+      ctx.textAlign = "center"
+      ctx.textBaseline = "middle"
+      ctx.fillText("🔥", x + w/2, y + h/2 + float)
+    } else if (en.type === "spikes") {
+      ctx.font = (h * 0.8) + "px Arial"
+      ctx.textAlign = "center"
+      ctx.textBaseline = "middle"
+      ctx.fillText("🔺", x + w/2, y + h/2)
+    } else if (en.type === "walker") {
+      ctx.font = (h * 0.8) + "px Arial"
+      ctx.textAlign = "center"
+      ctx.textBaseline = "middle"
+      ctx.fillText("👽", x + w/2, y + h/2)
+    } else if (en.type === "walker2") {
+      const size = w
+      const t = Date.now() * 0.005
+      const wave = Math.sin(t + en.x * 0.05) * 4
+      const ecx = x + w/2 + wave
+      const ecy = y + h/2
 
-      const size = w;
-      const t = Date.now() * 0.005;
-
-      // 🐍 ruch falujący (pełzanie)
-      const wave = Math.sin(t + e.x * 0.05) * 4;
-
-      const cx = x + w/2 + wave;
-      const cy = y + h/2;
-
-      // ciało (lekko spłaszczone przy ruchu)
-      ctx.fillStyle = "#2ecc71";
-      ctx.fillRect(cx - size/2, cy - size/2 + Math.abs(wave)*0.2, size, size * (0.9 + Math.sin(t)*0.05));
-
-      // oczy (lekko patrzą w kierunku ruchu)
-      ctx.fillStyle = "white";
-      ctx.fillRect(cx - size*0.25 + wave*0.2, cy - size*0.15, size*0.2, size*0.2);
-      ctx.fillRect(cx + size*0.05 + wave*0.2,  cy - size*0.15, size*0.2, size*0.2);
-
-      // źrenice (żyją)
-      ctx.fillStyle = "#000";
-      ctx.fillRect(cx - size*0.20 + wave*0.3, cy - size*0.10, size*0.08, size*0.08);
-      ctx.fillRect(cx + size*0.10 + wave*0.3, cy - size*0.10, size*0.08, size*0.08);
-
-      // nogi (naprzemienny ruch)
-      ctx.fillStyle = "#27ae60";
-      ctx.fillRect(cx - size*0.25, cy + size*0.25 + Math.sin(t)*2, size*0.15, size*0.2);
-      ctx.fillRect(cx + size*0.10, cy + size*0.25 - Math.sin(t)*2, size*0.15, size*0.2);
-    }
-    else {
-      ctx.fillStyle = "#7b3fe4";
-      ctx.fillRect(x, y, w, h);
+      ctx.fillStyle = "#2ecc71"
+      ctx.fillRect(ecx - size/2, ecy - size/2 + Math.abs(wave)*0.2, size, size * (0.9 + Math.sin(t)*0.05))
+      ctx.fillStyle = "white"
+      ctx.fillRect(ecx - size*0.25 + wave*0.2, ecy - size*0.15, size*0.2, size*0.2)
+      ctx.fillRect(ecx + size*0.05 + wave*0.2, ecy - size*0.15, size*0.2, size*0.2)
+      ctx.fillStyle = "#000"
+      ctx.fillRect(ecx - size*0.20 + wave*0.3, ecy - size*0.10, size*0.08, size*0.08)
+      ctx.fillRect(ecx + size*0.10 + wave*0.3, ecy - size*0.10, size*0.08, size*0.08)
+      ctx.fillStyle = "#27ae60"
+      ctx.fillRect(ecx - size*0.25, ecy + size*0.25 + Math.sin(t)*2, size*0.15, size*0.2)
+      ctx.fillRect(ecx + size*0.10, ecy + size*0.25 - Math.sin(t)*2, size*0.15, size*0.2)
+    } else {
+      ctx.fillStyle = "#7b3fe4"
+      ctx.fillRect(x, y, w, h)
     }
 
-    if (e === selectedObject) {
-      ctx.strokeStyle = "red";
-      ctx.lineWidth = 3;
-      ctx.strokeRect(x, y, w, h);
+    if (en === selectedObject) {
+      ctx.strokeStyle = "red"
+      ctx.lineWidth = 3
+      ctx.strokeRect(x, y, w, h)
     }
   }
-  
+
   for (let b of bonuses) {
-
     ctx.save()
-
     ctx.translate(b.x, b.y)
-
     let scale = b.scale || 1
     ctx.scale(scale, scale)
-
     ctx.font = "22px Arial"
     ctx.textAlign = "center"
     ctx.textBaseline = "middle"
-
     let icon = "💎"
-
     if (b.type === "key_win") icon = "🏁"
     if (b.type === "key_level") icon = "🔑"
-
     ctx.fillText(icon, 0, 0)
     ctx.restore()
   }
 
   ctx.restore()
 
-  // 💀 efekt trafienia
+  // efekt trafienia
   if (hitEffect) {
-    hitEffect.time--;
-
+    hitEffect.time--
     if (Math.floor(hitEffect.time / 5) % 2 === 0) {
-      ctx.font = "50px Arial";
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.fillText("💀", hitEffect.x - cameraX, hitEffect.y);
+      ctx.font = "50px Arial"
+      ctx.textAlign = "center"
+      ctx.textBaseline = "middle"
+      ctx.fillText("💀", hitEffect.x - cameraX, hitEffect.y)
+    }
+    if (hitEffect.time <= 0) hitEffect = null
+  }
+
+  for (let t of texts) {
+    const screenX = t.x - cameraX
+
+    ctx.save()
+    ctx.textAlign = "center"
+    ctx.textBaseline = "middle"
+    ctx.font = t.size + "px " + (t.font || "Arial")
+
+    if (t.neon === true) {
+      ctx.shadowColor = t.neonColor || "#00ffff"
+      ctx.shadowBlur = 15
+      ctx.fillStyle = t.neonColor || "#00ffff"
+      ctx.fillText(t.text, screenX, t.y)
+      ctx.shadowBlur = 30
+      ctx.fillText(t.text, screenX, t.y)
+      ctx.shadowBlur = 50
+      ctx.fillText(t.text, screenX, t.y)
     }
 
-    if (hitEffect.time <= 0) {
-      hitEffect = null;
+    ctx.shadowBlur = 0
+    ctx.fillStyle = t.color || "white"
+    ctx.fillText(t.text, screenX, t.y)
+
+    if (t.outline === true) {
+      ctx.strokeStyle = t.outlineColor || "#ffffff"
+      ctx.lineWidth = t.outlineWidth || 4
+      ctx.lineJoin = "round"
+      ctx.strokeText(t.text, screenX, t.y)
     }
+
+    if (t === selectedObject) {
+      ctx.strokeStyle = "red"
+      ctx.lineWidth = 3
+      ctx.setLineDash([4, 4])
+      ctx.strokeRect(screenX - 60, t.y - 35, 120, 70)
+      ctx.setLineDash([])
+    }
+
+    ctx.restore()
   }
 
-for (let t of texts) {
+  // HUD
+  ctx.fillStyle = "white"
+  ctx.font = "20px Arial"
+  ctx.textAlign = "left"
+  ctx.fillText("❤️ ".repeat(Math.max(0, counters.lives)), 20, 30)
+  ctx.textAlign = "center"
+  ctx.fillText("⭐ " + counters.points, canvas.width / 2, 30)
+  ctx.textAlign = "right"
+  ctx.fillText("⏱ " + Math.ceil(counters.time), canvas.width - 20, 30)
 
-  const screenX = t.x - cameraX;   // pozycja na ekranie
-
-  ctx.save();
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.font = t.size + "px " + (t.font || "Arial");
-
-  // === 1. Neon glow (kilka warstw shadow dla mocnego efektu) ===
-  if (t.neon === true) {                    // dodamy flagę neon
-    ctx.shadowColor = t.neonColor || "#00ffff";   // cyan, możesz zmienić na #ff00ff itp.
-    ctx.shadowBlur = 15;
-
-    // kilka warstw dla mocniejszego neonu
-    ctx.fillStyle = t.neonColor || "#00ffff";
-    ctx.fillText(t.text, screenX, t.y);
-
-    ctx.shadowBlur = 30;
-    ctx.fillText(t.text, screenX, t.y);
-
-    ctx.shadowBlur = 50;
-    ctx.fillText(t.text, screenX, t.y);
-  }
-
-  // === 2. Główny tekst (biały lub kolorowy) ===
-  ctx.shadowBlur = 0;                 // wyłączamy blur
-  ctx.fillStyle = t.color || "white";
-  ctx.fillText(t.text, screenX, t.y);
-
-  // === 3. Opcjonalna ramka / outline (stroke) ===
-  if (t.outline === true) {
-    ctx.strokeStyle = t.outlineColor || "#ffffff";
-    ctx.lineWidth = t.outlineWidth || 4;
-    ctx.lineJoin = "round";           // ładniejsze rogi
-    ctx.strokeText(t.text, screenX, t.y);
-  }
-
-  // zaznaczenie w trybie edycji
-  if (t === selectedObject) {
-    ctx.strokeStyle = "red";
-    ctx.lineWidth = 3;
-    ctx.setLineDash([4, 4]);
-    ctx.strokeRect(screenX - 60, t.y - 35, 120, 70);
-    ctx.setLineDash([]);
-  }
-
-  ctx.restore();
-}
-
-  // === ❤️ HUD - ŻYCIA ===
-  ctx.fillStyle = "white";
-  ctx.font = "20px Arial";
-  ctx.textAlign = "left";
-  
-  ctx.fillText("❤️ ".repeat(Math.max(0, counters.lives)), 20, 30);
-  ctx.textAlign = "center";
-  ctx.fillText("⭐ " + counters.points, canvas.width / 2, 30);
-  ctx.textAlign = "right";
-  ctx.fillText("⏱ " + Math.ceil(counters.time), canvas.width - 20, 30);
-
-  // === OSTRZEŻENIE - WRACAJ SZYBKO! ===
   if (warningText) {
-    warningText.time--;
-    if (warningText.time <= 0) warningText = null;
+    warningText.time--
+    if (warningText.time <= 0) warningText = null
 
-    const alpha = Math.sin(Date.now() * 0.008) * 0.3 + 0.7;
-
-    ctx.save();
-    ctx.globalAlpha = alpha;
-    ctx.shadowColor = "#ff0000";
-    ctx.shadowBlur = 30;
-    
-    ctx.font = "bold 58px Arial";
-    ctx.textAlign = "center";
-    ctx.fillStyle = "#ff2222";
-    ctx.fillText("WRACAJ SZYBKO!", canvas.width/2, canvas.height/2 - 40);
-
-    ctx.font = "bold 26px Arial";
-    ctx.fillStyle = "#ff8888";
-    ctx.fillText("Spadniesz za chwilę!", canvas.width/2, canvas.height/2 + 30);
-    ctx.restore();
+    const alpha = Math.sin(Date.now() * 0.008) * 0.3 + 0.7
+    ctx.save()
+    ctx.globalAlpha = alpha
+    ctx.shadowColor = "#ff0000"
+    ctx.shadowBlur = 30
+    ctx.font = "bold 58px Arial"
+    ctx.textAlign = "center"
+    ctx.fillStyle = "#ff2222"
+    ctx.fillText("WRACAJ SZYBKO!", canvas.width/2, canvas.height/2 - 40)
+    ctx.font = "bold 26px Arial"
+    ctx.fillStyle = "#ff8888"
+    ctx.fillText("Spadniesz za chwilę!", canvas.width/2, canvas.height/2 + 30)
+    ctx.restore()
   }
 
-  // podłoga – zawsze na dole ekranu
+  // podłoga
   ctx.fillStyle = "#444"
   ctx.fillRect(0, 450, 800, 50)
 }
@@ -2864,10 +2488,19 @@ let projectName = "projekt"
 let loadedFromFile = false
 
 async function zapiszProjekt(){
+  // Zsynchronizuj dane bieżącego poziomu przed zapisem
+  const lvl = getLevel()
+  if (lvl) {
+    lvl.players = players
+    lvl.platforms = platforms
+    lvl.blocks = blocks
+    lvl.enemies = enemies
+    lvl.bonuses = bonuses
+    lvl.texts = texts
+  }
 
   const data = {
-    levels: levels,   // 🔥 CAŁA GRA (wszystkie poziomy)
-
+    levels: levels,
     settings: {
       nazwaGry,
       autorGry,
@@ -2884,92 +2517,81 @@ async function zapiszProjekt(){
       autoScrollSpeed,
       worldWidth
     },
-
     stats: gameData.stats || {}
   }
 
-  // 🔥 wybór pliku (jak było u Ciebie)
-  if (!fileHandle) {
-    fileHandle = await window.showSaveFilePicker({
-      suggestedName: (nazwaGry || "projekt") + ".json",
-      types: [{
-        description: "JSON",
-        accept: { "application/json": [".json"] }
-      }]
-    })
+  try {
+    if (!fileHandle) {
+      fileHandle = await window.showSaveFilePicker({
+        suggestedName: (nazwaGry || "projekt") + ".json",
+        types: [{
+          description: "JSON",
+          accept: { "application/json": [".json"] }
+        }]
+      })
+    }
+
+    const writable = await fileHandle.createWritable()
+    await writable.write(JSON.stringify(data, null, 2))
+    await writable.close()
+    alert("Gra zapisana ✔️")
+  } catch (err) {
+    if (err.name !== "AbortError") {
+      console.error(err)
+      alert("Błąd zapisu: " + err.message)
+    }
   }
-
-  const writable = await fileHandle.createWritable()
-  await writable.write(JSON.stringify(data, null, 2))
-  await writable.close()
-
-  alert("Gra zapisana ✔️")
 }
 
 function checkEnemyCollision() {
-  if (gameOver || players.length === 0) return;
+  if (gameOver || players.length === 0) return
   if (invulnerable > 0) {
-    invulnerable--;
-    return;
+    invulnerable--
+    return
   }
-  
-  const player = players[0];
+
+  const player = players[0]
 
   for (let enemy of enemies) {
+    let ex = enemy.x, ey = enemy.y
+    let ew = enemy.w || 40, eh = enemy.h || 40
 
-    let ex = enemy.x, ey = enemy.y;
-    let ew = enemy.w || 40, eh = enemy.h || 40;
-
-    const margin = 0; // 🔥 ile poza ekranem jeszcze liczymy wroga
-
-    // 🔥 poza ekranem (z marginesem) = brak kolizji
+    const margin = 0
     if (
-      ex + ew < cameraX - margin || 
+      ex + ew < cameraX - margin ||
       ex > cameraX + canvas.width + margin
-    ) {
-      continue;
-    }
+    ) continue
 
-    let px = player.x - player.r, py = player.y - player.r;
-    let pw = player.r * 2, ph = player.r * 2;
+    let px = player.x - player.r, py = player.y - player.r
+    let pw = player.r * 2, ph = player.r * 2
 
-    // Kolizja AABB
     if (px < ex + ew && px + pw > ex && py < ey + eh && py + ph > ey) {
-      
-      // 💀 ZAPISZ MIEJSCE ŚMIERCI jako nowy respawn!
-      deathRespawnX = player.x;
-      deathRespawnY = player.y;
+      deathRespawnX = player.x
+      deathRespawnY = player.y
 
-      // Odejmij życie
-      if (useLives) counters.lives--;
+      if (useLives) counters.lives--
 
-      // Efekt wizualny śmierci
-      hitEffect = { x: player.x, y: player.y, time: 60 };
+      hitEffect = { x: player.x, y: player.y, time: 60 }
 
-      // Game Over?
       if (useLives && counters.lives <= 0 && !gameOverTriggered) {
-        gameOverTriggered = true;
-        gameOver = true;
-        updateStats(false);
-        gameState = "results";
-        initResultsScene();
-        return;
+        gameOverTriggered = true
+        gameOver = true
+        updateStats(false)
+        gameState = "results"
+        initResultsScene()
+        return
       }
 
-      // 🔄 Przygotuj respawn w miejscu śmierci
-      hitPause = hitPauseTime;
-      pendingRespawn = true;
-      invulnerable = invulnerabilityTime;
-      
-      return; // jedno trafienie na klatkę
+      hitPause = hitPauseTime
+      pendingRespawn = true
+      invulnerable = invulnerabilityTime
+      return
     }
   }
 }
 
-
 function initResultsScene(){
   resultsEnemies = []
-
   for (let i = 0; i < 6; i++) {
     resultsEnemies.push({
       angle: i * (Math.PI * 2 / 6),
@@ -2980,11 +2602,9 @@ function initResultsScene(){
 }
 
 function drawResults(){
-
   ctx.fillStyle = "black"
-  ctx.fillRect(0,0,canvas.width,canvas.height)
+  ctx.fillRect(0, 0, canvas.width, canvas.height)
 
-  // 🔴 gracz
   ctx.fillStyle = "red"
   ctx.beginPath()
   ctx.arc(resultsBall.x, resultsBall.y, resultsBall.r, 0, Math.PI*2)
@@ -2992,21 +2612,13 @@ function drawResults(){
 
   let count = resultsEnemies.length
 
-  // 👻 duchy
   for (let i = 0; i < count; i++) {
-
-    let e = resultsEnemies[i]
-
-    // 🔥 TWOJE SPOWOLNIENIE
-    let slowAngle = e.angle * 0.25
-
-    // 🔥 DODAJEMY ROZSTAWIENIE DOOKOŁA
+    let en = resultsEnemies[i]
+    let slowAngle = en.angle * 0.25
     let baseAngle = (i / count) * Math.PI * 2
-
     let finalAngle = slowAngle + baseAngle
-
-    let x = resultsBall.x + Math.cos(finalAngle) * e.dist
-    let y = resultsBall.y + Math.sin(finalAngle) * e.dist
+    let x = resultsBall.x + Math.cos(finalAngle) * en.dist
+    let y = resultsBall.y + Math.sin(finalAngle) * en.dist
 
     ctx.font = "32px Arial"
     ctx.textAlign = "center"
@@ -3014,46 +2626,35 @@ function drawResults(){
     ctx.fillText("👻", x, y)
   }
 
-  // tekst
   ctx.fillStyle = "white"
   ctx.textAlign = "center"
-
   ctx.font = "40px Arial"
   let isWin = (gameState === "win")
-
   ctx.fillStyle = isWin ? "#00ff88" : "white"
-  ctx.fillText(
-    isWin ? "GRATULACJE!!!" : "KONIEC GRY",
-    canvas.width/2,
-    80
-  )
+  ctx.fillText(isWin ? "GRATULACJE!!!" : "KONIEC GRY", canvas.width/2, 80)
   ctx.font = "22px Arial"
+  ctx.fillStyle = "white"
   ctx.fillText("Punkty: " + counters.points, canvas.width/2, 300)
   ctx.fillText("Życia: " + counters.lives, canvas.width/2, 330)
   ctx.fillText("Czas: " + Math.ceil(counters.time), canvas.width/2, 360)
-
   ctx.fillText("Kliknij aby zrestartować", canvas.width/2, 420)
 
-  // 🔘 PRZYCISKI
-  ctx.fillStyle = "#333";
-  ctx.fillRect(250, 300, 140, 50);
-  ctx.fillRect(410, 300, 140, 50);
+  ctx.fillStyle = "#333"
+  ctx.fillRect(250, 300, 140, 50)
+  ctx.fillRect(410, 300, 140, 50)
 
-  ctx.fillStyle = "white";
-  ctx.font = "16px Arial";
-  ctx.textAlign = "center";
-
-  ctx.fillText("WRÓĆ", 320, 330);
-  ctx.fillText("WYJDŹ", 480, 330);
-
+  ctx.fillStyle = "white"
+  ctx.font = "16px Arial"
+  ctx.textAlign = "center"
+  ctx.fillText("WRÓĆ", 320, 330)
+  ctx.fillText("WYJDŹ", 480, 330)
 }
 
 function updateResults(){
-  for (let e of resultsEnemies) {
-    e.angle += e.speed
+  for (let en of resultsEnemies) {
+    en.angle += en.speed
   }
 }
-
 
 function wczytajProjekt(){
   const input = document.createElement("input")
@@ -3061,7 +2662,7 @@ function wczytajProjekt(){
 
   input.onchange = e => {
     const file = e.target.files[0]
-    if (!file) return;
+    if (!file) return
 
     projectName = file.name.replace(".json", "")
     loadedFromFile = true
@@ -3075,7 +2676,6 @@ function wczytajProjekt(){
         gameData = data || {}
         gameData.stats = gameData.stats || {}
 
-        // Poziomy
         levels = gameData.levels || []
         if (levels.length === 0) {
           levels.push({
@@ -3088,14 +2688,13 @@ function wczytajProjekt(){
 
         currentLevel = 0
         syncLevelData()
-        bonuses = levels[0]?.bonuses || [];
+        bonuses = levels[0]?.bonuses || []
         renderLevelsBar()
 
         const lvl = getLevel()
         playerStartX = lvl.playerStartX ?? 100
         playerStartY = lvl.playerStartY ?? 100
 
-        // ==================== NAJWAŻNIEJSZE – WCZYTANIE SETTINGS ====================
         let s = gameData.settings || {}
 
         nazwaGry   = s.nazwaGry   || "Moja gra"
@@ -3122,9 +2721,7 @@ function wczytajProjekt(){
         startTime = s.startTime ?? counters.time
         useTimer  = !!s.useTimer
 
-        // Pokazujemy intro po wczytaniu
         showIntro = true
-
         lastTime = Date.now()
         selectedObject = null
         trybKopiowania = false
@@ -3155,7 +2752,6 @@ function zapiszHTML(){
 }
 
 function otworzGre(){
-
   document.getElementById("editor").style.display = "block"
 
   setTimeout(() => {
@@ -3167,15 +2763,12 @@ function otworzGre(){
       const reader = new FileReader()
 
       reader.onload = ev => {
-
         try {
-
           const data = JSON.parse(ev.target.result)
 
           gameData = data || {}
           gameData.stats = gameData.stats || {}
 
-          // 🔥 LEVEL (MAPA)
           let level = gameData.levels?.[0] || {}
 
           players = level.players || []
@@ -3186,11 +2779,9 @@ function otworzGre(){
           texts = level.texts || []
           backgroundType = level.backgroundType || "city"
 
-          // 🔥 START POZYCJI
           playerStartX = level.playerStartX ?? 100
           playerStartY = level.playerStartY ?? 100
 
-          // 🔥 SETTINGS (USTAWIENIA GRY)
           sterowanie = gameData.settings?.sterowanie || {lewo:null, prawo:null, skok:null}
 
           counters = {
@@ -3202,11 +2793,9 @@ function otworzGre(){
           startTime = gameData.settings?.startTime ?? counters.time
           useTimer = gameData.settings?.useTimer ?? true
 
-          // 🔥 META
           autorGry = gameData.settings?.autorGry || "DEMO"
           opisGry = gameData.settings?.opisGry || ""
 
-          // 🔥 RESET
           lastTime = Date.now()
           selectedObject = null
           trybKopiowania = false
@@ -3214,13 +2803,10 @@ function otworzGre(){
           updateButtonStates()
           zapiszHTML()
 
-          console.log("✅ Gra wczytana poprawnie")
-
         } catch (err) {
           console.error("❌ Błąd JSON:", err)
           alert("Błąd pliku JSON")
         }
-
       }
 
       reader.readAsText(file)
@@ -3230,21 +2816,19 @@ function otworzGre(){
   }, 50)
 }
 
-
-// ================= TEKST – DODAWANIE I EDYCJA =================
-
+// ================= TEKST =================
 function dodajTekst() {
-  pokazPanelTekstu(null);     // null = tryb dodawania nowego tekstu
+  pokazPanelTekstu(null)
 }
 
 function pokazPanelTekstu(t = null) {
-  const isEdit = !!t;
+  const isEdit = !!t
 
-  let html = `<h3>${isEdit ? "EDYTUJ TEKST" : "DODAJ TEKST"}</h3>`;
+  let html = `<h3>${isEdit ? "EDYTUJ TEKST" : "DODAJ TEKST"}</h3>`
 
   html += `
     Treść:<br>
-    <input id="txtInput" type="text" style="width:100%" 
+    <input id="txtInput" type="text" style="width:100%"
            value="${isEdit ? (t.text || '') : ''}" placeholder="Wpisz tekst"><br><br>
 
     Rozmiar:<br>
@@ -3269,157 +2853,130 @@ function pokazPanelTekstu(t = null) {
     </select>
 
     <br><br>
-  `;
+  `
 
   if (isEdit) {
     html += `
       <button onclick="zapiszEdycjeTekstu()">💾 ZAPISZ ZMIANY</button>
       <button onclick="usunAktualnyTekst()" class="danger">🗑 USUŃ TEKST</button>
       <button onclick="zamknijPanel()">Anuluj</button>
-    `;
+    `
   } else {
     html += `
       <button onclick="zapiszNowyTekst()">✅ DODAJ TEKST</button>
       <button onclick="zamknijPanel()">Anuluj</button>
-    `;
+    `
   }
 
-  document.getElementById("panel").innerHTML = html;
+  document.getElementById("panel").innerHTML = html
 }
 
 function zamknijPanel() {
-  document.getElementById("panel").innerHTML = `<h3>PANEL</h3><div>Wybierz narzędzie z góry.</div>`;
+  document.getElementById("panel").innerHTML = `<h3>PANEL</h3><div>Wybierz narzędzie z góry.</div>`
 }
 
 function pokazTloPanel(){
-  let html = `
+  document.getElementById("panel").innerHTML = `
     <h3>TŁO</h3>
-
     <button onclick="setBG('city')">Miasto</button><br><br>
     <button onclick="setBG('stars')">Gwiazdy</button><br><br>
     <button onclick="setBG('west')">Dziki zachód</button><br><br>
     <button onclick="setBG('rain')">Deszcz</button><br><br>
     <button onclick="setBG('forest')">Las</button><br><br>
     <button onclick="setBG('snow')">Śnieg</button><br><br>
-    <button onclick="setBG('space')">Góry</button><br><br>   
-
-  `;
-
-  document.getElementById("panel").innerHTML = html;
+    <button onclick="setBG('space')">Góry</button><br><br>
+  `
 }
 
 function zapiszNowyTekst() {
-  let txt = document.getElementById("txtInput").value.trim();
+  let txt = document.getElementById("txtInput").value.trim()
   if (!txt) {
-    alert("Wpisz jakąś treść tekstu!");
-    return;
+    alert("Wpisz jakąś treść tekstu!")
+    return
   }
 
-  texts.push({
+  const lvl = getLevel()
+  const newText = {
     x: cameraX + canvas.width / 2,
     y: canvas.height / 2,
     text: txt,
     size: Number(document.getElementById("txtSize").value) || 28,
     font: document.getElementById("txtFont").value,
     color: document.getElementById("txtColor").value,
-
     neon: document.getElementById("txtNeon").checked,
     neonColor: document.getElementById("txtNeonColor").value,
-
     outline: document.getElementById("txtOutline").checked,
     outlineColor: document.getElementById("txtOutlineColor").value,
     outlineWidth: Number(document.getElementById("txtOutlineWidth").value) || 5
-  });
+  }
 
-  zamknijPanel();
+  if (lvl) lvl.texts.push(newText)
+  syncLevelData()
+
+  zamknijPanel()
 }
 
 function zapiszEdycjeTekstu() {
-  if (!selectedObject || selectedObject.text === undefined) return;
+  if (!selectedObject || selectedObject.text === undefined) return
 
-  selectedObject.text = document.getElementById("txtInput").value.trim() || "Tekst";
-  selectedObject.size = Number(document.getElementById("txtSize").value) || 28;
-  selectedObject.font = document.getElementById("txtFont").value;
-  selectedObject.color = document.getElementById("txtColor").value;
+  selectedObject.text = document.getElementById("txtInput").value.trim() || "Tekst"
+  selectedObject.size = Number(document.getElementById("txtSize").value) || 28
+  selectedObject.font = document.getElementById("txtFont").value
+  selectedObject.color = document.getElementById("txtColor").value
+  selectedObject.neon = document.getElementById("txtNeon").checked
+  selectedObject.neonColor = document.getElementById("txtNeonColor").value
+  selectedObject.outline = document.getElementById("txtOutline").checked
+  selectedObject.outlineColor = document.getElementById("txtOutlineColor").value
+  selectedObject.outlineWidth = Number(document.getElementById("txtOutlineWidth").value) || 5
 
-  selectedObject.neon = document.getElementById("txtNeon").checked;
-  selectedObject.neonColor = document.getElementById("txtNeonColor").value;
-
-  selectedObject.outline = document.getElementById("txtOutline").checked;
-  selectedObject.outlineColor = document.getElementById("txtOutlineColor").value;
-  selectedObject.outlineWidth = Number(document.getElementById("txtOutlineWidth").value) || 5;
-
-  pokazPanelTekstu(selectedObject);   // odśwież panel
+  pokazPanelTekstu(selectedObject)
 }
 
 function usunAktualnyTekst() {
-  if (!selectedObject || selectedObject.text === undefined) return;
+  if (!selectedObject || selectedObject.text === undefined) return
 
   if (confirm("Czy na pewno chcesz usunąć ten tekst?")) {
-    const index = texts.indexOf(selectedObject);
-    if (index !== -1) {
-      texts.splice(index, 1);
-    }
-    selectedObject = null;
-    zamknijPanel();
+    const index = texts.indexOf(selectedObject)
+    if (index !== -1) texts.splice(index, 1)
+    selectedObject = null
+    zamknijPanel()
   }
 }
 
 function zapiszUstawienia(){
-  gravity = Number(document.getElementById("grav").value) || 0.6
-  gridSize = Number(document.getElementById("grid").value) || 40
-  alert("Zapisano")
+  const autoEl = document.getElementById("autoScrollToggle")
+  const speedEl = document.getElementById("scrollSpeed")
+  if (autoEl) autoScroll = autoEl.checked
+  if (speedEl) autoScrollSpeed = Number(speedEl.value)
 }
 
-
 function powrotDoMenu() {
-
-  // 🔥 NAJPIERW RESET
-  gameOver = false;
-  gameOverTriggered = false;
-  hitPause = 0;
-  pendingRespawn = false;
-
-  // 🔥 RESET LICZNIKÓW (WAŻNE)
-  counters.lives = 3;
-  counters.points = 0;
-  counters.time = startTime;
-
+  gameOver = false
+  gameOverTriggered = false
+  hitPause = 0
+  pendingRespawn = false
+  counters.lives = 3
+  counters.points = 0
+  counters.time = startTime
   bonuses = []
-
-  // 🔥 NA KONIEC UI
-  document.getElementById("editor").style.display = "none";
-  document.getElementById("menuStart").style.display = "block";
+  document.getElementById("editor").style.display = "none"
 }
 
 function zapiszLiczniki(){
-
   let lives = Number(document.getElementById("editLives").value)
   let time = Number(document.getElementById("editTime").value)
   let timerOn = document.getElementById("useTimer").checked
   let livesOn = document.getElementById("useLives").checked
 
-  // ❤️ życia
-  if (!isNaN(lives) && lives >= 0) {
-    counters.lives = lives
-  }
+  if (!isNaN(lives) && lives >= 0) counters.lives = lives
+  if (!isNaN(time) && time >= 0) { counters.time = time; startTime = time }
 
-  // ⏱ czas
-  if (!isNaN(time) && time >= 0) {
-    counters.time = time
-    startTime = time
-  }
-
-  // 🔘 checkboxy
   useTimer = timerOn
   useLives = livesOn
 
-  // 🌍 długość świata
   let el = document.getElementById("editWorld")
-
   if (el) {
     let w = Number(el.value)
-
     if (!isNaN(w) && w > 500) {
       worldWidth = w
       scrollX.max = worldWidth - canvas.width
@@ -3430,101 +2987,80 @@ function zapiszLiczniki(){
 function pokazKoniec(){
   document.getElementById("panel").innerHTML = `
     <h3>KONIEC GRY</h3>
-
-    <div class="item" onclick="dodajKluczWin()" style="font-size:40px;">
-      🏁
-    </div>
+    <div class="item" onclick="dodajKluczWin()" style="font-size:40px;">🏁</div>
     <br><br>
     <h4>POZIOMY ➜ teleport</h4>
-    
-    <div class="item" onclick="dodajKluczLevel()" style="font-size:40px;">
-      🔑
-    </div>
-
+    <div class="item" onclick="dodajKluczLevel()" style="font-size:40px;">🔑</div>
     <p style="text-align:center;">Kliknij aby wstawić<br>teleport do wybranego<br>poziomu</p>
   `
 }
 
 function loadDemo() {
-  // Względna ścieżka – plik musi być w folderze demo1 obok index.html
-  const demoUrl = "demo.json";   
+  const demoUrl = "demo.json"
 
   fetch(demoUrl)
     .then(res => {
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      return res.json();
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      return res.json()
     })
     .then(data => {
-      console.log("✅ Demo wczytane", data);
+      gameData = data || {}
+      gameData.stats = gameData.stats || {}
 
-      gameData = data || {};
-      gameData.stats = gameData.stats || {};
-
-      levels = gameData.levels || [];
+      levels = gameData.levels || []
       if (levels.length === 0) {
-        levels.push({ players: [], platforms: [], blocks: [], enemies: [], bonuses: [], texts: [], backgroundType: "none", playerStartX: 100, playerStartY: 100 });
+        levels.push({ players: [], platforms: [], blocks: [], enemies: [], bonuses: [], texts: [], backgroundType: "none", playerStartX: 100, playerStartY: 100 })
       }
 
-      currentLevel = 0;
-      syncLevelData();
-      renderLevelsBar();
+      currentLevel = 0
+      syncLevelData()
+      renderLevelsBar()
 
-      const lvl = getLevel() || {};
-      bonuses = lvl.bonuses || [];
-      backgroundType = lvl.backgroundType || "none";
-      playerStartX = lvl.playerStartX ?? 100;
-      playerStartY = lvl.playerStartY ?? 100;
+      const lvl = getLevel() || {}
+      bonuses = lvl.bonuses || []
+      backgroundType = lvl.backgroundType || "none"
+      playerStartX = lvl.playerStartX ?? 100
+      playerStartY = lvl.playerStartY ?? 100
 
-      // === USTAWIENIA GRY ===
-      let s = gameData.settings || {};
-      nazwaGry   = s.nazwaGry   || "Moja gra";
-      autorGry   = s.autorGry   || "DEMO";
-      opisGry    = s.opisGry    || "";
+      let s = gameData.settings || {}
+      nazwaGry   = s.nazwaGry   || "Moja gra"
+      autorGry   = s.autorGry   || "DEMO"
+      opisGry    = s.opisGry    || ""
 
-      sterowanie = s.sterowanie || {lewo: null, prawo: null, skok: null};
+      sterowanie = s.sterowanie || {lewo: null, prawo: null, skok: null}
 
       counters = {
         lives: s.counters?.lives ?? 3,
         points: s.counters?.points ?? 0,
         time: s.counters?.time ?? 60
-      };
-      startTime = s.startTime ?? counters.time;
-      useTimer  = !!s.useTimer;
+      }
+      startTime = s.startTime ?? counters.time
+      useTimer  = !!s.useTimer
 
-      respawnMode     = s.respawnMode     || "death";
-      autoScroll      = !!s.autoScroll;
-      autoScrollSpeed = Number(s.autoScrollSpeed) || 2;
-      worldWidth      = Number(s.worldWidth) || 2000;
-      scrollX.max = worldWidth - canvas.width;
+      respawnMode     = s.respawnMode     || "death"
+      autoScroll      = !!s.autoScroll
+      autoScrollSpeed = Number(s.autoScrollSpeed) || 2
+      worldWidth      = Number(s.worldWidth) || 2000
+      scrollX.max = worldWidth - canvas.width
 
-      // 🔥 TO JEST NAJWAŻNIEJSZE – pokazuje intro!
-      showIntro = true;
+      showIntro = true
+      selectedObject = null
+      trybKopiowania = false
+      cameraX = 0
+      gameState = "game"
+      gameOver = false
 
-      // Reset stanu
-      selectedObject = null;
-      trybKopiowania = false;
-      cameraX = 0;
-      gameState = "game";
-      gameOver = false;
-
-      updateButtonStates();
-
-      // Nie uruchamiamy od razu trybGry = true – niech intro się pokaże
-      // trybGry = false;   // zostawiamy false, intro samo obsłuży przejście
+      updateButtonStates()
     })
     .catch(err => {
-      console.error(err);
-      alert("❌ Nie udało się wczytać demo.json\nBłąd: " + err.message);
-    });
+      console.error(err)
+      alert("❌ Nie udało się wczytać demo.json\nBłąd: " + err.message)
+    })
 }
 
 function updateStats(isWin) {
   const today = new Date().toISOString().split('T')[0]
-
-  if (!gameData.stats[today]) {
-    gameData.stats[today] = { wins: 0, losses: 0 }
-  }
-
+  if (!gameData.stats[today]) gameData.stats[today] = { wins: 0, losses: 0 }
   if (isWin) gameData.stats[today].wins++
   else gameData.stats[today].losses++
 }
@@ -3534,477 +3070,328 @@ function ustawAutora(){
 }
 
 function drawBackground(){
+  let bgType = getLevel()?.backgroundType || "none"
 
-  let backgroundType = getLevel().backgroundType || "none"  
+  if (bgType === "none") return
 
-  if(backgroundType === "none") return;
-
-  if(backgroundType === "forest"){
+  if (bgType === "forest"){
     drawForest()
     return
-  }  
+  }
 
-  // ================= ❄️ ŚNIEG
-  if(backgroundType === "snow"){
-
-    ctx.fillStyle = "#0f1a2b";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    ctx.fillStyle = "#ffffff";
-
-    for(let i = 0; i < 120; i++){
-      let x = (i * 97 - cameraX * 0.1) % 2000;
-      let y = (i * 53 + Date.now() * 0.2) % canvas.height;
-
-      ctx.beginPath();
-      ctx.arc(x, y, 2, 0, Math.PI * 2);
-      ctx.fill();
+  if (bgType === "snow"){
+    ctx.fillStyle = "#0f1a2b"
+    ctx.fillRect(0, 0, canvas.width, canvas.height)
+    ctx.fillStyle = "#ffffff"
+    for (let i = 0; i < 120; i++){
+      let x = (i * 97 - cameraX * 0.1) % 2000
+      let y = (i * 53 + Date.now() * 0.2) % canvas.height
+      ctx.beginPath()
+      ctx.arc(x, y, 2, 0, Math.PI * 2)
+      ctx.fill()
     }
   }
 
-// ================= 🚀 KOSMOS
-if (backgroundType === "space") {
+  if (bgType === "space") {
+    drawNewStars()
 
-    // ⭐ gwiazdy (daleko za górami)
-    drawNewStars();
-
-    // =========================
-    // ⛰️ GÓRY - WARSTWA 1 (najdalsza, najjaśniejsza)
-    // =========================
     for (let i = 0; i < 18; i++) {
-        let x = (i * 220 - cameraX * 0.15) % (canvas.width + 300);
-        let h = 95 + (i * 53 % 95);
-
-        ctx.fillStyle = "#1e2f52";
-
-        ctx.beginPath();
-        ctx.moveTo(x - 20, canvas.height);
-        ctx.lineTo(x + 80, canvas.height - h);
-        ctx.lineTo(x + 190, canvas.height);
-        ctx.fill();
-
-        // delikatny drugi szczyt
-        ctx.beginPath();
-        ctx.moveTo(x + 70, canvas.height);
-        ctx.lineTo(x + 130, canvas.height - h * 0.65);
-        ctx.lineTo(x + 220, canvas.height);
-        ctx.fill();
+      let x = (i * 220 - cameraX * 0.15) % (canvas.width + 300)
+      let h = 95 + (i * 53 % 95)
+      ctx.fillStyle = "#1e2f52"
+      ctx.beginPath()
+      ctx.moveTo(x - 20, canvas.height)
+      ctx.lineTo(x + 80, canvas.height - h)
+      ctx.lineTo(x + 190, canvas.height)
+      ctx.fill()
+      ctx.beginPath()
+      ctx.moveTo(x + 70, canvas.height)
+      ctx.lineTo(x + 130, canvas.height - h * 0.65)
+      ctx.lineTo(x + 220, canvas.height)
+      ctx.fill()
     }
 
-    // =========================
-    // ⛰️ GÓRY - WARSTWA 2 (średnia)
-    // =========================
     for (let i = 0; i < 16; i++) {
-        let x = (i * 260 - cameraX * 0.3) % (canvas.width + 350);
-        let h = 140 + (i * 67 % 140);
-
-        ctx.fillStyle = "#16243f";
-
-        ctx.beginPath();
-        ctx.moveTo(x, canvas.height);
-        ctx.lineTo(x + 95, canvas.height - h);
-        ctx.lineTo(x + 240, canvas.height);
-        ctx.fill();
-
-        // dodatkowy szczyt
-        ctx.beginPath();
-        ctx.moveTo(x + 110, canvas.height);
-        ctx.lineTo(x + 175, canvas.height - h * 0.7);
-        ctx.lineTo(x + 260, canvas.height);
-        ctx.fill();
+      let x = (i * 260 - cameraX * 0.3) % (canvas.width + 350)
+      let h = 140 + (i * 67 % 140)
+      ctx.fillStyle = "#16243f"
+      ctx.beginPath()
+      ctx.moveTo(x, canvas.height)
+      ctx.lineTo(x + 95, canvas.height - h)
+      ctx.lineTo(x + 240, canvas.height)
+      ctx.fill()
+      ctx.beginPath()
+      ctx.moveTo(x + 110, canvas.height)
+      ctx.lineTo(x + 175, canvas.height - h * 0.7)
+      ctx.lineTo(x + 260, canvas.height)
+      ctx.fill()
     }
 
-    // =========================
-    // ⛰️ GÓRY - WARSTWA 3 (najbliższa, najciemniejsza)
-    // =========================
     for (let i = 0; i < 12; i++) {
-        let x = (i * 320 - cameraX * 0.5) % (canvas.width + 400);
-        let h = 175 + (i * 81 % 160);
-
-        ctx.fillStyle = "#0f1a2e";
-
-        ctx.beginPath();
-        ctx.moveTo(x - 30, canvas.height);
-        ctx.lineTo(x + 110, canvas.height - h);
-        ctx.lineTo(x + 280, canvas.height);
-        ctx.fill();
-
-        // drugi szczyt
-        ctx.beginPath();
-        ctx.moveTo(x + 130, canvas.height);
-        ctx.lineTo(x + 215, canvas.height - h * 0.75);
-        ctx.lineTo(x + 310, canvas.height);
-        ctx.fill();
+      let x = (i * 320 - cameraX * 0.5) % (canvas.width + 400)
+      let h = 175 + (i * 81 % 160)
+      ctx.fillStyle = "#0f1a2e"
+      ctx.beginPath()
+      ctx.moveTo(x - 30, canvas.height)
+      ctx.lineTo(x + 110, canvas.height - h)
+      ctx.lineTo(x + 280, canvas.height)
+      ctx.fill()
+      ctx.beginPath()
+      ctx.moveTo(x + 130, canvas.height)
+      ctx.lineTo(x + 215, canvas.height - h * 0.75)
+      ctx.lineTo(x + 310, canvas.height)
+      ctx.fill()
     }
 
-    // Opcjonalnie: bardzo delikatne, prawie czarne góry na samym dole dla głębi
-    ctx.fillStyle = "#0a1324";
+    ctx.fillStyle = "#0a1324"
     for (let i = 0; i < 10; i++) {
-        let x = (i * 380 - cameraX * 0.65) % (canvas.width + 450);
-        let h = 80 + (i * 40 % 70);
-
-        ctx.beginPath();
-        ctx.moveTo(x, canvas.height);
-        ctx.lineTo(x + 140, canvas.height - h);
-        ctx.lineTo(x + 320, canvas.height);
-        ctx.fill();
-    }
-}
-
-  // ================= 🌧️ DESZCZ
-  if(backgroundType === "rain"){
-
-    ctx.fillStyle = "#0b0f1a";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    ctx.strokeStyle = "#88aaff";
-    ctx.lineWidth = 1;
-
-    for(let i = 0; i < 120; i++){
-      let x = (i * 97 - cameraX * 0.2) % 2000;
-      let y = (i * 53 + Date.now() * 0.5) % canvas.height;
-
-      ctx.beginPath();
-      ctx.moveTo(x, y);
-      ctx.lineTo(x + 3, y + 10);
-      ctx.stroke();
-    }
-
-    if(Math.random() < 0.005){
-      ctx.fillStyle = "rgba(255,255,255,0.2)";
-      ctx.fillRect(0,0,canvas.width,canvas.height);
+      let x = (i * 380 - cameraX * 0.65) % (canvas.width + 450)
+      let h = 80 + (i * 40 % 70)
+      ctx.beginPath()
+      ctx.moveTo(x, canvas.height)
+      ctx.lineTo(x + 140, canvas.height - h)
+      ctx.lineTo(x + 320, canvas.height)
+      ctx.fill()
     }
   }
 
-
-  function drawForest() {
-      // 🌌 tło
-      ctx.fillStyle = "#0b1a2f";
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-      // ⭐ gwiazdy
-      drawNewStars();
-
-      // =========================
-      // 🌫️ PRAWdziWA MGŁA
-      // =========================
-      drawRealFog();
-
-      // =========================
-      // 🌲 WARSTWA 1 (daleko)
-      // =========================
-      for (let i = 0; i < 40; i++) {
-          if (i % 3 === 0) continue;
-          let x = (i * 90 - cameraX * 0.2) % (canvas.width + 200);
-          let h = 80 + (i * 37 % 60);
-          let w = 40 + (i * 23 % 30);
-
-          ctx.fillStyle = "#0a1f16";
-          ctx.beginPath();
-          ctx.moveTo(x, canvas.height);
-          ctx.lineTo(x + w/2, canvas.height - h);
-          ctx.lineTo(x + w, canvas.height);
-          ctx.fill();
-      }
-
-      // =========================
-      // 🌲 WARSTWA 2 (środek)
-      // =========================
-      for (let i = 0; i < 30; i++) {
-          if (i % 3 === 0) continue;
-          let x = (i * 120 - cameraX * 0.4) % (canvas.width + 200);
-          let h = 120 + (i * 47 % 100);
-          let w = 50 + (i * 31 % 40);
-
-          ctx.fillStyle = "#123524";
-          ctx.fillRect(x + w/2 - 3, canvas.height - h, 6, h);
-
-          ctx.beginPath();
-          ctx.moveTo(x, canvas.height - h + 30);
-          ctx.lineTo(x + w/2, canvas.height - h - 40);
-          ctx.lineTo(x + w, canvas.height - h + 30);
-          ctx.fill();
-      }
-
-      // =========================
-      // 🌲 WARSTWA 3 (przód)
-      // =========================
-      for (let i = 0; i < 20; i++) {
-          if (i % 3 !== 0) continue;
-          let x = (i * 160 - cameraX * 0.7) % (canvas.width + 200);
-          let h = 160 + (i * 63 % 120);
-          let w = 60 + (i * 27 % 40);
-
-          ctx.fillStyle = "#1f5f2e";
-          // pień
-          ctx.fillRect(x + w/2 - 4, canvas.height - h, 8, h);
-
-          // korona 1
-          ctx.beginPath();
-          ctx.moveTo(x, canvas.height - h + 60);
-          ctx.lineTo(x + w/2, canvas.height - h - 60);
-          ctx.lineTo(x + w, canvas.height - h + 60);
-          ctx.fill();
-
-          // korona 2
-          ctx.beginPath();
-          ctx.moveTo(x + 10, canvas.height - h + 90);
-          ctx.lineTo(x + w/2, canvas.height - h - 20);
-          ctx.lineTo(x + w - 10, canvas.height - h + 90);
-          ctx.fill();
-      }
-
-      // 🌑 ziemia
-      ctx.fillStyle = "#0a1a12";
-      ctx.fillRect(0, canvas.height - 40, canvas.width, 40);
+  if (bgType === "rain"){
+    ctx.fillStyle = "#0b0f1a"
+    ctx.fillRect(0, 0, canvas.width, canvas.height)
+    ctx.strokeStyle = "#88aaff"
+    ctx.lineWidth = 1
+    for (let i = 0; i < 120; i++){
+      let x = (i * 97 - cameraX * 0.2) % 2000
+      let y = (i * 53 + Date.now() * 0.5) % canvas.height
+      ctx.beginPath()
+      ctx.moveTo(x, y)
+      ctx.lineTo(x + 3, y + 10)
+      ctx.stroke()
+    }
+    if (Math.random() < 0.005){
+      ctx.fillStyle = "rgba(255,255,255,0.2)"
+      ctx.fillRect(0, 0, canvas.width, canvas.height)
+    }
   }
 
-  // =======================
-  // NOWA FUNKCJA Z PRAWdziWĄ MGŁĄ
-  // =======================
-  function drawRealFog() {
-      const w = canvas.width;
-      const h = canvas.height;
+  if (bgType === "west") {
+    let skyGrad = ctx.createLinearGradient(0, 0, 0, canvas.height * 0.7)
+    skyGrad.addColorStop(0, "#ff4d00")
+    skyGrad.addColorStop(0.4, "#ff8c33")
+    skyGrad.addColorStop(0.7, "#ffbb77")
+    skyGrad.addColorStop(1, "#ffe0b3")
+    ctx.fillStyle = skyGrad
+    ctx.fillRect(0, 0, canvas.width, canvas.height)
 
-      // 1. Lekka mgła bazowa (cały ekran)
-      ctx.fillStyle = "rgba(20, 45, 55, 0.25)";
-      ctx.fillRect(0, 0, w, h);
+    let purpleGrad = ctx.createLinearGradient(0, 0, 0, canvas.height * 0.35)
+    purpleGrad.addColorStop(0, "rgba(120, 40, 140, 0.25)")
+    purpleGrad.addColorStop(1, "rgba(120, 40, 140, 0)")
+    ctx.fillStyle = purpleGrad
+    ctx.fillRect(0, 0, canvas.width, canvas.height)
 
-      // 2. Gradient mgły od dołu (najgęstsza przy ziemi)
-      const fogGradient = ctx.createLinearGradient(0, h * 0.4, 0, h);
-      fogGradient.addColorStop(0, "rgba(25, 55, 65, 0.0)");
-      fogGradient.addColorStop(0.4, "rgba(25, 55, 65, 0.35)");
-      fogGradient.addColorStop(0.7, "rgba(18, 48, 55, 0.55)");
-      fogGradient.addColorStop(1, "rgba(10, 35, 40, 0.65)");
+    let sunX = canvas.width - 140
+    let sunY = 110
+    ctx.fillStyle = "rgba(255, 220, 100, 0.35)"
+    ctx.beginPath(); ctx.arc(sunX, sunY, 75, 0, Math.PI * 2); ctx.fill()
+    ctx.fillStyle = "rgba(255, 200, 80, 0.25)"
+    ctx.beginPath(); ctx.arc(sunX, sunY, 110, 0, Math.PI * 2); ctx.fill()
+    ctx.fillStyle = "#ffdd77"
+    ctx.beginPath(); ctx.arc(sunX, sunY, 48, 0, Math.PI * 2); ctx.fill()
 
-      ctx.fillStyle = fogGradient;
-      ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = "#c46a2e"
+    for (let i = 0; i < 8; i++) {
+      let x = (i * 280 - cameraX * 0.1) % (canvas.width + 400) - 100
+      let h = 95 + (i * 37 % 70)
+      ctx.beginPath()
+      ctx.moveTo(x, canvas.height - 100)
+      ctx.lineTo(x + 140, canvas.height - 100 - h)
+      ctx.lineTo(x + 290, canvas.height - 100)
+      ctx.fill()
+    }
 
-      // 3. Dodatkowe miękkie pasy mgły (dla głębi)
-      ctx.globalAlpha = 0.25;
-      for (let i = 0; i < 5; i++) {
-          const y = h * 0.45 + i * 45;
-          const alpha = 0.12 - i * 0.015;
-          
-          ctx.fillStyle = `rgba(30, 70, 75, ${alpha})`;
-          ctx.fillRect(0, y, w, 90);
-      }
-      ctx.globalAlpha = 1.0;
+    ctx.fillStyle = "#a04d1f"
+    for (let i = 0; i < 7; i++) {
+      let x = (i * 340 - cameraX * 0.25) % (canvas.width + 500) - 80
+      let h = 135 + (i * 51 % 110)
+      ctx.beginPath()
+      ctx.moveTo(x, canvas.height - 100)
+      ctx.lineTo(x + 160, canvas.height - 100 - h)
+      ctx.lineTo(x + 340, canvas.height - 100)
+      ctx.fill()
+    }
 
-      // 4. Bardzo delikatna mgła na samej górze (żeby nie odcinać gwiazd)
-      ctx.fillStyle = "rgba(40, 80, 90, 0.08)";
-      ctx.fillRect(0, 0, w, h * 0.35);
+    let groundGrad = ctx.createLinearGradient(0, canvas.height - 130, 0, canvas.height)
+    groundGrad.addColorStop(0, "#e8b57c")
+    groundGrad.addColorStop(1, "#c17f3f")
+    ctx.fillStyle = groundGrad
+    ctx.fillRect(0, canvas.height - 130, canvas.width, 130)
+    ctx.fillStyle = "#9f5f2a"
+    ctx.fillRect(0, canvas.height - 55, canvas.width, 55)
+
+    ctx.fillStyle = "#2a8c4a"
+    for (let i = 0; i < 12; i++) {
+      let x = (i * 190 - cameraX * 0.7) % (canvas.width + 300) - 30
+      let baseY = canvas.height - 95
+      ctx.fillRect(x + 8, baseY - 65, 18, 70)
+      ctx.fillRect(x - 6, baseY - 48, 16, 22)
+      ctx.fillRect(x + 24, baseY - 38, 14, 18)
+    }
+
+    ctx.fillStyle = "#b36d38"
+    for (let i = 0; i < 15; i++) {
+      let x = (i * 85 - cameraX * 0.85) % (canvas.width + 150)
+      let size = 18 + (i % 5) * 7
+      ctx.beginPath()
+      ctx.ellipse(x, canvas.height - 48, size, size * 0.45, 0, 0, Math.PI * 2)
+      ctx.fill()
+    }
   }
 
+  if (bgType === "city"){
+    drawNewStars()
 
-  // ================= 🤠 WEST
-  // ================= 🤠 WILD WEST
-  if (backgroundType === "west") {
+    for (let i = 0; i < 20; i++){
+      let x = (i * 160 - cameraX * 0.3) % (canvas.width + 200)
+      let h = 120 + (i*37 % 200)
+      let w = 100
 
-      // =====================
-      // NIEBO + ZACHÓD SŁOŃCA
-      // =====================
-      let skyGrad = ctx.createLinearGradient(0, 0, 0, canvas.height * 0.7);
-      skyGrad.addColorStop(0, "#ff4d00");   // pomarańczowo-czerwone
-      skyGrad.addColorStop(0.4, "#ff8c33");
-      skyGrad.addColorStop(0.7, "#ffbb77");
-      skyGrad.addColorStop(1, "#ffe0b3");
+      ctx.fillStyle = "#1e2a3a"
+      ctx.fillRect(x, canvas.height - h, w, h)
 
-      ctx.fillStyle = skyGrad;
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-      // delikatny fiolet na górze (lepszy zachód)
-      let purpleGrad = ctx.createLinearGradient(0, 0, 0, canvas.height * 0.35);
-      purpleGrad.addColorStop(0, "rgba(120, 40, 140, 0.25)");
-      purpleGrad.addColorStop(1, "rgba(120, 40, 140, 0)");
-
-      ctx.fillStyle = purpleGrad;
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-      // =====================
-      // SŁOŃCE z poświatą
-      // =====================
-      let sunX = canvas.width - 140;
-      let sunY = 110;
-
-      // poświata
-      ctx.fillStyle = "rgba(255, 220, 100, 0.35)";
-      ctx.beginPath();
-      ctx.arc(sunX, sunY, 75, 0, Math.PI * 2);
-      ctx.fill();
-
-      ctx.fillStyle = "rgba(255, 200, 80, 0.25)";
-      ctx.beginPath();
-      ctx.arc(sunX, sunY, 110, 0, Math.PI * 2);
-      ctx.fill();
-
-      // samo słońce
-      ctx.fillStyle = "#ffdd77";
-      ctx.beginPath();
-      ctx.arc(sunX, sunY, 48, 0, Math.PI * 2);
-      ctx.fill();
-
-      // =====================
-      // GÓRY / WZGÓRZA
-      // =====================
-      // warstwa 1 - daleka
-      ctx.fillStyle = "#c46a2e";
-      for (let i = 0; i < 8; i++) {
-          let x = (i * 280 - cameraX * 0.1) % (canvas.width + 400) - 100;
-          let h = 95 + (i * 37 % 70);
-
-          ctx.beginPath();
-          ctx.moveTo(x, canvas.height - 100);
-          ctx.lineTo(x + 140, canvas.height - 100 - h);
-          ctx.lineTo(x + 290, canvas.height - 100);
-          ctx.fill();
-      }
-
-      // warstwa 2 - bliższa, ciemniejsza
-      ctx.fillStyle = "#a04d1f";
-      for (let i = 0; i < 7; i++) {
-          let x = (i * 340 - cameraX * 0.25) % (canvas.width + 500) - 80;
-          let h = 135 + (i * 51 % 110);
-
-          ctx.beginPath();
-          ctx.moveTo(x, canvas.height - 100);
-          ctx.lineTo(x + 160, canvas.height - 100 - h);
-          ctx.lineTo(x + 340, canvas.height - 100);
-          ctx.fill();
-      }
-
-      // =====================
-      // ZIEMIA / PIACH
-      // =====================
-      let groundGrad = ctx.createLinearGradient(0, canvas.height - 130, 0, canvas.height);
-      groundGrad.addColorStop(0, "#e8b57c");
-      groundGrad.addColorStop(1, "#c17f3f");
-
-      ctx.fillStyle = groundGrad;
-      ctx.fillRect(0, canvas.height - 130, canvas.width, 130);
-
-      // cień na dole
-      ctx.fillStyle = "#9f5f2a";
-      ctx.fillRect(0, canvas.height - 55, canvas.width, 55);
-
-      // =====================
-      // KAKTUSY
-      // =====================
-      ctx.fillStyle = "#2a8c4a";
-      for (let i = 0; i < 12; i++) {
-          let x = (i * 190 - cameraX * 0.7) % (canvas.width + 300) - 30;
-          let baseY = canvas.height - 95;
-
-          // główny pień
-          ctx.fillRect(x + 8, baseY - 65, 18, 70);
-          
-          // ramiona
-          ctx.fillRect(x - 6, baseY - 48, 16, 22);
-          ctx.fillRect(x + 24, baseY - 38, 14, 18);
-
-          // kolce (drobne detale)
-          ctx.fillStyle = "#236d3b";
-          ctx.fillRect(x + 12, baseY - 55, 2, 45);
-          ctx.fillStyle = "#2a8c4a";
-      }
-
-      // =====================
-      // DODATKOWE DETALE: skałki / krzaki
-      // =====================
-      ctx.fillStyle = "#b36d38";
-      for (let i = 0; i < 15; i++) {
-          let x = (i * 85 - cameraX * 0.85) % (canvas.width + 150);
-          let size = 18 + (i % 5) * 7;
-
-          ctx.beginPath();
-          ctx.ellipse(x, canvas.height - 48, size, size * 0.45, 0, 0, Math.PI * 2);
-          ctx.fill();
-      }
-  }
-  // ================= 🌌 CITY + STARS
-
-if(backgroundType === "city"){
-
-  // ⭐ GWIAZDY (tło)
-  drawNewStars()
-
-  // 🏙️ MIASTO (na wierzchu)
-  for (let i=0; i<20; i++){
-
-    let x = (i * 160 - cameraX * 0.3) % (canvas.width + 200);
-
-    let h = 120 + (i*37 % 200);
-    let w = 100;
-
-    ctx.fillStyle = "#1e2a3a";
-    ctx.fillRect(x, canvas.height - h, w, h);
-
-    // okna
-    for (let wy=0; wy<h; wy+=30){
-      for (let wx=0; wx<w; wx+=25){
-
-        if ((wx + wy + i) % 3 !== 0) continue;
-
-        ctx.fillStyle = ((wx + wy + i) % 5 === 0) ? "#333" : "#ffd966";
-        ctx.fillRect(x + wx + 5, canvas.height - h + wy + 5, 8, 12);
+      for (let wy = 0; wy < h; wy += 30){
+        for (let wx = 0; wx < w; wx += 25){
+          if ((wx + wy + i) % 3 !== 0) continue
+          ctx.fillStyle = ((wx + wy + i) % 5 === 0) ? "#333" : "#ffd966"
+          ctx.fillRect(x + wx + 5, canvas.height - h + wy + 5, 8, 12)
+        }
       }
     }
   }
-}
 
-  if (backgroundType === "stars" || backgroundType === "neon") {
+  if (bgType === "stars" || bgType === "neon") {
+    let grad = ctx.createLinearGradient(0, 0, 0, canvas.height)
+    grad.addColorStop(0, "#0a001f")
+    grad.addColorStop(1, "#1a0033")
+    ctx.fillStyle = grad
+    ctx.fillRect(0, 0, canvas.width, canvas.height)
 
-    // === TŁO GRADIENT ===
-    let grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
-    grad.addColorStop(0, "#0a001f");
-    grad.addColorStop(1, "#1a0033");
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    // === GWIAZDY (particles) ===
     if (!window.bgParticles) {
-      window.bgParticles = [];
+      window.bgParticles = []
       for (let i = 0; i < 90; i++) {
         window.bgParticles.push({
           x: Math.random() * canvas.width,
           y: Math.random() * canvas.height,
           size: Math.random() * 2.2 + 0.7,
-          speed: Math.random() * 0.3 + 0.1   // 🔥 wolniejsze = spokojniejsze
-        });
+          speed: Math.random() * 0.3 + 0.1
+        })
       }
     }
 
-    ctx.fillStyle = "#ffffff";
-
+    ctx.fillStyle = "#ffffff"
     window.bgParticles.forEach(p => {
-      p.y += p.speed;
-
-      if (p.y > canvas.height) p.y = -5;
-
-      // delikatne mruganie
-      ctx.globalAlpha = 0.6 + Math.sin(Date.now()/500 + p.x) * 0.3;
-
-      ctx.fillRect(p.x, p.y, p.size, p.size);
-    });
-
-    ctx.globalAlpha = 1;
+      p.y += p.speed
+      if (p.y > canvas.height) p.y = -5
+      ctx.globalAlpha = 0.6 + Math.sin(Date.now()/500 + p.x) * 0.3
+      ctx.fillRect(p.x, p.y, p.size, p.size)
+    })
+    ctx.globalAlpha = 1
   }
 }
 
-function zapiszUstawienia(){
-  autoScroll = document.getElementById("autoScrollToggle").checked
-  autoScrollSpeed = Number(document.getElementById("scrollSpeed").value)
+function drawForest() {
+  ctx.fillStyle = "#0b1a2f"
+  ctx.fillRect(0, 0, canvas.width, canvas.height)
+
+  drawNewStars()
+  drawRealFog()
+
+  for (let i = 0; i < 40; i++) {
+    if (i % 3 === 0) continue
+    let x = (i * 90 - cameraX * 0.2) % (canvas.width + 200)
+    let h = 80 + (i * 37 % 60)
+    let w = 40 + (i * 23 % 30)
+    ctx.fillStyle = "#0a1f16"
+    ctx.beginPath()
+    ctx.moveTo(x, canvas.height)
+    ctx.lineTo(x + w/2, canvas.height - h)
+    ctx.lineTo(x + w, canvas.height)
+    ctx.fill()
+  }
+
+  for (let i = 0; i < 30; i++) {
+    if (i % 3 === 0) continue
+    let x = (i * 120 - cameraX * 0.4) % (canvas.width + 200)
+    let h = 120 + (i * 47 % 100)
+    let w = 50 + (i * 31 % 40)
+    ctx.fillStyle = "#123524"
+    ctx.fillRect(x + w/2 - 3, canvas.height - h, 6, h)
+    ctx.beginPath()
+    ctx.moveTo(x, canvas.height - h + 30)
+    ctx.lineTo(x + w/2, canvas.height - h - 40)
+    ctx.lineTo(x + w, canvas.height - h + 30)
+    ctx.fill()
+  }
+
+  for (let i = 0; i < 20; i++) {
+    if (i % 3 !== 0) continue
+    let x = (i * 160 - cameraX * 0.7) % (canvas.width + 200)
+    let h = 160 + (i * 63 % 120)
+    let w = 60 + (i * 27 % 40)
+    ctx.fillStyle = "#1f5f2e"
+    ctx.fillRect(x + w/2 - 4, canvas.height - h, 8, h)
+    ctx.beginPath()
+    ctx.moveTo(x, canvas.height - h + 60)
+    ctx.lineTo(x + w/2, canvas.height - h - 60)
+    ctx.lineTo(x + w, canvas.height - h + 60)
+    ctx.fill()
+    ctx.beginPath()
+    ctx.moveTo(x + 10, canvas.height - h + 90)
+    ctx.lineTo(x + w/2, canvas.height - h - 20)
+    ctx.lineTo(x + w - 10, canvas.height - h + 90)
+    ctx.fill()
+  }
+
+  ctx.fillStyle = "#0a1a12"
+  ctx.fillRect(0, canvas.height - 40, canvas.width, 40)
+}
+
+function drawRealFog() {
+  const w = canvas.width
+  const h = canvas.height
+
+  ctx.fillStyle = "rgba(20, 45, 55, 0.25)"
+  ctx.fillRect(0, 0, w, h)
+
+  const fogGradient = ctx.createLinearGradient(0, h * 0.4, 0, h)
+  fogGradient.addColorStop(0, "rgba(25, 55, 65, 0.0)")
+  fogGradient.addColorStop(0.4, "rgba(25, 55, 65, 0.35)")
+  fogGradient.addColorStop(0.7, "rgba(18, 48, 55, 0.55)")
+  fogGradient.addColorStop(1, "rgba(10, 35, 40, 0.65)")
+  ctx.fillStyle = fogGradient
+  ctx.fillRect(0, 0, w, h)
+
+  ctx.globalAlpha = 0.25
+  for (let i = 0; i < 5; i++) {
+    const y = h * 0.45 + i * 45
+    const alpha = 0.12 - i * 0.015
+    ctx.fillStyle = `rgba(30, 70, 75, ${alpha})`
+    ctx.fillRect(0, y, w, 90)
+  }
+  ctx.globalAlpha = 1.0
+
+  ctx.fillStyle = "rgba(40, 80, 90, 0.08)"
+  ctx.fillRect(0, 0, w, h * 0.35)
 }
 
 function setRespawnMode(mode, showAlert = true){
-  respawnMode = mode;
+  respawnMode = mode
 
   if (showAlert) {
-    alert("Tryb respawn: " + (mode === "death" ? "miejsce śmierci" : "punkt startowy"));
+    alert("Tryb respawn: " + (mode === "death" ? "miejsce śmierci" : "punkt startowy"))
   }
 
-  document.getElementById("respDeath")?.classList.toggle("active", mode === "death");
-  document.getElementById("respStart")?.classList.toggle("active", mode === "start");
+  document.getElementById("respDeath")?.classList.toggle("active", mode === "death")
+  document.getElementById("respStart")?.classList.toggle("active", mode === "start")
 }
 
 function updateRespawnLock(){
@@ -4015,92 +3402,69 @@ function updateRespawnLock(){
 
   if (checkbox.checked) {
     setRespawnMode("death", false)
-
     btnStart.disabled = true
     btnStart.style.opacity = 0.4
     btnStart.style.pointerEvents = "none"
-
   } else {
     btnStart.disabled = false
     btnStart.style.opacity = 1
     btnStart.style.pointerEvents = "auto"
   }
-
 }
 
 function resetBackground(){
-  backgroundType = "none";
+  backgroundType = "none"
 }
 
-
 function wyjdzDoMenu() {
-  location.reload(); // pełny reset jak teraz
+  location.reload()
 }
 
 function wrocDoEdytora() {
-  trybGry = false;
-  gameState = "game";
-  gameOver = false;
-  gameOverTriggered = false;
+  trybGry = false
+  gameState = "game"
+  gameOver = false
+  gameOverTriggered = false
 
-  // reset gracza do startu
   if (players.length > 0) {
-    players[0].x = playerStartX;
-    players[0].y = playerStartY;
-    players[0].vx = 0;
-    players[0].vy = 0;
+    players[0].x = playerStartX
+    players[0].y = playerStartY
+    players[0].vx = 0
+    players[0].vy = 0
   }
 
-  counters.time = startTime;
-
-  alert("🛠 Wracasz do edytora");
+  counters.time = startTime
+  alert("🛠 Wracasz do edytora")
 }
 
 function pokazAutorModal(){
   document.getElementById("autorModal").style.display = "flex"
-
   document.getElementById("nazwaInput").value = nazwaGry || ""
   document.getElementById("autorInput").value = autorGry || ""
   document.getElementById("opisInput").value  = opisGry  || ""
 }
 
 function zapiszAutora(){
-
   let nazwa = document.getElementById("nazwaInput").value
   let autor = document.getElementById("autorInput").value
   let opis  = document.getElementById("opisInput").value
 
-  if (nazwa && nazwa.trim() !== "") {
-    nazwaGry = nazwa.trim()
-  }
-
-  if (autor && autor.trim() !== "") {
-    autorGry = autor.trim()
-  }
-
+  if (nazwa && nazwa.trim() !== "") nazwaGry = nazwa.trim()
+  if (autor && autor.trim() !== "") autorGry = autor.trim()
   opisGry = opis || ""
 
   document.getElementById("autorModal").style.display = "none"
-
   alert("Zapisano dane gry ✔️")
 }
 
 function pokazUstawienia() {
-
   let html = `
-
     <h3>O TWÓRCY GRY</h3>
-
     <div style="margin-top:10px;">
-      <button onclick="ustawAutora()">
-        ✍️ krótki opis
-      </button>
+      <button onclick="ustawAutora()">✍️ krótki opis</button>
     </div>
-
     <br><br>
-
     <h3>USTAWIENIA ŚWIATA</h3>
-
     🌍 Długość świata:
     <br><br>
     min. 800
@@ -4113,52 +3477,41 @@ function pokazUstawienia() {
           style="width:80px;"
           oninput="limitWorldInput(this)">
     <br><br>
-
     <button onclick="zapiszUstawieniaSwiata()">ZAPISZ</button>
   `
-
   document.getElementById("panel").innerHTML = html
 }
 
 function zapiszUstawieniaSwiata(){
-
   let val = Number(document.getElementById("editWorld").value)
-
   if (isNaN(val)) return
-
   if (val < 800) val = 800
-  if (val > 10000) val = 10000   // 🔥 LIMIT
-
+  if (val > 10000) val = 10000
   worldWidth = val
-
   scrollX.max = worldWidth - canvas.width
-
   alert("✅ Długość świata: " + worldWidth)
 }
 
 function limitWorldInput(el){
-
   let val = Number(el.value)
-
   if (val > 10000) el.value = 10000
   if (val < 800) el.value = 800
 }
 
 function respawnPlayer(){
-  if (!players[0]) return;
+  if (!players[0]) return
 
-  const lvl = getLevel();
-  players[0].x = lvl.playerStartX ?? 150;
-  players[0].y = lvl.playerStartY ?? 300;
-  players[0].vx = 0;
-  players[0].vy = 0;
+  const lvl = getLevel()
+  players[0].x = lvl?.playerStartX ?? 150
+  players[0].y = lvl?.playerStartY ?? 300
+  players[0].vx = 0
+  players[0].vy = 0
 
-  cameraX = Math.max(0, players[0].x - canvas.width / 2);
-  syncScrollbar();
+  cameraX = Math.max(0, players[0].x - canvas.width / 2)
+  syncScrollbar()
 }
 
 function initAfterLoad(){
-
   if (!levels || levels.length === 0) {
     levels = [{
       platforms: [],
@@ -4173,18 +3526,14 @@ function initAfterLoad(){
   }
 
   currentLevel = 0
-
   syncLevelData()
   renderLevelsBar()
 
-  // 🔥 DODAJ TO
   const lvl = getLevel()
-
   playerStartX = lvl.playerStartX ?? 100
   playerStartY = lvl.playerStartY ?? 100
 
-  respawnPlayer()   // 🔥 i to też
-
+  respawnPlayer()
   cameraX = 0
 
   selectedObject = null
@@ -4194,9 +3543,8 @@ function initAfterLoad(){
 }
 
 function drawMatrix(){
-
   matrixFrame++
-  
+
   ctx.fillStyle = "rgba(0,0,0,0.2)"
   ctx.fillRect(0, 0, canvas.width, canvas.height)
 
@@ -4204,9 +3552,7 @@ function drawMatrix(){
   ctx.font = "22px monospace"
 
   for (let i = 0; i < matrixCols.length; i++) {
-
     let text
-
     if (matrixFrame % 4 === 0) {
       text = String.fromCharCode(48 + Math.floor(Math.random() * 10))
     } else {
@@ -4218,121 +3564,88 @@ function drawMatrix(){
 
     ctx.fillText(text, x, y)
 
-    if (y > canvas.height && Math.random() > 0.975) {
-      matrixCols[i] = 0
-    }
-
+    if (y > canvas.height && Math.random() > 0.975) matrixCols[i] = 0
     matrixCols[i] += 0.2
   }
 }
 
-function drawStars(){
-
-  for (let i=0; i<150; i++){
-
-    let x = (Math.sin(i * 999) * 10000) % canvas.width;
-    let y = (Math.cos(i * 777) * 10000) % canvas.height;
-
-    if (x < 0) x += canvas.width;
-    if (y < 0) y += canvas.height;
-
-    let size = (i % 3) + 1;
-
-    ctx.fillStyle = "#ffffff";
-    ctx.fillRect(x, y, size, size);
-  }
-}
-
 function drawPlayer(ctx, x, y, r, time){
-    // x i y są już w świecie (po translate(-cameraX, 0))
-    let drawX = x;  
-    let pulse = Math.sin(time * 0.005) * 2.5;
+  let pulse = Math.sin(time * 0.005) * 2.5
 
-    // Gradient
-    let grad = ctx.createRadialGradient(
-        drawX - r*0.35, y - r*0.35, r*0.25,
-        drawX, y, r + pulse
-    );
-    grad.addColorStop(0, "#ffeb3b");   // jasny żółty
-    grad.addColorStop(1, "#ff5722");   // pomarańczowy
+  let grad = ctx.createRadialGradient(
+    x - r*0.35, y - r*0.35, r*0.25,
+    x, y, r + pulse
+  )
+  grad.addColorStop(0, "#ffeb3b")
+  grad.addColorStop(1, "#ff5722")
 
-    ctx.shadowColor = "#ff9800";
-    ctx.shadowBlur = 25;
+  ctx.shadowColor = "#ff9800"
+  ctx.shadowBlur = 25
+  ctx.fillStyle = grad
+  ctx.beginPath()
+  ctx.arc(x, y, r + pulse, 0, Math.PI * 2)
+  ctx.fill()
+  ctx.shadowBlur = 0
 
-    ctx.fillStyle = grad;
-    ctx.beginPath();
-    ctx.arc(drawX, y, r + pulse, 0, Math.PI * 2);
-    ctx.fill();
+  ctx.fillStyle = "#111"
+  ctx.beginPath()
+  ctx.arc(x - r*0.32, y - r*0.22, r*0.13, 0, Math.PI * 2)
+  ctx.fill()
+  ctx.beginPath()
+  ctx.arc(x + r*0.32, y - r*0.22, r*0.13, 0, Math.PI * 2)
+  ctx.fill()
 
-    ctx.shadowBlur = 0;
+  ctx.fillStyle = "white"
+  ctx.beginPath()
+  ctx.arc(x - r*0.35, y - r*0.27, r*0.04, 0, Math.PI * 2)
+  ctx.fill()
+  ctx.beginPath()
+  ctx.arc(x + r*0.29, y - r*0.27, r*0.04, 0, Math.PI * 2)
+  ctx.fill()
 
-    // Oczy
-    ctx.fillStyle = "#111";
-    ctx.beginPath();
-    ctx.arc(drawX - r*0.32, y - r*0.22, r*0.13, 0, Math.PI * 2);
-    ctx.arc(drawX + r*0.32, y - r*0.22, r*0.13, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Białka oczu / błysk
-    ctx.fillStyle = "white";
-    ctx.beginPath();
-    ctx.arc(drawX - r*0.35, y - r*0.27, r*0.04, 0, Math.PI * 2);
-    ctx.arc(drawX + r*0.29, y - r*0.27, r*0.04, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Uśmiech
-    ctx.strokeStyle = "#111";
-    ctx.lineWidth = 2.5;
-    ctx.beginPath();
-    ctx.arc(drawX, y + r*0.15, r*0.35, 0.2, Math.PI - 0.2);
-    ctx.stroke();
+  ctx.strokeStyle = "#111"
+  ctx.lineWidth = 2.5
+  ctx.beginPath()
+  ctx.arc(x, y + r*0.15, r*0.35, 0.2, Math.PI - 0.2)
+  ctx.stroke()
 }
 
 function drawNewStars(){
+  let grad = ctx.createLinearGradient(0, 0, 0, canvas.height)
+  grad.addColorStop(0, "#0a001f")
+  grad.addColorStop(1, "#1a0033")
+  ctx.fillStyle = grad
+  ctx.fillRect(0, 0, canvas.width, canvas.height)
 
-  // gradient
-  let grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
-  grad.addColorStop(0, "#0a001f");
-  grad.addColorStop(1, "#1a0033");
-  ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-  // particles
   if (!window.bgParticles) {
-    window.bgParticles = [];
+    window.bgParticles = []
     for (let i = 0; i < 90; i++) {
       window.bgParticles.push({
         x: Math.random() * canvas.width,
         y: Math.random() * canvas.height,
         size: Math.random() * 2.2 + 0.7,
         speed: Math.random() * 0.9 + 0.4
-      });
+      })
     }
   }
 
-  ctx.fillStyle = "#99ffff";
+  ctx.fillStyle = "#99ffff"
   window.bgParticles.forEach(p => {
-    p.y += p.speed;
-    if (p.y > canvas.height) p.y = -5;
-
-    ctx.globalAlpha = 0.75 + Math.sin(Date.now()/300 + p.x) * 0.25;
-    ctx.fillRect(p.x, p.y, p.size, p.size);
-  });
-
-  ctx.globalAlpha = 1;
+    p.y += p.speed
+    if (p.y > canvas.height) p.y = -5
+    ctx.globalAlpha = 0.75 + Math.sin(Date.now()/300 + p.x) * 0.25
+    ctx.fillRect(p.x, p.y, p.size, p.size)
+  })
+  ctx.globalAlpha = 1
 }
 
-// ================= KOMUNIKATY =================
 function pokazMsg(txt){
-
   let msg = document.createElement("div")
   msg.innerText = txt
-
   msg.style.position = "fixed"
-  msg.style.top = "20px"                 // 🔥 ZAMIANA
+  msg.style.top = "20px"
   msg.style.left = "50%"
   msg.style.transform = "translateX(-50%)"
-
   msg.style.background = "#222"
   msg.style.color = "#fff"
   msg.style.padding = "12px 18px"
@@ -4340,12 +3653,8 @@ function pokazMsg(txt){
   msg.style.boxShadow = "0 4px 12px rgba(0,0,0,0.6)"
   msg.style.zIndex = "9999"
   msg.style.fontWeight = "bold"
-
   document.body.appendChild(msg)
-
-  setTimeout(() => {
-    msg.remove()
-  }, 2000)
+  setTimeout(() => msg.remove(), 2000)
 }
 
 // ================= START =================
@@ -4353,43 +3662,37 @@ updateButtonStates()
 renderLevelsBar()
 syncLevelData()
 
-const lvl = getLevel()
-
-playerStartX = lvl.playerStartX ?? 100
-playerStartY = lvl.playerStartY ?? 100
+const initLvl = getLevel()
+playerStartX = initLvl.playerStartX ?? 100
+playerStartY = initLvl.playerStartY ?? 100
 
 respawnPlayer()
 
 function loop(time){
-
   if (time - lastFrame < frameDelay) {
     requestAnimationFrame(loop)
     return
   }
-
   lastFrame = time
-
   update()
   draw()
-
   requestAnimationFrame(loop)
 }
 
-// START
 requestAnimationFrame(loop)
 </script>
-<!-- 🔵 MODAL AUTORA -->
+
+<!-- MODAL AUTORA -->
 <div id="autorModal" style="
   position:fixed;
   top:0; left:0;
   width:100%; height:100%;
-  background:rgba(0, 0, 0, 0.5);
+  background:rgba(0,0,0,0.5);
   display:none;
   justify-content:center;
   align-items:center;
   z-index:9999;
 ">
-
   <div style="
     background:#fff;
     padding:20px;
@@ -4399,22 +3702,15 @@ requestAnimationFrame(loop)
   ">
     <p>Nazwa gry:</p>
     <input id="nazwaInput">
-
     <br><br>
-
     <p>Opis gry:</p>
     <textarea id="opisInput" style="width:100%; height:60px;"></textarea>
-
-    <br><br>    
-
+    <br><br>
     <p>Autor:</p>
     <input id="autorInput">
-
     <br><br>
-
     <button onclick="zapiszAutora()">OK</button>
   </div>
-
 </div>
 
 </body>
