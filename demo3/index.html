@@ -506,7 +506,30 @@ function showFxList(){
   trybFX = false
   updateButtonStates()
 
-  let html = `<h3>Efekty</h3>`
+  // Jeśli to platforma — pokaż opcję kolizji na górze
+  let html = ""
+  const isPlatform = selectedObject.typ === "round" || selectedObject.typ === "rect" || selectedObject.typ === "line"
+  if (isPlatform) {
+    const solidVal = selectedObject.solid || "top"
+    html += `
+      <h4 style="margin-bottom:6px;">KOLIZJA</h4>
+      <div style="display:flex; gap:6px; margin-bottom:12px;">
+        <button onclick="setSolid('top')"
+          style="flex:1; padding:6px; border-radius:6px; border:2px solid ${solidVal==='top'?'#4CAF50':'#555'};
+                 background:${solidVal==='top'?'#2e7d32':'#333'}; color:white; cursor:pointer;">
+          ↓ tylko z góry
+        </button>
+        <button onclick="setSolid('full')"
+          style="flex:1; padding:6px; border-radius:6px; border:2px solid ${solidVal==='full'?'#4CAF50':'#555'};
+                 background:${solidVal==='full'?'#2e7d32':'#333'}; color:white; cursor:pointer;">
+          ↕ góra + dół
+        </button>
+      </div>
+      <hr style="border-color:#444; margin-bottom:12px;">
+    `
+  }
+
+  html += `<h3>Efekty</h3>`
   if (!selectedObject.effects || selectedObject.effects.length === 0) {
     html += `<p style="color:#888">Brak efektów</p>`
   } else {
@@ -535,6 +558,12 @@ function showFxList(){
     <button onclick="kopiujObiekt()">📋 KOPIUJ</button>
   `
   document.getElementById("panel").innerHTML = html
+}
+
+function setSolid(val) {
+  if (!selectedObject) return
+  selectedObject.solid = val
+  showFxList()  // odśwież panel żeby zaktualizować podświetlenie przycisków
 }
 
 function toggleFx(index){
@@ -799,65 +828,69 @@ function pokazPlatformy(){
 function drawPlatformPreview(canvasId, typ) {
   const previewCanvas = document.getElementById(canvasId)
   if (!previewCanvas) return
-  const pctx = previewCanvas.getContext("2d")
-
-  const w = previewCanvas.width
-  const h = previewCanvas.height
-
-  pctx.clearRect(0, 0, w, h)
+  const p = previewCanvas.getContext("2d")
+  const w = previewCanvas.width, h = previewCanvas.height
+  p.clearRect(0, 0, w, h)
 
   if (typ === "line") {
-    const y = h / 2
-    pctx.strokeStyle = "#00dddd"
-    pctx.lineWidth = 4
-    pctx.shadowColor = "#00ffff"
-    pctx.shadowBlur = 12
-    pctx.beginPath()
-    pctx.moveTo(15, y)
-    pctx.lineTo(w - 15, y)
-    pctx.stroke()
-    pctx.shadowBlur = 0
+    const ly = h / 2
+    // Energetyczna belka
+    p.shadowColor = "#44aaff"; p.shadowBlur = 10
+    p.strokeStyle = "#5599ff"; p.lineWidth = 4
+    p.beginPath(); p.moveTo(14, ly); p.lineTo(w-14, ly); p.stroke()
+    p.shadowBlur = 0
+    // Biały połysk
+    p.strokeStyle = "rgba(255,255,255,0.6)"; p.lineWidth = 1.5
+    p.beginPath(); p.moveTo(20, ly); p.lineTo(w-20, ly); p.stroke()
+
+  } else if (typ === "round") {
+    const pad=10, pw=w-pad*2, ph=h-pad*2
+    // Gradient metaliczny
+    const grad = p.createLinearGradient(pad, pad, pad, pad+ph)
+    grad.addColorStop(0, "#6aaadd"); grad.addColorStop(0.3, "#4477bb"); grad.addColorStop(1, "#223366")
+    p.fillStyle = grad
+    p.beginPath(); p.roundRect(pad, pad, pw, ph, 8); p.fill()
+    // Obwódka
+    p.strokeStyle = "#88ccff"; p.lineWidth = 1.5
+    p.beginPath(); p.roundRect(pad+1, pad+1, pw-2, ph-2, 7); p.stroke()
+    // Połysk górny
+    const shine = p.createLinearGradient(pad, pad, pad, pad+ph*0.5)
+    shine.addColorStop(0, "rgba(255,255,255,0.25)"); shine.addColorStop(1, "rgba(255,255,255,0)")
+    p.fillStyle = shine
+    p.beginPath(); p.roundRect(pad+2, pad+2, pw-4, ph*0.5, 6); p.fill()
+    // Śruby
+    for (const [sx, sy] of [[pad+7, h/2], [w-pad-7, h/2]]) {
+      p.fillStyle="#1a3355"; p.beginPath(); p.arc(sx,sy,3,0,Math.PI*2); p.fill()
+      p.strokeStyle="#99ccff"; p.lineWidth=0.8; p.beginPath(); p.arc(sx,sy,3,0,Math.PI*2); p.stroke()
+      p.beginPath(); p.moveTo(sx-2,sy); p.lineTo(sx+2,sy); p.stroke()
+      p.beginPath(); p.moveTo(sx,sy-2); p.lineTo(sx,sy+2); p.stroke()
+    }
+
   } else {
-    const padding = 12
-    const ph = h - padding * 2
-
-    pctx.fillStyle = "#8B5A2B"
-    if (typ === "round") {
-      pctx.beginPath()
-      pctx.roundRect(padding, padding, w - padding*2, ph, 14)
-      pctx.fill()
-    } else {
-      pctx.fillRect(padding, padding, w - padding*2, ph)
+    const pad=10, pw=w-pad*2, ph=h-pad*2
+    // Gradient metaliczny
+    const grad = p.createLinearGradient(pad, pad, pad, pad+ph)
+    grad.addColorStop(0, "#5a8fcc"); grad.addColorStop(0.4, "#3a6499"); grad.addColorStop(1, "#1e3d66")
+    p.fillStyle = grad; p.fillRect(pad, pad, pw, ph)
+    // Obwódka
+    p.strokeStyle = "#6699cc"; p.lineWidth = 1.5
+    p.strokeRect(pad+0.5, pad+0.5, pw-1, ph-1)
+    // Połysk górny
+    const shine = p.createLinearGradient(pad, pad, pad, pad+ph*0.5)
+    shine.addColorStop(0, "rgba(255,255,255,0.22)"); shine.addColorStop(1, "rgba(255,255,255,0)")
+    p.fillStyle = shine; p.fillRect(pad+1, pad+1, pw-2, ph*0.5)
+    // Ciemna dolna krawędź
+    p.fillStyle = "rgba(0,0,0,0.3)"; p.fillRect(pad, pad+ph-3, pw, 3)
+    // Nity
+    const nitCount = Math.max(2, Math.floor(pw/28))
+    for (let i=0; i<nitCount; i++) {
+      const nx = pad+8+i*((pw-16)/(nitCount-1||1)), ny=h/2
+      p.fillStyle="#1a3355"; p.beginPath(); p.arc(nx,ny,2,0,Math.PI*2); p.fill()
+      p.strokeStyle="#aaddff"; p.lineWidth=0.7; p.beginPath(); p.arc(nx,ny,2,0,Math.PI*2); p.stroke()
     }
-
-    pctx.strokeStyle = "#3F2A1D"
-    pctx.lineWidth = 3.5
-    if (typ === "round") {
-      pctx.beginPath()
-      pctx.roundRect(padding + 2, padding + 2, w - padding*2 - 4, ph - 4, 12)
-      pctx.stroke()
-    } else {
-      pctx.strokeRect(padding + 2, padding + 2, w - padding*2 - 4, ph - 4)
-    }
-
-    pctx.strokeStyle = "#A67C5D"
-    pctx.lineWidth = 2.2
-
-    const lineCount = 4
-    for (let i = 1; i < lineCount; i++) {
-      let py = padding + (ph * i / lineCount)
-      pctx.beginPath()
-      pctx.moveTo(padding + 10, py)
-      pctx.quadraticCurveTo(w * 0.38, py + (i % 2 === 0 ? -1.5 : 1.5), w - padding - 10, py)
-      pctx.stroke()
-    }
-
-    pctx.strokeStyle = "#6B4426"
-    pctx.lineWidth = 1.4
-    pctx.beginPath()
-    pctx.moveTo(padding + 25, padding + 10)
-    pctx.quadraticCurveTo(w * 0.6, padding + 22, padding + 40, padding + ph - 12)
-    pctx.stroke()
+    // Krawędź światła
+    p.strokeStyle="rgba(150,200,255,0.35)"; p.lineWidth=1.5
+    p.beginPath(); p.moveTo(pad,pad+ph); p.lineTo(pad,pad); p.lineTo(pad+pw,pad); p.stroke()
   }
 }
 
@@ -2025,7 +2058,7 @@ function update(){
           }
           if (pl.solid === "full") {
             if (p.vy > 0) { p.y = pl.y - p.r; p.vy = 0 }
-            if (p.vy < 0) { p.y = pl.y + (pl.h||20) + p.r; p.vy = 0 }
+            if (p.vy < 0) { p.y = pl.y + (pl.h||20) + p.r; p.vy = 1 }
           }
         }
       }
