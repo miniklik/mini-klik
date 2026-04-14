@@ -1559,23 +1559,16 @@ canvas.addEventListener("mousedown", e => {
       for (let i = arr.length - 1; i >= 0; i--) {
         const o = arr[i]
         if (o.r && !o.w) {
-          const dx = mx - o.x
-          const dy = my - o.y
-          if (Math.hypot(dx, dy) < o.r + 6) {
-            arr.splice(i, 1)
-            trybKasowania = false
-            updateButtonStates()
-            return
+          if (Math.hypot(mx - o.x, my - o.y) < o.r + 8) {
+            arr.splice(i, 1); trybKasowania = false; updateButtonStates(); return
           }
         } else {
-          if (
-            mx >= o.x - 6 && mx <= o.x + (o.w||40) + 6 &&
-            my >= o.y - 6 && my <= o.y + (o.h||40) + 6
-          ) {
-            arr.splice(i, 1)
-            trybKasowania = false
-            updateButtonStates()
-            return
+          const ow = o.w || 40
+          const oh = Math.max(o.h || 40, 20) // minimum 20px strefa w pionie
+          const pad = 10
+          if (mx >= o.x - pad && mx <= o.x + ow + pad &&
+              my >= o.y - pad && my <= o.y + oh + pad) {
+            arr.splice(i, 1); trybKasowania = false; updateButtonStates(); return
           }
         }
       }
@@ -1630,54 +1623,48 @@ canvas.addEventListener("mousedown", e => {
     }
   }
 
-  // resize bloki — wszystkie 4 strony
+  // Pomocnik — czy kursor jest blisko punktu uchwytu (±10px)
+  function nearHandle(mx, my, hx, hy) {
+    return Math.abs(mx - hx) < 10 && Math.abs(my - hy) < 10
+  }
+
+  // === BLOKI — resize tylko na uchwytach, drag po całej powierzchni ===
   for (const b of blocks) {
     const bx = b.x, by = b.y, bw = b.w, bh = b.h
-    // prawo
-    if (mx > bx+bw-12 && mx < bx+bw+12 && my > by+8 && my < by+bh-8) {
-      resizing = b; resizing.resizeSide = "right"; selectedObject = b; return
-    }
-    // lewo
-    if (mx > bx-12 && mx < bx+12 && my > by+8 && my < by+bh-8) {
-      resizing = b; resizing.resizeSide = "left"; selectedObject = b; return
-    }
-    // dół
-    if (mx > bx+8 && mx < bx+bw-8 && my > by+bh-12 && my < by+bh+12) {
-      resizing = b; resizing.resizeSide = "bottom"; selectedObject = b; return
-    }
-    // góra
-    if (mx > bx+8 && mx < bx+bw-8 && my > by-12 && my < by+12) {
-      resizing = b; resizing.resizeSide = "top"; selectedObject = b; return
+    const hMid = by + bh/2   // środek w pionie
+    const wMid = bx + bw/2   // środek w poziomie
+
+    // Uchwyty — środki krawędzi
+    if (nearHandle(mx, my, bx + bw, hMid)) { resizing = b; b.resizeSide = "right";  selectedObject = b; return }
+    if (nearHandle(mx, my, bx,      hMid)) { resizing = b; b.resizeSide = "left";   selectedObject = b; return }
+    if (nearHandle(mx, my, wMid, by + bh)) { resizing = b; b.resizeSide = "bottom"; selectedObject = b; return }
+    if (nearHandle(mx, my, wMid, by     )) { resizing = b; b.resizeSide = "top";    selectedObject = b; return }
+
+    // Drag — cała powierzchnia z małą tolerancją
+    if (mx >= bx - 6 && mx <= bx + bw + 6 && my >= by - 6 && my <= by + bh + 6) {
+      selectedObject = b; dragging = b
+      dragOffsetX = mx - bx; dragOffsetY = my - by
+      return
     }
   }
 
+  // === PLATFORMY — resize tylko na uchwytach, drag po całej powierzchni ===
   for (const pl of platforms) {
-    const ph = pl.h || 20
-    // prawo
-    if (mx > pl.x+pl.w-12 && mx < pl.x+pl.w+12 && my > pl.y-6 && my < pl.y+ph+6) {
-      resizing = pl; resizing.resizeSide = "right"; selectedObject = pl; return
-    }
-    // lewo
-    if (mx > pl.x-12 && mx < pl.x+12 && my > pl.y-6 && my < pl.y+ph+6) {
-      resizing = pl; resizing.resizeSide = "left"; selectedObject = pl; return
-    }
-    // dół
-    if (mx > pl.x+8 && mx < pl.x+pl.w-8 && my > pl.y+ph-12 && my < pl.y+ph+12) {
-      resizing = pl; resizing.resizeSide = "bottom"; selectedObject = pl; return
-    }
-    // góra
-    if (mx > pl.x+8 && mx < pl.x+pl.w-8 && my > pl.y-12 && my < pl.y+12) {
-      resizing = pl; resizing.resizeSide = "top"; selectedObject = pl; return
-    }
-  }
+    const ph = Math.max(pl.h || 20, 20)
+    const px = pl.x, py = pl.y, pw = pl.w
+    const hMid = py + ph/2
+    const wMid = px + pw/2
 
-  // drag bloki
-  for (const b of blocks) {
-    if (mx >= b.x && mx <= b.x + b.w && my >= b.y && my <= b.y + b.h) {
-      selectedObject = b
-      dragging = b
-      dragOffsetX = mx - b.x
-      dragOffsetY = my - b.y
+    // Uchwyty — środki krawędzi
+    if (nearHandle(mx, my, px + pw, hMid)) { resizing = pl; pl.resizeSide = "right";  selectedObject = pl; return }
+    if (nearHandle(mx, my, px,      hMid)) { resizing = pl; pl.resizeSide = "left";   selectedObject = pl; return }
+    if (nearHandle(mx, my, wMid, py + ph)) { resizing = pl; pl.resizeSide = "bottom"; selectedObject = pl; return }
+    if (nearHandle(mx, my, wMid, py     )) { resizing = pl; pl.resizeSide = "top";    selectedObject = pl; return }
+
+    // Drag — cała powierzchnia z tolerancją (ważne dla cienkich linii)
+    if (mx >= px - 8 && mx <= px + pw + 8 && my >= py - 10 && my <= py + ph + 10) {
+      selectedObject = pl; dragging = pl
+      dragOffsetX = mx - px; dragOffsetY = my - py
       return
     }
   }
@@ -1700,21 +1687,12 @@ canvas.addEventListener("mousedown", e => {
   }
 
   for (const en of enemies) {
-    if (mx >= en.x && mx <= en.x + en.w && my >= en.y && my <= en.y + en.h) {
+    const PAD = 8
+    if (mx >= en.x - PAD && mx <= en.x + en.w + PAD && my >= en.y - PAD && my <= en.y + en.h + PAD) {
       selectedObject = en
       dragging = en
       dragOffsetX = mx - en.x
       dragOffsetY = my - en.y
-      return
-    }
-  }
-
-  for (const pl of platforms) {
-    if (mx >= pl.x && mx <= pl.x + pl.w && my >= pl.y && my <= pl.y + (pl.h||20)) {
-      selectedObject = pl
-      dragging = pl
-      dragOffsetX = mx - pl.x
-      dragOffsetY = my - pl.y
       return
     }
   }
