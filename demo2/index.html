@@ -143,6 +143,10 @@ let gridEnabled = false
 let gridSize = 20
 let gravity = 0.4
 
+// === DYM I KOŁA SAMOCHODU ===
+let exhaustParticles = []
+let carWheelAngle = 0
+
 let players = []
 let platforms = []
 let blocks = []
@@ -444,12 +448,15 @@ function snapAll(){
 
 function uruchom(){
   trybGry = true
+  exhaustParticles = []
+  carWheelAngle = 0
   respawnPlayer()
   updateButtonStates()
 }
 
 function edytuj(){
   trybGry = false
+  exhaustParticles = []
   updateButtonStates()
 }
 
@@ -854,119 +861,267 @@ function drawPlatformPreview(canvasId, typ) {
   }
 }
 
-function drawCar(cx, cy, r, vx){
+// === EXHAUST / DYM ===
+function spawnExhaust(x, y, vx) {
+  const dir = vx >= 0 ? -1 : 1;
+  exhaustParticles.push({
+    x: x,
+    y: y,
+    vx: dir * (0.5 + Math.random() * 1.2) - vx * 0.1,
+    vy: -0.3 - Math.random() * 0.6,
+    life: 1.0,
+    decay: 0.012 + Math.random() * 0.012,
+    size: 3 + Math.random() * 4,
+    gray: Math.floor(160 + Math.random() * 80)
+  })
+}
 
-  const W = r * 3;
-  const H = r * 1.4;
+function updateExhaust() {
+  for (let i = exhaustParticles.length - 1; i >= 0; i--) {
+    const p = exhaustParticles[i]
+    p.x += p.vx
+    p.y += p.vy
+    p.size += 0.18
+    p.life -= p.decay
+    if (p.life <= 0) exhaustParticles.splice(i, 1)
+  }
+}
 
-  ctx.save();
-  ctx.translate(cx, cy);
+function drawExhaust(offsetX = 0) {
+  for (let p of exhaustParticles) {
+    ctx.save()
+    ctx.globalAlpha = p.life * 0.55
+    ctx.fillStyle = `rgb(${p.gray},${p.gray},${p.gray})`
+    ctx.beginPath()
+    ctx.arc(p.x - offsetX, p.y, p.size, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.restore()
+  }
+}
 
-  let tilt = -vx * 0.015
-  ctx.rotate(tilt)
+function drawCar(cx, cy, r, vx = 0) {
+  // Aktualizuj kąt obrotu kół
+  const wheelRadius = r * 0.32
+  carWheelAngle += vx / wheelRadius
 
-  // 🔵 KAROSERIA (lekko zaokrąglona)
-  ctx.fillStyle = "#3a86ff";
-  ctx.beginPath();
-  ctx.moveTo(-W/2, H/2);
-  ctx.lineTo(-W/2, 0);
-  ctx.quadraticCurveTo(-W/2, -H/2, -W/4, -H/2);
-  ctx.lineTo(W/4, -H/2);
-  ctx.quadraticCurveTo(W/2, -H/2, W/2, 0);
-  ctx.lineTo(W/2, H/2);
-  ctx.closePath();
-  ctx.fill();
+  // Generuj dym z rury wydechowej (w trybie gry)
+  if (trybGry) {
+    if (Math.random() < 0.4) {
+      spawnExhaust(cx - r * 1.18, cy + r * 0.145, vx)
+    }
+    updateExhaust()
+  }
 
-  // 🪟 SZYBA
-  ctx.fillStyle = "#a5d8ff";
-  ctx.fillRect(-W*0.15, -H*0.4, W*0.3, H*0.3);
+  ctx.save()
+  ctx.translate(cx, cy)  // ctx już ma translate(-cameraX, 0)
 
-  // ⚫ KOŁA
-  ctx.fillStyle = "black";
+  // === RURA WYDECHOWA ===
+  ctx.fillStyle = '#555'
+  ctx.fillRect(-r * 1.18, r * 0.08, r * 0.22, r * 0.13)
+  ctx.fillStyle = '#333'
+  ctx.beginPath()
+  ctx.arc(-r * 1.18, r * 0.145, r * 0.065, 0, Math.PI * 2)
+  ctx.fill()
+  ctx.fillStyle = '#888'
+  ctx.fillRect(-r * 1.12, r * 0.095, r * 0.1, r * 0.04)
 
-  ctx.beginPath();
-  ctx.arc(-W*0.3, H/2, r*0.45, 0, Math.PI*2);
-  ctx.fill();
+  // === KAROSERIA ===
+  ctx.fillStyle = '#ee2222'
+  ctx.fillRect(-r, -r * 0.5, r * 2, r)
 
-  ctx.beginPath();
-  ctx.arc(W*0.3, H/2, r*0.45, 0, Math.PI*2);
-  ctx.fill();
+  // === DACH ===
+  ctx.fillStyle = '#cc1111'
+  ctx.fillRect(-r * 0.5, -r, r, r * 0.6)
 
-  // ⚪ FELGI
-  ctx.fillStyle = "#ccc";
+  // === SZYBY ===
+  ctx.fillStyle = '#88ccff'
+  ctx.fillRect(-r * 0.4, -r * 0.9, r * 0.35, r * 0.4)
+  ctx.fillRect(r * 0.05, -r * 0.9, r * 0.35, r * 0.4)
 
-  ctx.beginPath();
-  ctx.arc(-W*0.3, H/2, r*0.2, 0, Math.PI*2);
-  ctx.fill();
+  // === REFLEKTOR ===
+  ctx.fillStyle = '#ffff88'
+  ctx.fillRect(r * 0.85, -r * 0.15, r * 0.2, r * 0.2)
+  ctx.shadowColor = '#ffff00'
+  ctx.shadowBlur = 12
+  ctx.fillStyle = 'rgba(255,255,200,0.6)'
+  ctx.fillRect(r * 0.87, -r * 0.13, r * 0.14, r * 0.14)
+  ctx.shadowBlur = 0
 
-  ctx.beginPath();
-  ctx.arc(W*0.3, H/2, r*0.2, 0, Math.PI*2);
-  ctx.fill();
+  ctx.restore()
 
-  // 💡 ŚWIATŁO (z przodu)
-  ctx.fillStyle = "#fff3b0";
-  ctx.fillRect(W/2 - 4, 0, 4, 6);
+  // === KOŁA (z kręceniem) — ctx jest już translate(-cameraX,0) ===
+  drawWheel(cx - r * 0.55, cy + r * 0.5, wheelRadius, carWheelAngle)
+  drawWheel(cx + r * 0.55, cy + r * 0.5, wheelRadius, carWheelAngle)
+}
 
-  ctx.restore();
+// Pomocnicza funkcja do rysowania kół
+function drawWheel(x, y, radius, angle) {
+  ctx.save()
+  ctx.translate(x, y)
+  ctx.rotate(angle)
+
+  // Opona
+  ctx.fillStyle = '#1a1a1a'
+  ctx.beginPath()
+  ctx.arc(0, 0, radius, 0, Math.PI * 2)
+  ctx.fill()
+
+  // Obwódka opony
+  ctx.strokeStyle = '#333'
+  ctx.lineWidth = 2
+  ctx.beginPath()
+  ctx.arc(0, 0, radius - 1, 0, Math.PI * 2)
+  ctx.stroke()
+
+  // Felga
+  ctx.fillStyle = '#bbbbbb'
+  ctx.beginPath()
+  ctx.arc(0, 0, radius * 0.65, 0, Math.PI * 2)
+  ctx.fill()
+
+  // Szprychy
+  ctx.strokeStyle = '#888'
+  ctx.lineWidth = radius * 0.12
+  for (let i = 0; i < 5; i++) {
+    const a = (i * Math.PI * 2) / 5
+    ctx.beginPath()
+    ctx.moveTo(Math.cos(a) * radius * 0.22, Math.sin(a) * radius * 0.22)
+    ctx.lineTo(Math.cos(a) * radius * 0.82, Math.sin(a) * radius * 0.82)
+    ctx.stroke()
+  }
+
+  // Środek felgi
+  ctx.fillStyle = '#555555'
+  ctx.beginPath()
+  ctx.arc(0, 0, radius * 0.22, 0, Math.PI * 2)
+  ctx.fill()
+
+  // Śruba środkowa
+  ctx.fillStyle = '#333'
+  ctx.beginPath()
+  ctx.arc(0, 0, radius * 0.09, 0, Math.PI * 2)
+  ctx.fill()
+
+  ctx.restore()
 }
 
 function pokazBloki(){
   document.getElementById("panel").innerHTML = `
     <h3>BLOK</h3>
-
-    <div style="text-align:center; margin:20px 0;">
-      <canvas id="blokPreview" width="90" height="90" style="background:#222; border:2px solid #555; border-radius:8px;"></canvas>
+    <div style="color:#aaa; text-align:center; margin-bottom:12px; font-size:13px;">
+      kliknij ikonkę aby dodać
     </div>
 
-    <p style="color:#aaa; text-align:center; margin-top:10px;">
-      Solidny kwadrat – zatrzymuje z każdej strony
-    </p>
+    <div style="display:flex; flex-direction:column; gap:14px; align-items:center;">
 
-    <div style="text-align:center; margin-top:20px;">
-      <button onclick="dodajBlok()" style="font-size:16px; padding:8px 16px;">
-        ➕ Dodaj blok
-      </button>
+      <div onclick="dodajBlok()" style="cursor:pointer; transition:transform 0.15s;" onmouseover="this.style.transform='scale(1.06)'" onmouseout="this.style.transform='scale(1)'">
+        <canvas id="previewBlok" width="90" height="90" style="background:#1a1a2a; border:2px solid #445; border-radius:8px; display:block;"></canvas>
+        <div style="text-align:center; color:#ccc; font-size:13px; margin-top:4px;">kwadratowy</div>
+      </div>
+
+      <div onclick="dodajBlokTall()" style="cursor:pointer; transition:transform 0.15s;" onmouseover="this.style.transform='scale(1.06)'" onmouseout="this.style.transform='scale(1)'">
+        <canvas id="previewTall" width="90" height="90" style="background:#1a1a2a; border:2px solid #445; border-radius:8px; display:block;"></canvas>
+        <div style="text-align:center; color:#ccc; font-size:13px; margin-top:4px;">pionowy klocek</div>
+      </div>
+
+      <div onclick="dodajBlokGrid()" style="cursor:pointer; transition:transform 0.15s;" onmouseover="this.style.transform='scale(1.06)'" onmouseout="this.style.transform='scale(1)'">
+        <canvas id="previewGrid" width="90" height="90" style="background:#1a1a2a; border:2px solid #445; border-radius:8px; display:block;"></canvas>
+        <div style="text-align:center; color:#ccc; font-size:13px; margin-top:4px;">rusztowanie</div>
+      </div>
+
     </div>
   `
 
   setTimeout(() => {
-    const previewCanvas = document.getElementById("blokPreview")
-    if (!previewCanvas) return
+    rysujPreviewBlok("previewBlok",  90, 90, "block")
+    rysujPreviewBlok("previewTall",  90, 90, "blockTall")
+    rysujPreviewBlok("previewGrid",  90, 90, "blockGrid")
+  }, 50)
+}
 
-    const pctx = previewCanvas.getContext("2d")
-    const x = 8, y = 8, w = 74, h = 74
+function rysujPreviewBlok(id, cw, ch, typ) {
+  const c = document.getElementById(id)
+  if (!c) return
+  const p = c.getContext("2d")
 
-    pctx.fillStyle = "#8B5A2B"
-    pctx.fillRect(x, y, w, h)
+  if (typ === "block") {
+    const x=8, y=8, w=74, h=74
+    const g = p.createLinearGradient(x, y, x, y+h)
+    g.addColorStop(0,"#445566"); g.addColorStop(0.5,"#2a3a4a"); g.addColorStop(1,"#1a2530")
+    p.fillStyle = g; p.fillRect(x,y,w,h)
+    p.strokeStyle="rgba(0,0,0,0.5)"; p.lineWidth=1.5
+    const bH=14, bW=w/2
+    for(let row=0; row*bH<h; row++){
+      const by=y+row*bH
+      p.beginPath(); p.moveTo(x,by); p.lineTo(x+w,by); p.stroke()
+      const off = row%2===0 ? 0 : bW/2
+      for(let col=off; col<w; col+=bW){ p.beginPath(); p.moveTo(x+col,by); p.lineTo(x+col,by+bH); p.stroke() }
+    }
+    p.strokeStyle="rgba(150,200,255,0.35)"; p.lineWidth=1.5
+    p.beginPath(); p.moveTo(x,y+h); p.lineTo(x,y); p.lineTo(x+w,y); p.stroke()
 
-    pctx.strokeStyle = "#3F2A1D"
-    pctx.lineWidth = 4
-    pctx.strokeRect(x + 2, y + 2, w - 4, h - 4)
+  } else if (typ === "blockTall") {
+    const x=28, y=4, w=34, h=82
+    const g = p.createLinearGradient(x, y, x+w, y)
+    g.addColorStop(0,"#553322"); g.addColorStop(0.5,"#8b4a2e"); g.addColorStop(1,"#3d2010")
+    p.fillStyle = g; p.fillRect(x,y,w,h)
+    p.strokeStyle="rgba(0,0,0,0.5)"; p.lineWidth=1.5
+    const bH=12
+    for(let row=0; row*bH<h; row++){
+      const by=y+row*bH
+      p.beginPath(); p.moveTo(x,by); p.lineTo(x+w,by); p.stroke()
+      p.beginPath(); p.moveTo(x+w/2, by); p.lineTo(x+w/2, by+bH); p.stroke()
+    }
+    p.strokeStyle="rgba(200,150,100,0.4)"; p.lineWidth=1.5
+    p.beginPath(); p.moveTo(x,y+h); p.lineTo(x,y); p.lineTo(x+w,y); p.stroke()
 
-    pctx.strokeStyle = "#A67C5D"
-    pctx.lineWidth = 2.5
+  } else if (typ === "blockGrid") {
+    const x=4, y=4, w=82, h=82
+    // Tło — ciemny grafit
+    const bg = p.createLinearGradient(x, y, x, y+h)
+    bg.addColorStop(0, "#1a1a2e")
+    bg.addColorStop(1, "#0d0d1a")
+    p.fillStyle = bg; p.fillRect(x, y, w, h)
 
-    for (let i = 1; i < 6; i++) {
-      let py = y + (h * i / 6)
-      pctx.beginPath()
-      pctx.moveTo(x + 6, py)
-      pctx.quadraticCurveTo(x + w * 0.38, py + (i % 2 === 0 ? -2 : 2), x + w - 6, py)
-      pctx.stroke()
+    // Świecące linie energetyczne poziome
+    const lineColors = ["#00ffff","#0088ff","#00ffcc"]
+    for(let i=0; i<3; i++){
+      const ly = y + 16 + i*18
+      const lg = p.createLinearGradient(x, ly, x+w, ly)
+      lg.addColorStop(0,   "rgba(0,0,0,0)")
+      lg.addColorStop(0.2, lineColors[i])
+      lg.addColorStop(0.5, "#ffffff")
+      lg.addColorStop(0.8, lineColors[i])
+      lg.addColorStop(1,   "rgba(0,0,0,0)")
+      p.strokeStyle = lg; p.lineWidth = 2
+      p.beginPath(); p.moveTo(x, ly); p.lineTo(x+w, ly); p.stroke()
     }
 
-    pctx.lineWidth = 1.8
-    pctx.strokeStyle = "#6B4426"
+    // Ramka z narożnikami
+    p.strokeStyle = "#00ffff"; p.lineWidth = 1.5
+    p.strokeRect(x+2, y+2, w-4, h-4)
+    // Narożniki
+    const cs = 10
+    p.strokeStyle = "#ffffff"; p.lineWidth = 2.5
+    for(const [cx,cy,dx,dy] of [[x+2,y+2,1,1],[x+w-2,y+2,-1,1],[x+2,y+h-2,1,-1],[x+w-2,y+h-2,-1,-1]]){
+      p.beginPath(); p.moveTo(cx+dx*cs,cy); p.lineTo(cx,cy); p.lineTo(cx,cy+dy*cs); p.stroke()
+    }
 
-    pctx.beginPath()
-    pctx.moveTo(x + w*0.25, y + 10)
-    pctx.quadraticCurveTo(x + w*0.58, y + h*0.45, x + w*0.22, y + h - 12)
-    pctx.stroke()
-
-    pctx.beginPath()
-    pctx.moveTo(x + w*0.72, y + 14)
-    pctx.quadraticCurveTo(x + w*0.48, y + h*0.65, x + w*0.75, y + h - 10)
-    pctx.stroke()
-  }, 50)
+    // Centralny kryształ
+    const cx=x+w/2, cy=y+h/2
+    const rg = p.createRadialGradient(cx,cy,2, cx,cy,16)
+    rg.addColorStop(0,"#ffffff")
+    rg.addColorStop(0.3,"#00ffff")
+    rg.addColorStop(1,"rgba(0,100,255,0)")
+    p.fillStyle = rg
+    p.beginPath()
+    p.moveTo(cx, cy-14); p.lineTo(cx+8,cy); p.lineTo(cx,cy+14); p.lineTo(cx-8,cy)
+    p.closePath(); p.fill()
+    p.strokeStyle="rgba(255,255,255,0.8)"; p.lineWidth=1
+    p.beginPath()
+    p.moveTo(cx, cy-14); p.lineTo(cx+8,cy); p.lineTo(cx,cy+14); p.lineTo(cx-8,cy)
+    p.closePath(); p.stroke()
+  }
 }
 
 function pokazPrzeciwniki(){
@@ -984,7 +1139,9 @@ function pokazPrzeciwniki(){
     <h4>Z GRAWITACJĄ</h4>
     <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
       <div class="item" onclick="dodajWalker()" style="font-size:24px;">👽</div>
-      <div class="item" onclick="dodajWalker2()" style="font-size:24px;">🕷</div>
+      <div class="item" onclick="dodajWalker2()" style="font-size:24px; color:#cc55bb; font-weight:bold;">👾</div>
+      <div class="item" onclick="dodajWalker3()" style="font-size:24px;">🤖</div>
+      <div class="item" onclick="dodajWalker4()" style="font-size:24px;">🦎</div>
     </div>
   `
 }
@@ -1064,20 +1221,33 @@ function dodajPlatforme(typ) {
 }
 
 function dodajBlok() {
-  let x = cameraX + canvas.width / 2 - 80
-  let y = canvas.height / 2 - 80
-
-  if (gridEnabled) {
-    x = snap(x)
-    y = snap(y)
-  }
-
+  let x = cameraX + canvas.width / 2 - 30
+  let y = canvas.height / 2 - 30
+  if (gridEnabled) { x = snap(x); y = snap(y) }
   let lvl = getLevel()
+  lvl.blocks.push({ x, y, w:60, h:60, typ:"block", solid:"full", effects:[] })
+  syncLevelData()
+  selectedObject = blocks[blocks.length - 1]
+  showFxList()
+}
 
-  lvl.blocks.push({
-    x, y, w:60, h:60, typ:"block", solid:"full", effects:[]
-  })
+function dodajBlokTall() {
+  let x = cameraX + canvas.width / 2 - 20
+  let y = canvas.height / 2 - 60
+  if (gridEnabled) { x = snap(x); y = snap(y) }
+  let lvl = getLevel()
+  lvl.blocks.push({ x, y, w:40, h:120, typ:"blockTall", solid:"full", effects:[] })
+  syncLevelData()
+  selectedObject = blocks[blocks.length - 1]
+  showFxList()
+}
 
+function dodajBlokGrid() {
+  let x = cameraX + canvas.width / 2 - 60
+  let y = canvas.height / 2 - 60
+  if (gridEnabled) { x = snap(x); y = snap(y) }
+  let lvl = getLevel()
+  lvl.blocks.push({ x, y, w:120, h:120, typ:"blockGrid", solid:"full", effects:[] })
   syncLevelData()
   selectedObject = blocks[blocks.length - 1]
   showFxList()
@@ -1283,6 +1453,28 @@ function dodajWalker2() {
   showFxList()
 }
 
+function dodajWalker3() {
+  let x = cameraX + canvas.width / 2 - 20
+  let y = canvas.height / 2 - 20
+  if (gridEnabled) { x = snap(x); y = snap(y) }
+  const lvl = getLevel()
+  lvl.enemies.push({x, y, w:40, h:40, type:"walker3", vx:1.5, vy:0, effects:[]})
+  syncLevelData()
+  selectedObject = enemies[enemies.length-1]
+  showFxList()
+}
+
+function dodajWalker4() {
+  let x = cameraX + canvas.width / 2 - 20
+  let y = canvas.height / 2 - 20
+  if (gridEnabled) { x = snap(x); y = snap(y) }
+  const lvl = getLevel()
+  lvl.enemies.push({x, y, w:40, h:40, type:"walker4", vx:-1.5, vy:0, effects:[]})
+  syncLevelData()
+  selectedObject = enemies[enemies.length-1]
+  showFxList()
+}
+
 // ================= STEROWANIE =================
 function wybierzPole(pole){
   aktywnePole = pole
@@ -1313,24 +1505,35 @@ canvas.addEventListener("mousedown", e => {
     let nowy = JSON.parse(JSON.stringify(copiedObject))
 
     if (nowy.r && !nowy.w) {
+      // GRACZ — ma promień r, nie ma szerokości w
       nowy.x = mx
       nowy.y = my
       const lvl = getLevel()
       lvl.players.push(nowy)
       syncLevelData()
-    } else if (nowy.typ === "block" || nowy.w && nowy.h && !nowy.type) {
-      nowy.x = mx - (nowy.w || 80)/2
-      nowy.y = my - (nowy.h || 80)/2
-      const lvl = getLevel()
-      lvl.blocks.push(nowy)
-      syncLevelData()
     } else if (nowy.type !== undefined && nowy.w) {
+      // WRÓG — ma pole type (enemy1, ghost, walker itp.)
       nowy.x = mx - (nowy.w || 40)/2
       nowy.y = my - (nowy.h || 40)/2
       const lvl = getLevel()
       lvl.enemies.push(nowy)
       syncLevelData()
+    } else if (nowy.typ === "block" || nowy.typ === "blockTall" || nowy.typ === "blockGrid") {
+      // BLOK — ma typ === "block"
+      nowy.x = mx - (nowy.w || 60)/2
+      nowy.y = my - (nowy.h || 60)/2
+      const lvl = getLevel()
+      lvl.blocks.push(nowy)
+      syncLevelData()
+    } else if (nowy.typ === "round" || nowy.typ === "rect" || nowy.typ === "line") {
+      // PLATFORMA — ma typ round/rect/line
+      nowy.x = mx - (nowy.w || 120)/2
+      nowy.y = my - (nowy.h || 20)/2
+      const lvl = getLevel()
+      lvl.platforms.push(nowy)
+      syncLevelData()
     } else {
+      // FALLBACK — traktuj jako platformę
       nowy.x = mx - (nowy.w || 120)/2
       nowy.y = my - (nowy.h || 20)/2
       const lvl = getLevel()
@@ -1356,23 +1559,16 @@ canvas.addEventListener("mousedown", e => {
       for (let i = arr.length - 1; i >= 0; i--) {
         const o = arr[i]
         if (o.r && !o.w) {
-          const dx = mx - o.x
-          const dy = my - o.y
-          if (Math.hypot(dx, dy) < o.r + 6) {
-            arr.splice(i, 1)
-            trybKasowania = false
-            updateButtonStates()
-            return
+          if (Math.hypot(mx - o.x, my - o.y) < o.r + 8) {
+            arr.splice(i, 1); trybKasowania = false; updateButtonStates(); return
           }
         } else {
-          if (
-            mx >= o.x - 6 && mx <= o.x + (o.w||40) + 6 &&
-            my >= o.y - 6 && my <= o.y + (o.h||40) + 6
-          ) {
-            arr.splice(i, 1)
-            trybKasowania = false
-            updateButtonStates()
-            return
+          const ow = o.w || 40
+          const oh = Math.max(o.h || 40, 20) // minimum 20px strefa w pionie
+          const pad = 10
+          if (mx >= o.x - pad && mx <= o.x + ow + pad &&
+              my >= o.y - pad && my <= o.y + oh + pad) {
+            arr.splice(i, 1); trybKasowania = false; updateButtonStates(); return
           }
         }
       }
@@ -1427,29 +1623,48 @@ canvas.addEventListener("mousedown", e => {
     }
   }
 
-  // resize bloki
+  // Pomocnik — czy kursor jest blisko punktu uchwytu (±10px)
+  function nearHandle(mx, my, hx, hy) {
+    return Math.abs(mx - hx) < 10 && Math.abs(my - hy) < 10
+  }
+
+  // === BLOKI — resize tylko na uchwytach, drag po całej powierzchni ===
   for (const b of blocks) {
-    if (mx > b.x + b.w - 12 && mx < b.x + b.w + 12 && my > b.y && my < b.y + b.h) {
-      resizing = b; resizing.resizeSide = "right"; selectedObject = b; return
-    }
-    if (mx > b.x - 12 && mx < b.x + 12 && my > b.y && my < b.y + b.h) {
-      resizing = b; resizing.resizeSide = "left"; selectedObject = b; return
+    const bx = b.x, by = b.y, bw = b.w, bh = b.h
+    const hMid = by + bh/2   // środek w pionie
+    const wMid = bx + bw/2   // środek w poziomie
+
+    // Uchwyty — środki krawędzi
+    if (nearHandle(mx, my, bx + bw, hMid)) { resizing = b; b.resizeSide = "right";  selectedObject = b; return }
+    if (nearHandle(mx, my, bx,      hMid)) { resizing = b; b.resizeSide = "left";   selectedObject = b; return }
+    if (nearHandle(mx, my, wMid, by + bh)) { resizing = b; b.resizeSide = "bottom"; selectedObject = b; return }
+    if (nearHandle(mx, my, wMid, by     )) { resizing = b; b.resizeSide = "top";    selectedObject = b; return }
+
+    // Drag — cała powierzchnia z małą tolerancją
+    if (mx >= bx - 6 && mx <= bx + bw + 6 && my >= by - 6 && my <= by + bh + 6) {
+      selectedObject = b; dragging = b
+      dragOffsetX = mx - bx; dragOffsetY = my - by
+      return
     }
   }
 
+  // === PLATFORMY — resize tylko na uchwytach, drag po całej powierzchni ===
   for (const pl of platforms) {
-    if (mx > pl.x + pl.w - 12 && mx < pl.x + pl.w + 12 && my > pl.y && my < pl.y + (pl.h||20)) {
-      resizing = pl; resizing.resizeSide = "right"; selectedObject = pl; return
-    }
-  }
+    const ph = Math.max(pl.h || 20, 20)
+    const px = pl.x, py = pl.y, pw = pl.w
+    const hMid = py + ph/2
+    const wMid = px + pw/2
 
-  // drag bloki
-  for (const b of blocks) {
-    if (mx >= b.x && mx <= b.x + b.w && my >= b.y && my <= b.y + b.h) {
-      selectedObject = b
-      dragging = b
-      dragOffsetX = mx - b.x
-      dragOffsetY = my - b.y
+    // Uchwyty — środki krawędzi
+    if (nearHandle(mx, my, px + pw, hMid)) { resizing = pl; pl.resizeSide = "right";  selectedObject = pl; return }
+    if (nearHandle(mx, my, px,      hMid)) { resizing = pl; pl.resizeSide = "left";   selectedObject = pl; return }
+    if (nearHandle(mx, my, wMid, py + ph)) { resizing = pl; pl.resizeSide = "bottom"; selectedObject = pl; return }
+    if (nearHandle(mx, my, wMid, py     )) { resizing = pl; pl.resizeSide = "top";    selectedObject = pl; return }
+
+    // Drag — cała powierzchnia z tolerancją (ważne dla cienkich linii)
+    if (mx >= px - 8 && mx <= px + pw + 8 && my >= py - 10 && my <= py + ph + 10) {
+      selectedObject = pl; dragging = pl
+      dragOffsetX = mx - px; dragOffsetY = my - py
       return
     }
   }
@@ -1472,21 +1687,12 @@ canvas.addEventListener("mousedown", e => {
   }
 
   for (const en of enemies) {
-    if (mx >= en.x && mx <= en.x + en.w && my >= en.y && my <= en.y + en.h) {
+    const PAD = 8
+    if (mx >= en.x - PAD && mx <= en.x + en.w + PAD && my >= en.y - PAD && my <= en.y + en.h + PAD) {
       selectedObject = en
       dragging = en
       dragOffsetX = mx - en.x
       dragOffsetY = my - en.y
-      return
-    }
-  }
-
-  for (const pl of platforms) {
-    if (mx >= pl.x && mx <= pl.x + pl.w && my >= pl.y && my <= pl.y + (pl.h||20)) {
-      selectedObject = pl
-      dragging = pl
-      dragOffsetX = mx - pl.x
-      dragOffsetY = my - pl.y
       return
     }
   }
@@ -1724,7 +1930,7 @@ function update(){
         obj.y = obj.baseY + Math.sin(obj.floatTime) * 15
       }
 
-      if (obj.type === "walker" || obj.type === "walker2") {
+      if (obj.type === "walker" || obj.type === "walker2" || obj.type === "walker3" || obj.type === "walker4") {
         if (dragging === obj) continue  // BŁĄD POPRAWIONY: było return, przerywało całą pętlę
         obj.vy = (obj.vy || 0) + 0.5
         obj.y += obj.vy
@@ -2107,60 +2313,100 @@ function draw(){
     }
 
     if (pl.typ === "line") {
-      ctx.shadowColor = "#00ffff"
-      ctx.shadowBlur = 20
-      ctx.strokeStyle = "#00ffff"
-      ctx.lineWidth = 3
+      // Linia — nowoczesna energetyczna belka
+      const ly = y + 10
+      ctx.shadowColor = neon ? "#00ffff" : "#44aaff"
+      ctx.shadowBlur = neon ? 20 : 10
+      ctx.strokeStyle = neon ? "#00ffff" : "#5599ff"
+      ctx.lineWidth = 4
       ctx.beginPath()
-      ctx.moveTo(x, y + 10)
-      ctx.lineTo(x + w, y + 10)
+      ctx.moveTo(x, ly)
+      ctx.lineTo(x + w, ly)
       ctx.stroke()
+      // Biały połysk na środku
+      ctx.shadowBlur = 0
+      ctx.strokeStyle = "rgba(255,255,255,0.6)"
+      ctx.lineWidth = 1.5
+      ctx.beginPath()
+      ctx.moveTo(x + 6, ly)
+      ctx.lineTo(x + w - 6, ly)
+      ctx.stroke()
+      ctx.shadowBlur = 0
 
-      ctx.shadowBlur = 0
-      ctx.strokeStyle = "#ffffff"
-      ctx.lineWidth = 1
-      ctx.beginPath()
-      ctx.moveTo(x, y + 10)
-      ctx.lineTo(x + w, y + 10)
-      ctx.stroke()
-      ctx.shadowBlur = 0
     } else if (pl.typ === "round") {
-      ctx.fillStyle = "#8B5A2B"
+      // Zaokrąglona — metaliczna płyta z gradientem
+      const grad = ctx.createLinearGradient(x, y, x, y + h)
+      grad.addColorStop(0, "#6aaadd")
+      grad.addColorStop(0.3, "#4477bb")
+      grad.addColorStop(1, "#223366")
+      ctx.fillStyle = grad
       ctx.beginPath()
-      ctx.roundRect(x, y, w, h, 14)
+      ctx.roundRect(x, y, w, h, 10)
       ctx.fill()
 
-      ctx.strokeStyle = "#3F2A1D"
-      ctx.lineWidth = 3.5
+      // Obwódka
+      ctx.strokeStyle = "#88ccff"
+      ctx.lineWidth = 1.5
       ctx.beginPath()
-      ctx.roundRect(x + 2, y + 2, w - 4, h - 4, 12)
+      ctx.roundRect(x + 1, y + 1, w - 2, h - 2, 9)
       ctx.stroke()
 
-      ctx.strokeStyle = "#A67C5D"
-      ctx.lineWidth = 2.2
-      for (let i = 1; i < 5; i++) {
-        let py = y + (h * i / 5)
-        ctx.beginPath()
-        ctx.moveTo(x + 12, py)
-        ctx.quadraticCurveTo(x + w*0.4, py + (i%2 ? -2 : 2), x + w - 12, py)
-        ctx.stroke()
+      // Połysk górny
+      const shine = ctx.createLinearGradient(x, y, x, y + h * 0.5)
+      shine.addColorStop(0, "rgba(255,255,255,0.25)")
+      shine.addColorStop(1, "rgba(255,255,255,0)")
+      ctx.fillStyle = shine
+      ctx.beginPath()
+      ctx.roundRect(x + 2, y + 2, w - 4, h * 0.5, 8)
+      ctx.fill()
+
+      // Śruby w rogach
+      const screwPositions = [[x+7, y+h/2], [x+w-7, y+h/2]]
+      for (let [sx, sy] of screwPositions) {
+        ctx.fillStyle = "#1a3355"
+        ctx.beginPath(); ctx.arc(sx, sy, 3.5, 0, Math.PI*2); ctx.fill()
+        ctx.strokeStyle = "#99ccff"; ctx.lineWidth = 1
+        ctx.beginPath(); ctx.arc(sx, sy, 3.5, 0, Math.PI*2); ctx.stroke()
+        // Nacięcie śruby
+        ctx.strokeStyle = "#99ccff"; ctx.lineWidth = 1
+        ctx.beginPath(); ctx.moveTo(sx-2, sy); ctx.lineTo(sx+2, sy); ctx.stroke()
+        ctx.beginPath(); ctx.moveTo(sx, sy-2); ctx.lineTo(sx, sy+2); ctx.stroke()
       }
+
     } else {
-      ctx.fillStyle = "#8B5A2B"
+      // Prostokąt — stalowa płyta z nitami
+      const grad = ctx.createLinearGradient(x, y, x, y + h)
+      grad.addColorStop(0, "#5a8fcc")
+      grad.addColorStop(0.4, "#3a6499")
+      grad.addColorStop(1, "#1e3d66")
+      ctx.fillStyle = grad
       ctx.fillRect(x, y, w, h)
 
-      ctx.strokeStyle = "#3F2A1D"
-      ctx.lineWidth = 3.5
-      ctx.strokeRect(x + 2, y + 2, w - 4, h - 4)
+      // Obwódka
+      ctx.strokeStyle = "#6699cc"
+      ctx.lineWidth = 1.5
+      ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1)
 
-      ctx.strokeStyle = "#A67C5D"
-      ctx.lineWidth = 2.2
-      for (let i = 1; i < 5; i++) {
-        let py = y + (h * i / 5)
-        ctx.beginPath()
-        ctx.moveTo(x + 10, py)
-        ctx.quadraticCurveTo(x + w*0.45, py + (i%2 ? 2 : -2), x + w - 10, py)
-        ctx.stroke()
+      // Ciemna dolna krawędź (głębia)
+      ctx.fillStyle = "rgba(0,0,0,0.3)"
+      ctx.fillRect(x, y + h - 3, w, 3)
+
+      // Połysk górny
+      const shine = ctx.createLinearGradient(x, y, x, y + h * 0.5)
+      shine.addColorStop(0, "rgba(255,255,255,0.22)")
+      shine.addColorStop(1, "rgba(255,255,255,0)")
+      ctx.fillStyle = shine
+      ctx.fillRect(x + 1, y + 1, w - 2, h * 0.5)
+
+      // Nity równomiernie rozłożone
+      const nitCount = Math.max(2, Math.floor(w / 28))
+      for (let i = 0; i < nitCount; i++) {
+        const nx = x + 8 + i * ((w - 16) / (nitCount - 1 || 1))
+        const ny = y + h / 2
+        ctx.fillStyle = "#1a3355"
+        ctx.beginPath(); ctx.arc(nx, ny, 2.5, 0, Math.PI*2); ctx.fill()
+        ctx.strokeStyle = "#aaddff"; ctx.lineWidth = 0.8
+        ctx.beginPath(); ctx.arc(nx, ny, 2.5, 0, Math.PI*2); ctx.stroke()
       }
     }
 
@@ -2168,10 +2414,24 @@ function draw(){
 
     if (pl === selectedObject) {
       ctx.strokeStyle = "red"
-      ctx.lineWidth = 3
+      ctx.lineWidth = 2
       ctx.setLineDash([4, 4])
       ctx.strokeRect(x - 3, y - 3, w + 6, h + 6)
       ctx.setLineDash([])
+      // Uchwyty resize — środek każdej krawędzi
+      ctx.fillStyle = "#ff4444"
+      ctx.strokeStyle = "#ffffff"
+      ctx.lineWidth = 1.5
+      const handles = [
+        [x + w/2, y - 3],       // góra
+        [x + w/2, y + h + 3],   // dół
+        [x - 3,   y + h/2],     // lewo
+        [x + w + 3, y + h/2],   // prawo
+      ]
+      for (const [hx, hy] of handles) {
+        ctx.fillRect(hx - 5, hy - 5, 10, 10)
+        ctx.strokeRect(hx - 5, hy - 5, 10, 10)
+      }
     }
   }
 
@@ -2189,45 +2449,162 @@ function draw(){
       ctx.shadowBlur = pulse
     }
 
-    ctx.fillStyle = "#8B5A2B"
+    if (b.typ === "blockTall") {
+      // Pionowy klocek — ciepły brąz/ceglasty
+      const g = ctx.createLinearGradient(x, y, x+w, y)
+      g.addColorStop(0, "#553322")
+      g.addColorStop(0.5, "#8b4a2e")
+      g.addColorStop(1, "#3d2010")
+      ctx.fillStyle = g
+      ctx.fillRect(x, y, w, h)
+      // Fugi poziome
+      const bH = 12
+      ctx.strokeStyle = "rgba(0,0,0,0.5)"; ctx.lineWidth = 1.5
+      for (let row = 0; row * bH < h; row++) {
+        const by2 = y + row * bH
+        ctx.beginPath(); ctx.moveTo(x, by2); ctx.lineTo(x+w, by2); ctx.stroke()
+        ctx.beginPath(); ctx.moveTo(x+w/2, by2); ctx.lineTo(x+w/2, by2+bH); ctx.stroke()
+      }
+      // Połysk
+      ctx.strokeStyle = "rgba(200,140,80,0.4)"; ctx.lineWidth = 1.5
+      ctx.beginPath(); ctx.moveTo(x, y+h); ctx.lineTo(x, y); ctx.lineTo(x+w, y); ctx.stroke()
+      ctx.strokeStyle = "rgba(0,0,0,0.4)"; ctx.lineWidth = 1.5
+      ctx.beginPath(); ctx.moveTo(x+w, y); ctx.lineTo(x+w, y+h); ctx.lineTo(x, y+h); ctx.stroke()
+
+    } else if (b.typ === "blockGrid") {
+      // Energetyczny blok sci-fi — pulsujący kryształ z liniami
+      const t = Date.now() * 0.002
+      const pulse = Math.sin(t) * 0.5 + 0.5  // 0..1
+
+      // Tło — ciemny grafit
+      const bg = ctx.createLinearGradient(x, y, x, y+h)
+      bg.addColorStop(0, "#1a1a2e")
+      bg.addColorStop(1, "#0d0d1a")
+      ctx.fillStyle = bg
+      ctx.fillRect(x, y, w, h)
+
+      // Poziome linie energii — animowane przesunięcie
+      const lineColors = ["#00ffff","#0088ff","#00ffcc","#4400ff","#00ffff"]
+      const lineCount = Math.max(2, Math.floor(h / 18))
+      for (let i = 0; i < lineCount; i++) {
+        const ly = y + (i + 0.5) * (h / lineCount)
+        const shift = ((t * 0.4 + i * 0.3) % 1)
+        const lg = ctx.createLinearGradient(x, ly, x+w, ly)
+        const c = lineColors[i % lineColors.length]
+        lg.addColorStop(0, "rgba(0,0,0,0)")
+        lg.addColorStop(Math.max(0, shift - 0.25), "rgba(0,0,0,0)")
+        lg.addColorStop(shift, "#ffffff")
+        lg.addColorStop(Math.min(1, shift + 0.25), c)
+        lg.addColorStop(1, "rgba(0,0,0,0)")
+        ctx.strokeStyle = lg; ctx.lineWidth = 1.5
+        ctx.beginPath(); ctx.moveTo(x, ly); ctx.lineTo(x+w, ly); ctx.stroke()
+      }
+
+      // Ramka cyjanowa
+      ctx.strokeStyle = `rgba(0,255,255,${0.5 + pulse * 0.5})`
+      ctx.lineWidth = 1.5
+      ctx.strokeRect(x+2, y+2, w-2, h-2)
+
+      // Narożniki białe
+      const cs = Math.min(12, w * 0.18)
+      ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 2.5
+      for (const [cx2,cy2,dx,dy] of [[x+2,y+2,1,1],[x+w-2,y+2,-1,1],[x+2,y+h-2,1,-1],[x+w-2,y+h-2,-1,-1]]) {
+        ctx.beginPath(); ctx.moveTo(cx2+dx*cs, cy2); ctx.lineTo(cx2, cy2); ctx.lineTo(cx2, cy2+dy*cs); ctx.stroke()
+      }
+
+      // Centralny kryształ — pulsujący
+      const kcx = x + w/2, kcy = y + h/2
+      const kr = Math.min(w, h) * 0.22 * (0.88 + pulse * 0.12)
+      // Poświata
+      ctx.shadowColor = "#00ffff"
+      ctx.shadowBlur = 12 + pulse * 14
+      const rg = ctx.createRadialGradient(kcx, kcy, 1, kcx, kcy, kr*1.6)
+      rg.addColorStop(0, "rgba(0,255,255,0.3)")
+      rg.addColorStop(1, "rgba(0,100,255,0)")
+      ctx.fillStyle = rg
+      ctx.beginPath(); ctx.arc(kcx, kcy, kr*1.6, 0, Math.PI*2); ctx.fill()
+      ctx.shadowBlur = 0
+      // Kryształ (romb)
+      const krg = ctx.createLinearGradient(kcx-kr, kcy, kcx+kr, kcy)
+      krg.addColorStop(0, "#0044ff")
+      krg.addColorStop(0.5, "#ffffff")
+      krg.addColorStop(1, "#00ccff")
+      ctx.fillStyle = krg
+      ctx.beginPath()
+      ctx.moveTo(kcx, kcy - kr)
+      ctx.lineTo(kcx + kr*0.6, kcy)
+      ctx.lineTo(kcx, kcy + kr)
+      ctx.lineTo(kcx - kr*0.6, kcy)
+      ctx.closePath(); ctx.fill()
+      // Linia środkowa kryształu
+      ctx.strokeStyle = "rgba(255,255,255,0.7)"; ctx.lineWidth = 1
+      ctx.beginPath(); ctx.moveTo(kcx - kr*0.6, kcy); ctx.lineTo(kcx + kr*0.6, kcy); ctx.stroke()
+
+    } else {
+    const bGrad = ctx.createLinearGradient(x, y, x, y + h)
+    bGrad.addColorStop(0, "#445566")
+    bGrad.addColorStop(0.5, "#2a3a4a")
+    bGrad.addColorStop(1, "#1a2530")
+    ctx.fillStyle = bGrad
     ctx.fillRect(x, y, w, h)
 
-    ctx.strokeStyle = "#3F2A1D"
-    ctx.lineWidth = 3
-    ctx.strokeRect(x + 1.5, y + 1.5, w - 3, h - 3)
-
-    ctx.strokeStyle = "#A67C5D"
-    ctx.lineWidth = 2.5
-
-    for (let i = 1; i < 6; i++) {
-      let py = y + (h * i / 6)
-      ctx.beginPath()
-      ctx.moveTo(x + 6, py)
-      ctx.quadraticCurveTo(x + w * 0.35, py + (i % 2 === 0 ? -2 : 2), x + w - 6, py)
-      ctx.stroke()
+    // Fugi cegieł (poziome)
+    const brickH = 14
+    const brickW = w / 2
+    ctx.strokeStyle = "rgba(0,0,0,0.5)"
+    ctx.lineWidth = 1.5
+    for (let row = 0; row * brickH < h; row++) {
+      const by2 = y + row * brickH
+      // Pozioma fuga
+      ctx.beginPath(); ctx.moveTo(x, by2); ctx.lineTo(x + w, by2); ctx.stroke()
+      // Pionowe fugi (co drugi rząd przesunięte)
+      const offset = row % 2 === 0 ? 0 : brickW / 2
+      for (let col = offset; col < w; col += brickW) {
+        ctx.beginPath(); ctx.moveTo(x + col, by2); ctx.lineTo(x + col, by2 + brickH); ctx.stroke()
+      }
     }
 
-    ctx.lineWidth = 1.8
-    ctx.strokeStyle = "#6B4426"
+    // Połysk górny
+    const bShine = ctx.createLinearGradient(x, y, x, y + h * 0.4)
+    bShine.addColorStop(0, "rgba(255,255,255,0.12)")
+    bShine.addColorStop(1, "rgba(255,255,255,0)")
+    ctx.fillStyle = bShine
+    ctx.fillRect(x, y, w, h * 0.4)
 
-    ctx.beginPath()
-    ctx.moveTo(x + w*0.25, y + 8)
-    ctx.quadraticCurveTo(x + w*0.55, y + h*0.45, x + w*0.22, y + h - 10)
-    ctx.stroke()
+    // Jasna krawędź góra/lewo (światło)
+    ctx.strokeStyle = "rgba(150,200,255,0.35)"
+    ctx.lineWidth = 1.5
+    ctx.beginPath(); ctx.moveTo(x, y + h); ctx.lineTo(x, y); ctx.lineTo(x + w, y); ctx.stroke()
 
-    ctx.beginPath()
-    ctx.moveTo(x + w*0.72, y + 12)
-    ctx.quadraticCurveTo(x + w*0.45, y + h*0.6, x + w*0.78, y + h - 8)
-    ctx.stroke()
+    // Ciemna krawędź dół/prawo (cień)
+    ctx.strokeStyle = "rgba(0,0,0,0.5)"
+    ctx.lineWidth = 1.5
+    ctx.beginPath(); ctx.moveTo(x + w, y); ctx.lineTo(x + w, y + h); ctx.lineTo(x, y + h); ctx.stroke()
+
+    } // koniec else (block)
 
     ctx.shadowBlur = 0
 
     if (b === selectedObject) {
       ctx.strokeStyle = "red"
-      ctx.lineWidth = 3
+      ctx.lineWidth = 2
       ctx.setLineDash([4, 4])
       ctx.strokeRect(x - 3, y - 3, w + 6, h + 6)
       ctx.setLineDash([])
+      // Uchwyty resize — środek każdej krawędzi
+      ctx.fillStyle = "#ff4444"
+      ctx.strokeStyle = "#ffffff"
+      ctx.lineWidth = 1.5
+      const handles = [
+        [x + w/2, y - 3],       // góra
+        [x + w/2, y + h + 3],   // dół
+        [x - 3,   y + h/2],     // lewo
+        [x + w + 3, y + h/2],   // prawo
+      ]
+      for (const [hx, hy] of handles) {
+        ctx.fillRect(hx - 5, hy - 5, 10, 10)
+        ctx.strokeRect(hx - 5, hy - 5, 10, 10)
+      }
     }
   }
 
@@ -2237,7 +2614,7 @@ function draw(){
     if (p.type === "ball") {
       drawPlayer(ctx, p.x, p.y, p.r, Date.now())
     } else {
-      drawCar(p.x, p.y, p.r, p.vx)
+      drawCar(p.x, p.y, p.r, p.vx || 0);
     }
 
     if (p === selectedObject) {
@@ -2259,20 +2636,80 @@ function draw(){
     const h = en.h || 40
 
     if (en.type === "ghost") {
+      // Duch — rysowany canvas, unosi się
       let float = 0
       let moving = en.effects && en.effects.some(fx => fx.type === "move" && fx.enabled !== false)
       if (!moving && dragging !== en) {
         float = Math.sin(Date.now() * 0.003 + en.x) * 6
       }
-      ctx.font = (h * 0.8) + "px Arial"
-      ctx.textAlign = "center"
-      ctx.textBaseline = "middle"
-      ctx.fillText("👻", x + w/2, y + h/2 + float)
+      const t = Date.now() * 0.002
+      const gx = x + w/2, gy = y + h/2 + float
+      const gr = w * 0.45
+
+      ctx.save()
+      // Poświata
+      ctx.shadowColor = "#aaaaff"
+      ctx.shadowBlur = 18
+      // Ciało
+      ctx.fillStyle = "rgba(200,200,255,0.82)"
+      ctx.beginPath()
+      ctx.arc(gx, gy - gr*0.2, gr, Math.PI, 0)
+      // Falisty dół
+      const steps = 5
+      for (let i = steps; i >= 0; i--) {
+        const wx = gx - gr + i * (gr*2/steps)
+        const wy = gy + gr*0.8 + (i%2===0 ? Math.sin(t)*5 : -Math.sin(t)*5)
+        ctx.lineTo(wx, wy)
+      }
+      ctx.closePath()
+      ctx.fill()
+      ctx.shadowBlur = 0
+      // Oczy — czerwone świecące
+      ctx.shadowColor = "#ff4444"; ctx.shadowBlur = 8
+      ctx.fillStyle = "#ff2222"
+      ctx.beginPath(); ctx.ellipse(gx - gr*0.28, gy - gr*0.18, gr*0.14, gr*0.18, 0, 0, Math.PI*2); ctx.fill()
+      ctx.beginPath(); ctx.ellipse(gx + gr*0.28, gy - gr*0.18, gr*0.14, gr*0.18, 0, 0, Math.PI*2); ctx.fill()
+      ctx.shadowBlur = 0
+      // Źrenice
+      ctx.fillStyle = "#000"
+      ctx.beginPath(); ctx.arc(gx - gr*0.28, gy - gr*0.15, gr*0.07, 0, Math.PI*2); ctx.fill()
+      ctx.beginPath(); ctx.arc(gx + gr*0.28, gy - gr*0.15, gr*0.07, 0, Math.PI*2); ctx.fill()
+      ctx.restore()
+
     } else if (en.type === "worm") {
-      ctx.font = (h * 0.8) + "px Arial"
-      ctx.textAlign = "center"
-      ctx.textBaseline = "middle"
-      ctx.fillText("👹", x + w/2, y + h/2)
+      // Robak — segmenty z głową i oczami
+      const t = Date.now() * 0.004
+      const seg = 4
+      const segR = w / (seg * 2 + 1)
+      ctx.save()
+      // Segmenty ciała (od tyłu do przodu)
+      for (let i = seg - 1; i >= 0; i--) {
+        const sx = x + segR + i * (w - segR*2) / seg + Math.sin(t + i*1.2) * 3
+        const sy = y + h/2 + Math.sin(t*1.5 + i) * 4
+        const shade = Math.floor(80 + i * 20)
+        ctx.fillStyle = `rgb(${shade+60},${shade+140},${shade})`
+        ctx.shadowColor = "#44ff00"; ctx.shadowBlur = i===0 ? 10 : 4
+        ctx.beginPath(); ctx.arc(sx, sy, segR * (i===0 ? 1.3 : 1.0), 0, Math.PI*2); ctx.fill()
+        // Brzuszek
+        ctx.fillStyle = `rgba(180,255,120,0.5)`
+        ctx.beginPath(); ctx.ellipse(sx, sy + segR*0.3, segR*0.5, segR*0.35, 0, 0, Math.PI*2); ctx.fill()
+      }
+      ctx.shadowBlur = 0
+      // Oczy na głowie (i===0)
+      const hx = x + segR + Math.sin(t) * 3
+      const hy = y + h/2 + Math.sin(t*1.5) * 4
+      ctx.fillStyle = "#fff"
+      ctx.beginPath(); ctx.arc(hx - segR*0.4, hy - segR*0.4, segR*0.3, 0, Math.PI*2); ctx.fill()
+      ctx.beginPath(); ctx.arc(hx + segR*0.4, hy - segR*0.4, segR*0.3, 0, Math.PI*2); ctx.fill()
+      ctx.fillStyle = "#000"
+      ctx.beginPath(); ctx.arc(hx - segR*0.38, hy - segR*0.42, segR*0.15, 0, Math.PI*2); ctx.fill()
+      ctx.beginPath(); ctx.arc(hx + segR*0.42, hy - segR*0.42, segR*0.15, 0, Math.PI*2); ctx.fill()
+      // Czułki
+      ctx.strokeStyle = "#44cc00"; ctx.lineWidth = 2
+      ctx.beginPath(); ctx.moveTo(hx - segR*0.3, hy - segR); ctx.lineTo(hx - segR*0.5, hy - segR*1.8); ctx.stroke()
+      ctx.beginPath(); ctx.moveTo(hx + segR*0.3, hy - segR); ctx.lineTo(hx + segR*0.5, hy - segR*1.8); ctx.stroke()
+      ctx.restore()
+
     } else if (en.type === "enemy1") {
       let s = w / 8
       let t = Date.now() * 0.005
@@ -2308,40 +2745,261 @@ function draw(){
         let wave = Math.sin(t * 1.5 + i * 0.08) * 2
         ctx.fillRect(x + i, y + 6 + wave, 4, 1)
       }
-    } else if (en.type === "fire") {
-      let float = Math.sin(Date.now() * 0.004) * 2
-      ctx.font = (h * 0.8) + "px Arial"
-      ctx.textAlign = "center"
-      ctx.textBaseline = "middle"
-      ctx.fillText("🔥", x + w/2, y + h/2 + float)
-    } else if (en.type === "spikes") {
-      ctx.font = (h * 0.8) + "px Arial"
-      ctx.textAlign = "center"
-      ctx.textBaseline = "middle"
-      ctx.fillText("🔺", x + w/2, y + h/2)
-    } else if (en.type === "walker") {
-      ctx.font = (h * 0.8) + "px Arial"
-      ctx.textAlign = "center"
-      ctx.textBaseline = "middle"
-      ctx.fillText("👽", x + w/2, y + h/2)
-    } else if (en.type === "walker2") {
-      const size = w
-      const t = Date.now() * 0.005
-      const wave = Math.sin(t + en.x * 0.05) * 4
-      const ecx = x + w/2 + wave
-      const ecy = y + h/2
 
-      ctx.fillStyle = "#2ecc71"
-      ctx.fillRect(ecx - size/2, ecy - size/2 + Math.abs(wave)*0.2, size, size * (0.9 + Math.sin(t)*0.05))
-      ctx.fillStyle = "white"
-      ctx.fillRect(ecx - size*0.25 + wave*0.2, ecy - size*0.15, size*0.2, size*0.2)
-      ctx.fillRect(ecx + size*0.05 + wave*0.2, ecy - size*0.15, size*0.2, size*0.2)
+    } else if (en.type === "fire") {
+      // Ogień — animowane języki płomienia
+      const t = Date.now() * 0.005
+      const fx = x + w/2, fbase = y + h
+      ctx.save()
+      const flameCount = 3
+      for (let f = 0; f < flameCount; f++) {
+        const offset = (f - 1) * w * 0.28
+        const flicker = Math.sin(t * 1.3 + f * 2.1) * 4
+        const fh = h * (0.6 + Math.sin(t + f) * 0.2)
+        // Zewnętrzny płomień (pomarańcz)
+        const grad = ctx.createRadialGradient(fx + offset, fbase - fh*0.3, 2, fx + offset, fbase, fh*0.5)
+        grad.addColorStop(0, "rgba(255,220,50,0.95)")
+        grad.addColorStop(0.4, "rgba(255,100,0,0.85)")
+        grad.addColorStop(1, "rgba(200,0,0,0)")
+        ctx.fillStyle = grad
+        ctx.beginPath()
+        ctx.moveTo(fx + offset - w*0.18, fbase)
+        ctx.quadraticCurveTo(fx + offset - w*0.12 + flicker, fbase - fh*0.5, fx + offset, fbase - fh)
+        ctx.quadraticCurveTo(fx + offset + w*0.12 - flicker, fbase - fh*0.5, fx + offset + w*0.18, fbase)
+        ctx.closePath()
+        ctx.fill()
+      }
+      // Rdzeń (żółty)
+      const core = ctx.createRadialGradient(fx, fbase - h*0.25, 1, fx, fbase - h*0.2, w*0.2)
+      core.addColorStop(0, "rgba(255,255,180,1)")
+      core.addColorStop(1, "rgba(255,200,0,0)")
+      ctx.fillStyle = core
+      ctx.beginPath(); ctx.arc(fx, fbase - h*0.22, w*0.2, 0, Math.PI*2); ctx.fill()
+      ctx.restore()
+
+    } else if (en.type === "spikes") {
+      // Kolce — ostre metaliczne trójkąty z połyskiem
+      const spikeCount = 4
+      const sw = w / spikeCount
+      const base = y + h
+      ctx.save()
+      for (let i = 0; i < spikeCount; i++) {
+        const sx = x + i * sw
+        const tip = y + 4
+        // Gradient — ciemny metal z blaskiem
+        const sGrad = ctx.createLinearGradient(sx, base, sx + sw/2, tip)
+        sGrad.addColorStop(0, "#2a2a3a")
+        sGrad.addColorStop(0.5, "#8899bb")
+        sGrad.addColorStop(1, "#ddeeff")
+        ctx.fillStyle = sGrad
+        ctx.beginPath()
+        ctx.moveTo(sx + 1, base)
+        ctx.lineTo(sx + sw/2, tip)
+        ctx.lineTo(sx + sw - 1, base)
+        ctx.closePath()
+        ctx.fill()
+        // Połysk na lewej krawędzi
+        ctx.strokeStyle = "rgba(200,230,255,0.7)"
+        ctx.lineWidth = 1.5
+        ctx.beginPath(); ctx.moveTo(sx + 2, base - 2); ctx.lineTo(sx + sw/2, tip + 1); ctx.stroke()
+      }
+      // Podstawa
+      const baseGrad = ctx.createLinearGradient(x, base - 5, x, base)
+      baseGrad.addColorStop(0, "#333344")
+      baseGrad.addColorStop(1, "#111122")
+      ctx.fillStyle = baseGrad
+      ctx.fillRect(x, base - 5, w, 5)
+      ctx.restore()
+
+    } else if (en.type === "walker") {
+      // Walker — robot z anteną i świecącymi oczami
+      const t = Date.now() * 0.004
+      const cx2 = x + w/2, cy2 = y + h/2
+      const legBob = Math.sin(t * 2) * 4
+      ctx.save()
+      // Nogi
+      ctx.strokeStyle = "#66aadd"; ctx.lineWidth = 3
+      ctx.lineCap = "round"
+      ctx.beginPath(); ctx.moveTo(cx2 - w*0.2, cy2 + h*0.2); ctx.lineTo(cx2 - w*0.25, cy2 + h*0.5 + legBob); ctx.stroke()
+      ctx.beginPath(); ctx.moveTo(cx2 + w*0.2, cy2 + h*0.2); ctx.lineTo(cx2 + w*0.25, cy2 + h*0.5 - legBob); ctx.stroke()
+      // Stopy
+      ctx.fillStyle = "#4488bb"
+      ctx.fillRect(cx2 - w*0.38, cy2 + h*0.5 + legBob - 2, w*0.26, 5)
+      ctx.fillRect(cx2 + w*0.12, cy2 + h*0.5 - legBob - 2, w*0.26, 5)
+      // Tułów
+      const bodyGrad = ctx.createLinearGradient(cx2 - w*0.35, cy2 - h*0.25, cx2 + w*0.35, cy2 + h*0.25)
+      bodyGrad.addColorStop(0, "#5599ee")
+      bodyGrad.addColorStop(1, "#224488")
+      ctx.fillStyle = bodyGrad
+      ctx.beginPath(); ctx.roundRect(cx2 - w*0.35, cy2 - h*0.28, w*0.7, h*0.55, 5); ctx.fill()
+      ctx.strokeStyle = "#88ccff"; ctx.lineWidth = 1
+      ctx.beginPath(); ctx.roundRect(cx2 - w*0.35, cy2 - h*0.28, w*0.7, h*0.55, 5); ctx.stroke()
+      // Głowa
+      ctx.fillStyle = "#4477cc"
+      ctx.beginPath(); ctx.roundRect(cx2 - w*0.28, cy2 - h*0.52, w*0.56, h*0.28, 4); ctx.fill()
+      // Antena
+      ctx.strokeStyle = "#88ccff"; ctx.lineWidth = 2
+      ctx.beginPath(); ctx.moveTo(cx2, cy2 - h*0.52); ctx.lineTo(cx2, cy2 - h*0.75); ctx.stroke()
+      ctx.shadowColor = "#00ffff"; ctx.shadowBlur = 8
+      ctx.fillStyle = "#00ffee"
+      ctx.beginPath(); ctx.arc(cx2, cy2 - h*0.78, 3.5, 0, Math.PI*2); ctx.fill()
+      ctx.shadowBlur = 0
+      // Oczy świecące
+      ctx.shadowColor = "#00ffff"; ctx.shadowBlur = 10
+      ctx.fillStyle = "#00ffff"
+      ctx.beginPath(); ctx.arc(cx2 - w*0.12, cy2 - h*0.4, 4, 0, Math.PI*2); ctx.fill()
+      ctx.beginPath(); ctx.arc(cx2 + w*0.12, cy2 - h*0.4, 4, 0, Math.PI*2); ctx.fill()
+      ctx.shadowBlur = 0
+      ctx.restore()
+    } else if (en.type === "walker2") {
+      // Fioletowy stworek — wiernie jak w Mini Przygoda Eda
+      const t = Date.now() * 0.01
+      const cx2 = x + w/2
+      const legAnim = Math.sin(t) * 8
+      ctx.save()
+      // Tułów prostokątny
+      ctx.fillStyle = "#aa3399"
+      ctx.fillRect(x, y + h*0.45, w, h*0.55)
+      // Głowa — półkole na górze tułowia
+      ctx.fillStyle = "#cc55bb"
+      ctx.beginPath()
+      ctx.arc(cx2, y + h*0.45, w*0.5, Math.PI, 0)
+      ctx.fill()
+      // Oczy żółte
+      ctx.fillStyle = "#ffff00"
+      ctx.beginPath(); ctx.arc(cx2 - w*0.18, y + h*0.32, 5.5, 0, Math.PI*2); ctx.fill()
+      ctx.beginPath(); ctx.arc(cx2 + w*0.18, y + h*0.32, 5.5, 0, Math.PI*2); ctx.fill()
+      // Źrenice
       ctx.fillStyle = "#000"
-      ctx.fillRect(ecx - size*0.20 + wave*0.3, ecy - size*0.10, size*0.08, size*0.08)
-      ctx.fillRect(ecx + size*0.10 + wave*0.3, ecy - size*0.10, size*0.08, size*0.08)
-      ctx.fillStyle = "#27ae60"
-      ctx.fillRect(ecx - size*0.25, ecy + size*0.25 + Math.sin(t)*2, size*0.15, size*0.2)
-      ctx.fillRect(ecx + size*0.10, ecy + size*0.25 - Math.sin(t)*2, size*0.15, size*0.2)
+      ctx.beginPath(); ctx.arc(cx2 - w*0.18, y + h*0.32, 2.5, 0, Math.PI*2); ctx.fill()
+      ctx.beginPath(); ctx.arc(cx2 + w*0.18, y + h*0.32, 2.5, 0, Math.PI*2); ctx.fill()
+      // Nogi — tupają na przemian
+      ctx.strokeStyle = "#882277"; ctx.lineWidth = 6; ctx.lineCap = "round"
+      ctx.beginPath(); ctx.moveTo(cx2 - w*0.22, y + h); ctx.lineTo(cx2 - w*0.22 + legAnim, y + h + 10); ctx.stroke()
+      ctx.beginPath(); ctx.moveTo(cx2 + w*0.22, y + h); ctx.lineTo(cx2 + w*0.22 - legAnim, y + h + 10); ctx.stroke()
+      ctx.restore()
+
+    } else if (en.type === "walker3") {
+      // Pancerny robot — stalowy z czerwonymi oczami i anteną
+      const t = Date.now() * 0.003
+      const cx2 = x + w/2, cy2 = y + h/2
+      const legAnim = Math.sin(Date.now() * 0.009) * 6
+      ctx.save()
+      // Nogi
+      ctx.strokeStyle = "#445566"; ctx.lineWidth = 5; ctx.lineCap = "round"
+      ctx.beginPath(); ctx.moveTo(cx2 - w*0.22, cy2 + h*0.38); ctx.lineTo(cx2 - w*0.28 + legAnim, cy2 + h*0.58); ctx.stroke()
+      ctx.beginPath(); ctx.moveTo(cx2 + w*0.22, cy2 + h*0.38); ctx.lineTo(cx2 + w*0.28 - legAnim, cy2 + h*0.58); ctx.stroke()
+      // Stopy
+      ctx.fillStyle = "#334455"
+      ctx.fillRect(cx2 - w*0.42 + legAnim, cy2 + h*0.55, w*0.28, 6)
+      ctx.fillRect(cx2 + w*0.14 - legAnim, cy2 + h*0.55, w*0.28, 6)
+      // Tułów pancerny
+      const bGrad = ctx.createLinearGradient(cx2 - w*0.4, cy2, cx2 + w*0.4, cy2)
+      bGrad.addColorStop(0, "#334455")
+      bGrad.addColorStop(0.5, "#5577aa")
+      bGrad.addColorStop(1, "#334455")
+      ctx.fillStyle = bGrad
+      ctx.beginPath(); ctx.roundRect(cx2 - w*0.42, cy2 - h*0.12, w*0.84, h*0.52, 4); ctx.fill()
+      ctx.strokeStyle = "#7799cc"; ctx.lineWidth = 1.5
+      ctx.beginPath(); ctx.roundRect(cx2 - w*0.42, cy2 - h*0.12, w*0.84, h*0.52, 4); ctx.stroke()
+      // Głowa
+      const hGrad = ctx.createLinearGradient(cx2 - w*0.32, cy2 - h*0.5, cx2 + w*0.32, cy2 - h*0.1)
+      hGrad.addColorStop(0, "#445566")
+      hGrad.addColorStop(1, "#223344")
+      ctx.fillStyle = hGrad
+      ctx.beginPath(); ctx.roundRect(cx2 - w*0.32, cy2 - h*0.52, w*0.64, h*0.42, 5); ctx.fill()
+      ctx.strokeStyle = "#6688aa"; ctx.lineWidth = 1
+      ctx.beginPath(); ctx.roundRect(cx2 - w*0.32, cy2 - h*0.52, w*0.64, h*0.42, 5); ctx.stroke()
+      // Oczy czerwone świecące
+      ctx.shadowColor = "#ff2200"; ctx.shadowBlur = 10
+      ctx.fillStyle = "#ff3300"
+      ctx.beginPath(); ctx.arc(cx2 - w*0.14, cy2 - h*0.34, 5, 0, Math.PI*2); ctx.fill()
+      ctx.beginPath(); ctx.arc(cx2 + w*0.14, cy2 - h*0.34, 5, 0, Math.PI*2); ctx.fill()
+      ctx.shadowBlur = 0
+      // Antena
+      ctx.strokeStyle = "#7799cc"; ctx.lineWidth = 2
+      ctx.beginPath(); ctx.moveTo(cx2, cy2 - h*0.52); ctx.lineTo(cx2 + w*0.1, cy2 - h*0.72); ctx.stroke()
+      ctx.fillStyle = "#ff4400"
+      ctx.shadowColor = "#ff4400"; ctx.shadowBlur = 6
+      ctx.beginPath(); ctx.arc(cx2 + w*0.1, cy2 - h*0.74, 3, 0, Math.PI*2); ctx.fill()
+      ctx.shadowBlur = 0
+      ctx.restore()
+
+    } else if (en.type === "walker4") {
+      // UFO — latający spodek z wiązką i migającymi światłami
+      const t = Date.now() * 0.003
+      const cx2 = x + w/2
+      const hover = Math.sin(t * 1.5) * 5  // unoszenie w górę i dół
+      const cy2 = y + h/2 + hover
+      ctx.save()
+
+      // Wiązka traktora (trójkąt w dół)
+      const beamAlpha = 0.15 + Math.sin(t * 3) * 0.1
+      const beamGrad = ctx.createLinearGradient(cx2, cy2 + h*0.18, cx2, cy2 + h*0.9)
+      beamGrad.addColorStop(0, `rgba(100,255,100,${beamAlpha + 0.2})`)
+      beamGrad.addColorStop(1, `rgba(100,255,100,0)`)
+      ctx.fillStyle = beamGrad
+      ctx.beginPath()
+      ctx.moveTo(cx2 - w*0.22, cy2 + h*0.18)
+      ctx.lineTo(cx2 - w*0.5, cy2 + h*0.9)
+      ctx.lineTo(cx2 + w*0.5, cy2 + h*0.9)
+      ctx.lineTo(cx2 + w*0.22, cy2 + h*0.18)
+      ctx.closePath()
+      ctx.fill()
+
+      // Dolna kopuła — metaliczny spodek
+      const diskGrad = ctx.createLinearGradient(cx2 - w*0.5, cy2, cx2 + w*0.5, cy2 + h*0.25)
+      diskGrad.addColorStop(0, "#888899")
+      diskGrad.addColorStop(0.4, "#ccccdd")
+      diskGrad.addColorStop(1, "#556677")
+      ctx.fillStyle = diskGrad
+      ctx.beginPath()
+      ctx.ellipse(cx2, cy2 + h*0.12, w*0.5, h*0.18, 0, 0, Math.PI*2)
+      ctx.fill()
+      // Obwódka spodka
+      ctx.strokeStyle = "#aabbcc"
+      ctx.lineWidth = 1.5
+      ctx.beginPath()
+      ctx.ellipse(cx2, cy2 + h*0.12, w*0.5, h*0.18, 0, 0, Math.PI*2)
+      ctx.stroke()
+
+      // Górna kopuła — szklana
+      const domeGrad = ctx.createRadialGradient(cx2 - w*0.1, cy2 - h*0.15, 2, cx2, cy2, w*0.32)
+      domeGrad.addColorStop(0, "rgba(180,255,180,0.9)")
+      domeGrad.addColorStop(0.5, "rgba(80,200,120,0.7)")
+      domeGrad.addColorStop(1, "rgba(20,100,60,0.5)")
+      ctx.fillStyle = domeGrad
+      ctx.beginPath()
+      ctx.ellipse(cx2, cy2, w*0.3, h*0.28, 0, Math.PI, 0)
+      ctx.fill()
+      // Obwódka kopuły
+      ctx.strokeStyle = "rgba(150,255,180,0.8)"
+      ctx.lineWidth = 1.5
+      ctx.beginPath()
+      ctx.ellipse(cx2, cy2, w*0.3, h*0.28, 0, Math.PI, 0)
+      ctx.stroke()
+
+      // Migające światła na spodku
+      const lights = [-0.35, -0.18, 0, 0.18, 0.35]
+      lights.forEach((offset, i) => {
+        const phase = (t * 4 + i * 1.2) % (Math.PI * 2)
+        const on = Math.sin(phase) > 0
+        ctx.shadowColor = on ? "#ffff00" : "transparent"
+        ctx.shadowBlur = on ? 8 : 0
+        ctx.fillStyle = on ? "#ffee00" : "#555544"
+        ctx.beginPath()
+        ctx.arc(cx2 + w * offset, cy2 + h*0.22, 3.5, 0, Math.PI*2)
+        ctx.fill()
+      })
+      ctx.shadowBlur = 0
+
+      // Połysk na kopule
+      ctx.fillStyle = "rgba(255,255,255,0.25)"
+      ctx.beginPath()
+      ctx.ellipse(cx2 - w*0.1, cy2 - h*0.1, w*0.1, h*0.08, -0.4, 0, Math.PI*2)
+      ctx.fill()
+
+      ctx.restore()
     } else {
       ctx.fillStyle = "#7b3fe4"
       ctx.fillRect(x, y, w, h)
@@ -2367,6 +3025,19 @@ function draw(){
     if (b.type === "key_level") icon = "🔑"
     ctx.fillText(icon, 0, 0)
     ctx.restore()
+  }
+
+  // === DYM SAMOCHODU (w układzie świata) ===
+  if (trybGry && exhaustParticles.length > 0) {
+    for (let p of exhaustParticles) {
+      ctx.save()
+      ctx.globalAlpha = p.life * 0.55
+      ctx.fillStyle = `rgb(${p.gray},${p.gray},${p.gray})`
+      ctx.beginPath()
+      ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2)
+      ctx.fill()
+      ctx.restore()
+    }
   }
 
   ctx.restore()
