@@ -2301,7 +2301,26 @@ function draw(){
     ctx.shadowBlur = 0
     ctx.font = "22px Arial"
     ctx.fillStyle = "#aaccff"
-    ctx.fillText(opisGry || "gra sobie od Groka", cx, titleY + 75)
+
+    // Łamanie opisu po słowach, max 60 znaków na linię, max 3 linie
+    const opisTekst = opisGry || "gra sobie od Groka"
+    const slowa = opisTekst.split(" ")
+    const opisLinie = []
+    let aktLinia = ""
+    for (const slowo of slowa) {
+      if (opisLinie.length >= 3) break
+      const proba = aktLinia ? aktLinia + " " + slowo : slowo
+      if (proba.length <= 60) {
+        aktLinia = proba
+      } else {
+        if (aktLinia) opisLinie.push(aktLinia)
+        aktLinia = slowo.length > 60 ? slowo.substring(0, 60) : slowo
+      }
+    }
+    if (aktLinia && opisLinie.length < 3) opisLinie.push(aktLinia)
+    opisLinie.forEach((linia, i) => {
+      ctx.fillText(linia, cx, titleY + 75 + i * 26)
+    })
 
     ctx.font = "17px Arial"
     ctx.fillStyle = "#556677"
@@ -4122,6 +4141,10 @@ function pokazAutorModal(){
   document.getElementById("nazwaInput").value = nazwaGry || ""
   document.getElementById("autorInput").value = autorGry || ""
   document.getElementById("opisInput").value  = opisGry  || ""
+  // odśwież licznik
+  const el = document.getElementById("opisInput")
+  const counter = document.getElementById("opisCounter")
+  if (el && counter) counter.textContent = el.value.length + " / 120"
 }
 
 function zapiszAutora(){
@@ -4137,6 +4160,28 @@ function zapiszAutora(){
   alert("Zapisano dane gry ✔️")
 }
 
+function formatOpis(el) {
+  const lines = el.value.split('\n')
+  const fixed = []
+  for (let line of lines) {
+    // łam linie dłuższe niż 40 znaków
+    while (line.length > 40) {
+      fixed.push(line.substring(0, 40))
+      line = line.substring(40)
+    }
+    fixed.push(line)
+  }
+  // max 3 linie
+  const trimmed = fixed.slice(0, 3)
+  const joined = trimmed.join('\n')
+  if (el.value !== joined) {
+    const pos = el.selectionStart
+    el.value = joined
+    el.selectionStart = el.selectionEnd = Math.min(pos, joined.length)
+  }
+  const counter = document.getElementById("opisCounter")
+  if (counter) counter.textContent = el.value.length + " / 120"
+}
 function pokazUstawienia() {
   let html = `
     <h3>O TWÓRCY GRY</h3>
