@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <title>mini-klik • portal z grami</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 
 <style>
     :root {
@@ -432,22 +434,62 @@ commentsDiv.innerHTML = `
     <div class="comment"><div class="comment-author">@PixelQueen_pl</div><p>Edytor jest rewelacyjny, w końcu coś prostego i ładnego!</p></div>
 `;
 
-form.addEventListener('submit', function(e) {
+form.addEventListener('submit', async function(e) {
     e.preventDefault();
+
     const name = document.getElementById('name').value.trim();
     const message = document.getElementById('message').value.trim();
 
     if (!name || !message) return;
 
-    const newComment = document.createElement('div');
-    newComment.className = 'comment';
-    newComment.innerHTML = `
-        <div class="comment-author">@${name}</div>
-        <p>${message}</p>
-    `;
-    commentsDiv.prepend(newComment);
-    form.reset();
+    try {
+        await db.collection("wpisy").add({
+            name,
+            message,
+            created: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        form.reset();
+        loadComments();
+    } catch (err) {
+        console.error("Błąd zapisu:", err);
+    }
 });
+
+async function loadComments() {
+    commentsDiv.innerHTML = "";
+
+    const snapshot = await db.collection("wpisy")
+        .orderBy("created", "desc")
+        .get();
+
+    snapshot.forEach(doc => {
+        const data = doc.data();
+
+        const div = document.createElement('div');
+        div.className = 'comment';
+        div.innerHTML = `
+            <div class="comment-author">@${data.name}</div>
+            <p>${data.message}</p>
+        `;
+        commentsDiv.appendChild(div);
+    });
+}
+
+// start
+loadComments();
+// FIREBASE
+const firebaseConfig = {
+  apiKey: "AIzaSyDRR3vSfgpEmbpZz_-VldMTnTHoXRfuGKg",
+  authDomain: "ksiega-ramzi.firebaseapp.com",
+  projectId: "ksiega-ramzi",
+  storageBucket: "ksiega-ramzi.firebasestorage.app",
+  messagingSenderId: "400735142662",
+  appId: "1:400735142662:web:0b52a57f4fedf367839487"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
 </script>
 
 </body>
