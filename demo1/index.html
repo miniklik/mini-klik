@@ -2609,11 +2609,33 @@ function update(){
           spawnExplosion(b.x - cameraX + b.w*0.75, b.y + b.h*0.6)
           b.exploded = true
           b.respawnTimer = 0
+
+          const bombCX = b.x + b.w/2
+          const bombCY = b.y + b.h/2
+          const bombR = 120  // stały zasięg wybuchu
+
+          // Zabij wrogów w zasięgu wybuchu
+          for (let ei = enemies.length - 1; ei >= 0; ei--) {
+            const en = enemies[ei]
+            const enCX = en.x + (en.w||40)/2
+            const enCY = en.y + (en.h||40)/2
+            const dist = Math.hypot(enCX - bombCX, enCY - bombCY)
+            if (dist < bombR) {
+              // Efektowne rozerwanie wroga — dużo cząsteczek w miejscu wroga
+              spawnExplosion(en.x - cameraX + (en.w||40)/2, en.y + (en.h||40)/2)
+              spawnExplosion(en.x - cameraX + (en.w||40)/2, en.y + (en.h||40)/2)
+              enemies.splice(ei, 1)
+              counters.points++
+              const lvl = getLevel()
+              if (lvl) lvl.enemies = enemies
+            }
+          }
+
           // Zabij gracza jeśli blisko
           if (players[0] && !gameOver) {
             const p = players[0]
             const dist = Math.hypot(p.x - (b.x + b.w/2), p.y - (b.y + b.h/2))
-            if (dist < b.w * 1.2 && invulnerable === 0) {
+            if (dist < 100 && invulnerable === 0) {
               if (useLives) counters.lives--
               deathRespawnX = p.x
               deathRespawnY = p.y
@@ -4045,7 +4067,7 @@ function initResultsScene(){
       alpha: Math.random()
     })
   }
-  if (!resultsNameEntered) {
+  if (!resultsNameEntered && gameState === "win") {
     setTimeout(() => showNameInput(), 300)
   }
 }
@@ -4131,7 +4153,7 @@ function submitScore() {
     date: new Date().toLocaleDateString("pl-PL")
   })
   board.sort((a, b) => b.points - a.points)
-  board = board.slice(0, 10)
+  board = board.slice(0, 2)
   try { localStorage.setItem(key, JSON.stringify(board)) } catch(e) {}
 
   document.getElementById("nameModal")?.remove()
@@ -4280,52 +4302,55 @@ function drawResults(){
   ctx.fillStyle = "rgba(0,0,0,0.5)"
   ctx.strokeStyle = isWin ? "rgba(0,255,136,0.3)" : "rgba(255,68,0,0.3)"
   ctx.lineWidth = 1
-  ctx.beginPath(); ctx.roundRect(tableX, tableY, tableW, 30 + Math.min(board.length, 6)*30, 10); ctx.fill(); ctx.stroke()
+  ctx.beginPath(); ctx.roundRect(tableX, tableY, tableW, 30 + Math.max(Math.min(board.length, 2), 1)*30, 10); ctx.fill(); ctx.stroke()
   ctx.restore()
 
-  // Nagłówek tabeli
+  // Nagłówek — różny dla wygranej i przegranej
   ctx.textAlign = "left"; ctx.font = "bold 12px Arial"
-  ctx.fillStyle = isWin ? "#00ff88" : "#ff6644"
-  ctx.fillText("🏅 HALL OF FAME — " + (nazwaGry || "Gra").toUpperCase(), tableX + 14, tableY + 20)
+  if (isWin) {
+    ctx.fillStyle = "#00ff88"
+    ctx.fillText("🏅 HALL OF FAME — " + (nazwaGry || "Gra").toUpperCase(), tableX + 14, tableY + 20)
+  } else {
+    ctx.fillStyle = "#ff6644"
+    ctx.fillText("📊 NAJLEPSZE WYNIKI — " + (nazwaGry || "Gra").toUpperCase(), tableX + 14, tableY + 20)
+    // Info że nie można zapisać
+    ctx.textAlign = "center"; ctx.fillStyle = "#886644"; ctx.font = "11px Arial"
+    ctx.fillText("⚠ Zapis tylko przy wygranej (dotknij flagi!)", cx, tableY + 20)
+  }
 
   // Wiersze wyników
-  const maxRows = Math.min(board.length, 6)
+  const maxRows = Math.min(board.length, 2)
   for (let i = 0; i < maxRows; i++) {
     const entry = board[i]
     const ry = tableY + 46 + i * 30
-    const isMe = resultsNameEntered && entry.name === resultsPlayerName && i === 0
+    const isMe = isWin && resultsNameEntered && entry.name === resultsPlayerName && i === 0
 
     if (isMe) {
       ctx.save()
-      ctx.fillStyle = isWin ? "rgba(0,255,136,0.15)" : "rgba(255,100,0,0.15)"
+      ctx.fillStyle = "rgba(0,255,136,0.15)"
       ctx.beginPath(); ctx.roundRect(tableX + 4, ry - 12, tableW - 8, 26, 6); ctx.fill()
       ctx.restore()
     }
 
-    // Numer miejsca
-    const medal = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `${i+1}.`
-    ctx.font = i < 3 ? "16px Arial" : "bold 13px Arial"
-    ctx.textAlign = "center"; ctx.fillStyle = "#fff"
+    const medal = i === 0 ? "🥇" : "🥈"
+    ctx.font = "16px Arial"; ctx.textAlign = "center"; ctx.fillStyle = "#fff"
     ctx.fillText(medal, tableX + 22, ry)
 
-    // Imię
     ctx.textAlign = "left"; ctx.font = "bold 14px Arial"
-    ctx.fillStyle = isMe ? (isWin ? "#00ff88" : "#ff8844") : "#dddddd"
+    ctx.fillStyle = isMe ? "#00ff88" : "#dddddd"
     ctx.fillText(entry.name, tableX + 44, ry)
 
-    // Punkty
     ctx.textAlign = "right"; ctx.font = "bold 14px Arial"
     ctx.fillStyle = "#ffcc00"
     ctx.fillText("⭐ " + entry.points, tableX + tableW - 60, ry)
 
-    // Win/lose
     ctx.fillStyle = entry.win ? "#00cc66" : "#cc4444"
     ctx.fillText(entry.win ? "✔" : "✖", tableX + tableW - 20, ry)
   }
 
   if (board.length === 0) {
     ctx.textAlign = "center"; ctx.fillStyle = "#555"; ctx.font = "13px Arial"
-    ctx.fillText("Brak wyników — zagraj i zapisz swój wynik!", cx, tableY + 46)
+    ctx.fillText(isWin ? "Brak wyników — wygraj i zapisz!" : "Brak wyników", cx, tableY + 46)
   }
 
   // Przyciski
