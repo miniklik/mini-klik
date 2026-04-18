@@ -715,7 +715,14 @@ function snapAll(){
   }
 }
 
+let snapshotBeforeRun = null  // kopia stanu przed URUCHOM
+let livesBeforeRun = 0        // liczba żyć przed URUCHOM
+
 function uruchom(){
+  // Zapisz głęboki snapshot wszystkich poziomów przed uruchomieniem
+  snapshotBeforeRun = JSON.parse(JSON.stringify(levels))
+  livesBeforeRun = counters.lives  // zapamiętaj aktualne życia
+
   trybGry = true
   exhaustParticles = []
   carWheelAngle = 0
@@ -736,10 +743,32 @@ function edytuj(){
   exhaustParticles = []
   shotParticles = []
   explosions = []
-  // Reset bomb bloków
+  document.getElementById("nameModal")?.remove()
+
+  // Przywróć snapshot sprzed uruchomienia
+  if (snapshotBeforeRun) {
+    levels = JSON.parse(JSON.stringify(snapshotBeforeRun))
+    snapshotBeforeRun = null
+    syncLevelData()
+    renderLevelsBar()
+  }
+
+  // Przywróć życia
+  if (livesBeforeRun > 0) {
+    counters.lives = livesBeforeRun
+    livesBeforeRun = 0
+  }
+
+  // Reset bomb bloków po przywróceniu
   for (const b of blocks) {
     if (b.typ === "blockBomb") { b.bombTimer = 0; b.exploded = false; b.respawnTimer = 0 }
   }
+
+  gameState = "game"
+  gameOver = false
+  gameOverTriggered = false
+  selectedObject = null
+
   updateButtonStates()
 }
 
@@ -5141,20 +5170,8 @@ function wyjdzDoMenu() {
 }
 
 function wrocDoEdytora() {
-  trybGry = false
-  gameState = "game"
-  gameOver = false
-  gameOverTriggered = false
-
-  if (players.length > 0) {
-    players[0].x = playerStartX
-    players[0].y = playerStartY
-    players[0].vx = 0
-    players[0].vy = 0
-  }
-
+  edytuj()
   counters.time = startTime
-  alert("🛠 Wracasz do edytora")
 }
 
 function pokazAutorModal(){
