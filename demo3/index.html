@@ -4,129 +4,370 @@
 <meta charset="UTF-8">
 <title>Edytor gier</title>
 <style>
+  * { box-sizing: border-box; }
   body { margin:0; font-family:Arial; background:#111; color:white; display:flex; flex-direction:column; align-items:center; }
   #editor { width:1200px; max-width:95vw; }
-  #topbar { background:#222; padding:10px; display:flex; justify-content:center; gap:10px; flex-wrap:wrap; }
+
+  /* ===== PRZYCISKI GLOBALNE ===== */
   button {
-  padding: 12px 16px;
-  font-size: 14px;
-  font-weight: bold;
-  background: linear-gradient(180deg, #555, #222);
-  border: 2px solid #666;
-  border-radius: 10px;
-  color: white;
-  cursor: pointer;
-  transition: all 0.15s ease;
-  box-shadow: 0 4px 0 #111, 0 0 10px rgba(0,0,0,0.5);
-}
-button:hover {
-  background: linear-gradient(180deg, #666, #333);
-  transform: translateY(-2px);
-  box-shadow: 0 6px 0 #111, 0 0 12px rgba(0,0,0,0.7);
-}
-button:active {
-  transform: translateY(2px);
-  box-shadow: 0 2px 0 #111;
-}
-button.active {
-  background: linear-gradient(180deg, #4CAF50, #2e7d32) !important;
-  border-color: #1b5e20;
-  box-shadow: 0 0 12px #4CAF50, 0 4px 0 #0a3d12;
-}
+    padding: 8px 12px;
+    font-size: 13px;
+    font-weight: bold;
+    background: linear-gradient(180deg, #555, #222);
+    border: 2px solid #666;
+    border-radius: 8px;
+    color: white;
+    cursor: pointer;
+    transition: all 0.12s ease;
+    box-shadow: 0 3px 0 #111;
+  }
+  button:hover {
+    background: linear-gradient(180deg, #666, #333);
+    transform: translateY(-1px);
+    box-shadow: 0 5px 0 #111;
+  }
+  button:active { transform: translateY(2px); box-shadow: 0 1px 0 #111; }
+  button.active {
+    background: linear-gradient(180deg, #4CAF50, #2e7d32) !important;
+    border-color: #1b5e20;
+    box-shadow: 0 0 10px #4CAF50, 0 3px 0 #0a3d12;
+  }
   #deleteBtn.active { background:#c33 !important; border-color:#933; box-shadow:0 0 8px #c33; }
-  #main { display:flex; gap:10px; }
-#lewy button {
-  width: 160px;
-  height: 40px;
-  box-sizing: border-box;
-  margin-bottom: 10px;
-  padding-left: 14px;
-  display: flex;
-  align-items: center;
-}
-#prawy button {
-  height: 40px;
-  box-sizing: border-box;
-  margin-bottom: 8px;
-}
-  #prawy { width:220px; background:#222; padding:10px; }
-  canvas { background:#87CEEB; }
-  .selected { outline:3px solid red; }
-  .item { cursor:pointer; text-align:center; margin:10px 0; }
-  .keybox { border:1px solid #888; padding:6px; margin:3px 0; text-align:center; cursor:pointer; background:#333; }
-  input[type="number"] { width:80px; }
-  .fx-list { margin:10px 0; }
-  .fx-row { background:#333; padding:8px; margin:6px 0; border-radius:4px; display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
-  .fx-name { font-weight:bold; min-width:90px; }
-  .fx-params { color:#aaa; font-size:0.9em; flex:1; }
-  .small { font-size:0.85em; padding:4px 8px; }
+
+  /* ===== GŁÓWNY LAYOUT ===== */
+  #main { display:flex; gap:8px; align-items:flex-start; }
+
+  /* ===== LEWY PANEL — kontrolki ===== */
+  #lewy {
+    width: 170px;
+    background: #1a1a1a;
+    border-radius: 10px;
+    padding: 10px 8px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  #lewy .panel-section {
+    border-bottom: 1px solid #333;
+    padding-bottom: 6px;
+    margin-bottom: 4px;
+  }
+  #lewy .section-label {
+    font-size: 10px;
+    color: #666;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 4px;
+    padding-left: 2px;
+  }
+  #lewy button {
+    width: 100%;
+    height: 36px;
+    margin-bottom: 3px;
+    padding-left: 10px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+  }
+
+  /* ===== ŚRODEK — canvas + toolbar obiektów ===== */
+  #srodek {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex: 1;
+    min-width: 0;
+  }
+
+  /* PASEK OBIEKTÓW nad canvasem */
+  #objectsBar {
+    width: 800px;
+    background: #1a1a1a;
+    border-radius: 10px 10px 0 0;
+    padding: 6px 10px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    border-bottom: 2px solid #333;
+  }
+  #objectsBar .obj-label {
+    font-size: 10px;
+    color: #555;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    white-space: nowrap;
+    margin-right: 2px;
+  }
+  #objectsBar .obj-sep {
+    width: 1px;
+    height: 30px;
+    background: #333;
+    margin: 0 4px;
+    flex-shrink: 0;
+  }
+  .obj-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: #252525;
+    border: 1.5px solid #3a3a3a;
+    border-radius: 8px;
+    cursor: pointer;
+    padding: 4px 8px;
+    transition: all 0.12s;
+    flex-shrink: 0;
+    min-width: 46px;
+    gap: 2px;
+  }
+  .obj-btn:hover {
+    background: #333;
+    border-color: #4CAF50;
+    box-shadow: 0 0 8px rgba(76,175,80,0.4);
+    transform: translateY(-2px);
+  }
+  .obj-btn .obj-icon { font-size: 20px; line-height: 1; }
+  .obj-btn .obj-name { font-size: 9px; color: #888; white-space: nowrap; }
+
+  /* Canvas */
+  canvas { background:#87CEEB; display:block; }
+
+  /* Scrollbar */
+  #scrollX {
+    width: 800px;
+    margin: 6px 0;
+    accent-color: #4CAF50;
+    background: #333;
+    height: 10px;
+    border-radius: 6px;
+  }
+
+  /* Levels bar */
+  #levelsBar {
+    width: 800px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: #1a1a1a;
+    padding: 6px;
+    border-radius: 0 0 8px 8px;
+    margin-bottom: 6px;
+  }
+
+  /* ===== PRAWY PANEL — edycja ===== */
+  #prawy { width:220px; background:#1a1a1a; padding:10px; border-radius:10px; flex-shrink:0; }
+  #prawy button { height: 36px; margin-bottom: 6px; width: 100%; }
+
+  /* Misc */
+  .item { cursor:pointer; text-align:center; margin:8px 0; }
+  .keybox { border:1px solid #888; padding:6px; margin:3px 0; text-align:center; cursor:pointer; background:#333; border-radius:4px; }
+  input[type="number"] { width:70px; }
+  .fx-list { margin:8px 0; }
+  .fx-row { background:#2a2a2a; padding:6px; margin:4px 0; border-radius:4px; display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+  .fx-name { font-weight:bold; min-width:80px; font-size:12px; }
+  .fx-params { color:#aaa; font-size:0.85em; flex:1; }
+  .small { font-size:0.8em; padding:3px 6px; }
   .danger { background:#933; }
-  .blink {
-    animation: blinkAnim 1s infinite;
-  }
-  @keyframes blinkAnim {
-    0%   { opacity: 1; }
-    50%  { opacity: 0.2; }
-    100% { opacity: 1; }
-  }
+  .blink { animation: blinkAnim 1s infinite; }
+  @keyframes blinkAnim { 0%,100%{opacity:1} 50%{opacity:0.2} }
+  .platform-preview { cursor:pointer; transition:transform 0.15s; }
+  .platform-preview:hover { transform:scale(1.05); }
+  .platform-preview canvas { border:2px solid #555; border-radius:8px; background:#1e1e1e; box-shadow:0 4px 8px rgba(0,0,0,0.4); }
+  .preview-label { margin-top:6px; font-size:13px; color:#ccc; text-align:center; }
 </style>
 </head>
 <body>
 
 <div id="editor">
 
-<div id="topbar">
-  <button id="runBtn" onclick="uruchom()">URUCHOM</button>
-  <button id="editBtn" onclick="edytuj()">EDYTUJ</button>
-  <button id="deleteBtn" onclick="trybUsun()">USUŃ OBIEKT</button>
-  <button id="gridBtn" onclick="toggleGrid()">SIATKA</button>
-  <button id="fxBtn" onclick="toggleFX()">FX</button>
-  <button id="pauseFxBtn" onclick="togglePauseEffects()">FX - STOP</button>
-  <button onclick="zapiszProjekt()">SAVE</button>
-  <button onclick="wczytajProjekt()">LOAD</button>
-  <button onclick="loadDemo(); event.stopPropagation()">🎮 DEMO</button>
-</div>
-
 <div id="main">
+
+<!-- ===== LEWY PANEL ===== -->
 <div id="lewy">
-  <h3>OBIEKTY</h3>
-  <button onclick="pokazGraczy()">👤 GRACZ</button>
-  <button onclick="pokazPlatformy()">🧱 PLATFORMA</button>
-  <button onclick="pokazBloki()">⬛ BLOK</button>
-  <button onclick="pokazPrzeciwniki()">👾 PRZECIWNIK</button>
-  <button onclick="wlaczBonusy()">💎 BONUSY</button>
-  <button onclick="pokazLiczniki()">📊 LICZNIKI</button>
-  <button onclick="pokazKoniec()">🏁 POZIOMY ➜ GRY</button>
-  <button onclick="dodajTekst()">✍ TEKST</button>
-  <button onclick="pokazTloPanel()">🌄 TŁO</button>
-  <button onclick="pokazUstawienia()">⚙ USTAWIENIA</button>
+
+  <div class="panel-section">
+    <div class="section-label">🎮 Gra</div>
+    <button id="runBtn" onclick="uruchom()">▶ URUCHOM</button>
+    <button id="editBtn" onclick="edytuj()">✏ EDYTUJ</button>
+  </div>
+
+  <div class="panel-section">
+    <div class="section-label">🔧 Narzędzia</div>
+    <button id="deleteBtn" onclick="trybUsun()">🗑 USUŃ</button>
+    <button id="gridBtn" onclick="toggleGrid()">⊞ SIATKA</button>
+    <button id="fxBtn" onclick="toggleFX()">⚡ FX</button>
+    <button id="pauseFxBtn" onclick="togglePauseEffects()">⏸ FX STOP</button>
+  </div>
+
+  <div class="panel-section">
+    <div class="section-label">💾 Plik</div>
+    <button onclick="zapiszProjekt()">💾 SAVE</button>
+    <button onclick="wczytajProjekt()">📂 LOAD</button>
+    <button onclick="loadDemo(); event.stopPropagation()">🎮 DEMO</button>
+  </div>
+
+  <div class="panel-section">
+    <div class="section-label">👤 Gracz</div>
+    <button onclick="pokazGraczy()">🕹 STEROWANIE</button>
+    <button onclick="pokazLiczniki()">📊 LICZNIKI</button>
+    <button onclick="pokazTloPanel()">🌄 TŁO</button>
+    <button onclick="pokazUstawienia()">⚙ USTAWIENIA</button>
+  </div>
+
   <div id="sterowanie"></div>
 </div>
 
-  <div style="display:flex; flex-direction:column; align-items:center;">
-    <canvas id="scena" width="800" height="450"></canvas>
-    <input type="range" id="scrollX" min="0" value="0" step="1"
-           style="width:800px; margin:8px 0; accent-color:#4CAF50; background:#333; height:12px; border-radius:6px;">
+<!-- ===== ŚRODEK — canvas ===== -->
+<div id="srodek">
 
-    <div id="levelsBar" style="
-      width:800px;
-      display:flex;
-      align-items:center;
-      gap:6px;
-      background:#222;
-      padding:6px;
-      border-radius:6px;
-      margin-bottom:10px;
-    "></div>
-  </div>
+  <!-- PASEK OBIEKTÓW -->
+  <div id="objectsBar">
+    <span class="obj-label">dodaj</span>
 
-  <div id="prawy">
-    <div id="panel">
-      <h3>PANEL</h3>
-      <div>Wybierz narzędzie z góry.</div>
+    <!-- GRACZE -->
+    <div class="obj-btn" onclick="selectedPlayerType='ball'; dodajGracza()" title="Piłka">
+      <span class="obj-icon">🔵</span>
+      <span class="obj-name">Piłka</span>
+    </div>
+    <div class="obj-btn" onclick="selectedPlayerType='car'; dodajGracza()" title="Samochód">
+      <span class="obj-icon">🚗</span>
+      <span class="obj-name">Auto</span>
+    </div>
+    <div class="obj-btn" onclick="selectedPlayerType='crosshair'; dodajGracza()" title="Celownik">
+      <span class="obj-icon">🎯</span>
+      <span class="obj-name">Cel.</span>
+    </div>
+
+    <div class="obj-sep"></div>
+
+    <!-- PLATFORMY -->
+    <div class="obj-btn" onclick="dodajPlatforme('rect')" title="Platforma prostokąt">
+      <canvas width="38" height="14" id="prevRect" style="border-radius:3px;"></canvas>
+      <span class="obj-name">Rect</span>
+    </div>
+    <div class="obj-btn" onclick="dodajPlatforme('round')" title="Platforma zaokrąglona">
+      <canvas width="38" height="14" id="prevRound" style="border-radius:3px;"></canvas>
+      <span class="obj-name">Round</span>
+    </div>
+    <div class="obj-btn" onclick="dodajPlatforme('line')" title="Platforma linia">
+      <canvas width="38" height="14" id="prevLine" style="border-radius:3px;"></canvas>
+      <span class="obj-name">Linia</span>
+    </div>
+
+    <div class="obj-sep"></div>
+
+    <!-- BLOKI -->
+    <div class="obj-btn" onclick="dodajBlok()" title="Blok kwadrat">
+      <canvas width="22" height="22" id="prevBlok" style="border-radius:3px;"></canvas>
+      <span class="obj-name">Blok</span>
+    </div>
+    <div class="obj-btn" onclick="dodajBlokTall()" title="Blok wysoki">
+      <canvas width="14" height="26" id="prevTall" style="border-radius:3px;"></canvas>
+      <span class="obj-name">Tall</span>
+    </div>
+    <div class="obj-btn" onclick="dodajBlokGrid()" title="Blok rusztowanie">
+      <canvas width="22" height="22" id="prevGrid" style="border-radius:3px;"></canvas>
+      <span class="obj-name">Grid</span>
+    </div>
+    <div class="obj-btn" onclick="dodajBlokIce()" title="Blok lodowy">
+      <canvas width="22" height="22" id="prevIce" style="border-radius:3px;"></canvas>
+      <span class="obj-name">Lód</span>
+    </div>
+    <div class="obj-btn" onclick="dodajBlokBomb()" title="Blok wybuchowy">
+      <canvas width="22" height="22" id="prevBomb" style="border-radius:3px;"></canvas>
+      <span class="obj-name">💣</span>
+    </div>
+
+    <div class="obj-sep"></div>
+
+    <!-- WROGOWIE -->
+    <div class="obj-btn" onclick="dodajEnemy()" title="Kosmita">
+      <span class="obj-icon">🦂</span>
+      <span class="obj-name">Kos.</span>
+    </div>
+    <div class="obj-btn" onclick="dodajGhost()" title="Duch">
+      <span class="obj-icon">👻</span>
+      <span class="obj-name">Duch</span>
+    </div>
+    <div class="obj-btn" onclick="dodajWorm()" title="Robak">
+      <span class="obj-icon">🪱</span>
+      <span class="obj-name">Rob.</span>
+    </div>
+    <div class="obj-btn" onclick="dodajFire()" title="Ogień">
+      <span class="obj-icon">🔥</span>
+      <span class="obj-name">Ogień</span>
+    </div>
+    <div class="obj-btn" onclick="dodajSpikes()" title="Kolce">
+      <span class="obj-icon">⚠</span>
+      <span class="obj-name">Kolce</span>
+    </div>
+    <div class="obj-btn" onclick="dodajWater()" title="Woda">
+      <span class="obj-icon">🌊</span>
+      <span class="obj-name">Woda</span>
+    </div>
+    <div class="obj-btn" onclick="dodajWalker()" title="Robot">
+      <span class="obj-icon">🤖</span>
+      <span class="obj-name">Rob2</span>
+    </div>
+    <div class="obj-btn" onclick="dodajWalker2()" title="Stworek">
+      <span class="obj-icon">👾</span>
+      <span class="obj-name">Stw.</span>
+    </div>
+    <div class="obj-btn" onclick="dodajWalker3()" title="Pancerny">
+      <span class="obj-icon">🛡</span>
+      <span class="obj-name">Panc.</span>
+    </div>
+    <div class="obj-btn" onclick="dodajWalker4()" title="UFO">
+      <span class="obj-icon">🛸</span>
+      <span class="obj-name">UFO</span>
+    </div>
+    <div class="obj-btn" onclick="dodajSaw()" title="Piła obracająca się">
+      <canvas width="32" height="32" id="prevSaw" style="border-radius:3px;"></canvas>
+      <span class="obj-name">Piła</span>
+    </div>
+
+    <div class="obj-sep"></div>
+
+    <!-- BONUSY I TEKST -->
+    <div class="obj-btn" onclick="dodajBonus()" title="Diament">
+      <span class="obj-icon">💎</span>
+      <span class="obj-name">Bon.</span>
+    </div>
+    <div class="obj-btn" onclick="dodajKluczWin()" title="Klucz wygranej">
+      <span class="obj-icon">🏁</span>
+      <span class="obj-name">Win</span>
+    </div>
+    <div class="obj-btn" onclick="dodajKluczLevel()" title="Teleport">
+      <span class="obj-icon">🔑</span>
+      <span class="obj-name">Tel.</span>
+    </div>
+    <div class="obj-btn" onclick="dodajTekst()" title="Tekst">
+      <span class="obj-icon">✍</span>
+      <span class="obj-name">Tekst</span>
     </div>
   </div>
+
+  <!-- CANVAS -->
+  <canvas id="scena" width="800" height="450"></canvas>
+
+  <input type="range" id="scrollX" min="0" value="0" step="1">
+
+  <div id="levelsBar"></div>
 </div>
+
+<!-- ===== PRAWY PANEL ===== -->
+<div id="prawy">
+  <div id="panel">
+    <h3>PANEL</h3>
+    <div>Kliknij obiekt aby edytować.</div>
+  </div>
+</div>
+
+</div><!-- end #main -->
 
 <script>
 const canvas = document.getElementById("scena")
@@ -147,12 +388,40 @@ let gravity = 0.4
 let exhaustParticles = []
 let carWheelAngle = 0
 
+// === SYSTEM CZĄSTECZEK EKSPLOZJI ===
+let shotParticles = []  // efekt pudła
+let explosions = []     // eksplozja wroga
+
+function spawnExplosion(x, y) {
+  const colors = ["#ff4400","#ff8800","#ffdd00","#ff0055","#00ffcc","#ff00ff","#ffffff","#44ff00"]
+  const count = 22
+  for (let i = 0; i < count; i++) {
+    const angle = (i / count) * Math.PI * 2 + Math.random() * 0.4
+    const speed = 2.5 + Math.random() * 5
+    explosions.push({
+      x, y,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed - 1.5,
+      life: 1.0,
+      decay: 0.02 + Math.random() * 0.025,
+      size: 4 + Math.random() * 6,
+      color: colors[Math.floor(Math.random() * colors.length)],
+      gravity: 0.12 + Math.random() * 0.1,
+      shape: Math.random() > 0.5 ? "circle" : "rect",
+      rot: Math.random() * Math.PI * 2,
+      rotSpeed: (Math.random() - 0.5) * 0.25
+    })
+  }
+}
+
 let players = []
 let platforms = []
 let blocks = []
 let enemies = []
 let texts = []
 let selectedPlayerType = "ball"
+let mousePosX = 0
+let mousePosY = 0
 
 let levels = []
 let currentLevel = 0
@@ -450,6 +719,14 @@ function uruchom(){
   trybGry = true
   exhaustParticles = []
   carWheelAngle = 0
+  shotParticles = []
+  explosions = []
+  resultsNameEntered = false
+  resultsPlayerName = ""
+  // Reset bomb bloków
+  for (const b of blocks) {
+    if (b.typ === "blockBomb") { b.bombTimer = 0; b.exploded = false; b.respawnTimer = 0 }
+  }
   respawnPlayer()
   updateButtonStates()
 }
@@ -457,6 +734,12 @@ function uruchom(){
 function edytuj(){
   trybGry = false
   exhaustParticles = []
+  shotParticles = []
+  explosions = []
+  // Reset bomb bloków
+  for (const b of blocks) {
+    if (b.typ === "blockBomb") { b.bombTimer = 0; b.exploded = false; b.respawnTimer = 0 }
+  }
   updateButtonStates()
 }
 
@@ -678,75 +961,56 @@ function saveMove(){
 // ================= DODAWANIE OBIEKTÓW =================
 function pokazGraczy() {
   document.getElementById("panel").innerHTML = `
-    <h4>DODAJ GRACZA</h4>
-    <div style="text-align:center; color:#aaa; margin-bottom:10px;">
-      kliknij i dodaj
-    </div>
-
-    <div style="display:flex; gap:25px; justify-content:center; margin:15px 0;">
-      <div class="item"
-        onclick="selectedPlayerType='ball'; dodajGracza()"
-        style="width:40px;height:40px;background:red;border-radius:50%;">
-      </div>
-      <div class="item"
-        onclick="selectedPlayerType='car'; dodajGracza()"
-        style="font-size:40px; text-align:center;">
-        🚗
-      </div>
-    </div>
+    <h3>GRACZ</h3>
 
     <h4>ODRADZANIE</h4>
-
-    <div style="display:flex; gap:6px; margin-bottom:10px;">
-      <button style="flex:1;" onclick="setRespawnMode('start')" id="respStart">
-        Początek
-      </button>
-      <button style="flex:1;" onclick="setRespawnMode('death')" id="respDeath">
-        Skucha
-      </button>
+    <div style="display:flex; gap:6px; margin-bottom:12px;">
+      <button style="flex:1;" onclick="setRespawnMode('start')" id="respStart">Początek</button>
+      <button style="flex:1;" onclick="setRespawnMode('death')" id="respDeath">Skucha</button>
     </div>
 
     <h4>STEROWANIE</h4>
-
     <div style="margin-bottom:6px;">
+      <div style="text-align:center; font-size:11px; color:#888; margin-bottom:4px;">skok</div>
       <div class="keybox" onclick="wybierzPole('skok')" id="skok">?</div>
     </div>
-
-    <div style="display:flex; gap:6px;">
-      <div class="keybox" style="flex:1;" onclick="wybierzPole('lewo')" id="lewo">?</div>
-      <div class="keybox" style="flex:1;" onclick="wybierzPole('prawo')" id="prawo">?</div>
+    <div style="display:flex; gap:6px; margin-bottom:12px;">
+      <div style="flex:1;">
+        <div style="text-align:center; font-size:11px; color:#888; margin-bottom:4px;">lewo</div>
+        <div class="keybox" onclick="wybierzPole('lewo')" id="lewo">?</div>
+      </div>
+      <div style="flex:1;">
+        <div style="text-align:center; font-size:11px; color:#888; margin-bottom:4px;">prawo</div>
+        <div class="keybox" onclick="wybierzPole('prawo')" id="prawo">?</div>
+      </div>
     </div>
 
     <h4>RUCH ŚWIATA</h4>
-
-    <label>
+    <label style="display:block; margin-bottom:8px;">
       <input type="checkbox" id="autoScrollToggle"
        ${autoScroll ? "checked" : ""}
        onchange="updateRespawnLock()">
       Auto ruch świata
     </label>
-
-    <br><br>
-
     Prędkość:
-    <input type="range" id="scrollSpeed" min="0" max="10" step="0.5" value="${autoScrollSpeed}">
+    <input type="range" id="scrollSpeed" min="0" max="10" step="0.5" value="${autoScrollSpeed}"
+      oninput="document.getElementById('speedVal').innerText=this.value"
+      style="width:100%; margin:4px 0;">
     <span id="speedVal">${autoScrollSpeed}</span>
-
     <br><br>
-
-    <button class="blink" onclick="zapiszUstawienia()">ZAPISZ - PRĘDKOŚĆ</button>
+    <button class="blink" onclick="zapiszUstawienia()">💾 ZAPISZ</button>
   `
 
   setRespawnMode(respawnMode, false)
-
   document.getElementById("autoScrollToggle").checked = autoScroll
   document.getElementById("scrollSpeed").value = autoScrollSpeed
   document.getElementById("speedVal").innerText = autoScrollSpeed
-
-  document.getElementById("scrollSpeed").oninput = function(){
-    document.getElementById("speedVal").innerText = this.value
-  }
   updateRespawnLock()
+
+  // Uzupełnij klawisze
+  if (sterowanie.skok) { const el = document.getElementById("skok"); if(el) el.innerText = sterowanie.skok }
+  if (sterowanie.lewo) { const el = document.getElementById("lewo"); if(el) el.innerText = sterowanie.lewo }
+  if (sterowanie.prawo){ const el = document.getElementById("prawo"); if(el) el.innerText = sterowanie.prawo }
 }
 
 function ustawRespawnTutaj() {
@@ -1154,6 +1418,34 @@ function rysujPreviewBlok(id, cw, ch, typ) {
     p.beginPath()
     p.moveTo(cx, cy-14); p.lineTo(cx+8,cy); p.lineTo(cx,cy+14); p.lineTo(cx-8,cy)
     p.closePath(); p.stroke()
+
+  } else if (typ === "blockIce") {
+    const x=4, y=4, w=82, h=82
+    const g = p.createLinearGradient(x, y, x+w, y+h)
+    g.addColorStop(0, "rgba(160,230,255,0.85)")
+    g.addColorStop(0.4, "rgba(210,245,255,0.9)")
+    g.addColorStop(1, "rgba(110,200,245,0.8)")
+    p.fillStyle = g; p.beginPath(); p.roundRect(x, y, w, h, 10); p.fill()
+    // Połysk górny
+    const sh = p.createLinearGradient(x, y, x, y+h*0.5)
+    sh.addColorStop(0,"rgba(255,255,255,0.6)"); sh.addColorStop(1,"rgba(255,255,255,0)")
+    p.fillStyle = sh; p.beginPath(); p.roundRect(x+2, y+2, w-4, h*0.45, 8); p.fill()
+    // Obwódka
+    p.strokeStyle="rgba(180,235,255,1)"; p.lineWidth=2
+    p.beginPath(); p.roundRect(x+1, y+1, w-2, h-2, 9); p.stroke()
+    p.strokeStyle="rgba(255,255,255,0.4)"; p.lineWidth=1
+    p.beginPath(); p.roundRect(x+4, y+4, w-8, h-8, 7); p.stroke()
+    // Kryształki
+    p.strokeStyle="rgba(255,255,255,0.85)"; p.lineWidth=1.5
+    for(const [cx2,cy2,cr] of [[25,55,7],[55,45,5],[68,65,6],[38,68,5],[18,40,4]]){
+      p.save(); p.translate(x+cx2, y+cy2); p.rotate(Math.PI/6)
+      p.beginPath(); p.moveTo(0,-cr); p.lineTo(cr*0.5,0); p.lineTo(0,cr); p.lineTo(-cr*0.5,0); p.closePath()
+      p.fillStyle="rgba(220,245,255,0.5)"; p.fill(); p.stroke()
+      p.restore()
+    }
+    // Dolny odblask
+    p.fillStyle="rgba(80,160,220,0.25)"
+    p.fillRect(x+2, y+h-8, w-4, 6)
   }
 }
 
@@ -1281,6 +1573,28 @@ function dodajBlokGrid() {
   if (gridEnabled) { x = snap(x); y = snap(y) }
   let lvl = getLevel()
   lvl.blocks.push({ x, y, w:120, h:120, typ:"blockGrid", solid:"full", effects:[] })
+  syncLevelData()
+  selectedObject = blocks[blocks.length - 1]
+  showFxList()
+}
+
+function dodajBlokIce() {
+  let x = cameraX + canvas.width / 2 - 50
+  let y = canvas.height / 2 - 30
+  if (gridEnabled) { x = snap(x); y = snap(y) }
+  let lvl = getLevel()
+  lvl.blocks.push({ x, y, w:100, h:60, typ:"blockIce", solid:"full", effects:[] })
+  syncLevelData()
+  selectedObject = blocks[blocks.length - 1]
+  showFxList()
+}
+
+function dodajBlokBomb() {
+  let x = cameraX + canvas.width / 2 - 35
+  let y = canvas.height / 2 - 35
+  if (gridEnabled) { x = snap(x); y = snap(y) }
+  let lvl = getLevel()
+  lvl.blocks.push({ x, y, w:70, h:70, typ:"blockBomb", solid:"full", effects:[], bombTimer:0, exploded:false })
   syncLevelData()
   selectedObject = blocks[blocks.length - 1]
   showFxList()
@@ -1508,6 +1822,17 @@ function dodajWalker4() {
   showFxList()
 }
 
+function dodajSaw() {
+  let x = cameraX + canvas.width / 2 - 25
+  let y = canvas.height / 2 - 25
+  if (gridEnabled) { x = snap(x); y = snap(y) }
+  const lvl = getLevel()
+  lvl.enemies.push({x, y, w:50, h:50, type:"saw", vx:1.5, vy:0, sawAngle:0, effects:[]})
+  syncLevelData()
+  selectedObject = enemies[enemies.length-1]
+  showFxList()
+}
+
 // ================= STEROWANIE =================
 function wybierzPole(pole){
   aktywnePole = pole
@@ -1551,7 +1876,7 @@ canvas.addEventListener("mousedown", e => {
       const lvl = getLevel()
       lvl.enemies.push(nowy)
       syncLevelData()
-    } else if (nowy.typ === "block" || nowy.typ === "blockTall" || nowy.typ === "blockGrid") {
+    } else if (nowy.typ === "block" || nowy.typ === "blockTall" || nowy.typ === "blockGrid" || nowy.typ === "blockIce" || nowy.typ === "blockBomb") {
       // BLOK — ma typ === "block"
       nowy.x = mx - (nowy.w || 60)/2
       nowy.y = my - (nowy.h || 60)/2
@@ -1742,13 +2067,27 @@ canvas.addEventListener("mousedown", e => {
 })
 
 canvas.addEventListener("mousemove", e => {
-  if (trybGry || trybHTML) return
   const rect = canvas.getBoundingClientRect()
   const mouseScreenX = e.clientX - rect.left
   const mouseScreenY = e.clientY - rect.top
 
+  // Zawsze aktualizuj pozycję myszy (potrzebne dla celownika w grze)
+  mousePosX = mouseScreenX
+  mousePosY = mouseScreenY
+
+  if (trybGry || trybHTML) return  // reszta tylko w edytorze
+
   const mx = mouseScreenX + cameraX
   const my = mouseScreenY
+
+  const hasCrosshair = players.some(p => p.type === "crosshair")
+  if (hasCrosshair && trybGry) {
+    canvas.style.cursor = "none"
+  } else if (hasCrosshair) {
+    canvas.style.cursor = "none"
+  } else {
+    canvas.style.cursor = "default"
+  }
 
   if (dragging) {
     const EDGE = 60
@@ -1830,6 +2169,41 @@ canvas.addEventListener("click", (e) => {
       wyjdzDoMenu()
       return
     }
+    // Nowe dynamiczne przyciski
+    if (resultsBtn1 && mx > resultsBtn1.x && mx < resultsBtn1.x+resultsBtn1.w && my > resultsBtn1.y && my < resultsBtn1.y+resultsBtn1.h) {
+      wyjdzDoMenu(); return
+    }
+    if (resultsBtn2 && mx > resultsBtn2.x && mx < resultsBtn2.x+resultsBtn2.w && my > resultsBtn2.y && my < resultsBtn2.y+resultsBtn2.h) {
+      wrocDoEdytora(); return
+    }
+  }
+
+  // === STRZAŁ CELOWNIKIEM ===
+  if (trybGry && players.some(p => p.type === "crosshair")) {
+    // Pozycja strzału w układzie świata
+    const shotX = mx + cameraX
+    const shotY = my
+
+    // Sprawdź trafienie w każdego wroga
+    let hit = false
+    for (let i = enemies.length - 1; i >= 0; i--) {
+      const en = enemies[i]
+      const ew = en.w || 40, eh = en.h || 40
+      const enScreenX = en.x - cameraX
+      if (mx > enScreenX && mx < enScreenX + ew &&
+          my > en.y && my < en.y + eh) {
+        // Eksplozja w centrum wroga (screen coords)
+        spawnExplosion(enScreenX + ew/2, en.y + eh/2)
+        enemies.splice(i, 1)
+        counters.points++
+        const lvl = getLevel()
+        if (lvl) lvl.enemies = enemies
+        hit = true
+        break
+      }
+    }
+    // Efekt pudła (mały błysk)
+    if (!hit) shotParticles.push({ x: mx, y: my, time: 18 })
   }
 })
 
@@ -1955,7 +2329,6 @@ function update(){
       if (obj.type === "ghost") {
         if (dragging === obj) {
           obj.baseY = obj.y
-          // Użyj continue zamiast return, żeby nie przerywać całej pętli
           continue
         }
         if (!obj.baseY) obj.baseY = obj.y
@@ -1963,8 +2336,13 @@ function update(){
         obj.y = obj.baseY + Math.sin(obj.floatTime) * 15
       }
 
+      // Piła — obrót zawsze (też w edytorze)
+      if (obj.type === "saw") {
+        obj.sawAngle = (obj.sawAngle || 0) + 0.06
+      }
+
       if (obj.type === "walker" || obj.type === "walker2" || obj.type === "walker3" || obj.type === "walker4") {
-        if (dragging === obj) continue  // BŁĄD POPRAWIONY: było return, przerywało całą pętlę
+        if (dragging === obj) continue
         obj.vy = (obj.vy || 0) + 0.5
         obj.y += obj.vy
         obj.x += obj.vx || 0
@@ -2028,15 +2406,79 @@ function update(){
           obj.vx = -(obj.vx || 1)
         }
       }
+
+      // === PIŁA — grawitacja + odbijanie + obrót ===
+      if (obj.type === "saw") {
+        if (dragging === obj) continue
+        const r = obj.w / 2
+
+        // Obrót — szybszy gdy szybszy ruch
+        obj.sawAngle = (obj.sawAngle || 0) + (Math.abs(obj.vx || 1.5) * 0.08)
+
+        // Grawitacja
+        obj.vy = (obj.vy || 0) + 0.5
+        obj.y += obj.vy
+        obj.x += obj.vx || 1.5
+
+        // Podłoga
+        if (obj.y + obj.h > floorY) {
+          obj.y = floorY - obj.h
+          obj.vy = -obj.vy * 0.5  // lekkie odbicie
+          if (Math.abs(obj.vy) < 1) obj.vy = 0
+        }
+
+        // Platformy
+        for (let pl of platforms) {
+          if (obj.x + obj.w > pl.x && obj.x < pl.x + pl.w &&
+              obj.y + obj.h > pl.y && obj.y + obj.h < pl.y + 20 && obj.vy > 0) {
+            obj.y = pl.y - obj.h
+            obj.vy = -obj.vy * 0.4
+            if (Math.abs(obj.vy) < 1) obj.vy = 0
+          }
+        }
+
+        // Bloki
+        for (let bl of blocks) {
+          if (obj.x + obj.w > bl.x && obj.x < bl.x + bl.w &&
+              obj.y + obj.h > bl.y && obj.y < bl.y + bl.h) {
+            if (obj.vy > 0) { obj.y = bl.y - obj.h; obj.vy = -obj.vy * 0.4 }
+            else if (obj.vy < 0) { obj.y = bl.y + bl.h; obj.vy = 0 }
+            if (obj.vx > 0) { obj.vx = -Math.abs(obj.vx) }
+            else { obj.vx = Math.abs(obj.vx) }
+          }
+        }
+
+        // Ściany świata
+        if (obj.x < 0) { obj.x = 0; obj.vx = Math.abs(obj.vx) }
+        if (obj.x + obj.w > worldWidth) { obj.x = worldWidth - obj.w; obj.vx = -Math.abs(obj.vx) }
+      }
     }
   }
 
   if (!trybGry && !trybHTML) return
 
   for (let p of players) {
-    p.vx = 0
-    if (keys[sterowanie.lewo]) p.vx = -4
-    if (keys[sterowanie.prawo]) p.vx = 4
+    // Celownik — nie rusza się klawiaturą, stoi w miejscu startu
+    if (p.type === "crosshair") {
+      p.vx = 0
+      p.vy = 0
+      continue
+    }
+
+    const wasOnIce = p.onIce === true
+    p.onIce = false  // reset — zostanie ustawione ponownie w kolizji bloków
+
+    if (wasOnIce) {
+      // Na lodzie — zachowuj pęd, klawiatura tylko delikatnie przyspiesza/hamuje
+      if (keys[sterowanie.lewo])  p.vx -= 0.5
+      if (keys[sterowanie.prawo]) p.vx += 0.5
+      p.vx *= 0.992  // prawie brak tarcia
+      p.vx = Math.max(-6, Math.min(6, p.vx))
+    } else {
+      p.vx = 0
+      if (keys[sterowanie.lewo]) p.vx = -4
+      if (keys[sterowanie.prawo]) p.vx = 4
+    }
 
     if (keys[sterowanie.skok] && p.vy === 0) p.vy = -10
 
@@ -2065,18 +2507,29 @@ function update(){
     }
 
     for (let b of blocks) {
+      if (b.typ === "blockBomb" && b.exploded) continue  // pominij eksplodowane
+
       if (
         p.x + p.r > b.x &&
         p.x - p.r < b.x + b.w &&
         p.y + p.r > b.y &&
         p.y - p.r < b.y + b.h
       ) {
+        // Dotknięcie bomby — uruchamia timer
+        if (b.typ === "blockBomb" && trybGry) {
+          if (!b.bombTimer) b.bombTimer = 1
+        }
+
         if (p.vy > 0 && p.y < b.y) {
           p.y = b.y - p.r
           p.vy = 0
+          if (b.typ === "blockIce") {
+            p.vx *= 0.995
+            p.onIce = true
+          }
         } else if (p.vy < 0 && p.y > b.y + b.h) {
           p.y = b.y + b.h + p.r
-          p.vy = 0
+          p.vy = 1
         } else if (p.vx > 0 && p.x < b.x) {
           p.x = b.x - p.r
           p.vx = 0
@@ -2090,8 +2543,8 @@ function update(){
 
   checkEnemyCollision()
 
-  // Spadnięcie poza planszę
-  if (players.length > 0 && trybGry) {
+  // Spadnięcie poza planszę — tylko dla zwykłych graczy (nie celownika)
+  if (players.length > 0 && trybGry && players[0].type !== "crosshair") {
     const p = players[0]
 
     const pozaPlansza =
@@ -2128,6 +2581,76 @@ function update(){
     } else {
       fallTimer = 0
       warningText = null
+    }
+  }
+
+  // === UPDATE BOMB BLOKÓW ===
+  if (trybGry) {
+    for (let i = blocks.length - 1; i >= 0; i--) {
+      const b = blocks[i]
+      if (b.typ !== "blockBomb") continue
+      if (b.exploded) {
+        // Respawn po 180 klatkach
+        b.respawnTimer = (b.respawnTimer || 0) + 1
+        if (b.respawnTimer > 180) {
+          b.exploded = false
+          b.bombTimer = 0
+          b.respawnTimer = 0
+        }
+        continue
+      }
+      if (b.bombTimer > 0) {
+        b.bombTimer++
+        // Eksplozja po 90 klatkach (~1.5s)
+        if (b.bombTimer > 90) {
+          // Spawn eksplozji
+          spawnExplosion(b.x - cameraX + b.w/2, b.y + b.h/2)
+          spawnExplosion(b.x - cameraX + b.w/4, b.y + b.h/3)
+          spawnExplosion(b.x - cameraX + b.w*0.75, b.y + b.h*0.6)
+          b.exploded = true
+          b.respawnTimer = 0
+
+          const bombCX = b.x + b.w/2
+          const bombCY = b.y + b.h/2
+          const bombR = 120  // stały zasięg wybuchu
+
+          // Zabij wrogów w zasięgu wybuchu
+          for (let ei = enemies.length - 1; ei >= 0; ei--) {
+            const en = enemies[ei]
+            const enCX = en.x + (en.w||40)/2
+            const enCY = en.y + (en.h||40)/2
+            const dist = Math.hypot(enCX - bombCX, enCY - bombCY)
+            if (dist < bombR) {
+              // Efektowne rozerwanie wroga — dużo cząsteczek w miejscu wroga
+              spawnExplosion(en.x - cameraX + (en.w||40)/2, en.y + (en.h||40)/2)
+              spawnExplosion(en.x - cameraX + (en.w||40)/2, en.y + (en.h||40)/2)
+              enemies.splice(ei, 1)
+              counters.points++
+              const lvl = getLevel()
+              if (lvl) lvl.enemies = enemies
+            }
+          }
+
+          // Zabij gracza jeśli blisko
+          if (players[0] && !gameOver) {
+            const p = players[0]
+            const dist = Math.hypot(p.x - (b.x + b.w/2), p.y - (b.y + b.h/2))
+            if (dist < 100 && invulnerable === 0) {
+              if (useLives) counters.lives--
+              deathRespawnX = p.x
+              deathRespawnY = p.y
+              hitEffect = { x: p.x, y: p.y, time: 60 }
+              hitPause = hitPauseTime
+              pendingRespawn = true
+              invulnerable = invulnerabilityTime
+              if (useLives && counters.lives <= 0 && !gameOverTriggered) {
+                gameOverTriggered = true; gameOver = true
+                updateStats(false); gameState = "results"; initResultsScene()
+              }
+            }
+          }
+        }
+      }
     }
   }
 
@@ -2592,6 +3115,107 @@ function draw(){
       ctx.strokeStyle = "rgba(255,255,255,0.7)"; ctx.lineWidth = 1
       ctx.beginPath(); ctx.moveTo(kcx - kr*0.6, kcy); ctx.lineTo(kcx + kr*0.6, kcy); ctx.stroke()
 
+    } else if (b.typ === "blockIce") {
+      // Lodowy blok — przezroczysty z kryształami i połyskiem
+      const t = Date.now() * 0.001
+      const shimmer = Math.sin(t * 1.5) * 0.08 + 0.08
+
+      // Tło — lodowy błękit z przezroczystością
+      const iceGrad = ctx.createLinearGradient(x, y, x + w, y + h)
+      iceGrad.addColorStop(0, "rgba(140,220,255,0.55)")
+      iceGrad.addColorStop(0.4, "rgba(200,240,255,0.65)")
+      iceGrad.addColorStop(1, "rgba(100,190,240,0.5)")
+      ctx.fillStyle = iceGrad
+      ctx.beginPath(); ctx.roundRect(x, y, w, h, 6); ctx.fill()
+
+      // Połysk górny
+      const shineGrad = ctx.createLinearGradient(x, y, x, y + h * 0.45)
+      shineGrad.addColorStop(0, `rgba(255,255,255,${0.45 + shimmer})`)
+      shineGrad.addColorStop(1, "rgba(255,255,255,0)")
+      ctx.fillStyle = shineGrad
+      ctx.beginPath(); ctx.roundRect(x + 2, y + 2, w - 4, h * 0.45, 5); ctx.fill()
+
+      // Obwódka lodowa
+      ctx.strokeStyle = `rgba(180,235,255,0.9)`
+      ctx.lineWidth = 1.5
+      ctx.beginPath(); ctx.roundRect(x + 0.5, y + 0.5, w - 1, h - 1, 6); ctx.stroke()
+
+      // Wewnętrzna obwódka subtelna
+      ctx.strokeStyle = "rgba(255,255,255,0.3)"
+      ctx.lineWidth = 1
+      ctx.beginPath(); ctx.roundRect(x + 3, y + 3, w - 6, h - 6, 4); ctx.stroke()
+
+      // Kryształki — losowe ale stabilne (seed z pozycji)
+      const crystalCount = Math.floor(w / 22)
+      for (let i = 0; i < crystalCount; i++) {
+        const seed = (x * 7 + i * 137) % 1
+        const cx2 = x + 12 + i * ((w - 24) / Math.max(crystalCount - 1, 1))
+        const cy2 = y + h * (0.35 + ((x * 3 + i * 51) % 100) / 400)
+        const cr = 3 + ((x + i * 23) % 4)
+        const angle = t * (0.4 + i * 0.15)
+
+        ctx.save()
+        ctx.translate(cx2, cy2)
+        ctx.rotate(angle)
+        // Kryształ — romb
+        ctx.strokeStyle = "rgba(255,255,255,0.7)"
+        ctx.lineWidth = 1
+        ctx.beginPath()
+        ctx.moveTo(0, -cr); ctx.lineTo(cr * 0.5, 0)
+        ctx.lineTo(0, cr); ctx.lineTo(-cr * 0.5, 0)
+        ctx.closePath(); ctx.stroke()
+        // Blask kryształu
+        ctx.fillStyle = "rgba(220,245,255,0.4)"
+        ctx.fill()
+        ctx.restore()
+      }
+
+      // Odblaski boczne (cienie wgłębień)
+      ctx.fillStyle = "rgba(80,160,220,0.2)"
+      ctx.fillRect(x + 1, y + h - 5, w - 2, 4)
+
+    } else if (b.typ === "blockBomb") {
+      if (b.exploded) continue
+
+      const t = Date.now() * 0.001
+      const armed = b.bombTimer > 0
+      const shake = armed ? (Math.random() - 0.5) * (b.bombTimer / 15) : 0
+      const bx2 = x + shake, by2 = y + shake * 0.5
+      const progress = armed ? b.bombTimer / 90 : 0
+      const flashFast = armed && b.bombTimer > 60
+
+      // Tło
+      const bg = ctx.createLinearGradient(bx2, by2, bx2+w, by2+h)
+      bg.addColorStop(0, "#3a0000"); bg.addColorStop(0.5, "#660000"); bg.addColorStop(1, "#220000")
+      ctx.fillStyle = bg
+      ctx.beginPath(); ctx.roundRect(bx2, by2, w, h, 8); ctx.fill()
+
+      // Poświata
+      if (armed) {
+        const glow = flashFast ? (Math.sin(t*20)*0.5+0.5) : (Math.sin(t*6)*0.3+0.5)
+        ctx.shadowColor = "#ff2200"; ctx.shadowBlur = 20 + glow * 20
+      }
+
+      // Obwódka
+      ctx.strokeStyle = armed ? `rgba(255,${flashFast?0:80},0,0.9)` : "#884444"
+      ctx.lineWidth = 2
+      ctx.beginPath(); ctx.roundRect(bx2+1, by2+1, w-2, h-2, 7); ctx.stroke()
+      ctx.shadowBlur = 0
+
+      // Ikona bomby
+      ctx.font = `${Math.round(h*0.5)}px Arial`
+      ctx.textAlign = "center"; ctx.textBaseline = "middle"
+      ctx.fillText("💣", bx2+w/2+shake, by2+h/2+shake*0.5)
+
+      // Pasek odliczania
+      if (armed) {
+        ctx.fillStyle = "rgba(0,0,0,0.5)"
+        ctx.fillRect(bx2+4, by2+h-10, w-8, 6)
+        const barColor = progress > 0.7 ? "#ff2200" : progress > 0.4 ? "#ff8800" : "#ffcc00"
+        ctx.fillStyle = barColor
+        ctx.fillRect(bx2+4, by2+h-10, (w-8)*progress, 6)
+      }
+
     } else {
     const bGrad = ctx.createLinearGradient(x, y, x, y + h)
     bGrad.addColorStop(0, "#445566")
@@ -2665,8 +3289,11 @@ function draw(){
 
     if (p.type === "ball") {
       drawPlayer(ctx, p.x, p.y, p.r, Date.now())
+    } else if (p.type === "crosshair") {
+      // W edytorze rysuj na pozycji gracza (world coords, ctx już przesunięty)
+      if (!trybGry) drawCrosshairPlayer(p.x, p.y, p.r, Date.now())
     } else {
-      drawCar(p.x, p.y, p.r, p.vx || 0);
+      drawCar(p.x, p.y, p.r, p.vx || 0)
     }
 
     if (p === selectedObject) {
@@ -3052,6 +3679,84 @@ function draw(){
       ctx.fill()
 
       ctx.restore()
+    } else if (en.type === "saw") {
+      const cx2 = x + w/2, cy2 = y + h/2
+      const r = w/2
+      const angle = en.sawAngle || 0
+      const teeth = 12
+
+      ctx.save()
+      ctx.translate(cx2, cy2)
+      ctx.rotate(angle)
+
+      // Cień piły
+      ctx.shadowColor = "rgba(0,0,0,0.5)"
+      ctx.shadowBlur = 8
+      ctx.shadowOffsetX = 3; ctx.shadowOffsetY = 3
+
+      // Tarcza piły — metaliczny gradient
+      const diskGrad = ctx.createRadialGradient(-r*0.2, -r*0.2, 1, 0, 0, r*0.85)
+      diskGrad.addColorStop(0, "#e8e8e8")
+      diskGrad.addColorStop(0.4, "#aaaaaa")
+      diskGrad.addColorStop(0.8, "#666666")
+      diskGrad.addColorStop(1, "#333333")
+      ctx.fillStyle = diskGrad
+      ctx.beginPath(); ctx.arc(0, 0, r*0.82, 0, Math.PI*2); ctx.fill()
+      ctx.shadowBlur = 0; ctx.shadowOffsetX = 0; ctx.shadowOffsetY = 0
+
+      // Zęby piły
+      ctx.fillStyle = "#bbbbbb"
+      ctx.strokeStyle = "#444"
+      ctx.lineWidth = 0.8
+      for (let i = 0; i < teeth; i++) {
+        const a = (i / teeth) * Math.PI * 2
+        const an = ((i + 0.5) / teeth) * Math.PI * 2
+        ctx.save()
+        ctx.beginPath()
+        ctx.moveTo(Math.cos(a)*r*0.82, Math.sin(a)*r*0.82)
+        ctx.lineTo(Math.cos(an)*r*0.62, Math.sin(an)*r*0.62)
+        ctx.lineTo(Math.cos(a + Math.PI*2/teeth)*r*0.82, Math.sin(a + Math.PI*2/teeth)*r*0.82)
+        ctx.closePath()
+        ctx.fill(); ctx.stroke()
+        ctx.restore()
+      }
+
+      // Zewnętrzna obwódka ostrza
+      ctx.strokeStyle = "#888"
+      ctx.lineWidth = 1.5
+      ctx.beginPath(); ctx.arc(0, 0, r*0.82, 0, Math.PI*2); ctx.stroke()
+
+      // Nakładki metaliczne — 3 pasy jak piła tarczowa
+      ctx.strokeStyle = "rgba(255,255,255,0.15)"
+      ctx.lineWidth = 2
+      for (const fr of [0.55, 0.65, 0.75]) {
+        ctx.beginPath(); ctx.arc(0, 0, r*fr, 0, Math.PI*2); ctx.stroke()
+      }
+
+      // Otwory wentylacyjne
+      ctx.fillStyle = "rgba(0,0,0,0.35)"
+      for (let i = 0; i < 6; i++) {
+        const a = (i / 6) * Math.PI * 2
+        ctx.beginPath()
+        ctx.ellipse(Math.cos(a)*r*0.48, Math.sin(a)*r*0.48, r*0.1, r*0.06, a, 0, Math.PI*2)
+        ctx.fill()
+      }
+
+      // Środkowy hub
+      const hubGrad = ctx.createRadialGradient(-2, -2, 1, 0, 0, r*0.18)
+      hubGrad.addColorStop(0, "#ffffff")
+      hubGrad.addColorStop(0.4, "#cccccc")
+      hubGrad.addColorStop(1, "#666666")
+      ctx.fillStyle = hubGrad
+      ctx.beginPath(); ctx.arc(0, 0, r*0.18, 0, Math.PI*2); ctx.fill()
+      ctx.strokeStyle = "#444"; ctx.lineWidth = 1.5
+      ctx.beginPath(); ctx.arc(0, 0, r*0.18, 0, Math.PI*2); ctx.stroke()
+
+      // Centralny śrubka
+      ctx.fillStyle = "#333"
+      ctx.beginPath(); ctx.arc(0, 0, r*0.07, 0, Math.PI*2); ctx.fill()
+
+      ctx.restore()
     } else {
       ctx.fillStyle = "#7b3fe4"
       ctx.fillRect(x, y, w, h)
@@ -3093,6 +3798,61 @@ function draw(){
   }
 
   ctx.restore()
+
+  // === CELOWNIK — w miejscu myszy (screen coords) ===
+  if (players.some(p => p.type === "crosshair")) {
+    const cp = players.find(p => p.type === "crosshair")
+    drawCrosshairScreen(mousePosX, mousePosY, cp ? cp.r : 20, Date.now())
+  }
+
+  // === EKSPLOZJE WROGÓW ===
+  for (let i = explosions.length - 1; i >= 0; i--) {
+    const p = explosions[i]
+    ctx.save()
+    ctx.globalAlpha = p.life
+    ctx.translate(p.x, p.y)
+    ctx.rotate(p.rot)
+    ctx.fillStyle = p.color
+    ctx.shadowColor = p.color
+    ctx.shadowBlur = 8
+    if (p.shape === "circle") {
+      ctx.beginPath()
+      ctx.arc(0, 0, p.size * p.life, 0, Math.PI * 2)
+      ctx.fill()
+    } else {
+      const s = p.size * p.life
+      ctx.fillRect(-s/2, -s/2, s, s)
+    }
+    ctx.restore()
+    // Fizyka
+    p.x += p.vx; p.y += p.vy
+    p.vy += p.gravity
+    p.vx *= 0.97
+    p.rot += p.rotSpeed
+    p.life -= p.decay
+    if (p.life <= 0) explosions.splice(i, 1)
+  }
+
+  // === EFEKT PUDŁA (mały błysk) ===
+  for (let i = shotParticles.length - 1; i >= 0; i--) {
+    const sp = shotParticles[i]
+    const alpha = sp.time / 18
+    ctx.save()
+    ctx.globalAlpha = alpha * 0.7
+    ctx.strokeStyle = "#ffffff"
+    ctx.lineWidth = 1.5
+    for (let r = 0; r < 4; r++) {
+      const a = (r / 4) * Math.PI * 2
+      const len = (1 - alpha) * 12
+      ctx.beginPath()
+      ctx.moveTo(sp.x + Math.cos(a)*2, sp.y + Math.sin(a)*2)
+      ctx.lineTo(sp.x + Math.cos(a)*len, sp.y + Math.sin(a)*len)
+      ctx.stroke()
+    }
+    ctx.restore()
+    sp.time--
+    if (sp.time <= 0) shotParticles.splice(i, 1)
+  }
 
   // efekt trafienia
   if (hitEffect) {
@@ -3244,22 +4004,18 @@ async function zapiszProjekt(){
 
 function checkEnemyCollision() {
   if (gameOver || players.length === 0) return
-  if (invulnerable > 0) {
-    invulnerable--
-    return
-  }
+  if (invulnerable > 0) { invulnerable--; return }
 
   const player = players[0]
+
+  // Celownik jest niezniszczalny — wrogowie go nie zabijają
+  if (player.type === "crosshair") return
 
   for (let enemy of enemies) {
     let ex = enemy.x, ey = enemy.y
     let ew = enemy.w || 40, eh = enemy.h || 40
 
-    const margin = 0
-    if (
-      ex + ew < cameraX - margin ||
-      ex > cameraX + canvas.width + margin
-    ) continue
+    if (ex + ew < cameraX || ex > cameraX + canvas.width) continue
 
     let px = player.x - player.r, py = player.y - player.r
     let pw = player.r * 2, ph = player.r * 2
@@ -3267,11 +4023,8 @@ function checkEnemyCollision() {
     if (px < ex + ew && px + pw > ex && py < ey + eh && py + ph > ey) {
       deathRespawnX = player.x
       deathRespawnY = player.y
-
       if (useLives) counters.lives--
-
       hitEffect = { x: player.x, y: player.y, time: 60 }
-
       if (useLives && counters.lives <= 0 && !gameOverTriggered) {
         gameOverTriggered = true
         gameOver = true
@@ -3280,7 +4033,6 @@ function checkEnemyCollision() {
         initResultsScene()
         return
       }
-
       hitPause = hitPauseTime
       pendingRespawn = true
       invulnerable = invulnerabilityTime
@@ -3291,68 +4043,349 @@ function checkEnemyCollision() {
 
 function initResultsScene(){
   resultsEnemies = []
-  for (let i = 0; i < 6; i++) {
+  const emojis = ["👻","💀","🔥","⚡","👾","🦂","🤖","🛸","🪱","👹"]
+  for (let i = 0; i < 8; i++) {
     resultsEnemies.push({
-      angle: i * (Math.PI * 2 / 6),
-      dist: 120,
-      speed: 0.02 + Math.random() * 0.02
+      x: Math.random() * canvas.width,
+      y: 0,
+      vx: (Math.random() > 0.5 ? 1 : -1) * (0.8 + Math.random() * 1.2),
+      emoji: emojis[i],
+      size: 26 + Math.random() * 10,
+      bobOffset: Math.random() * Math.PI * 2,
+      bobSpeed: 0.04 + Math.random() * 0.03
     })
   }
+  resultsParticles = []
+  for (let i = 0; i < 40; i++) {
+    resultsParticles.push({
+      x: Math.random() * canvas.width,
+      y: Math.random() * canvas.height,
+      vx: (Math.random() - 0.5) * 1.5,
+      vy: (Math.random() - 0.5) * 1.5,
+      r: 2 + Math.random() * 4,
+      color: ["#ff4400","#ffcc00","#00ffcc","#ff00ff","#44ff00","#ffffff"][Math.floor(Math.random()*6)],
+      alpha: Math.random()
+    })
+  }
+  if (!resultsNameEntered && gameState === "win") {
+    setTimeout(() => showNameInput(), 300)
+  }
+}
+
+let resultsParticles = []
+let resultsPlayerName = ""
+let resultsNameEntered = false
+
+function showNameInput() {
+  // Usuń stare okienko jeśli jest
+  const old = document.getElementById("nameModal")
+  if (old) old.remove()
+
+  const modal = document.createElement("div")
+  modal.id = "nameModal"
+  modal.style.cssText = `
+    position:fixed; inset:0; background:rgba(0,0,0,0.85);
+    display:flex; align-items:center; justify-content:center;
+    z-index:9999; font-family:Arial;
+  `
+  const isWin = gameState === "win"
+  modal.innerHTML = `
+    <div style="
+      background:linear-gradient(135deg,#1a0030,#0a0020);
+      border:2px solid ${isWin ? "#00ff88" : "#ff4400"};
+      border-radius:20px; padding:40px 50px; text-align:center;
+      box-shadow:0 0 40px ${isWin ? "rgba(0,255,136,0.4)" : "rgba(255,68,0,0.4)"};
+      min-width:320px;
+    ">
+      <div style="font-size:52px; margin-bottom:10px;">${isWin ? "🏆" : "💀"}</div>
+      <div style="color:${isWin ? "#00ff88" : "#ff4400"}; font-size:28px; font-weight:bold; margin-bottom:8px; text-shadow:0 0 20px currentColor;">
+        ${isWin ? "WYGRANA!" : "KONIEC GRY"}
+      </div>
+      <div style="color:#aaa; font-size:14px; margin-bottom:20px;">
+        Punkty: <b style="color:#ffcc00">${counters.points}</b>
+        &nbsp;|&nbsp; Życia: <b style="color:#ff6666">${counters.lives}</b>
+      </div>
+      <div style="color:#ccc; font-size:15px; margin-bottom:12px;">Podaj swoje imię:</div>
+      <input id="nameInput" maxlength="16" placeholder="Twoje imię..."
+        style="
+          width:100%; padding:12px 16px; font-size:18px; border-radius:10px;
+          border:2px solid #444; background:#111; color:white;
+          outline:none; text-align:center; box-sizing:border-box;
+          transition:border-color 0.2s;
+        "
+        onfocus="this.style.borderColor='${isWin ? "#00ff88" : "#ff4400"}'"
+        onblur="this.style.borderColor='#444'"
+      >
+      <button onclick="submitScore()" style="
+        margin-top:16px; width:100%; padding:14px; font-size:16px; font-weight:bold;
+        background:linear-gradient(180deg,${isWin ? "#00cc66,#006633" : "#cc3300,#661100"});
+        border:none; border-radius:10px; color:white; cursor:pointer;
+        box-shadow:0 4px 0 ${isWin ? "#003322" : "#330000"};
+        transition:transform 0.1s;
+      "
+      onmouseover="this.style.transform='translateY(-2px)'"
+      onmouseout="this.style.transform='translateY(0)'"
+      >✔ ZAPISZ WYNIK</button>
+    </div>
+  `
+  document.body.appendChild(modal)
+  setTimeout(() => document.getElementById("nameInput")?.focus(), 50)
+  document.getElementById("nameInput")?.addEventListener("keydown", e => {
+    if (e.key === "Enter") submitScore()
+  })
+}
+
+function submitScore() {
+  const input = document.getElementById("nameInput")
+  const name = (input?.value?.trim() || "Gracz").substring(0, 16) || "Gracz"
+  resultsPlayerName = name
+  resultsNameEntered = true
+
+  // Zapisz do localStorage
+  const key = "leaderboard_" + (nazwaGry || "gra")
+  let board = []
+  try { board = JSON.parse(localStorage.getItem(key) || "[]") } catch(e) {}
+  board.push({
+    name,
+    points: counters.points,
+    lives: counters.lives,
+    win: gameState === "win",
+    date: new Date().toLocaleDateString("pl-PL")
+  })
+  board.sort((a, b) => b.points - a.points)
+  board = board.slice(0, 2)
+  try { localStorage.setItem(key, JSON.stringify(board)) } catch(e) {}
+
+  document.getElementById("nameModal")?.remove()
+}
+
+function getLeaderboard() {
+  const key = "leaderboard_" + (nazwaGry || "gra")
+  try { return JSON.parse(localStorage.getItem(key) || "[]") } catch(e) { return [] }
 }
 
 function drawResults(){
-  ctx.fillStyle = "black"
+  const t = Date.now() * 0.001
+  const cx = canvas.width / 2
+  const isWin = gameState === "win"
+
+  // Tło — gradient + siatka
+  const bg = ctx.createLinearGradient(0, 0, canvas.width, canvas.height)
+  bg.addColorStop(0, isWin ? "#001122" : "#110000")
+  bg.addColorStop(1, isWin ? "#000820" : "#0d0008")
+  ctx.fillStyle = bg
   ctx.fillRect(0, 0, canvas.width, canvas.height)
 
-  ctx.fillStyle = "red"
-  ctx.beginPath()
-  ctx.arc(resultsBall.x, resultsBall.y, resultsBall.r, 0, Math.PI*2)
-  ctx.fill()
+  // Siatka w tle
+  ctx.strokeStyle = isWin ? "rgba(0,255,136,0.04)" : "rgba(255,68,0,0.04)"
+  ctx.lineWidth = 1
+  for (let i = 0; i < canvas.width; i += 40) {
+    ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, canvas.height); ctx.stroke()
+  }
+  for (let i = 0; i < canvas.height; i += 40) {
+    ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(canvas.width, i); ctx.stroke()
+  }
 
-  let count = resultsEnemies.length
+  // Cząsteczki tła
+  for (let p of resultsParticles) {
+    p.x += p.vx; p.y += p.vy
+    p.alpha += 0.02
+    if (p.x < 0 || p.x > canvas.width) p.vx *= -1
+    if (p.y < 0 || p.y > canvas.height) p.vy *= -1
+    ctx.save()
+    ctx.globalAlpha = Math.abs(Math.sin(p.alpha)) * 0.6
+    ctx.fillStyle = p.color
+    ctx.shadowColor = p.color; ctx.shadowBlur = 6
+    ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI*2); ctx.fill()
+    ctx.restore()
+  }
 
-  for (let i = 0; i < count; i++) {
-    let en = resultsEnemies[i]
-    let slowAngle = en.angle * 0.25
-    let baseAngle = (i / count) * Math.PI * 2
-    let finalAngle = slowAngle + baseAngle
-    let x = resultsBall.x + Math.cos(finalAngle) * en.dist
-    let y = resultsBall.y + Math.sin(finalAngle) * en.dist
+  // Animuj wrogów dookoła
+  for (let en of resultsEnemies) { en.angle += en.speed }
 
-    ctx.font = "32px Arial"
+  // Środkowa kula / ikona
+  const ballY = 130
+  const ballR = 38
+  const pulse = Math.sin(t * 3) * 0.15 + 1
+  ctx.save()
+  ctx.shadowColor = isWin ? "#00ff88" : "#ff4400"
+  ctx.shadowBlur = 30 + Math.sin(t*2)*10
+  const ballGrad = ctx.createRadialGradient(cx-10, ballY-10, 2, cx, ballY, ballR*pulse)
+  if (isWin) {
+    ballGrad.addColorStop(0, "#ffffff")
+    ballGrad.addColorStop(0.4, "#00ff88")
+    ballGrad.addColorStop(1, "#006633")
+  } else {
+    ballGrad.addColorStop(0, "#ffaa00")
+    ballGrad.addColorStop(0.4, "#ff4400")
+    ballGrad.addColorStop(1, "#660000")
+  }
+  ctx.fillStyle = ballGrad
+  ctx.beginPath(); ctx.arc(cx, ballY, ballR * pulse, 0, Math.PI*2); ctx.fill()
+  ctx.restore()
+
+  // Wrogowie chodzą po dole — strip nad przyciskami
+  const stripY = canvas.height - 60
+  const stripH = 55
+
+  // Pasek tła dla wrogów
+  ctx.save()
+  const stripGrad = ctx.createLinearGradient(0, stripY - 10, 0, canvas.height)
+  stripGrad.addColorStop(0, "rgba(0,0,0,0)")
+  stripGrad.addColorStop(0.3, isWin ? "rgba(0,40,20,0.7)" : "rgba(40,0,0,0.7)")
+  stripGrad.addColorStop(1, isWin ? "rgba(0,60,30,0.9)" : "rgba(60,0,0,0.9)")
+  ctx.fillStyle = stripGrad
+  ctx.fillRect(0, stripY - 10, canvas.width, canvas.height - stripY + 10)
+
+  // Linia świecąca nad paskiem
+  ctx.strokeStyle = isWin ? "rgba(0,255,136,0.5)" : "rgba(255,68,0,0.5)"
+  ctx.lineWidth = 1.5
+  ctx.shadowColor = isWin ? "#00ff88" : "#ff4400"
+  ctx.shadowBlur = 8
+  ctx.beginPath(); ctx.moveTo(0, stripY - 8); ctx.lineTo(canvas.width, stripY - 8); ctx.stroke()
+  ctx.shadowBlur = 0
+  ctx.restore()
+
+  // Update i rysowanie wrogów
+  for (let en of resultsEnemies) {
+    // Ruch poziomy
+    en.x += en.vx
+    en.bobOffset += en.bobSpeed
+    // Odbij od ścian
+    if (en.x < 20)  { en.x = 20;  en.vx = Math.abs(en.vx) }
+    if (en.x > canvas.width - 20) { en.x = canvas.width - 20; en.vx = -Math.abs(en.vx) }
+    // Pozycja Y — chodzi po pasku z lekkim bobowaniem
+    const ey = stripY + 18 + Math.sin(en.bobOffset) * 5
+
+    ctx.save()
+    // Cień pod wrogiem
+    ctx.fillStyle = "rgba(0,0,0,0.3)"
+    ctx.beginPath()
+    ctx.ellipse(en.x, stripY + stripH - 8, en.size * 0.4, 4, 0, 0, Math.PI*2)
+    ctx.fill()
+    // Emoji
+    ctx.font = en.size + "px Arial"
     ctx.textAlign = "center"
     ctx.textBaseline = "middle"
-    ctx.fillText("👻", x, y)
+    // Flip poziomo jeśli idzie w lewo
+    if (en.vx < 0) {
+      ctx.translate(en.x, ey)
+      ctx.scale(-1, 1)
+      ctx.fillText(en.emoji, 0, 0)
+    } else {
+      ctx.fillText(en.emoji, en.x, ey)
+    }
+    ctx.restore()
   }
 
-  ctx.fillStyle = "white"
-  ctx.textAlign = "center"
-  ctx.font = "40px Arial"
-  let isWin = (gameState === "win")
-  ctx.fillStyle = isWin ? "#00ff88" : "white"
-  ctx.fillText(isWin ? "GRATULACJE!!!" : "KONIEC GRY", canvas.width/2, 80)
-  ctx.font = "22px Arial"
-  ctx.fillStyle = "white"
-  ctx.fillText("Punkty: " + counters.points, canvas.width/2, 300)
-  ctx.fillText("Życia: " + counters.lives, canvas.width/2, 330)
-  ctx.fillText("Czas: " + Math.ceil(counters.time), canvas.width/2, 360)
-  ctx.fillText("Kliknij aby zrestartować", canvas.width/2, 420)
+  // Tytuł
+  const titleColor = isWin ? "#00ff88" : "#ff4400"
+  ctx.save()
+  ctx.textAlign = "center"; ctx.textBaseline = "middle"
+  ctx.shadowColor = titleColor; ctx.shadowBlur = 30
+  ctx.fillStyle = titleColor
+  ctx.font = "bold 42px Arial"
+  ctx.fillText(isWin ? "🏆 WYGRANA! 🏆" : "💀 KONIEC GRY 💀", cx, 215)
+  ctx.shadowBlur = 0; ctx.restore()
 
-  ctx.fillStyle = "#333"
-  ctx.fillRect(250, 300, 140, 50)
-  ctx.fillRect(410, 300, 140, 50)
+  // Nazwa gry
+  ctx.textAlign = "center"; ctx.fillStyle = "#888"; ctx.font = "14px Arial"
+  ctx.fillText(nazwaGry || "Gra", cx, 242)
 
-  ctx.fillStyle = "white"
-  ctx.font = "16px Arial"
-  ctx.textAlign = "center"
-  ctx.fillText("WRÓĆ", 320, 330)
-  ctx.fillText("WYJDŹ", 480, 330)
+  // ===== TABLICA WYNIKÓW =====
+  const board = getLeaderboard()
+  const tableX = cx - 180, tableW = 360
+  const tableY = 262
+
+  // Tło tabeli
+  ctx.save()
+  ctx.fillStyle = "rgba(0,0,0,0.5)"
+  ctx.strokeStyle = isWin ? "rgba(0,255,136,0.3)" : "rgba(255,68,0,0.3)"
+  ctx.lineWidth = 1
+  ctx.beginPath(); ctx.roundRect(tableX, tableY, tableW, 30 + Math.max(Math.min(board.length, 2), 1)*30, 10); ctx.fill(); ctx.stroke()
+  ctx.restore()
+
+  // Nagłówek — różny dla wygranej i przegranej
+  ctx.textAlign = "left"; ctx.font = "bold 12px Arial"
+  if (isWin) {
+    ctx.fillStyle = "#00ff88"
+    ctx.fillText("🏅 HALL OF FAME — " + (nazwaGry || "Gra").toUpperCase(), tableX + 14, tableY + 20)
+  } else {
+    ctx.fillStyle = "#ff6644"
+    ctx.fillText("📊 NAJLEPSZE WYNIKI — " + (nazwaGry || "Gra").toUpperCase(), tableX + 14, tableY + 20)
+    // Info że nie można zapisać
+    ctx.textAlign = "center"; ctx.fillStyle = "#886644"; ctx.font = "11px Arial"
+    ctx.fillText("⚠ Zapis tylko przy wygranej (dotknij flagi!)", cx, tableY + 20)
+  }
+
+  // Wiersze wyników
+  const maxRows = Math.min(board.length, 2)
+  for (let i = 0; i < maxRows; i++) {
+    const entry = board[i]
+    const ry = tableY + 46 + i * 30
+    const isMe = isWin && resultsNameEntered && entry.name === resultsPlayerName && i === 0
+
+    if (isMe) {
+      ctx.save()
+      ctx.fillStyle = "rgba(0,255,136,0.15)"
+      ctx.beginPath(); ctx.roundRect(tableX + 4, ry - 12, tableW - 8, 26, 6); ctx.fill()
+      ctx.restore()
+    }
+
+    const medal = i === 0 ? "🥇" : "🥈"
+    ctx.font = "16px Arial"; ctx.textAlign = "center"; ctx.fillStyle = "#fff"
+    ctx.fillText(medal, tableX + 22, ry)
+
+    ctx.textAlign = "left"; ctx.font = "bold 14px Arial"
+    ctx.fillStyle = isMe ? "#00ff88" : "#dddddd"
+    ctx.fillText(entry.name, tableX + 44, ry)
+
+    ctx.textAlign = "right"; ctx.font = "bold 14px Arial"
+    ctx.fillStyle = "#ffcc00"
+    ctx.fillText("⭐ " + entry.points, tableX + tableW - 60, ry)
+
+    ctx.fillStyle = entry.win ? "#00cc66" : "#cc4444"
+    ctx.fillText(entry.win ? "✔" : "✖", tableX + tableW - 20, ry)
+  }
+
+  if (board.length === 0) {
+    ctx.textAlign = "center"; ctx.fillStyle = "#555"; ctx.font = "13px Arial"
+    ctx.fillText(isWin ? "Brak wyników — wygraj i zapisz!" : "Brak wyników", cx, tableY + 46)
+  }
+
+  // Przyciski
+  const btnY = tableY + 46 + maxRows * 30 + 16
+  const btnH = 42
+
+  // Przycisk WRÓĆ
+  const btn1X = cx - 185
+  ctx.save()
+  ctx.fillStyle = "#1a3a1a"
+  ctx.strokeStyle = "#2a6a2a"; ctx.lineWidth = 2
+  ctx.beginPath(); ctx.roundRect(btn1X, btnY, 170, btnH, 10); ctx.fill(); ctx.stroke()
+  ctx.fillStyle = "#88ff88"; ctx.font = "bold 15px Arial"; ctx.textAlign = "center"
+  ctx.fillText("↺ JESZCZE RAZ", btn1X + 85, btnY + btnH/2 + 1)
+  ctx.restore()
+
+  // Przycisk EDYTOR
+  const btn2X = cx + 15
+  ctx.save()
+  ctx.fillStyle = "#1a1a3a"
+  ctx.strokeStyle = "#2a2a6a"; ctx.lineWidth = 2
+  ctx.beginPath(); ctx.roundRect(btn2X, btnY, 170, btnH, 10); ctx.fill(); ctx.stroke()
+  ctx.fillStyle = "#8888ff"; ctx.font = "bold 15px Arial"; ctx.textAlign = "center"
+  ctx.fillText("✏ EDYTUJ GRĘ", btn2X + 85, btnY + btnH/2 + 1)
+  ctx.restore()
+
+  // Zapisz pozycje przycisków do kliknięcia
+  resultsBtn1 = { x: btn1X, y: btnY, w: 170, h: btnH }
+  resultsBtn2 = { x: btn2X, y: btnY, w: 170, h: btnH }
 }
 
+let resultsBtn1 = null, resultsBtn2 = null
+
 function updateResults(){
-  for (let en of resultsEnemies) {
-    en.angle += en.speed
-  }
+  // Nic — wrogowie są update'owani w draw()
 }
 
 function wczytajProjekt(){
@@ -3725,7 +4758,6 @@ function loadDemo() {
       nazwaGry   = s.nazwaGry   || "Moja gra"
       autorGry   = s.autorGry   || "DEMO"
       opisGry    = s.opisGry    || ""
-
       sterowanie = s.sterowanie || {lewo: null, prawo: null, skok: null}
 
       counters = {
@@ -3733,9 +4765,8 @@ function loadDemo() {
         points: s.counters?.points ?? 0,
         time: s.counters?.time ?? 60
       }
-      startTime = s.startTime ?? counters.time
-      useTimer  = !!s.useTimer
-
+      startTime       = s.startTime ?? counters.time
+      useTimer        = !!s.useTimer
       respawnMode     = s.respawnMode     || "death"
       autoScroll      = !!s.autoScroll
       autoScrollSpeed = Number(s.autoScrollSpeed) || 2
@@ -3748,6 +4779,7 @@ function loadDemo() {
       cameraX = 0
       gameState = "game"
       gameOver = false
+      gameOverTriggered = false
 
       updateButtonStates()
     })
@@ -4335,6 +5367,100 @@ function drawPlayer(ctx, x, y, r, time){
   ctx.stroke()
 }
 
+function drawCrosshairScreen(x, y, r, time) {
+  const wave = Math.sin(time * 0.0018) * 1.5
+  const cx = x, cy = y + wave
+  const t = time * 0.001
+  const pulse = Math.sin(t * 2) * 0.08 + 1
+
+  ctx.save()
+
+  // Zewnętrzny pierścień — 4 łuki obracające się
+  ctx.save()
+  ctx.translate(cx, cy)
+  ctx.rotate(t * 0.6)
+  ctx.strokeStyle = "rgba(0,255,200,0.9)"
+  ctx.lineWidth = 1.8
+  ctx.shadowColor = "#00ffcc"
+  ctx.shadowBlur = 12
+  for (let i = 0; i < 4; i++) {
+    const a = (i / 4) * Math.PI * 2
+    ctx.beginPath()
+    ctx.arc(0, 0, r * pulse, a + 0.25, a + Math.PI/2 - 0.25)
+    ctx.stroke()
+  }
+  ctx.restore()
+
+  // Środkowy pierścień — obrót przeciwny
+  ctx.save()
+  ctx.translate(cx, cy)
+  ctx.rotate(-t * 1.2)
+  ctx.strokeStyle = "rgba(255,60,0,0.95)"
+  ctx.lineWidth = 1.4
+  ctx.shadowColor = "#ff3300"
+  ctx.shadowBlur = 8
+  for (let i = 0; i < 4; i++) {
+    const a = (i / 4) * Math.PI * 2 + Math.PI/4
+    ctx.beginPath()
+    ctx.arc(0, 0, r * 0.52 * pulse, a + 0.2, a + Math.PI/2 - 0.2)
+    ctx.stroke()
+  }
+  ctx.restore()
+
+  // Krzyżyk z przerwą
+  ctx.save()
+  ctx.translate(cx, cy)
+  ctx.strokeStyle = "rgba(0,255,200,0.85)"
+  ctx.lineWidth = 1.5
+  ctx.shadowColor = "#00ffcc"
+  ctx.shadowBlur = 8
+  const gap = r * 0.28, arm = r * 1.4
+  for (const [ax,ay,bx,by] of [
+    [0,-gap, 0,-arm], [0,gap, 0,arm],
+    [-gap,0, -arm,0], [gap,0, arm,0]
+  ]) {
+    ctx.beginPath(); ctx.moveTo(ax,ay); ctx.lineTo(bx,by); ctx.stroke()
+  }
+  ctx.restore()
+
+  // Znaczniki na 45° (złote, lekko obracające się)
+  ctx.save()
+  ctx.translate(cx, cy)
+  ctx.rotate(t * 0.35)
+  ctx.strokeStyle = "rgba(255,200,0,0.8)"
+  ctx.lineWidth = 1.5
+  ctx.shadowColor = "#ffcc00"
+  ctx.shadowBlur = 6
+  for (let i = 0; i < 4; i++) {
+    const a = (i / 4) * Math.PI * 2 + Math.PI/4
+    ctx.beginPath()
+    ctx.moveTo(Math.cos(a)*r*0.72, Math.sin(a)*r*0.72)
+    ctx.lineTo(Math.cos(a)*r*1.08, Math.sin(a)*r*1.08)
+    ctx.stroke()
+  }
+  ctx.restore()
+
+  // Punkt centralny pulsujący
+  ctx.save()
+  ctx.translate(cx, cy)
+  const dp = Math.sin(t * 3.5) * 0.5 + 1
+  ctx.shadowColor = "#ff3300"
+  ctx.shadowBlur = 16
+  ctx.fillStyle = "#ff3300"
+  ctx.beginPath(); ctx.arc(0, 0, 3 * dp, 0, Math.PI*2); ctx.fill()
+  ctx.shadowBlur = 0
+  ctx.fillStyle = "#ffffff"
+  ctx.beginPath(); ctx.arc(0, 0, 1.3, 0, Math.PI*2); ctx.fill()
+  ctx.restore()
+
+  ctx.shadowBlur = 0
+  ctx.restore()
+}
+
+function drawCrosshairPlayer(x, y, r, time) {
+  drawCrosshairScreen(x, y, r, time)
+}
+
 function drawNewStars(){
   let grad = ctx.createLinearGradient(0, 0, 0, canvas.height)
   grad.addColorStop(0, "#0a001f")
@@ -4386,12 +5512,143 @@ function pokazMsg(txt){
 updateButtonStates()
 renderLevelsBar()
 syncLevelData()
+initObjectsBarPreviews()
 
 const initLvl = getLevel()
 playerStartX = initLvl.playerStartX ?? 100
 playerStartY = initLvl.playerStartY ?? 100
 
 respawnPlayer()
+
+function initObjectsBarPreviews() {
+  // Platforma rect
+  const r1 = document.getElementById("prevRect")
+  if (r1) {
+    const p = r1.getContext("2d")
+    const g = p.createLinearGradient(0,0,0,14)
+    g.addColorStop(0,"#5a8fcc"); g.addColorStop(1,"#1e3d66")
+    p.fillStyle=g; p.fillRect(0,0,38,14)
+    p.strokeStyle="rgba(150,200,255,0.4)"; p.lineWidth=1
+    p.beginPath(); p.moveTo(0,13); p.lineTo(0,0); p.lineTo(38,0); p.stroke()
+  }
+  // Platforma round
+  const r2 = document.getElementById("prevRound")
+  if (r2) {
+    const p = r2.getContext("2d")
+    const g = p.createLinearGradient(0,0,0,14)
+    g.addColorStop(0,"#6aaadd"); g.addColorStop(1,"#223366")
+    p.fillStyle=g; p.beginPath(); p.roundRect(0,0,38,14,5); p.fill()
+    p.strokeStyle="#88ccff"; p.lineWidth=1
+    p.beginPath(); p.roundRect(0.5,0.5,37,13,4.5); p.stroke()
+  }
+  // Platforma line
+  const r3 = document.getElementById("prevLine")
+  if (r3) {
+    const p = r3.getContext("2d")
+    p.shadowColor="#44aaff"; p.shadowBlur=5
+    p.strokeStyle="#5599ff"; p.lineWidth=3
+    p.beginPath(); p.moveTo(2,7); p.lineTo(36,7); p.stroke()
+    p.shadowBlur=0
+    p.strokeStyle="rgba(255,255,255,0.5)"; p.lineWidth=1
+    p.beginPath(); p.moveTo(4,7); p.lineTo(34,7); p.stroke()
+  }
+  // Blok kwadrat
+  const b1 = document.getElementById("prevBlok")
+  if (b1) {
+    const p = b1.getContext("2d")
+    const g = p.createLinearGradient(0,0,0,22)
+    g.addColorStop(0,"#445566"); g.addColorStop(1,"#1a2530")
+    p.fillStyle=g; p.fillRect(0,0,22,22)
+    p.strokeStyle="rgba(0,0,0,0.5)"; p.lineWidth=1
+    for(let row=0;row*7<22;row++){
+      p.beginPath(); p.moveTo(0,row*7); p.lineTo(22,row*7); p.stroke()
+      p.beginPath(); p.moveTo(row%2===0?0:5.5, row*7); p.lineTo(row%2===0?0:5.5, row*7+7); p.stroke()
+      p.beginPath(); p.moveTo(row%2===0?11:16.5, row*7); p.lineTo(row%2===0?11:16.5, row*7+7); p.stroke()
+    }
+  }
+  // Blok tall
+  const b2 = document.getElementById("prevTall")
+  if (b2) {
+    const p = b2.getContext("2d")
+    const g = p.createLinearGradient(0,0,14,0)
+    g.addColorStop(0,"#553322"); g.addColorStop(1,"#3d2010")
+    p.fillStyle=g; p.fillRect(0,0,14,26)
+    p.strokeStyle="rgba(0,0,0,0.5)"; p.lineWidth=1
+    for(let row=0;row*6<26;row++){
+      p.beginPath(); p.moveTo(0,row*6); p.lineTo(14,row*6); p.stroke()
+      p.beginPath(); p.moveTo(7,row*6); p.lineTo(7,row*6+6); p.stroke()
+    }
+  }
+  // Blok grid
+  const b3 = document.getElementById("prevGrid")
+  if (b3) {
+    const p = b3.getContext("2d")
+    p.fillStyle="rgba(10,10,20,0.8)"; p.fillRect(0,0,22,22)
+    p.strokeStyle="#cc7700"; p.lineWidth=1.5; p.lineCap="square"
+    for(let i=0;i<=22;i+=7){ p.beginPath(); p.moveTo(i,0); p.lineTo(i,22); p.stroke() }
+    for(let i=0;i<=22;i+=7){ p.beginPath(); p.moveTo(0,i); p.lineTo(22,i); p.stroke() }
+    p.fillStyle="#ffaa00"
+    for(let cx=0;cx<=22;cx+=7) for(let cy=0;cy<=22;cy+=7){ p.beginPath(); p.arc(cx,cy,1.5,0,Math.PI*2); p.fill() }
+  }
+  // Blok lodowy
+  const b4 = document.getElementById("prevIce")
+  if (b4) {
+    const p = b4.getContext("2d")
+    const g = p.createLinearGradient(0,0,22,22)
+    g.addColorStop(0,"rgba(160,230,255,0.8)")
+    g.addColorStop(1,"rgba(100,190,240,0.7)")
+    p.fillStyle=g; p.beginPath(); p.roundRect(0,0,22,22,4); p.fill()
+    const sh = p.createLinearGradient(0,0,0,11)
+    sh.addColorStop(0,"rgba(255,255,255,0.55)"); sh.addColorStop(1,"rgba(255,255,255,0)")
+    p.fillStyle=sh; p.beginPath(); p.roundRect(1,1,20,10,3); p.fill()
+    p.strokeStyle="rgba(180,235,255,0.9)"; p.lineWidth=1
+    p.beginPath(); p.roundRect(0.5,0.5,21,21,4); p.stroke()
+    p.strokeStyle="rgba(255,255,255,0.7)"; p.lineWidth=1
+    for(const [cx,cy,cr] of [[6,13,2.5],[16,10,2],[11,16,2]]){
+      p.beginPath(); p.moveTo(cx,cy-cr); p.lineTo(cx+cr*0.5,cy); p.lineTo(cx,cy+cr); p.lineTo(cx-cr*0.5,cy); p.closePath(); p.stroke()
+    }
+  }
+  // Blok wybuchowy
+  const b5 = document.getElementById("prevBomb")
+  if (b5) {
+    const p = b5.getContext("2d")
+    const g = p.createLinearGradient(0,0,22,22)
+    g.addColorStop(0,"#3a0000"); g.addColorStop(0.5,"#660000"); g.addColorStop(1,"#220000")
+    p.fillStyle=g; p.beginPath(); p.roundRect(0,0,22,22,4); p.fill()
+    p.strokeStyle="#884444"; p.lineWidth=1.5
+    p.beginPath(); p.roundRect(0.5,0.5,21,21,4); p.stroke()
+    p.font="13px Arial"; p.textAlign="center"; p.textBaseline="middle"
+    p.fillText("💣", 11, 10)
+    p.fillStyle="rgba(0,0,0,0.5)"; p.fillRect(2,17,18,4)
+    p.fillStyle="#ffcc00"; p.fillRect(2,17,9,4)
+  }
+
+  // Piła — miniaturka
+  const sawPrev = document.getElementById("prevSaw")
+  if (sawPrev) {
+    const p = sawPrev.getContext("2d")
+    const cx2 = 16, cy2 = 16, r = 13, teeth = 10
+    // Tarcza
+    const dg = p.createRadialGradient(-3,-3,1, cx2,cy2, r*0.85)
+    dg.addColorStop(0,"#e8e8e8"); dg.addColorStop(0.5,"#aaaaaa"); dg.addColorStop(1,"#444")
+    p.fillStyle=dg; p.beginPath(); p.arc(cx2,cy2,r*0.82,0,Math.PI*2); p.fill()
+    // Zęby
+    p.fillStyle="#bbbbbb"; p.strokeStyle="#444"; p.lineWidth=0.7
+    for(let i=0;i<teeth;i++){
+      const a=(i/teeth)*Math.PI*2, an=((i+0.5)/teeth)*Math.PI*2
+      p.beginPath()
+      p.moveTo(cx2+Math.cos(a)*r*0.82, cy2+Math.sin(a)*r*0.82)
+      p.lineTo(cx2+Math.cos(an)*r*0.58, cy2+Math.sin(an)*r*0.58)
+      p.lineTo(cx2+Math.cos(a+Math.PI*2/teeth)*r*0.82, cy2+Math.sin(a+Math.PI*2/teeth)*r*0.82)
+      p.closePath(); p.fill(); p.stroke()
+    }
+    // Hub
+    const hg = p.createRadialGradient(cx2-1,cy2-1,0, cx2,cy2,r*0.2)
+    hg.addColorStop(0,"#fff"); hg.addColorStop(1,"#666")
+    p.fillStyle=hg; p.beginPath(); p.arc(cx2,cy2,r*0.2,0,Math.PI*2); p.fill()
+    p.fillStyle="#333"; p.beginPath(); p.arc(cx2,cy2,r*0.07,0,Math.PI*2); p.fill()
+  }
+}
 
 function loop(time){
   if (time - lastFrame < frameDelay) {
