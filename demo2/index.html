@@ -715,7 +715,14 @@ function snapAll(){
   }
 }
 
+let snapshotBeforeRun = null  // kopia stanu przed URUCHOM
+let livesBeforeRun = 0        // liczba żyć przed URUCHOM
+
 function uruchom(){
+  // Zapisz głęboki snapshot wszystkich poziomów przed uruchomieniem
+  snapshotBeforeRun = JSON.parse(JSON.stringify(levels))
+  livesBeforeRun = counters.lives  // zapamiętaj aktualne życia
+
   trybGry = true
   exhaustParticles = []
   carWheelAngle = 0
@@ -736,10 +743,32 @@ function edytuj(){
   exhaustParticles = []
   shotParticles = []
   explosions = []
-  // Reset bomb bloków
+  document.getElementById("nameModal")?.remove()
+
+  // Przywróć snapshot sprzed uruchomienia
+  if (snapshotBeforeRun) {
+    levels = JSON.parse(JSON.stringify(snapshotBeforeRun))
+    snapshotBeforeRun = null
+    syncLevelData()
+    renderLevelsBar()
+  }
+
+  // Przywróć życia
+  if (livesBeforeRun > 0) {
+    counters.lives = livesBeforeRun
+    livesBeforeRun = 0
+  }
+
+  // Reset bomb bloków po przywróceniu
   for (const b of blocks) {
     if (b.typ === "blockBomb") { b.bombTimer = 0; b.exploded = false; b.respawnTimer = 0 }
   }
+
+  gameState = "game"
+  gameOver = false
+  gameOverTriggered = false
+  selectedObject = null
+
   updateButtonStates()
 }
 
@@ -4357,29 +4386,18 @@ function drawResults(){
   const btnY = tableY + 46 + maxRows * 30 + 16
   const btnH = 42
 
-  // Przycisk WRÓĆ
-  const btn1X = cx - 185
-  ctx.save()
-  ctx.fillStyle = "#1a3a1a"
-  ctx.strokeStyle = "#2a6a2a"; ctx.lineWidth = 2
-  ctx.beginPath(); ctx.roundRect(btn1X, btnY, 170, btnH, 10); ctx.fill(); ctx.stroke()
-  ctx.fillStyle = "#88ff88"; ctx.font = "bold 15px Arial"; ctx.textAlign = "center"
-  ctx.fillText("↺ JESZCZE RAZ", btn1X + 85, btnY + btnH/2 + 1)
-  ctx.restore()
-
-  // Przycisk EDYTOR
-  const btn2X = cx + 15
+  // Jeden przycisk — EDYTUJ GRĘ (wyśrodkowany)
+  const btn2X = cx - 90
   ctx.save()
   ctx.fillStyle = "#1a1a3a"
   ctx.strokeStyle = "#2a2a6a"; ctx.lineWidth = 2
-  ctx.beginPath(); ctx.roundRect(btn2X, btnY, 170, btnH, 10); ctx.fill(); ctx.stroke()
+  ctx.beginPath(); ctx.roundRect(btn2X, btnY, 180, btnH, 10); ctx.fill(); ctx.stroke()
   ctx.fillStyle = "#8888ff"; ctx.font = "bold 15px Arial"; ctx.textAlign = "center"
-  ctx.fillText("✏ EDYTUJ GRĘ", btn2X + 85, btnY + btnH/2 + 1)
+  ctx.fillText("✏ EDYTUJ GRĘ", btn2X + 90, btnY + btnH/2 + 1)
   ctx.restore()
 
-  // Zapisz pozycje przycisków do kliknięcia
-  resultsBtn1 = { x: btn1X, y: btnY, w: 170, h: btnH }
-  resultsBtn2 = { x: btn2X, y: btnY, w: 170, h: btnH }
+  resultsBtn1 = null
+  resultsBtn2 = { x: btn2X, y: btnY, w: 180, h: btnH }
 }
 
 let resultsBtn1 = null, resultsBtn2 = null
@@ -5152,20 +5170,8 @@ function wyjdzDoMenu() {
 }
 
 function wrocDoEdytora() {
-  trybGry = false
-  gameState = "game"
-  gameOver = false
-  gameOverTriggered = false
-
-  if (players.length > 0) {
-    players[0].x = playerStartX
-    players[0].y = playerStartY
-    players[0].vx = 0
-    players[0].vy = 0
-  }
-
+  edytuj()
   counters.time = startTime
-  alert("🛠 Wracasz do edytora")
 }
 
 function pokazAutorModal(){
