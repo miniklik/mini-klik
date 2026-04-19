@@ -883,6 +883,10 @@ function showFxList(){
       if (fx.type === "move") {
         let dir = fx.dx > 0 ? "→" : fx.dx < 0 ? "←" : fx.dy > 0 ? "↓" : "↑"
         params = `${dir} speed:${fx.speed} dist:${fx.distance} ${fx.loop?"loop":"jednoraz"}`
+      } else if (fx.type === "gravity") {
+        params = "🌍 opadanie + odbijanie"
+      } else if (fx.type === "neon") {
+        params = "💡 świecenie"
       }
       html += `
         <div class="fx-row">
@@ -933,10 +937,40 @@ function showAddFxMenu(){
     <h3>Dodaj efekt</h3>
     <button onclick="showMove()">RUCH (move)</button>
     <br><br>
-    <button onclick="showFxList()">← powrót</button>
-    <br><br>
     <button onclick="addNeonFx()">NEON</button>
+    <br><br>
+    <button onclick="addGravityFx()" style="background:#5a3a2a;">🌍 GRAWITACJA</button>
+    <br><br>
+    <button onclick="showFxList()">← powrót</button>
   `
+}
+
+function addGravityFx(){
+  if (!selectedObject) return
+  if (!selectedObject.effects) selectedObject.effects = []
+
+  if (selectedObject.effects.length >= 3) {
+    alert("❌ Max 3 efekty")
+    return
+  }
+
+  // Tylko wrogowie mogą mieć grawitację
+  if (selectedObject.type === undefined) {
+    alert("❌ Grawitację można dodać tylko do wrogów")
+    return
+  }
+
+  selectedObject.effects.push({
+    type: "gravity",
+    enabled: true
+  })
+
+  // Reset Y/X baseowych żeby pierwsze wejście w update było świeże
+  selectedObject.baseY = null
+  selectedObject._prevFloat = null
+  selectedObject.vy = 0
+
+  showFxList()
 }
 
 function addNeonFx(){
@@ -2410,24 +2444,87 @@ function update(){
         obj.sawAngle = (obj.sawAngle || 0) + 0.06
       }
 
-      // Tryb lewitowania gdy gracz = statek
+      // Sprawdź czy wróg ma FX grawitacji (włączony)
+      const hasGravity = obj.effects && obj.effects.some(fx => fx.type === "gravity" && fx.enabled !== false)
+
       if (obj.type === "walker" || obj.type === "walker2" || obj.type === "walker3" || obj.type === "walker4") {
         if (dragging === obj) continue
-        // Fizyka ducha — unosi się góra/dół bez resetowania pozycji
-        obj.floatTime = (obj.floatTime || 0) + 0.05
-        const prevFloat = obj._prevFloat || 0
-        obj.y += (Math.sin(obj.floatTime) - Math.sin(prevFloat)) * 15
-        obj._prevFloat = obj.floatTime
+
+        if (hasGravity) {
+          // GRAWITACJA — opada i odbija się od przeszkód
+          obj.vy = (obj.vy || 0) + 0.5
+          obj.y += obj.vy
+          obj.x += obj.vx || 0
+          if (obj.y > floorY - obj.h) { obj.y = floorY - obj.h; obj.vy = 0 }
+          for (let pl of platforms) {
+            if (obj.x + obj.w > pl.x && obj.x < pl.x + pl.w &&
+                obj.y + obj.h > pl.y && obj.y + obj.h < pl.y + (pl.h||20) + 10 && obj.vy > 0) {
+              obj.y = pl.y - obj.h; obj.vy = 0
+            }
+          }
+          for (let b of blocks) {
+            if (b.typ === "blockBomb" && b.exploded) continue
+            if (obj.x + obj.w > b.x && obj.x < b.x + b.w &&
+                obj.y + obj.h > b.y && obj.y + obj.h < b.y + 10 && obj.vy > 0) {
+              obj.y = b.y - obj.h; obj.vy = 0
+            }
+          }
+          // Odbijanie od bloków (pion)
+          for (let b of blocks) {
+            if (b.typ === "blockBomb" && b.exploded) continue
+            if (obj.x + obj.w > b.x && obj.x < b.x + b.w &&
+                obj.y + obj.h > b.y + 5 && obj.y < b.y + b.h) {
+              obj.vx = -(obj.vx || 1); obj.x += obj.vx; break
+            }
+          }
+          if (obj.x < 0 || obj.x + obj.w > worldWidth) obj.vx = -(obj.vx || 1)
+        } else {
+          // FIZYKA DUCHA — unosi się góra/dół
+          obj.floatTime = (obj.floatTime || 0) + 0.05
+          const prevFloat = obj._prevFloat || 0
+          obj.y += (Math.sin(obj.floatTime) - Math.sin(prevFloat)) * 15
+          obj._prevFloat = obj.floatTime
+        }
       }
 
       if (obj.type === "saw") {
         if (dragging === obj) continue
-        // Fizyka ducha + obrót
         obj.sawAngle = (obj.sawAngle || 0) + 0.06
-        obj.floatTime = (obj.floatTime || 0) + 0.05
-        const prevFloat = obj._prevFloat || 0
-        obj.y += (Math.sin(obj.floatTime) - Math.sin(prevFloat)) * 15
-        obj._prevFloat = obj.floatTime
+
+        if (hasGravity) {
+          // Piła z grawitacją — opada i odbija się
+          obj.vy = (obj.vy || 0) + 0.5
+          obj.y += obj.vy
+          obj.x += obj.vx || 1.5
+          if (obj.y + obj.h > floorY) {
+            obj.y = floorY - obj.h; obj.vy = -obj.vy * 0.5
+            if (Math.abs(obj.vy) < 1) obj.vy = 0
+          }
+          for (let pl of platforms) {
+            if (obj.x + obj.w > pl.x && obj.x < pl.x + pl.w &&
+                obj.y + obj.h > pl.y && obj.y + obj.h < pl.y + 20 && obj.vy > 0) {
+              obj.y = pl.y - obj.h; obj.vy = -obj.vy * 0.4
+              if (Math.abs(obj.vy) < 1) obj.vy = 0
+            }
+          }
+          for (let bl of blocks) {
+            if (bl.typ === "blockBomb" && bl.exploded) continue
+            if (obj.x + obj.w > bl.x && obj.x < bl.x + bl.w &&
+                obj.y + obj.h > bl.y && obj.y < bl.y + bl.h) {
+              if (obj.vy > 0) { obj.y = bl.y - obj.h; obj.vy = -obj.vy * 0.4 }
+              else if (obj.vy < 0) { obj.y = bl.y + bl.h; obj.vy = 0 }
+              obj.vx = -obj.vx
+            }
+          }
+          if (obj.x < 0) { obj.x = 0; obj.vx = Math.abs(obj.vx) }
+          if (obj.x + obj.w > worldWidth) { obj.x = worldWidth - obj.w; obj.vx = -Math.abs(obj.vx) }
+        } else {
+          // FIZYKA DUCHA
+          obj.floatTime = (obj.floatTime || 0) + 0.05
+          const prevFloat = obj._prevFloat || 0
+          obj.y += (Math.sin(obj.floatTime) - Math.sin(prevFloat)) * 15
+          obj._prevFloat = obj.floatTime
+        }
       }
     }
   }
@@ -2834,6 +2931,7 @@ function update(){
 // ================= DRAW =================
 function setBG(type){
   getLevel().backgroundType = type
+  window.waterBubbles = null  // reset bąbelków przy zmianie tła
 }
 
 function draw(){
@@ -4804,6 +4902,7 @@ function pokazTloPanel(){
     <button onclick="setBG('forest')">Las</button><br><br>
     <button onclick="setBG('snow')">Śnieg</button><br><br>
     <button onclick="setBG('space')">Góry</button><br><br>
+    <button onclick="setBG('water')">🌊 Pod wodą</button><br><br>
   `
 }
 
@@ -4990,6 +5089,11 @@ function ustawAutora(){
 function drawBackground(){
   let bgType = getLevel()?.backgroundType || "none"
 
+  if (bgType === "water"){
+    drawWater()
+    return
+  }
+
   if (bgType === "none") return
 
   if (bgType === "forest"){
@@ -5093,95 +5197,455 @@ function drawBackground(){
   }
 
   if (bgType === "west") {
-    let skyGrad = ctx.createLinearGradient(0, 0, 0, canvas.height * 0.7)
-    skyGrad.addColorStop(0, "#ff4d00")
-    skyGrad.addColorStop(0.4, "#ff8c33")
-    skyGrad.addColorStop(0.7, "#ffbb77")
-    skyGrad.addColorStop(1, "#ffe0b3")
+    const t = Date.now() * 0.001
+
+    // Niebo — gradient zachodu
+    const skyGrad = ctx.createLinearGradient(0, 0, 0, canvas.height * 0.7)
+    skyGrad.addColorStop(0, "#2a0a3a")      // fiolet u góry
+    skyGrad.addColorStop(0.25, "#8a1e3e")   // ciemnoczerwony
+    skyGrad.addColorStop(0.5, "#ff4d1a")    // pomarańcz
+    skyGrad.addColorStop(0.75, "#ff8844")
+    skyGrad.addColorStop(1, "#ffd4a3")
     ctx.fillStyle = skyGrad
     ctx.fillRect(0, 0, canvas.width, canvas.height)
 
-    let purpleGrad = ctx.createLinearGradient(0, 0, 0, canvas.height * 0.35)
-    purpleGrad.addColorStop(0, "rgba(120, 40, 140, 0.25)")
-    purpleGrad.addColorStop(1, "rgba(120, 40, 140, 0)")
-    ctx.fillStyle = purpleGrad
-    ctx.fillRect(0, 0, canvas.width, canvas.height)
+    // Gwiazdy na fioletowym niebie
+    if (!window.westStars) {
+      window.westStars = []
+      for (let i = 0; i < 25; i++) {
+        window.westStars.push({
+          x: Math.random() * canvas.width * 1.3,
+          y: Math.random() * canvas.height * 0.25,
+          size: Math.random() * 1.2 + 0.4,
+          twinkle: Math.random() * Math.PI * 2
+        })
+      }
+    }
+    for (const s of window.westStars) {
+      const alpha = 0.4 + Math.sin(t * 2 + s.twinkle) * 0.3
+      ctx.fillStyle = `rgba(255,240,220,${alpha})`
+      ctx.fillRect(s.x, s.y, s.size, s.size)
+    }
 
-    let sunX = canvas.width - 140
-    let sunY = 110
-    ctx.fillStyle = "rgba(255, 220, 100, 0.35)"
-    ctx.beginPath(); ctx.arc(sunX, sunY, 75, 0, Math.PI * 2); ctx.fill()
-    ctx.fillStyle = "rgba(255, 200, 80, 0.25)"
-    ctx.beginPath(); ctx.arc(sunX, sunY, 110, 0, Math.PI * 2); ctx.fill()
-    ctx.fillStyle = "#ffdd77"
-    ctx.beginPath(); ctx.arc(sunX, sunY, 48, 0, Math.PI * 2); ctx.fill()
+    // SŁOŃCE — wielkie, zachodzące
+    const sunX = canvas.width - 160
+    const sunY = 140
+    // Zewnętrzna poświata
+    const sunGlow = ctx.createRadialGradient(sunX, sunY, 40, sunX, sunY, 180)
+    sunGlow.addColorStop(0, "rgba(255,220,100,0.5)")
+    sunGlow.addColorStop(0.5, "rgba(255,150,50,0.25)")
+    sunGlow.addColorStop(1, "rgba(255,100,30,0)")
+    ctx.fillStyle = sunGlow
+    ctx.beginPath(); ctx.arc(sunX, sunY, 180, 0, Math.PI * 2); ctx.fill()
+    // Sam dysk słońca
+    const sunCore = ctx.createRadialGradient(sunX, sunY, 5, sunX, sunY, 55)
+    sunCore.addColorStop(0, "#fff5cc")
+    sunCore.addColorStop(0.6, "#ffcc55")
+    sunCore.addColorStop(1, "#ff8833")
+    ctx.fillStyle = sunCore
+    ctx.beginPath(); ctx.arc(sunX, sunY, 55, 0, Math.PI * 2); ctx.fill()
+    // Pasek przesłaniający dolną część (jakby słońce za horyzontem)
+    ctx.fillStyle = "rgba(255,100,50,0.2)"
+    ctx.fillRect(sunX - 60, sunY + 35, 120, 6)
+    ctx.fillRect(sunX - 50, sunY + 42, 100, 4)
 
+    // SĘPY — krążą w tle
+    const vultures = [
+      { x: canvas.width * 0.3, y: 70, phase: 0 },
+      { x: canvas.width * 0.55, y: 90, phase: 1.5 },
+      { x: canvas.width * 0.75, y: 55, phase: 3 }
+    ]
+    for (const v of vultures) {
+      const vx = v.x + Math.sin(t * 0.3 + v.phase) * 40
+      const vy = v.y + Math.cos(t * 0.4 + v.phase) * 15
+      const wing = Math.sin(t * 2 + v.phase) * 8
+      ctx.strokeStyle = "rgba(20,15,10,0.7)"
+      ctx.lineWidth = 2
+      ctx.beginPath()
+      ctx.moveTo(vx - 14, vy + wing * 0.3)
+      ctx.quadraticCurveTo(vx - 7, vy - wing, vx, vy)
+      ctx.quadraticCurveTo(vx + 7, vy - wing, vx + 14, vy + wing * 0.3)
+      ctx.stroke()
+    }
+
+    // GÓRY DALSZE (fioletowe)
+    ctx.fillStyle = "#4a2a5a"
+    for (let i = 0; i < 10; i++) {
+      const x = ((i * 300 - cameraX * 0.05) % (canvas.width + 400)) - 150
+      const h = 70 + (i * 31 % 50)
+      ctx.beginPath()
+      ctx.moveTo(x, canvas.height - 100)
+      ctx.lineTo(x + 150, canvas.height - 100 - h)
+      ctx.lineTo(x + 300, canvas.height - 100)
+      ctx.fill()
+    }
+
+    // Skały/mesa (płaskowyże charakterystyczne)
     ctx.fillStyle = "#c46a2e"
-    for (let i = 0; i < 8; i++) {
-      let x = (i * 280 - cameraX * 0.1) % (canvas.width + 400) - 100
-      let h = 95 + (i * 37 % 70)
+    for (let i = 0; i < 6; i++) {
+      const x = ((i * 380 - cameraX * 0.15) % (canvas.width + 500)) - 100
+      const h = 100 + (i * 41 % 60)
+      const w = 150 + (i * 23 % 40)
+      // Płaski szczyt
+      ctx.fillRect(x + 20, canvas.height - 100 - h, w, h)
+      // Skośne boki
+      ctx.beginPath()
+      ctx.moveTo(x + 20, canvas.height - 100 - h)
+      ctx.lineTo(x, canvas.height - 100)
+      ctx.lineTo(x + 20, canvas.height - 100)
+      ctx.closePath(); ctx.fill()
+      ctx.beginPath()
+      ctx.moveTo(x + 20 + w, canvas.height - 100 - h)
+      ctx.lineTo(x + 40 + w, canvas.height - 100)
+      ctx.lineTo(x + 20 + w, canvas.height - 100)
+      ctx.closePath(); ctx.fill()
+      // Cień
+      ctx.fillStyle = "rgba(0,0,0,0.2)"
+      ctx.fillRect(x + 20, canvas.height - 100 - h * 0.3, w, h * 0.1)
+      ctx.fillStyle = "#c46a2e"
+    }
+
+    // GÓRY BLIŻSZE (ciemniejsze)
+    ctx.fillStyle = "#8a3d1a"
+    for (let i = 0; i < 5; i++) {
+      const x = ((i * 420 - cameraX * 0.3) % (canvas.width + 600)) - 80
+      const h = 150 + (i * 61 % 100)
       ctx.beginPath()
       ctx.moveTo(x, canvas.height - 100)
-      ctx.lineTo(x + 140, canvas.height - 100 - h)
-      ctx.lineTo(x + 290, canvas.height - 100)
+      ctx.lineTo(x + 180, canvas.height - 100 - h)
+      ctx.lineTo(x + 380, canvas.height - 100)
       ctx.fill()
     }
 
-    ctx.fillStyle = "#a04d1f"
-    for (let i = 0; i < 7; i++) {
-      let x = (i * 340 - cameraX * 0.25) % (canvas.width + 500) - 80
-      let h = 135 + (i * 51 % 110)
-      ctx.beginPath()
-      ctx.moveTo(x, canvas.height - 100)
-      ctx.lineTo(x + 160, canvas.height - 100 - h)
-      ctx.lineTo(x + 340, canvas.height - 100)
-      ctx.fill()
-    }
-
-    let groundGrad = ctx.createLinearGradient(0, canvas.height - 130, 0, canvas.height)
+    // ZIEMIA — gradient
+    const groundGrad = ctx.createLinearGradient(0, canvas.height - 130, 0, canvas.height)
     groundGrad.addColorStop(0, "#e8b57c")
-    groundGrad.addColorStop(1, "#c17f3f")
+    groundGrad.addColorStop(0.6, "#c17f3f")
+    groundGrad.addColorStop(1, "#8a5020")
     ctx.fillStyle = groundGrad
     ctx.fillRect(0, canvas.height - 130, canvas.width, 130)
-    ctx.fillStyle = "#9f5f2a"
-    ctx.fillRect(0, canvas.height - 55, canvas.width, 55)
 
-    ctx.fillStyle = "#2a8c4a"
-    for (let i = 0; i < 12; i++) {
-      let x = (i * 190 - cameraX * 0.7) % (canvas.width + 300) - 30
-      let baseY = canvas.height - 95
-      ctx.fillRect(x + 8, baseY - 65, 18, 70)
-      ctx.fillRect(x - 6, baseY - 48, 16, 22)
-      ctx.fillRect(x + 24, baseY - 38, 14, 18)
+    // Pasek przy horyzoncie
+    ctx.fillStyle = "rgba(255,140,60,0.3)"
+    ctx.fillRect(0, canvas.height - 130, canvas.width, 8)
+
+    // Kępy trawy - sucha
+    ctx.strokeStyle = "#8a6028"
+    ctx.lineWidth = 1
+    for (let i = 0; i < 40; i++) {
+      const x = (i * 55 - cameraX * 0.6) % (canvas.width + 80)
+      const gy = canvas.height - 80 - (i % 3) * 12
+      for (let j = 0; j < 3; j++) {
+        ctx.beginPath()
+        ctx.moveTo(x + j * 2, gy)
+        ctx.lineTo(x + j * 2 - 1, gy - 5 - j)
+        ctx.stroke()
+      }
     }
 
-    ctx.fillStyle = "#b36d38"
-    for (let i = 0; i < 15; i++) {
-      let x = (i * 85 - cameraX * 0.85) % (canvas.width + 150)
-      let size = 18 + (i % 5) * 7
+    // KAKTUSY — z kwiatami
+    for (let i = 0; i < 10; i++) {
+      const x = ((i * 220 - cameraX * 0.7) % (canvas.width + 300)) - 30
+      const baseY = canvas.height - 95
+      const sway = Math.sin(t * 0.5 + i) * 1
+
+      // Ciało kaktusa
+      const cactusGrad = ctx.createLinearGradient(x + 8, 0, x + 26, 0)
+      cactusGrad.addColorStop(0, "#1a6a2a")
+      cactusGrad.addColorStop(0.5, "#2a8c4a")
+      cactusGrad.addColorStop(1, "#1a5a22")
+      ctx.fillStyle = cactusGrad
+      ctx.beginPath()
+      ctx.roundRect(x + 8 + sway, baseY - 65, 18, 70, 3)
+      ctx.fill()
+
+      // Ramiona
+      ctx.beginPath()
+      ctx.roundRect(x - 6 + sway * 0.7, baseY - 48, 16, 22, 3); ctx.fill()
+      ctx.beginPath()
+      ctx.roundRect(x + 24 + sway * 0.7, baseY - 38, 14, 18, 3); ctx.fill()
+
+      // Kolce
+      ctx.strokeStyle = "#0a3a1a"; ctx.lineWidth = 0.6
+      for (let k = 0; k < 4; k++) {
+        const ky = baseY - 55 + k * 14
+        ctx.beginPath(); ctx.moveTo(x + 10 + sway, ky); ctx.lineTo(x + 6 + sway, ky); ctx.stroke()
+        ctx.beginPath(); ctx.moveTo(x + 24 + sway, ky); ctx.lineTo(x + 28 + sway, ky); ctx.stroke()
+      }
+
+      // Kwiat na górze (co drugi kaktus)
+      if (i % 2 === 0) {
+        const fx = x + 17 + sway
+        const fy = baseY - 70
+        ctx.fillStyle = "#ff55aa"
+        for (let k = 0; k < 5; k++) {
+          const ang = (k / 5) * Math.PI * 2
+          ctx.beginPath()
+          ctx.arc(fx + Math.cos(ang) * 3, fy + Math.sin(ang) * 3, 2.5, 0, Math.PI * 2)
+          ctx.fill()
+        }
+        ctx.fillStyle = "#ffdd00"
+        ctx.beginPath(); ctx.arc(fx, fy, 1.8, 0, Math.PI * 2); ctx.fill()
+      }
+    }
+
+    // CZASZKA BYDŁA (rzadko)
+    for (let i = 0; i < 3; i++) {
+      const x = ((i * 600 + 250 - cameraX * 0.85) % (canvas.width + 700)) - 100
+      const y = canvas.height - 40
+      if (x < -50 || x > canvas.width + 50) continue
+      ctx.save()
+      ctx.translate(x, y)
+      // Cień
+      ctx.fillStyle = "rgba(0,0,0,0.3)"
+      ctx.beginPath(); ctx.ellipse(0, 3, 14, 2, 0, 0, Math.PI * 2); ctx.fill()
+      // Czaszka
+      ctx.fillStyle = "#f0e0c8"
+      ctx.beginPath()
+      ctx.ellipse(0, 0, 10, 7, 0, 0, Math.PI * 2); ctx.fill()
+      // Rogi
+      ctx.strokeStyle = "#d0b090"; ctx.lineWidth = 2.5; ctx.lineCap = "round"
+      ctx.beginPath()
+      ctx.moveTo(-7, -5); ctx.quadraticCurveTo(-15, -10, -18, -4); ctx.stroke()
+      ctx.beginPath()
+      ctx.moveTo(7, -5); ctx.quadraticCurveTo(15, -10, 18, -4); ctx.stroke()
+      // Oczy (ciemne oczodoły)
+      ctx.fillStyle = "#1a0a0a"
+      ctx.beginPath(); ctx.arc(-3, -1, 2, 0, Math.PI * 2); ctx.fill()
+      ctx.beginPath(); ctx.arc(3, -1, 2, 0, Math.PI * 2); ctx.fill()
+      // Nos
+      ctx.beginPath()
+      ctx.moveTo(0, 2); ctx.lineTo(-1.5, 5); ctx.lineTo(1.5, 5); ctx.closePath(); ctx.fill()
+      ctx.restore()
+    }
+
+    // Kamienie
+    for (let i = 0; i < 18; i++) {
+      const x = ((i * 85 - cameraX * 0.9) % (canvas.width + 150))
+      const size = 14 + (i % 5) * 6
+      const rockGrad = ctx.createLinearGradient(x - size, canvas.height - 50, x, canvas.height - 40)
+      rockGrad.addColorStop(0, "#b36d38")
+      rockGrad.addColorStop(1, "#7a4420")
+      ctx.fillStyle = rockGrad
       ctx.beginPath()
       ctx.ellipse(x, canvas.height - 48, size, size * 0.45, 0, 0, Math.PI * 2)
       ctx.fill()
     }
+
+    // Kurz/piasek w powietrzu
+    ctx.fillStyle = "rgba(200,150,90,0.08)"
+    ctx.fillRect(0, canvas.height - 130, canvas.width, 130)
   }
 
   if (bgType === "city"){
-    drawNewStars()
+    const t = Date.now() * 0.001
 
-    for (let i = 0; i < 20; i++){
-      let x = (i * 160 - cameraX * 0.3) % (canvas.width + 200)
-      let h = 120 + (i*37 % 200)
-      let w = 100
+    // Nocne niebo — gradient
+    const skyGrad = ctx.createLinearGradient(0, 0, 0, canvas.height)
+    skyGrad.addColorStop(0, "#0a0a2a")
+    skyGrad.addColorStop(0.5, "#1a1a4a")
+    skyGrad.addColorStop(1, "#2a1a3a")
+    ctx.fillStyle = skyGrad
+    ctx.fillRect(0, 0, canvas.width, canvas.height)
 
-      ctx.fillStyle = "#1e2a3a"
+    // Gwiazdy
+    if (!window.cityStars) {
+      window.cityStars = []
+      for (let i = 0; i < 60; i++) {
+        window.cityStars.push({
+          x: Math.random() * canvas.width * 1.5,
+          y: Math.random() * canvas.height * 0.55,
+          size: Math.random() * 1.5 + 0.5,
+          twinkle: Math.random() * Math.PI * 2
+        })
+      }
+    }
+    for (const s of window.cityStars) {
+      const alpha = 0.5 + Math.sin(t * 2 + s.twinkle) * 0.4
+      ctx.fillStyle = `rgba(255,255,220,${alpha})`
+      ctx.fillRect(s.x - cameraX * 0.05 % (canvas.width + 100), s.y, s.size, s.size)
+    }
+
+    // Księżyc — duży z kraterami i poświatą
+    const moonX = canvas.width - 150
+    const moonY = 90
+    const moonR = 48
+    ctx.save()
+    // Poświata
+    const glowGrad = ctx.createRadialGradient(moonX, moonY, moonR * 0.8, moonX, moonY, moonR * 2.5)
+    glowGrad.addColorStop(0, "rgba(255,240,200,0.4)")
+    glowGrad.addColorStop(1, "rgba(255,240,200,0)")
+    ctx.fillStyle = glowGrad
+    ctx.beginPath(); ctx.arc(moonX, moonY, moonR * 2.5, 0, Math.PI * 2); ctx.fill()
+    // Księżyc
+    const moonGrad = ctx.createRadialGradient(moonX - moonR * 0.3, moonY - moonR * 0.3, 1, moonX, moonY, moonR)
+    moonGrad.addColorStop(0, "#fffef0")
+    moonGrad.addColorStop(0.6, "#f0e8c0")
+    moonGrad.addColorStop(1, "#d0c090")
+    ctx.fillStyle = moonGrad
+    ctx.beginPath(); ctx.arc(moonX, moonY, moonR, 0, Math.PI * 2); ctx.fill()
+    // Kratery
+    ctx.fillStyle = "rgba(150,140,100,0.4)"
+    const craters = [[-15,-8,7],[8,-12,5],[-5,12,6],[15,8,4],[-20,15,3]]
+    for (const [cx, cy, cr] of craters) {
+      ctx.beginPath(); ctx.arc(moonX + cx, moonY + cy, cr, 0, Math.PI * 2); ctx.fill()
+    }
+    ctx.restore()
+
+    // Budynki - DALSZY plan
+    const farBuildings = [
+      { color: "#1a2440", winColor: "#5577aa" },
+      { color: "#1e2a4a", winColor: "#6688bb" }
+    ]
+    for (let i = 0; i < 16; i++) {
+      const x = ((i * 140 - cameraX * 0.2) % (canvas.width + 300)) - 100
+      const h = 80 + (i * 37 % 130)
+      const w = 90
+      const b = farBuildings[i % 2]
+      ctx.fillStyle = b.color
+      ctx.fillRect(x, canvas.height - h, w, h)
+      // Okna
+      for (let wy = 10; wy < h - 10; wy += 18) {
+        for (let wx = 8; wx < w - 8; wx += 16) {
+          if ((wx + wy + i) % 4 !== 0) continue
+          ctx.fillStyle = ((wx + wy + i) % 7 === 0) ? "#222" : b.winColor
+          ctx.fillRect(x + wx, canvas.height - h + wy, 6, 10)
+        }
+      }
+    }
+
+    // Budynki - BLIŻSZY plan (większe, różnorodne)
+    for (let i = 0; i < 12; i++) {
+      const x = ((i * 200 - cameraX * 0.4) % (canvas.width + 400)) - 150
+      const h = 160 + (i * 53 % 180)
+      const w = 110 + (i * 17 % 40)
+
+      // Kolory budynku
+      const colors = ["#151c2e","#1a1f3a","#1e2838","#181a2e","#1c1e35"]
+      const bc = colors[i % colors.length]
+      ctx.fillStyle = bc
       ctx.fillRect(x, canvas.height - h, w, h)
 
-      for (let wy = 0; wy < h; wy += 30){
-        for (let wx = 0; wx < w; wx += 25){
-          if ((wx + wy + i) % 3 !== 0) continue
-          ctx.fillStyle = ((wx + wy + i) % 5 === 0) ? "#333" : "#ffd966"
-          ctx.fillRect(x + wx + 5, canvas.height - h + wy + 5, 8, 12)
+      // Pasek na górze (dach)
+      ctx.fillStyle = "#0a0f1e"
+      ctx.fillRect(x - 3, canvas.height - h - 4, w + 6, 6)
+
+      // Okna - świecące nieregularnie
+      const winColors = ["#ffdd66","#ffcc44","#ffaa33","#88ccff","#ccaa66"]
+      for (let wy = 12; wy < h - 15; wy += 22) {
+        for (let wx = 8; wx < w - 8; wx += 20) {
+          const key = (wx * 7 + wy * 13 + i * 31) % 100
+          if (key < 50) continue  // część okien ciemna
+          const col = winColors[(wx + wy + i) % winColors.length]
+          ctx.fillStyle = col
+          ctx.shadowColor = col
+          ctx.shadowBlur = 6
+          ctx.fillRect(x + wx, canvas.height - h + wy, 8, 13)
+          ctx.shadowBlur = 0
         }
+      }
+
+      // === ANTENY I DACHY ===
+      const roofY = canvas.height - h
+      const roofDecor = i % 4
+      if (roofDecor === 0) {
+        // Antena TV
+        ctx.strokeStyle = "#444"
+        ctx.lineWidth = 2
+        ctx.beginPath()
+        ctx.moveTo(x + w * 0.3, roofY)
+        ctx.lineTo(x + w * 0.3, roofY - 35)
+        ctx.stroke()
+        // Poziome pręty
+        for (const py of [-10, -20, -30]) {
+          ctx.beginPath()
+          ctx.moveTo(x + w * 0.3 - 8, roofY + py)
+          ctx.lineTo(x + w * 0.3 + 8, roofY + py)
+          ctx.stroke()
+        }
+        // Czerwone światło ostrzegawcze
+        ctx.fillStyle = `rgba(255,40,40,${0.5 + Math.sin(t * 3) * 0.5})`
+        ctx.shadowColor = "#ff0000"; ctx.shadowBlur = 8
+        ctx.fillRect(x + w * 0.3 - 2, roofY - 37, 4, 4)
+        ctx.shadowBlur = 0
+
+      } else if (roofDecor === 1) {
+        // Talerz satelitarny
+        ctx.strokeStyle = "#333"; ctx.lineWidth = 1.5
+        ctx.beginPath()
+        ctx.moveTo(x + w * 0.7, roofY)
+        ctx.lineTo(x + w * 0.7, roofY - 12)
+        ctx.stroke()
+        ctx.fillStyle = "#555"
+        ctx.beginPath()
+        ctx.ellipse(x + w * 0.7, roofY - 16, 10, 4, -0.3, 0, Math.PI * 2)
+        ctx.fill()
+
+      } else if (roofDecor === 2) {
+        // Klimatyzator + antena
+        ctx.fillStyle = "#2a2a2a"
+        ctx.fillRect(x + w * 0.5 - 8, roofY - 15, 16, 15)
+        ctx.fillStyle = "#444"
+        ctx.fillRect(x + w * 0.5 - 6, roofY - 13, 12, 2)
+        ctx.fillRect(x + w * 0.5 - 6, roofY - 9, 12, 2)
+        // Antena
+        ctx.strokeStyle = "#555"; ctx.lineWidth = 1.5
+        ctx.beginPath()
+        ctx.moveTo(x + w * 0.15, roofY)
+        ctx.lineTo(x + w * 0.15, roofY - 20)
+        ctx.stroke()
+
+      } else if (roofDecor === 3) {
+        // === KOT NA DACHU ===
+        const catX = x + w * 0.6
+        const catY = roofY - 2
+        const catBob = Math.sin(t * 1.5 + i) * 0.5
+
+        ctx.save()
+        // Cień
+        ctx.fillStyle = "rgba(0,0,0,0.4)"
+        ctx.beginPath(); ctx.ellipse(catX + 6, roofY + 1, 12, 2, 0, 0, Math.PI * 2); ctx.fill()
+
+        // Ciało — sylwetka
+        ctx.fillStyle = "#0a0a0a"
+        // Ciało (owalne)
+        ctx.beginPath()
+        ctx.ellipse(catX + 6, catY - 5 + catBob, 10, 5, 0, 0, Math.PI * 2)
+        ctx.fill()
+        // Głowa
+        ctx.beginPath()
+        ctx.arc(catX + 14, catY - 7 + catBob, 4, 0, Math.PI * 2)
+        ctx.fill()
+        // Uszy — trójkąty
+        ctx.beginPath()
+        ctx.moveTo(catX + 11, catY - 10 + catBob)
+        ctx.lineTo(catX + 12, catY - 14 + catBob)
+        ctx.lineTo(catX + 14, catY - 10 + catBob)
+        ctx.closePath(); ctx.fill()
+        ctx.beginPath()
+        ctx.moveTo(catX + 15, catY - 10 + catBob)
+        ctx.lineTo(catX + 17, catY - 14 + catBob)
+        ctx.lineTo(catX + 18, catY - 10 + catBob)
+        ctx.closePath(); ctx.fill()
+        // Ogon — zakrzywiony, macha
+        ctx.strokeStyle = "#0a0a0a"
+        ctx.lineWidth = 3
+        ctx.lineCap = "round"
+        const tailSway = Math.sin(t * 3 + i) * 4
+        ctx.beginPath()
+        ctx.moveTo(catX - 2, catY - 5 + catBob)
+        ctx.quadraticCurveTo(catX - 8, catY - 10 + catBob, catX - 6 + tailSway, catY - 15 + catBob)
+        ctx.stroke()
+        // Nogi
+        ctx.fillRect(catX + 2, catY - 1 + catBob, 2, 4)
+        ctx.fillRect(catX + 10, catY - 1 + catBob, 2, 4)
+        // Świecące oczy
+        const eyeGlow = 0.7 + Math.sin(t * 4) * 0.3
+        ctx.fillStyle = `rgba(255,220,50,${eyeGlow})`
+        ctx.shadowColor = "#ffff00"; ctx.shadowBlur = 4
+        ctx.fillRect(catX + 15, catY - 8 + catBob, 1.5, 1)
+        ctx.fillRect(catX + 17, catY - 8 + catBob, 1.5, 1)
+        ctx.restore()
       }
     }
   }
@@ -5214,6 +5678,118 @@ function drawBackground(){
     })
     ctx.globalAlpha = 1
   }
+}
+
+function drawWater() {
+  const t = Date.now() * 0.001
+
+  // Gradient wody — od jasnego niebieskiego u góry do ciemnego granatu na dole
+  const grad = ctx.createLinearGradient(0, 0, 0, canvas.height)
+  grad.addColorStop(0, "#1a5a8a")      // jaśniej u góry
+  grad.addColorStop(0.4, "#0a4270")
+  grad.addColorStop(1, "#031833")      // ciemno na dole
+  ctx.fillStyle = grad
+  ctx.fillRect(0, 0, canvas.width, canvas.height)
+
+  // Promienie światła z góry (caustics)
+  ctx.save()
+  ctx.globalAlpha = 0.08
+  for (let i = 0; i < 6; i++) {
+    const x = ((i * 180 - cameraX * 0.2 + t * 10) % (canvas.width + 200)) - 100
+    ctx.fillStyle = "#aaeeff"
+    ctx.beginPath()
+    ctx.moveTo(x, 0)
+    ctx.lineTo(x + 60, canvas.height * 0.6)
+    ctx.lineTo(x + 100, canvas.height * 0.6)
+    ctx.lineTo(x + 40, 0)
+    ctx.closePath()
+    ctx.fill()
+  }
+  ctx.restore()
+
+  // Rośliny wodne (na dole) - parallax
+  const plantCount = 12
+  for (let i = 0; i < plantCount; i++) {
+    const seed = i * 137
+    const baseX = (seed * 3 - cameraX * 0.4) % (canvas.width + 200) - 100
+    const x = baseX
+    const height = 80 + (seed % 60)
+    const sway = Math.sin(t * 1.2 + i * 0.7) * 15
+    const baseY = canvas.height - 20
+
+    // Gradient rośliny
+    const plantColor = i % 3 === 0 ? "#0a4a2a" : i % 3 === 1 ? "#1a6040" : "#2a7050"
+    ctx.strokeStyle = plantColor
+    ctx.lineWidth = 4 + (seed % 3)
+    ctx.lineCap = "round"
+
+    // Łodyga falująca
+    ctx.beginPath()
+    ctx.moveTo(x, baseY)
+    const mid1 = { x: x + sway * 0.3, y: baseY - height * 0.4 }
+    const mid2 = { x: x + sway * 0.7, y: baseY - height * 0.7 }
+    const top = { x: x + sway, y: baseY - height }
+    ctx.bezierCurveTo(mid1.x, mid1.y, mid2.x, mid2.y, top.x, top.y)
+    ctx.stroke()
+
+    // Listki
+    const leafColor = i % 2 === 0 ? "#1a8050" : "#0a6040"
+    ctx.fillStyle = leafColor
+    for (let j = 1; j <= 3; j++) {
+      const ly = baseY - height * (j / 3)
+      const lx = x + sway * (j / 3) * 0.8
+      const leafSize = 8 - j
+      ctx.beginPath()
+      ctx.ellipse(lx + leafSize, ly, leafSize, leafSize * 0.5, Math.sin(t + i) * 0.5 + 0.4, 0, Math.PI * 2)
+      ctx.fill()
+      ctx.beginPath()
+      ctx.ellipse(lx - leafSize, ly, leafSize, leafSize * 0.5, -Math.sin(t + i) * 0.5 - 0.4, 0, Math.PI * 2)
+      ctx.fill()
+    }
+  }
+
+  // Bąbelki — wznoszą się w górę
+  if (!window.waterBubbles) {
+    window.waterBubbles = []
+    for (let i = 0; i < 35; i++) {
+      window.waterBubbles.push({
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height,
+        r: 2 + Math.random() * 6,
+        speed: 0.5 + Math.random() * 1.5,
+        drift: (Math.random() - 0.5) * 0.8
+      })
+    }
+  }
+
+  for (const b of window.waterBubbles) {
+    b.y -= b.speed
+    b.x += Math.sin(t * 2 + b.y * 0.05) * b.drift
+    if (b.y < -10) {
+      b.y = canvas.height + 10
+      b.x = Math.random() * canvas.width
+    }
+    ctx.save()
+    ctx.globalAlpha = 0.35
+    ctx.strokeStyle = "#aaeeff"
+    ctx.lineWidth = 1.2
+    ctx.beginPath()
+    ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2)
+    ctx.stroke()
+    // Połysk w bąbelku
+    ctx.fillStyle = "rgba(200,240,255,0.25)"
+    ctx.beginPath()
+    ctx.arc(b.x - b.r * 0.3, b.y - b.r * 0.3, b.r * 0.4, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.restore()
+  }
+
+  // Mgiełka wody — subtelny overlay
+  ctx.save()
+  ctx.globalAlpha = 0.08
+  ctx.fillStyle = "#0066aa"
+  ctx.fillRect(0, 0, canvas.width, canvas.height)
+  ctx.restore()
 }
 
 function drawForest() {
