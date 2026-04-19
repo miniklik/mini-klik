@@ -755,7 +755,7 @@ let bonuses = []
 let levels = []
 let currentLevel = 0
 let keys = {}
-let sterowanie = { lewo: null, prawo: null, skok: null }
+let sterowanie = { lewo: null, prawo: null, skok: null, dol: null, strzal: null }
 let cameraX = 0
 let worldWidth = 2000
 let autoScroll = false
@@ -816,6 +816,7 @@ function syncLevelData(){
   texts     = lvl.texts     || []
   exhaustParticles = []
   explosions = []
+  bullets = []; bulletCooldown = 0; burstCount = 0; burstReload = 0; hitSparks = []
   for (const b of blocks) {
     if (b.typ === "blockBomb") { b.bombTimer = 0; b.exploded = false; b.respawnTimer = 0 }
   }
@@ -907,7 +908,7 @@ function applyGameData(data){
   nazwaGry   = s.nazwaGry   || "Gra"
   autorGry   = s.autorGry   || ""
   opisGry    = s.opisGry    || ""
-  sterowanie = s.sterowanie || { lewo:"ArrowLeft", prawo:"ArrowRight", skok:"ArrowUp" }
+  sterowanie = s.sterowanie || { lewo:"ArrowLeft", prawo:"ArrowRight", skok:"ArrowUp", dol:"ArrowDown", strzal:" " }
 
   counters = {
     lives: s.counters?.lives ?? 3,
@@ -1060,62 +1061,84 @@ function update(){
 
     // Obrót piły — zawsze
     if (obj.type === "saw") {
-      obj.sawAngle = (obj.sawAngle || 0) + (Math.abs(obj.vx || 1.5) * 0.08)
+      obj.sawAngle = (obj.sawAngle || 0) + 0.06
     }
 
+    // Walkerzy — fizyka ducha (tylko unosi się, zero grawitacji)
     if (obj.type === "walker" || obj.type === "walker2" || obj.type === "walker3" || obj.type === "walker4") {
-      obj.vy = (obj.vy || 0) + 0.5
-      obj.y += obj.vy
-      obj.x += obj.vx || 0
-      if (obj.y > floorY - obj.h) { obj.y = floorY - obj.h; obj.vy = 0 }
-      for (let pl of platforms) {
-        if (obj.x + obj.w > pl.x && obj.x < pl.x + pl.w &&
-            obj.y + obj.h > pl.y && obj.y + obj.h < pl.y + (pl.h||20) + 10) {
-          obj.y = pl.y - obj.h; obj.vy = 0
-        }
-      }
-      for (let b of blocks) {
-        if (obj.x + obj.w > b.x && obj.x < b.x + b.w &&
-            obj.y + obj.h > b.y && obj.y + obj.h < b.y + 10) {
-          obj.y = b.y - obj.h; obj.vy = 0
-        }
-      }
-      if (obj.x < 0 || obj.x + obj.w > worldWidth) obj.vx = -(obj.vx || 1)
+      obj.floatTime = (obj.floatTime || 0) + 0.05
+      const prevFloat = obj._prevFloat || 0
+      obj.y += (Math.sin(obj.floatTime) - Math.sin(prevFloat)) * 15
+      obj._prevFloat = obj.floatTime
     }
 
-    // Piła — grawitacja + odbijanie
+    // Piła — fizyka ducha + obrót
     if (obj.type === "saw") {
-      obj.vy = (obj.vy || 0) + 0.5
-      obj.y += obj.vy
-      obj.x += obj.vx || 1.5
-      if (obj.y + obj.h > floorY) {
-        obj.y = floorY - obj.h
-        obj.vy = -obj.vy * 0.5
-        if (Math.abs(obj.vy) < 1) obj.vy = 0
-      }
-      for (let pl of platforms) {
-        if (obj.x + obj.w > pl.x && obj.x < pl.x + pl.w &&
-            obj.y + obj.h > pl.y && obj.y + obj.h < pl.y + 20 && obj.vy > 0) {
-          obj.y = pl.y - obj.h; obj.vy = -obj.vy * 0.4
-          if (Math.abs(obj.vy) < 1) obj.vy = 0
-        }
-      }
-      for (let bl of blocks) {
-        if (obj.x + obj.w > bl.x && obj.x < bl.x + bl.w &&
-            obj.y + obj.h > bl.y && obj.y < bl.y + bl.h) {
-          if (obj.vy > 0) { obj.y = bl.y - obj.h; obj.vy = -obj.vy * 0.4 }
-          else if (obj.vy < 0) { obj.y = bl.y + bl.h; obj.vy = 0 }
-          obj.vx = -obj.vx
-        }
-      }
-      if (obj.x < 0) { obj.x = 0; obj.vx = Math.abs(obj.vx) }
-      if (obj.x + obj.w > worldWidth) { obj.x = worldWidth - obj.w; obj.vx = -Math.abs(obj.vx) }
+      obj.floatTime = (obj.floatTime || 0) + 0.05
+      const prevFloat = obj._prevFloat || 0
+      obj.y += (Math.sin(obj.floatTime) - Math.sin(prevFloat)) * 15
+      obj._prevFloat = obj.floatTime
     }
   }
 
   // Player movement
   for (let p of players) {
     if (p.type === "crosshair") { p.vx = 0; p.vy = 0; continue }
+
+    // === STATEK KOSMICZNY ===
+    if (p.type === "spaceship") {
+      p.vx = 0; p.vy = 0
+      if (keys[sterowanie.lewo])  p.vx = -4
+      if (keys[sterowanie.prawo]) p.vx = 4
+      if (keys[sterowanie.skok])  p.vy = -4
+      if (keys[sterowanie.dol])   p.vy = 4
+      p.x += p.vx; p.y += p.vy
+      if (p.y < p.r) p.y = p.r
+      if (p.y > floorY) p.y = floorY
+
+      // Strzelanie
+      if (burstReload > 0) {
+        burstReload--
+      } else if (sterowanie.strzal && keys[sterowanie.strzal]) {
+        if (bulletCooldown <= 0 && burstCount < BURST_MAX) {
+          bullets.push({ x: p.x + p.r, y: p.y, vx: 12, vy: 0, life: 1.0, w: 18, h: 5 })
+          burstCount++
+          bulletCooldown = BULLET_COOLDOWN
+          if (burstCount >= BURST_MAX) { burstReload = BURST_RELOAD; burstCount = 0 }
+        }
+        if (bulletCooldown > 0) bulletCooldown--
+      } else {
+        bulletCooldown = 0
+      }
+
+      // Kolizja statku z blokami i platformami
+      if (invulnerable === 0 && !gameOver) {
+        let crashed = false
+        for (const b of blocks) {
+          if (b.typ === "blockBomb" && b.exploded) continue
+          if (p.x + p.r > b.x && p.x - p.r < b.x + b.w &&
+              p.y + p.r > b.y && p.y - p.r < b.y + b.h) { crashed = true; break }
+        }
+        if (!crashed) {
+          for (const pl of platforms) {
+            if (p.x + p.r > pl.x && p.x - p.r < pl.x + pl.w &&
+                p.y + p.r > pl.y && p.y - p.r < pl.y + (pl.h||20)) { crashed = true; break }
+          }
+        }
+        if (crashed) {
+          if (useLives) counters.lives--
+          deathRespawnX = p.x; deathRespawnY = p.y
+          hitEffect = { x: p.x, y: p.y, time: 60 }
+          hitPause = hitPauseTime; pendingRespawn = true
+          invulnerable = invulnerabilityTime
+          spawnExplosion(p.x - cameraX, p.y)
+          if (useLives && counters.lives <= 0 && !gameOverTriggered) {
+            gameOverTriggered = true; gameOver = true; gameState = "results"; initResultsScene()
+          }
+        }
+      }
+      continue
+    }
 
     const wasOnIce = p.onIce === true
     p.onIce = false
@@ -1168,7 +1191,10 @@ function update(){
   // Fall detection — pomiń dla celownika
   if (players.length > 0 && players[0].type !== "crosshair") {
     const p = players[0]
-    const outOfBounds = p.y > floorY + 150 || p.x < cameraX - 40 || p.x > cameraX + canvas.width + 40
+    const isSpaceship = p.type === "spaceship"
+    const outOfBounds = isSpaceship
+      ? (p.x < cameraX - 40 || p.x > cameraX + canvas.width + 40)
+      : (p.y > floorY + 150 || p.x < cameraX - 40 || p.x > cameraX + canvas.width + 40)
     if (outOfBounds) {
       fallTimer++
       if (fallTimer === 25 && !warningText) warningText = { time: 150 }
@@ -1239,6 +1265,41 @@ function update(){
             }
           }
         }
+      }
+    }
+  }
+
+  // === UPDATE POCISKÓW ===
+  for (let i = bullets.length - 1; i >= 0; i--) {
+    const b = bullets[i]
+    b.x += b.vx; b.life -= 0.012
+    if (b.x > cameraX + canvas.width + 100 || b.life <= 0) { bullets.splice(i, 1); continue }
+    let hit = false
+    for (let ei = enemies.length - 1; ei >= 0; ei--) {
+      const en = enemies[ei]
+      if (b.x + b.w > en.x && b.x < en.x + (en.w||40) &&
+          b.y > en.y && b.y < en.y + (en.h||40)) {
+        spawnExplosion(en.x - cameraX + (en.w||40)/2, en.y + (en.h||40)/2)
+        enemies.splice(ei, 1); counters.points++
+        bullets.splice(i, 1); hit = true; break
+      }
+    }
+    if (hit) continue
+    for (const bl of blocks) {
+      if (bl.typ === "blockBomb" && bl.exploded) continue
+      if (b.x + b.w > bl.x && b.x < bl.x + bl.w &&
+          b.y > bl.y && b.y < bl.y + bl.h) {
+        if (bl.typ === "blockBomb" && !bl.bombTimer) bl.bombTimer = 1
+        spawnHitSpark(b.x + b.w - cameraX, b.y)
+        bullets.splice(i, 1); hit = true; break
+      }
+    }
+    if (hit) continue
+    for (const pl of platforms) {
+      if (b.x + b.w > pl.x && b.x < pl.x + pl.w &&
+          b.y + b.h/2 > pl.y && b.y - b.h/2 < pl.y + (pl.h||20)) {
+        spawnHitSpark(b.x + b.w - cameraX, b.y)
+        bullets.splice(i, 1); break
       }
     }
   }
@@ -1532,6 +1593,7 @@ function restartGame(){
   levelDelay=null; levelTextAnim=null; cameraX=0
   window.bgParticles=null
   resultsNameEntered=false; resultsPlayerName=""
+  bullets = []; bulletCooldown = 0; burstCount = 0; burstReload = 0; hitSparks = []
   respawnPlayer()
 }
 
@@ -1755,8 +1817,46 @@ function draw(){
   // Players
   for (let p of players) {
     if (invulnerable > 0 && Math.floor(invulnerable/5) % 2 === 0) continue
-    if (p.type === "ball" || !p.type) drawPlayer(ctx, p.x, p.y, p.r, Date.now())
+    if (p.type === "spaceship") drawSpaceship(p.x, p.y, p.r, Date.now())
+    else if (p.type === "ball" || !p.type) drawPlayer(ctx, p.x, p.y, p.r, Date.now())
     else drawCar(p.x, p.y, p.r, p.vx || 0)
+  }
+
+  // === POCISKI STATKU — world coords (ctx ma translate(-cameraX)) ===
+  for (const b of bullets) {
+    ctx.save()
+    ctx.globalAlpha = b.life
+    ctx.shadowColor = "#00ffcc"; ctx.shadowBlur = 16
+    ctx.fillStyle = "rgba(0,255,200,0.25)"
+    ctx.fillRect(b.x - 2, b.y - b.h/2 - 3, b.w + 4, b.h + 6)
+    const grad = ctx.createLinearGradient(b.x, b.y - b.h/2, b.x, b.y + b.h/2)
+    grad.addColorStop(0,"#ffffff"); grad.addColorStop(0.3,"#00ffee")
+    grad.addColorStop(0.7,"#00ccaa"); grad.addColorStop(1,"#007755")
+    ctx.fillStyle = grad; ctx.shadowBlur = 10
+    ctx.beginPath(); ctx.roundRect(b.x, b.y - b.h/2, b.w, b.h, 2); ctx.fill()
+    ctx.fillStyle = "#ffffff"; ctx.shadowColor = "#ffffff"; ctx.shadowBlur = 12
+    ctx.fillRect(b.x + b.w - 3, b.y - 1.5, 5, 3)
+    ctx.shadowBlur = 0
+    ctx.restore()
+  }
+
+  // Pasek przeładowania — world coords
+  if (players.some(p => p.type === "spaceship")) {
+    const sp = players.find(p => p.type === "spaceship")
+    if (burstReload > 0 && sp) {
+      const sx = sp.x, sy = sp.y - sp.r - 16, barW = 50, barH = 5
+      ctx.save()
+      ctx.fillStyle = "rgba(0,0,0,0.5)"; ctx.fillRect(sx - barW/2, sy, barW, barH)
+      const pct = 1 - burstReload / BURST_RELOAD
+      const barColor = pct < 0.5 ? "#ff4400" : "#ffcc00"
+      ctx.fillStyle = barColor; ctx.shadowColor = barColor; ctx.shadowBlur = 6
+      ctx.fillRect(sx - barW/2, sy, barW * pct, barH)
+      ctx.shadowBlur = 0
+      ctx.fillStyle = "#fff"; ctx.font = "9px Arial"
+      ctx.textAlign = "center"; ctx.textBaseline = "middle"
+      ctx.fillText("ładowanie...", sx, sy - 6)
+      ctx.restore()
+    }
   }
 
 // Enemies
@@ -2058,6 +2158,19 @@ function draw(){
     if (p.life<=0) explosions.splice(i,1)
   }
 
+  // === ISKRY TRAFIENIA — screen coords ===
+  for (let i = hitSparks.length - 1; i >= 0; i--) {
+    const s = hitSparks[i]
+    ctx.save()
+    ctx.globalAlpha = s.life
+    ctx.fillStyle = s.color; ctx.shadowColor = s.color; ctx.shadowBlur = 6
+    ctx.beginPath(); ctx.arc(s.x, s.y, s.size * s.life, 0, Math.PI * 2); ctx.fill()
+    ctx.restore()
+    s.x += s.vx; s.y += s.vy; s.vy += 0.15
+    s.life -= s.decay
+    if (s.life <= 0) hitSparks.splice(i, 1)
+  }
+
   // HUD
   if (hitEffect) {
     hitEffect.time--
@@ -2331,6 +2444,86 @@ let resultsParticles = []
 let resultsPlayerName = ""
 let resultsNameEntered = false
 let resultsBtn1 = null, resultsBtn2 = null
+let bullets = []
+let bulletCooldown = 0
+let burstCount = 0
+let burstReload = 0
+let hitSparks = []
+const BURST_MAX = 20
+const BURST_RELOAD = 120
+const BULLET_COOLDOWN = 4
+
+function spawnHitSpark(x, y) {
+  const colors = ["#00ffcc","#ffffff","#88ffee","#ffff00","#00aaff"]
+  for (let i = 0; i < 8; i++) {
+    const angle = (Math.random() - 0.5) * Math.PI
+    const speed = 1.5 + Math.random() * 3
+    hitSparks.push({
+      x, y, vx: -Math.abs(Math.cos(angle) * speed), vy: Math.sin(angle) * speed,
+      life: 1.0, decay: 0.06 + Math.random() * 0.06,
+      size: 1.5 + Math.random() * 2.5,
+      color: colors[Math.floor(Math.random() * colors.length)]
+    })
+  }
+}
+
+function drawSpaceship(x, y, r, time) {
+  const t = time * 0.001
+  const hover = Math.sin(t * 2.2) * 2.5
+  ctx.save()
+  ctx.translate(x, y + hover)
+  for (const side of [-1, 1]) {
+    const flameLen = 14 + Math.sin(t * 18 + side) * 6
+    const fg = ctx.createLinearGradient(-r*0.9, side*r*0.28, -r*0.9 - flameLen, side*r*0.28)
+    fg.addColorStop(0,"rgba(0,200,255,0.95)"); fg.addColorStop(0.3,"rgba(0,120,255,0.7)"); fg.addColorStop(1,"rgba(0,50,200,0)")
+    ctx.fillStyle = fg; ctx.shadowColor = "#00aaff"; ctx.shadowBlur = 10
+    ctx.beginPath(); ctx.ellipse(-r*0.9 - flameLen*0.5, side*r*0.28, flameLen*0.5, 5, 0, 0, Math.PI*2); ctx.fill()
+  }
+  ctx.shadowBlur = 0
+  ctx.fillStyle = "rgba(0,100,255,0.12)"
+  ctx.beginPath(); ctx.ellipse(0, r*0.7, r*0.7, 5, 0, 0, Math.PI*2); ctx.fill()
+  ctx.fillStyle = "#1a3a7a"; ctx.strokeStyle = "#3366bb"; ctx.lineWidth = 1
+  ctx.beginPath(); ctx.moveTo(-r*0.1,-r*0.18); ctx.lineTo(-r*0.7,-r*0.78); ctx.lineTo(-r*0.9,-r*0.48); ctx.lineTo(-r*0.05,-r*0.18); ctx.closePath(); ctx.fill(); ctx.stroke()
+  ctx.beginPath(); ctx.moveTo(-r*0.1,r*0.18); ctx.lineTo(-r*0.7,r*0.78); ctx.lineTo(-r*0.9,r*0.48); ctx.lineTo(-r*0.05,r*0.18); ctx.closePath(); ctx.fill(); ctx.stroke()
+  ctx.fillStyle = "#2255aa"
+  ctx.beginPath(); ctx.moveTo(-r*0.6,-r*0.72); ctx.lineTo(-r*0.8,-r*0.78); ctx.lineTo(-r*0.88,-r*0.5); ctx.closePath(); ctx.fill()
+  ctx.beginPath(); ctx.moveTo(-r*0.6,r*0.72); ctx.lineTo(-r*0.8,r*0.78); ctx.lineTo(-r*0.88,r*0.5); ctx.closePath(); ctx.fill()
+  const bg = ctx.createLinearGradient(0,-r*0.35,0,r*0.35)
+  bg.addColorStop(0,"#aaccee"); bg.addColorStop(0.3,"#6699cc"); bg.addColorStop(0.7,"#334477"); bg.addColorStop(1,"#112244")
+  ctx.fillStyle = bg; ctx.shadowColor = "rgba(0,150,255,0.5)"; ctx.shadowBlur = 12
+  ctx.beginPath(); ctx.ellipse(0,0,r*0.95,r*0.32,0,0,Math.PI*2); ctx.fill()
+  ctx.shadowBlur = 0
+  ctx.strokeStyle = "rgba(100,160,220,0.5)"; ctx.lineWidth = 1
+  ctx.beginPath(); ctx.moveTo(-r*0.8,0); ctx.lineTo(r*0.6,0); ctx.stroke()
+  for (const side of [-1, 1]) {
+    ctx.fillStyle = "#223355"
+    ctx.beginPath(); ctx.ellipse(-r*0.88, side*r*0.28, 8, 6, 0, 0, Math.PI*2); ctx.fill()
+    const glow = Math.sin(t*12 + side*1.5)*0.3 + 0.7
+    ctx.fillStyle = `rgba(0,${Math.round(150*glow)},255,0.9)`
+    ctx.shadowColor = "#00aaff"; ctx.shadowBlur = 8
+    ctx.beginPath(); ctx.ellipse(-r*0.88, side*r*0.28, 5, 4, 0, 0, Math.PI*2); ctx.fill()
+    ctx.shadowBlur = 0
+  }
+  const dg = ctx.createRadialGradient(r*0.1,-r*0.22,1, r*0.15,-r*0.15,r*0.3)
+  dg.addColorStop(0,"rgba(200,235,255,0.95)"); dg.addColorStop(0.4,"rgba(80,160,255,0.75)"); dg.addColorStop(1,"rgba(20,60,140,0.4)")
+  ctx.fillStyle = dg; ctx.shadowColor = "#88ccff"; ctx.shadowBlur = 8
+  ctx.beginPath(); ctx.ellipse(r*0.15, -r*0.14, r*0.28, r*0.22, 0, 0, Math.PI*2); ctx.fill()
+  ctx.shadowBlur = 0
+  ctx.strokeStyle = "rgba(150,210,255,0.7)"; ctx.lineWidth = 1
+  ctx.beginPath(); ctx.ellipse(r*0.15, -r*0.14, r*0.28, r*0.22, 0, 0, Math.PI*2); ctx.stroke()
+  ctx.fillStyle = "rgba(255,255,255,0.3)"
+  ctx.beginPath(); ctx.ellipse(r*0.05, -r*0.2, r*0.1, r*0.07, -0.4, 0, Math.PI*2); ctx.fill()
+  const ng = ctx.createLinearGradient(r*0.7,0, r*1.05,0)
+  ng.addColorStop(0,"#7799cc"); ng.addColorStop(1,"#aaccee")
+  ctx.fillStyle = ng
+  ctx.beginPath(); ctx.moveTo(r*0.88, 0)
+  ctx.quadraticCurveTo(r*1.1, -r*0.06, r*1.12, 0)
+  ctx.quadraticCurveTo(r*1.1, r*0.06, r*0.88, 0)
+  ctx.closePath(); ctx.fill()
+  ctx.fillStyle = "rgba(255,255,255,0.12)"
+  ctx.beginPath(); ctx.ellipse(-r*0.1, -r*0.15, r*0.4, r*0.1, 0, 0, Math.PI*2); ctx.fill()
+  ctx.restore()
+}
 
 function spawnExplosion(x, y) {
   const colors = ["#ff4400","#ff8800","#ffdd00","#ff0055","#00ffcc","#ff00ff","#ffffff","#44ff00"]
