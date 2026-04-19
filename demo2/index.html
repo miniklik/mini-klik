@@ -118,11 +118,11 @@
     border: 1.5px solid #3a3a3a;
     border-radius: 8px;
     cursor: pointer;
-    padding: 4px 8px;
+    padding: 5px 10px;
     transition: all 0.12s;
     flex-shrink: 0;
-    min-width: 46px;
-    gap: 2px;
+    min-width: 54px;
+    gap: 3px;
   }
   .obj-btn:hover {
     background: #333;
@@ -130,8 +130,8 @@
     box-shadow: 0 0 8px rgba(76,175,80,0.4);
     transform: translateY(-2px);
   }
-  .obj-btn .obj-icon { font-size: 20px; line-height: 1; }
-  .obj-btn .obj-name { font-size: 9px; color: #888; white-space: nowrap; }
+  .obj-btn .obj-icon { font-size: 26px; line-height: 1; }
+  .obj-btn .obj-name { font-size: 10px; color: #888; white-space: nowrap; }
 
   /* Canvas */
   canvas { background:#87CEEB; display:block; }
@@ -237,24 +237,24 @@
       <span class="obj-icon">🚗</span>
       <span class="obj-name">Auto</span>
     </div>
-    <div class="obj-btn" onclick="selectedPlayerType='crosshair'; dodajGracza()" title="Celownik">
-      <span class="obj-icon">🎯</span>
-      <span class="obj-name">Cel.</span>
+    <div class="obj-btn" onclick="selectedPlayerType='spaceship'; dodajGracza()" title="Statek kosmiczny">
+      <span class="obj-icon">🚀</span>
+      <span class="obj-name">Statek</span>
     </div>
 
     <div class="obj-sep"></div>
 
     <!-- PLATFORMY -->
     <div class="obj-btn" onclick="dodajPlatforme('rect')" title="Platforma prostokąt">
-      <canvas width="38" height="14" id="prevRect" style="border-radius:3px;"></canvas>
+      <canvas width="46" height="17" id="prevRect" style="border-radius:3px;"></canvas>
       <span class="obj-name">Rect</span>
     </div>
     <div class="obj-btn" onclick="dodajPlatforme('round')" title="Platforma zaokrąglona">
-      <canvas width="38" height="14" id="prevRound" style="border-radius:3px;"></canvas>
+      <canvas width="46" height="17" id="prevRound" style="border-radius:3px;"></canvas>
       <span class="obj-name">Round</span>
     </div>
     <div class="obj-btn" onclick="dodajPlatforme('line')" title="Platforma linia">
-      <canvas width="38" height="14" id="prevLine" style="border-radius:3px;"></canvas>
+      <canvas width="46" height="17" id="prevLine" style="border-radius:3px;"></canvas>
       <span class="obj-name">Linia</span>
     </div>
 
@@ -262,23 +262,23 @@
 
     <!-- BLOKI -->
     <div class="obj-btn" onclick="dodajBlok()" title="Blok kwadrat">
-      <canvas width="22" height="22" id="prevBlok" style="border-radius:3px;"></canvas>
+      <canvas width="28" height="28" id="prevBlok" style="border-radius:3px;"></canvas>
       <span class="obj-name">Blok</span>
     </div>
     <div class="obj-btn" onclick="dodajBlokTall()" title="Blok wysoki">
-      <canvas width="14" height="26" id="prevTall" style="border-radius:3px;"></canvas>
+      <canvas width="18" height="32" id="prevTall" style="border-radius:3px;"></canvas>
       <span class="obj-name">Tall</span>
     </div>
     <div class="obj-btn" onclick="dodajBlokGrid()" title="Blok rusztowanie">
-      <canvas width="22" height="22" id="prevGrid" style="border-radius:3px;"></canvas>
+      <canvas width="28" height="28" id="prevGrid" style="border-radius:3px;"></canvas>
       <span class="obj-name">Grid</span>
     </div>
     <div class="obj-btn" onclick="dodajBlokIce()" title="Blok lodowy">
-      <canvas width="22" height="22" id="prevIce" style="border-radius:3px;"></canvas>
+      <canvas width="28" height="28" id="prevIce" style="border-radius:3px;"></canvas>
       <span class="obj-name">Lód</span>
     </div>
     <div class="obj-btn" onclick="dodajBlokBomb()" title="Blok wybuchowy">
-      <canvas width="22" height="22" id="prevBomb" style="border-radius:3px;"></canvas>
+      <canvas width="28" height="28" id="prevBomb" style="border-radius:3px;"></canvas>
       <span class="obj-name">💣</span>
     </div>
 
@@ -326,7 +326,7 @@
       <span class="obj-name">UFO</span>
     </div>
     <div class="obj-btn" onclick="dodajSaw()" title="Piła obracająca się">
-      <canvas width="32" height="32" id="prevSaw" style="border-radius:3px;"></canvas>
+      <canvas width="38" height="38" id="prevSaw" style="border-radius:3px;"></canvas>
       <span class="obj-name">Piła</span>
     </div>
 
@@ -391,6 +391,36 @@ let carWheelAngle = 0
 // === SYSTEM CZĄSTECZEK EKSPLOZJI ===
 let shotParticles = []  // efekt pudła
 let explosions = []     // eksplozja wroga
+
+// === SYSTEM POCISKÓW STATKU ===
+let bullets = []           // aktywne pociski
+let bulletCooldown = 0     // klatki do następnego strzału
+let burstCount = 0         // ile strzałów w serii
+let burstReload = 0        // odliczanie przeładowania (2s = 120 klatek)
+const BURST_MAX = 20       // max strzałów w serii
+const BURST_RELOAD = 120   // klatki przeładowania
+const BULLET_COOLDOWN = 4  // klatki między strzałami w serii
+
+// Małe iskry przy trafieniu w blok/platformę
+let hitSparks = []
+
+function spawnHitSpark(x, y) {
+  const colors = ["#00ffcc","#ffffff","#88ffee","#ffff00","#00aaff"]
+  const count = 8
+  for (let i = 0; i < count; i++) {
+    const angle = (Math.random() - 0.5) * Math.PI  // wachlarz w lewo (odbicie)
+    const speed = 1.5 + Math.random() * 3
+    hitSparks.push({
+      x, y,
+      vx: -Math.abs(Math.cos(angle) * speed),  // lecą w lewo (odbicie od bloku)
+      vy: Math.sin(angle) * speed,
+      life: 1.0,
+      decay: 0.06 + Math.random() * 0.06,
+      size: 1.5 + Math.random() * 2.5,
+      color: colors[Math.floor(Math.random() * colors.length)]
+    })
+  }
+}
 
 function spawnExplosion(x, y) {
   const colors = ["#ff4400","#ff8800","#ffdd00","#ff0055","#00ffcc","#ff00ff","#ffffff","#44ff00"]
@@ -647,7 +677,7 @@ let keys = {}
 let copiedObject = null
 let trybKopiowania = false
 
-let sterowanie = { lewo:null, prawo:null, skok:null }
+let sterowanie = { lewo:null, prawo:null, skok:null, dol:null, strzal:null }
 let aktywnePole = null
 
 let dragging = null
@@ -721,7 +751,8 @@ let livesBeforeRun = 0        // liczba żyć przed URUCHOM
 function uruchom(){
   // Zapisz głęboki snapshot wszystkich poziomów przed uruchomieniem
   snapshotBeforeRun = JSON.parse(JSON.stringify(levels))
-  livesBeforeRun = counters.lives  // zapamiętaj aktualne życia
+  livesBeforeRun = counters.lives
+  bullets = []; bulletCooldown = 0; burstCount = 0; burstReload = 0; hitSparks = []
 
   trybGry = true
   exhaustParticles = []
@@ -744,6 +775,7 @@ function edytuj(){
   shotParticles = []
   explosions = []
   document.getElementById("nameModal")?.remove()
+  bullets = []; bulletCooldown = 0; burstCount = 0; burstReload = 0; hitSparks = []
 
   // Przywróć snapshot sprzed uruchomienia
   if (snapshotBeforeRun) {
@@ -1000,10 +1032,10 @@ function pokazGraczy() {
 
     <h4>STEROWANIE</h4>
     <div style="margin-bottom:6px;">
-      <div style="text-align:center; font-size:11px; color:#888; margin-bottom:4px;">skok</div>
+      <div style="text-align:center; font-size:11px; color:#888; margin-bottom:4px;">góra / skok</div>
       <div class="keybox" onclick="wybierzPole('skok')" id="skok">?</div>
     </div>
-    <div style="display:flex; gap:6px; margin-bottom:12px;">
+    <div style="display:flex; gap:6px; margin-bottom:6px;">
       <div style="flex:1;">
         <div style="text-align:center; font-size:11px; color:#888; margin-bottom:4px;">lewo</div>
         <div class="keybox" onclick="wybierzPole('lewo')" id="lewo">?</div>
@@ -1012,6 +1044,14 @@ function pokazGraczy() {
         <div style="text-align:center; font-size:11px; color:#888; margin-bottom:4px;">prawo</div>
         <div class="keybox" onclick="wybierzPole('prawo')" id="prawo">?</div>
       </div>
+    </div>
+    <div style="margin-bottom:12px;">
+      <div style="text-align:center; font-size:11px; color:#888; margin-bottom:4px;">dół</div>
+      <div class="keybox" onclick="wybierzPole('dol')" id="dol">?</div>
+    </div>
+    <div style="margin-bottom:12px;">
+      <div style="text-align:center; font-size:11px; color:#ff8844; margin-bottom:4px;">🔫 strzał</div>
+      <div class="keybox" onclick="wybierzPole('strzal')" id="strzal" style="border-color:#aa4400; color:#ffaa66;">?</div>
     </div>
 
     <h4>RUCH ŚWIATA</h4>
@@ -1037,9 +1077,11 @@ function pokazGraczy() {
   updateRespawnLock()
 
   // Uzupełnij klawisze
-  if (sterowanie.skok) { const el = document.getElementById("skok"); if(el) el.innerText = sterowanie.skok }
-  if (sterowanie.lewo) { const el = document.getElementById("lewo"); if(el) el.innerText = sterowanie.lewo }
-  if (sterowanie.prawo){ const el = document.getElementById("prawo"); if(el) el.innerText = sterowanie.prawo }
+  if (sterowanie.skok)   { const el = document.getElementById("skok");   if(el) el.innerText = sterowanie.skok }
+  if (sterowanie.lewo)   { const el = document.getElementById("lewo");   if(el) el.innerText = sterowanie.lewo }
+  if (sterowanie.prawo)  { const el = document.getElementById("prawo");  if(el) el.innerText = sterowanie.prawo }
+  if (sterowanie.dol)    { const el = document.getElementById("dol");    if(el) el.innerText = sterowanie.dol }
+  if (sterowanie.strzal) { const el = document.getElementById("strzal"); if(el) el.innerText = sterowanie.strzal }
 }
 
 function ustawRespawnTutaj() {
@@ -2109,11 +2151,9 @@ canvas.addEventListener("mousemove", e => {
   const mx = mouseScreenX + cameraX
   const my = mouseScreenY
 
-  const hasCrosshair = players.some(p => p.type === "crosshair")
-  if (hasCrosshair && trybGry) {
-    canvas.style.cursor = "none"
-  } else if (hasCrosshair) {
-    canvas.style.cursor = "none"
+  const hasCrosshair = players.some(p => p.type === "spaceship" || p.type === "crosshair")
+  if (hasCrosshair) {
+    canvas.style.cursor = "default"
   } else {
     canvas.style.cursor = "default"
   }
@@ -2365,121 +2405,29 @@ function update(){
         obj.y = obj.baseY + Math.sin(obj.floatTime) * 15
       }
 
-      // Piła — obrót zawsze (też w edytorze)
+      // Obrót piły — zawsze (edytor i gra)
       if (obj.type === "saw") {
         obj.sawAngle = (obj.sawAngle || 0) + 0.06
       }
 
+      // Tryb lewitowania gdy gracz = statek
       if (obj.type === "walker" || obj.type === "walker2" || obj.type === "walker3" || obj.type === "walker4") {
         if (dragging === obj) continue
-        obj.vy = (obj.vy || 0) + 0.5
-        obj.y += obj.vy
-        obj.x += obj.vx || 0
-
-        if (obj.y > floorY - obj.h) {
-          obj.y = floorY - obj.h
-          obj.vy = 0
-        }
-
-        for (let pl of platforms) {
-          if (
-            obj.x + obj.w > pl.x &&
-            obj.x < pl.x + pl.w &&
-            obj.y + obj.h > pl.y &&
-            obj.y + obj.h < pl.y + (pl.h||20) + 10
-          ) {
-            obj.y = pl.y - obj.h
-            obj.vy = 0
-          }
-        }
-
-        for (let b of blocks) {
-          if (
-            obj.x + obj.w > b.x &&
-            obj.x < b.x + b.w &&
-            obj.y + obj.h > b.y &&
-            obj.y + obj.h < b.y + 10
-          ) {
-            obj.y = b.y - obj.h
-            obj.vy = 0
-          }
-        }
-
-        for (let b of blocks) {
-          if (
-            obj.x + obj.w > b.x &&
-            obj.x < b.x + b.w &&
-            obj.y + obj.h > b.y &&
-            obj.y < b.y + b.h
-          ) {
-            obj.vx = -(obj.vx || 1)
-            obj.x += obj.vx
-            break
-          }
-        }
-
-        for (let pl of platforms) {
-          if (
-            obj.x + obj.w > pl.x &&
-            obj.x < pl.x + pl.w &&
-            obj.y + obj.h > pl.y &&
-            obj.y < pl.y + (pl.h||20)
-          ) {
-            obj.vx = -(obj.vx || 1)
-            obj.x += obj.vx
-            break
-          }
-        }
-
-        if (obj.x < 0 || obj.x + obj.w > worldWidth) {
-          obj.vx = -(obj.vx || 1)
-        }
+        // Fizyka ducha — unosi się góra/dół bez resetowania pozycji
+        obj.floatTime = (obj.floatTime || 0) + 0.05
+        const prevFloat = obj._prevFloat || 0
+        obj.y += (Math.sin(obj.floatTime) - Math.sin(prevFloat)) * 15
+        obj._prevFloat = obj.floatTime
       }
 
-      // === PIŁA — grawitacja + odbijanie + obrót ===
       if (obj.type === "saw") {
         if (dragging === obj) continue
-        const r = obj.w / 2
-
-        // Obrót — szybszy gdy szybszy ruch
-        obj.sawAngle = (obj.sawAngle || 0) + (Math.abs(obj.vx || 1.5) * 0.08)
-
-        // Grawitacja
-        obj.vy = (obj.vy || 0) + 0.5
-        obj.y += obj.vy
-        obj.x += obj.vx || 1.5
-
-        // Podłoga
-        if (obj.y + obj.h > floorY) {
-          obj.y = floorY - obj.h
-          obj.vy = -obj.vy * 0.5  // lekkie odbicie
-          if (Math.abs(obj.vy) < 1) obj.vy = 0
-        }
-
-        // Platformy
-        for (let pl of platforms) {
-          if (obj.x + obj.w > pl.x && obj.x < pl.x + pl.w &&
-              obj.y + obj.h > pl.y && obj.y + obj.h < pl.y + 20 && obj.vy > 0) {
-            obj.y = pl.y - obj.h
-            obj.vy = -obj.vy * 0.4
-            if (Math.abs(obj.vy) < 1) obj.vy = 0
-          }
-        }
-
-        // Bloki
-        for (let bl of blocks) {
-          if (obj.x + obj.w > bl.x && obj.x < bl.x + bl.w &&
-              obj.y + obj.h > bl.y && obj.y < bl.y + bl.h) {
-            if (obj.vy > 0) { obj.y = bl.y - obj.h; obj.vy = -obj.vy * 0.4 }
-            else if (obj.vy < 0) { obj.y = bl.y + bl.h; obj.vy = 0 }
-            if (obj.vx > 0) { obj.vx = -Math.abs(obj.vx) }
-            else { obj.vx = Math.abs(obj.vx) }
-          }
-        }
-
-        // Ściany świata
-        if (obj.x < 0) { obj.x = 0; obj.vx = Math.abs(obj.vx) }
-        if (obj.x + obj.w > worldWidth) { obj.x = worldWidth - obj.w; obj.vx = -Math.abs(obj.vx) }
+        // Fizyka ducha + obrót
+        obj.sawAngle = (obj.sawAngle || 0) + 0.06
+        obj.floatTime = (obj.floatTime || 0) + 0.05
+        const prevFloat = obj._prevFloat || 0
+        obj.y += (Math.sin(obj.floatTime) - Math.sin(prevFloat)) * 15
+        obj._prevFloat = obj.floatTime
       }
     }
   }
@@ -2495,7 +2443,82 @@ function update(){
     }
 
     const wasOnIce = p.onIce === true
-    p.onIce = false  // reset — zostanie ustawione ponownie w kolizji bloków
+    p.onIce = false
+
+    // Statek kosmiczny — lewituje, 4-kierunkowe sterowanie, brak grawitacji
+    if (p.type === "spaceship") {
+      p.vx = 0; p.vy = 0
+      if (keys[sterowanie.lewo])  p.vx = -4
+      if (keys[sterowanie.prawo]) p.vx = 4
+      if (keys[sterowanie.skok])  p.vy = -4
+      if (keys[sterowanie.dol])   p.vy = 4
+      p.x += p.vx
+      p.y += p.vy
+      if (p.y < p.r) p.y = p.r
+      if (p.y > floorY) p.y = floorY
+
+      // === STRZELANIE ===
+      if (burstReload > 0) {
+        burstReload--  // przeładowanie — czekamy
+      } else if (sterowanie.strzal && keys[sterowanie.strzal]) {
+        if (bulletCooldown <= 0 && burstCount < BURST_MAX) {
+          // Wystrzał!
+          bullets.push({
+            x: p.x + p.r,  // dziób statku
+            y: p.y,
+            vx: 12,
+            vy: 0,
+            life: 1.0,
+            w: 18, h: 5
+          })
+          burstCount++
+          bulletCooldown = BULLET_COOLDOWN
+          // Koniec serii — start przeładowania
+          if (burstCount >= BURST_MAX) {
+            burstReload = BURST_RELOAD
+            burstCount = 0
+          }
+        }
+        if (bulletCooldown > 0) bulletCooldown--
+      } else {
+        // Klawisz puszczony — reset cooldown, ale zachowaj licznik serii
+        bulletCooldown = 0
+      }
+
+      // === KOLIZJA STATKU Z BLOKAMI I PLATFORMAMI ===
+      if (trybGry && invulnerable === 0 && !gameOver) {
+        let crashed = false
+        for (const b of blocks) {
+          if (b.typ === "blockBomb" && b.exploded) continue
+          if (p.x + p.r > b.x && p.x - p.r < b.x + b.w &&
+              p.y + p.r > b.y && p.y - p.r < b.y + b.h) {
+            crashed = true; break
+          }
+        }
+        if (!crashed) {
+          for (const pl of platforms) {
+            if (p.x + p.r > pl.x && p.x - p.r < pl.x + pl.w &&
+                p.y + p.r > pl.y && p.y - p.r < pl.y + (pl.h||20)) {
+              crashed = true; break
+            }
+          }
+        }
+        if (crashed) {
+          if (useLives) counters.lives--
+          deathRespawnX = p.x; deathRespawnY = p.y
+          hitEffect = { x: p.x, y: p.y, time: 60 }
+          hitPause = hitPauseTime; pendingRespawn = true
+          invulnerable = invulnerabilityTime
+          spawnExplosion(p.x - cameraX, p.y)
+          if (useLives && counters.lives <= 0 && !gameOverTriggered) {
+            gameOverTriggered = true; gameOver = true
+            updateStats(false); gameState = "results"; initResultsScene()
+          }
+        }
+      }
+
+      continue
+    }  // reset — zostanie ustawione ponownie w kolizji bloków
 
     if (wasOnIce) {
       // Na lodzie — zachowuj pęd, klawiatura tylko delikatnie przyspiesza/hamuje
@@ -2576,10 +2599,10 @@ function update(){
   if (players.length > 0 && trybGry && players[0].type !== "crosshair") {
     const p = players[0]
 
-    const pozaPlansza =
-      p.y > floorY + 150 ||
-      p.x < cameraX - 40 ||
-      p.x > cameraX + canvas.width + 40
+    const isSpaceship = p.type === "spaceship"
+    const pozaPlansza = isSpaceship
+      ? (p.x < cameraX - 40 || p.x > cameraX + canvas.width + 40)  // tylko poziomo
+      : (p.y > floorY + 150 || p.x < cameraX - 40 || p.x > cameraX + canvas.width + 40)
 
     if (pozaPlansza) {
       fallTimer++
@@ -2610,6 +2633,58 @@ function update(){
     } else {
       fallTimer = 0
       warningText = null
+    }
+  }
+
+  // === UPDATE POCISKÓW ===
+  if (trybGry) {
+    for (let i = bullets.length - 1; i >= 0; i--) {
+      const b = bullets[i]
+      b.x += b.vx
+      b.life -= 0.012  // zanikanie w czasie
+
+      // Wyjście poza świat
+      if (b.x > cameraX + canvas.width + 100 || b.life <= 0) {
+        bullets.splice(i, 1); continue
+      }
+
+      // Kolizja z wrogami
+      let hit = false
+      for (let ei = enemies.length - 1; ei >= 0; ei--) {
+        const en = enemies[ei]
+        if (b.x + b.w > en.x && b.x < en.x + (en.w||40) &&
+            b.y > en.y && b.y < en.y + (en.h||40)) {
+          // Trafienie!
+          spawnExplosion(en.x - cameraX + (en.w||40)/2, en.y + (en.h||40)/2)
+          enemies.splice(ei, 1)
+          counters.points++
+          const lvl = getLevel(); if (lvl) lvl.enemies = enemies
+          bullets.splice(i, 1)
+          hit = true; break
+        }
+      }
+      if (hit) continue
+
+      // Kolizja z blokami
+      for (const bl of blocks) {
+        if (bl.typ === "blockBomb" && bl.exploded) continue
+        if (b.x + b.w > bl.x && b.x < bl.x + bl.w &&
+            b.y > bl.y && b.y < bl.y + bl.h) {
+          if (bl.typ === "blockBomb" && !bl.bombTimer) bl.bombTimer = 1
+          spawnHitSpark(b.x + b.w - cameraX, b.y)
+          bullets.splice(i, 1); hit = true; break
+        }
+      }
+      if (hit) continue
+
+      // Kolizja z platformami
+      for (const pl of platforms) {
+        if (b.x + b.w > pl.x && b.x < pl.x + pl.w &&
+            b.y + b.h/2 > pl.y && b.y - b.h/2 < pl.y + (pl.h||20)) {
+          spawnHitSpark(b.x + b.w - cameraX, b.y)
+          bullets.splice(i, 1); hit = true; break
+        }
+      }
     }
   }
 
@@ -3318,8 +3393,9 @@ function draw(){
 
     if (p.type === "ball") {
       drawPlayer(ctx, p.x, p.y, p.r, Date.now())
+    } else if (p.type === "spaceship") {
+      drawSpaceship(p.x, p.y, p.r, Date.now())
     } else if (p.type === "crosshair") {
-      // W edytorze rysuj na pozycji gracza (world coords, ctx już przesunięty)
       if (!trybGry) drawCrosshairPlayer(p.x, p.y, p.r, Date.now())
     } else {
       drawCar(p.x, p.y, p.r, p.vx || 0)
@@ -3334,6 +3410,61 @@ function draw(){
     }
   }
 
+  // === POCISKI STATKU — world coords (ctx ma translate(-cameraX)) ===
+  for (const b of bullets) {
+    const alpha = b.life
+    ctx.save()
+    ctx.globalAlpha = alpha
+    // Poświata zewnętrzna
+    ctx.shadowColor = "#00ffcc"
+    ctx.shadowBlur = 16
+    ctx.fillStyle = "rgba(0,255,200,0.25)"
+    ctx.fillRect(b.x - 2, b.y - b.h/2 - 3, b.w + 4, b.h + 6)
+    // Rdzeń pocisku — jasny neon
+    const grad = ctx.createLinearGradient(b.x, b.y - b.h/2, b.x, b.y + b.h/2)
+    grad.addColorStop(0, "#ffffff")
+    grad.addColorStop(0.3, "#00ffee")
+    grad.addColorStop(0.7, "#00ccaa")
+    grad.addColorStop(1, "#007755")
+    ctx.fillStyle = grad
+    ctx.shadowBlur = 10
+    ctx.beginPath()
+    ctx.roundRect(b.x, b.y - b.h/2, b.w, b.h, 2)
+    ctx.fill()
+    // Iskra na czubku
+    ctx.fillStyle = "#ffffff"
+    ctx.shadowColor = "#ffffff"
+    ctx.shadowBlur = 12
+    ctx.fillRect(b.x + b.w - 3, b.y - 1.5, 5, 3)
+    ctx.shadowBlur = 0
+    ctx.restore()
+  }
+
+  // Pasek przeładowania — world coords (ctx ma translate(-cameraX))
+  if (trybGry && players.some(p => p.type === "spaceship")) {
+    const sp = players.find(p => p.type === "spaceship")
+    if (burstReload > 0 && sp) {
+      const sx = sp.x   // world coords — ctx już przesunięty
+      const sy = sp.y - sp.r - 16
+      const barW = 50, barH = 5
+      ctx.save()
+      ctx.fillStyle = "rgba(0,0,0,0.5)"
+      ctx.fillRect(sx - barW/2, sy, barW, barH)
+      const pct = 1 - burstReload / BURST_RELOAD
+      const barColor = pct < 0.5 ? "#ff4400" : "#ffcc00"
+      ctx.fillStyle = barColor
+      ctx.shadowColor = barColor; ctx.shadowBlur = 6
+      ctx.fillRect(sx - barW/2, sy, barW * pct, barH)
+      ctx.shadowBlur = 0
+      ctx.fillStyle = "#fff"; ctx.font = "9px Arial"
+      ctx.textAlign = "center"; ctx.textBaseline = "middle"
+      ctx.fillText("ładowanie...", sx, sy - 6)
+      ctx.restore()
+    }
+  }
+
+  const spaceshipActive = trybGry && players.some(p => p.type === "spaceship")
+
   for (let en of enemies) {
     ctx.globalAlpha = 1
     ctx.fillStyle = "white"
@@ -3342,6 +3473,26 @@ function draw(){
     const y = en.y
     const w = en.w || 40
     const h = en.h || 40
+
+    // Efekt lewitowania — poświata + lekka transparentność
+    const isLevitating = spaceshipActive && (
+      en.type === "walker" || en.type === "walker2" ||
+      en.type === "walker3" || en.type === "walker4" || en.type === "saw"
+    )
+    if (isLevitating) {
+      const t = Date.now() * 0.003
+      // Aura lewitowania
+      ctx.save()
+      ctx.globalAlpha = 0.25 + Math.sin(t + x * 0.01) * 0.12
+      ctx.shadowColor = "#aa44ff"
+      ctx.shadowBlur = 20
+      ctx.fillStyle = "#cc66ff"
+      ctx.beginPath()
+      ctx.ellipse(x + w/2, y + h/2, w * 0.65, h * 0.65, 0, 0, Math.PI * 2)
+      ctx.fill()
+      ctx.restore()
+      ctx.globalAlpha = 0.82  // lekko przezroczysty
+    }
 
     if (en.type === "ghost") {
       // Duch — rysowany canvas, unosi się
@@ -3796,6 +3947,7 @@ function draw(){
       ctx.lineWidth = 3
       ctx.strokeRect(x, y, w, h)
     }
+    ctx.globalAlpha = 1  // reset
   }
 
   for (let b of bonuses) {
@@ -3881,6 +4033,23 @@ function draw(){
     ctx.restore()
     sp.time--
     if (sp.time <= 0) shotParticles.splice(i, 1)
+  }
+
+  // === ISKRY TRAFIENIA W BLOK/PLATFORMĘ ===
+  for (let i = hitSparks.length - 1; i >= 0; i--) {
+    const s = hitSparks[i]
+    ctx.save()
+    ctx.globalAlpha = s.life
+    ctx.fillStyle = s.color
+    ctx.shadowColor = s.color; ctx.shadowBlur = 6
+    ctx.beginPath()
+    ctx.arc(s.x, s.y, s.size * s.life, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.restore()
+    s.x += s.vx; s.y += s.vy
+    s.vy += 0.15  // lekka grawitacja
+    s.life -= s.decay
+    if (s.life <= 0) hitSparks.splice(i, 1)
   }
 
   // efekt trafienia
@@ -4460,7 +4629,7 @@ function wczytajProjekt(){
 
         scrollX.max = worldWidth - canvas.width
 
-        sterowanie = s.sterowanie || {lewo: null, prawo: null, skok: null}
+        sterowanie = s.sterowanie || {lewo: null, prawo: null, skok: null, dol: null, strzal: null}
 
         counters = {
           lives: s.counters?.lives ?? 3,
@@ -4776,7 +4945,7 @@ function loadDemo() {
       nazwaGry   = s.nazwaGry   || "Moja gra"
       autorGry   = s.autorGry   || "DEMO"
       opisGry    = s.opisGry    || ""
-      sterowanie = s.sterowanie || {lewo: null, prawo: null, skok: null}
+      sterowanie = s.sterowanie || {lewo: null, prawo: null, skok: null, dol: null, strzal: null}
 
       counters = {
         lives: s.counters?.lives ?? 3,
@@ -5373,6 +5542,158 @@ function drawPlayer(ctx, x, y, r, time){
   ctx.stroke()
 }
 
+function drawSpaceship(x, y, r, time) {
+  const t = time * 0.001
+  const hover = Math.sin(t * 2.2) * 2.5
+  const cx = x, cy = y + hover
+
+  ctx.save()
+  ctx.translate(cx, cy)
+
+  // === WYDECHY — z lewej strony (tył statku) ===
+  for (const side of [-1, 1]) {
+    const flameLen = 14 + Math.sin(t * 18 + side) * 6
+    const fg = ctx.createLinearGradient(-r * 0.9, side * r * 0.28, -r * 0.9 - flameLen, side * r * 0.28)
+    fg.addColorStop(0, "rgba(0,200,255,0.95)")
+    fg.addColorStop(0.3, "rgba(0,120,255,0.7)")
+    fg.addColorStop(1, "rgba(0,50,200,0)")
+    ctx.fillStyle = fg
+    ctx.shadowColor = "#00aaff"
+    ctx.shadowBlur = 10
+    ctx.beginPath()
+    ctx.ellipse(-r * 0.9 - flameLen * 0.5, side * r * 0.28, flameLen * 0.5, 5, 0, 0, Math.PI * 2)
+    ctx.fill()
+  }
+  ctx.shadowBlur = 0
+
+  // Cień pod statkiem
+  ctx.fillStyle = "rgba(0,100,255,0.12)"
+  ctx.beginPath()
+  ctx.ellipse(0, r * 0.7, r * 0.7, 5, 0, 0, Math.PI * 2)
+  ctx.fill()
+
+  // === SKRZYDŁA — góra i dół ===
+  ctx.fillStyle = "#1a3a7a"
+  ctx.strokeStyle = "#3366bb"
+  ctx.lineWidth = 1
+
+  // Skrzydło górne
+  ctx.beginPath()
+  ctx.moveTo(-r * 0.1, -r * 0.18)
+  ctx.lineTo(-r * 0.7, -r * 0.78)
+  ctx.lineTo(-r * 0.9, -r * 0.48)
+  ctx.lineTo(-r * 0.05, -r * 0.18)
+  ctx.closePath()
+  ctx.fill(); ctx.stroke()
+
+  // Skrzydło dolne
+  ctx.beginPath()
+  ctx.moveTo(-r * 0.1, r * 0.18)
+  ctx.lineTo(-r * 0.7, r * 0.78)
+  ctx.lineTo(-r * 0.9, r * 0.48)
+  ctx.lineTo(-r * 0.05, r * 0.18)
+  ctx.closePath()
+  ctx.fill(); ctx.stroke()
+
+  // Końcówki skrzydeł (jasniejsze)
+  ctx.fillStyle = "#2255aa"
+  ctx.beginPath()
+  ctx.moveTo(-r*0.6, -r*0.72)
+  ctx.lineTo(-r*0.8, -r*0.78)
+  ctx.lineTo(-r*0.88, -r*0.5)
+  ctx.closePath(); ctx.fill()
+
+  ctx.beginPath()
+  ctx.moveTo(-r*0.6, r*0.72)
+  ctx.lineTo(-r*0.8, r*0.78)
+  ctx.lineTo(-r*0.88, r*0.5)
+  ctx.closePath(); ctx.fill()
+
+  // === KADŁUB — poziomy, dziób w prawo ===
+  const bodyGrad = ctx.createLinearGradient(0, -r * 0.35, 0, r * 0.35)
+  bodyGrad.addColorStop(0, "#aaccee")
+  bodyGrad.addColorStop(0.3, "#6699cc")
+  bodyGrad.addColorStop(0.7, "#334477")
+  bodyGrad.addColorStop(1, "#112244")
+  ctx.fillStyle = bodyGrad
+  ctx.shadowColor = "rgba(0,150,255,0.5)"
+  ctx.shadowBlur = 12
+  ctx.beginPath()
+  ctx.ellipse(0, 0, r * 0.95, r * 0.32, 0, 0, Math.PI * 2)
+  ctx.fill()
+  ctx.shadowBlur = 0
+
+  // Linia podziału kadłuba (panel)
+  ctx.strokeStyle = "rgba(100,160,220,0.5)"
+  ctx.lineWidth = 1
+  ctx.beginPath()
+  ctx.moveTo(-r * 0.8, 0); ctx.lineTo(r * 0.6, 0)
+  ctx.stroke()
+
+  // === DYSZE — dwa otwory z tyłu ===
+  for (const side of [-1, 1]) {
+    // Obudowa dyszy
+    ctx.fillStyle = "#223355"
+    ctx.beginPath()
+    ctx.ellipse(-r * 0.88, side * r * 0.28, 8, 6, 0, 0, Math.PI * 2)
+    ctx.fill()
+    // Świecące wnętrze
+    const glow = Math.sin(t * 12 + side * 1.5) * 0.3 + 0.7
+    ctx.fillStyle = `rgba(0,${Math.round(150 * glow)},255,0.9)`
+    ctx.shadowColor = "#00aaff"; ctx.shadowBlur = 8
+    ctx.beginPath()
+    ctx.ellipse(-r * 0.88, side * r * 0.28, 5, 4, 0, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.shadowBlur = 0
+  }
+
+  // === KOKPIT — kopuła na górze kadłuba ===
+  const domeGrad = ctx.createRadialGradient(r * 0.1, -r * 0.22, 1, r * 0.15, -r * 0.15, r * 0.3)
+  domeGrad.addColorStop(0, "rgba(200,235,255,0.95)")
+  domeGrad.addColorStop(0.4, "rgba(80,160,255,0.75)")
+  domeGrad.addColorStop(1, "rgba(20,60,140,0.4)")
+  ctx.fillStyle = domeGrad
+  ctx.shadowColor = "#88ccff"; ctx.shadowBlur = 8
+  ctx.beginPath()
+  ctx.ellipse(r * 0.15, -r * 0.14, r * 0.28, r * 0.22, 0, 0, Math.PI * 2)
+  ctx.fill()
+  ctx.shadowBlur = 0
+  ctx.strokeStyle = "rgba(150,210,255,0.7)"
+  ctx.lineWidth = 1
+  ctx.beginPath()
+  ctx.ellipse(r * 0.15, -r * 0.14, r * 0.28, r * 0.22, 0, 0, Math.PI * 2)
+  ctx.stroke()
+
+  // Połysk na kokpicie
+  ctx.fillStyle = "rgba(255,255,255,0.3)"
+  ctx.beginPath()
+  ctx.ellipse(r * 0.05, -r * 0.2, r * 0.1, r * 0.07, -0.4, 0, Math.PI * 2)
+  ctx.fill()
+
+  // === DZIÓB — ostry nos z prawej ===
+  const noseGrad = ctx.createLinearGradient(r * 0.7, 0, r * 1.05, 0)
+  noseGrad.addColorStop(0, "#7799cc")
+  noseGrad.addColorStop(1, "#aaccee")
+  ctx.fillStyle = noseGrad
+  ctx.beginPath()
+  ctx.moveTo(r * 0.88, 0)
+  ctx.quadraticCurveTo(r * 1.1, -r * 0.06, r * 1.12, 0)
+  ctx.quadraticCurveTo(r * 1.1, r * 0.06, r * 0.88, 0)
+  ctx.closePath(); ctx.fill()
+
+  // Połysk kadłuba
+  ctx.fillStyle = "rgba(255,255,255,0.12)"
+  ctx.beginPath()
+  ctx.ellipse(-r * 0.1, -r * 0.15, r * 0.4, r * 0.1, 0, 0, Math.PI * 2)
+  ctx.fill()
+
+  ctx.restore()
+}
+
+function drawSpaceshipScreen(x, y, r, time) {
+  drawSpaceship(x, y, r, time)
+}
+
 function drawCrosshairScreen(x, y, r, time) {
   const wave = Math.sin(time * 0.0018) * 1.5
   const cx = x, cy = y + wave
@@ -5527,119 +5848,115 @@ playerStartY = initLvl.playerStartY ?? 100
 respawnPlayer()
 
 function initObjectsBarPreviews() {
-  // Platforma rect
+  // Platforma rect (46x17)
   const r1 = document.getElementById("prevRect")
   if (r1) {
     const p = r1.getContext("2d")
-    const g = p.createLinearGradient(0,0,0,14)
+    const g = p.createLinearGradient(0,0,0,17)
     g.addColorStop(0,"#5a8fcc"); g.addColorStop(1,"#1e3d66")
-    p.fillStyle=g; p.fillRect(0,0,38,14)
+    p.fillStyle=g; p.fillRect(0,0,46,17)
     p.strokeStyle="rgba(150,200,255,0.4)"; p.lineWidth=1
-    p.beginPath(); p.moveTo(0,13); p.lineTo(0,0); p.lineTo(38,0); p.stroke()
+    p.beginPath(); p.moveTo(0,16); p.lineTo(0,0); p.lineTo(46,0); p.stroke()
   }
-  // Platforma round
+  // Platforma round (46x17)
   const r2 = document.getElementById("prevRound")
   if (r2) {
     const p = r2.getContext("2d")
-    const g = p.createLinearGradient(0,0,0,14)
+    const g = p.createLinearGradient(0,0,0,17)
     g.addColorStop(0,"#6aaadd"); g.addColorStop(1,"#223366")
-    p.fillStyle=g; p.beginPath(); p.roundRect(0,0,38,14,5); p.fill()
+    p.fillStyle=g; p.beginPath(); p.roundRect(0,0,46,17,6); p.fill()
     p.strokeStyle="#88ccff"; p.lineWidth=1
-    p.beginPath(); p.roundRect(0.5,0.5,37,13,4.5); p.stroke()
+    p.beginPath(); p.roundRect(0.5,0.5,45,16,5.5); p.stroke()
   }
-  // Platforma line
+  // Platforma line (46x17)
   const r3 = document.getElementById("prevLine")
   if (r3) {
     const p = r3.getContext("2d")
     p.shadowColor="#44aaff"; p.shadowBlur=5
-    p.strokeStyle="#5599ff"; p.lineWidth=3
-    p.beginPath(); p.moveTo(2,7); p.lineTo(36,7); p.stroke()
+    p.strokeStyle="#5599ff"; p.lineWidth=3.5
+    p.beginPath(); p.moveTo(2,8); p.lineTo(44,8); p.stroke()
     p.shadowBlur=0
     p.strokeStyle="rgba(255,255,255,0.5)"; p.lineWidth=1
-    p.beginPath(); p.moveTo(4,7); p.lineTo(34,7); p.stroke()
+    p.beginPath(); p.moveTo(4,8); p.lineTo(42,8); p.stroke()
   }
-  // Blok kwadrat
+  // Blok kwadrat (28x28)
   const b1 = document.getElementById("prevBlok")
   if (b1) {
     const p = b1.getContext("2d")
-    const g = p.createLinearGradient(0,0,0,22)
+    const g = p.createLinearGradient(0,0,0,28)
     g.addColorStop(0,"#445566"); g.addColorStop(1,"#1a2530")
-    p.fillStyle=g; p.fillRect(0,0,22,22)
+    p.fillStyle=g; p.fillRect(0,0,28,28)
     p.strokeStyle="rgba(0,0,0,0.5)"; p.lineWidth=1
-    for(let row=0;row*7<22;row++){
-      p.beginPath(); p.moveTo(0,row*7); p.lineTo(22,row*7); p.stroke()
-      p.beginPath(); p.moveTo(row%2===0?0:5.5, row*7); p.lineTo(row%2===0?0:5.5, row*7+7); p.stroke()
-      p.beginPath(); p.moveTo(row%2===0?11:16.5, row*7); p.lineTo(row%2===0?11:16.5, row*7+7); p.stroke()
+    for(let row=0;row*9<28;row++){
+      p.beginPath(); p.moveTo(0,row*9); p.lineTo(28,row*9); p.stroke()
+      p.beginPath(); p.moveTo(row%2===0?0:7, row*9); p.lineTo(row%2===0?0:7, row*9+9); p.stroke()
+      p.beginPath(); p.moveTo(row%2===0?14:21, row*9); p.lineTo(row%2===0?14:21, row*9+9); p.stroke()
     }
   }
-  // Blok tall
+  // Blok tall (18x32)
   const b2 = document.getElementById("prevTall")
   if (b2) {
     const p = b2.getContext("2d")
-    const g = p.createLinearGradient(0,0,14,0)
+    const g = p.createLinearGradient(0,0,18,0)
     g.addColorStop(0,"#553322"); g.addColorStop(1,"#3d2010")
-    p.fillStyle=g; p.fillRect(0,0,14,26)
+    p.fillStyle=g; p.fillRect(0,0,18,32)
     p.strokeStyle="rgba(0,0,0,0.5)"; p.lineWidth=1
-    for(let row=0;row*6<26;row++){
-      p.beginPath(); p.moveTo(0,row*6); p.lineTo(14,row*6); p.stroke()
-      p.beginPath(); p.moveTo(7,row*6); p.lineTo(7,row*6+6); p.stroke()
+    for(let row=0;row*7<32;row++){
+      p.beginPath(); p.moveTo(0,row*7); p.lineTo(18,row*7); p.stroke()
+      p.beginPath(); p.moveTo(9,row*7); p.lineTo(9,row*7+7); p.stroke()
     }
   }
-  // Blok grid
+  // Blok grid (28x28)
   const b3 = document.getElementById("prevGrid")
   if (b3) {
     const p = b3.getContext("2d")
-    p.fillStyle="rgba(10,10,20,0.8)"; p.fillRect(0,0,22,22)
+    p.fillStyle="rgba(10,10,20,0.8)"; p.fillRect(0,0,28,28)
     p.strokeStyle="#cc7700"; p.lineWidth=1.5; p.lineCap="square"
-    for(let i=0;i<=22;i+=7){ p.beginPath(); p.moveTo(i,0); p.lineTo(i,22); p.stroke() }
-    for(let i=0;i<=22;i+=7){ p.beginPath(); p.moveTo(0,i); p.lineTo(22,i); p.stroke() }
+    for(let i=0;i<=28;i+=9){ p.beginPath(); p.moveTo(i,0); p.lineTo(i,28); p.stroke() }
+    for(let i=0;i<=28;i+=9){ p.beginPath(); p.moveTo(0,i); p.lineTo(28,i); p.stroke() }
     p.fillStyle="#ffaa00"
-    for(let cx=0;cx<=22;cx+=7) for(let cy=0;cy<=22;cy+=7){ p.beginPath(); p.arc(cx,cy,1.5,0,Math.PI*2); p.fill() }
+    for(let cx=0;cx<=28;cx+=9) for(let cy=0;cy<=28;cy+=9){ p.beginPath(); p.arc(cx,cy,2,0,Math.PI*2); p.fill() }
   }
-  // Blok lodowy
+  // Blok lodowy (28x28)
   const b4 = document.getElementById("prevIce")
   if (b4) {
     const p = b4.getContext("2d")
-    const g = p.createLinearGradient(0,0,22,22)
-    g.addColorStop(0,"rgba(160,230,255,0.8)")
-    g.addColorStop(1,"rgba(100,190,240,0.7)")
-    p.fillStyle=g; p.beginPath(); p.roundRect(0,0,22,22,4); p.fill()
-    const sh = p.createLinearGradient(0,0,0,11)
+    const g = p.createLinearGradient(0,0,28,28)
+    g.addColorStop(0,"rgba(160,230,255,0.8)"); g.addColorStop(1,"rgba(100,190,240,0.7)")
+    p.fillStyle=g; p.beginPath(); p.roundRect(0,0,28,28,5); p.fill()
+    const sh = p.createLinearGradient(0,0,0,13)
     sh.addColorStop(0,"rgba(255,255,255,0.55)"); sh.addColorStop(1,"rgba(255,255,255,0)")
-    p.fillStyle=sh; p.beginPath(); p.roundRect(1,1,20,10,3); p.fill()
+    p.fillStyle=sh; p.beginPath(); p.roundRect(1,1,26,12,4); p.fill()
     p.strokeStyle="rgba(180,235,255,0.9)"; p.lineWidth=1
-    p.beginPath(); p.roundRect(0.5,0.5,21,21,4); p.stroke()
+    p.beginPath(); p.roundRect(0.5,0.5,27,27,5); p.stroke()
     p.strokeStyle="rgba(255,255,255,0.7)"; p.lineWidth=1
-    for(const [cx,cy,cr] of [[6,13,2.5],[16,10,2],[11,16,2]]){
+    for(const [cx,cy,cr] of [[7,17,3],[18,13,2.5],[13,21,2.5]]){
       p.beginPath(); p.moveTo(cx,cy-cr); p.lineTo(cx+cr*0.5,cy); p.lineTo(cx,cy+cr); p.lineTo(cx-cr*0.5,cy); p.closePath(); p.stroke()
     }
   }
-  // Blok wybuchowy
+  // Blok wybuchowy (28x28)
   const b5 = document.getElementById("prevBomb")
   if (b5) {
     const p = b5.getContext("2d")
-    const g = p.createLinearGradient(0,0,22,22)
+    const g = p.createLinearGradient(0,0,28,28)
     g.addColorStop(0,"#3a0000"); g.addColorStop(0.5,"#660000"); g.addColorStop(1,"#220000")
-    p.fillStyle=g; p.beginPath(); p.roundRect(0,0,22,22,4); p.fill()
+    p.fillStyle=g; p.beginPath(); p.roundRect(0,0,28,28,5); p.fill()
     p.strokeStyle="#884444"; p.lineWidth=1.5
-    p.beginPath(); p.roundRect(0.5,0.5,21,21,4); p.stroke()
-    p.font="13px Arial"; p.textAlign="center"; p.textBaseline="middle"
-    p.fillText("💣", 11, 10)
-    p.fillStyle="rgba(0,0,0,0.5)"; p.fillRect(2,17,18,4)
-    p.fillStyle="#ffcc00"; p.fillRect(2,17,9,4)
+    p.beginPath(); p.roundRect(0.5,0.5,27,27,5); p.stroke()
+    p.font="16px Arial"; p.textAlign="center"; p.textBaseline="middle"
+    p.fillText("💣", 14, 12)
+    p.fillStyle="rgba(0,0,0,0.5)"; p.fillRect(3,21,22,5)
+    p.fillStyle="#ffcc00"; p.fillRect(3,21,11,5)
   }
-
-  // Piła — miniaturka
+  // Piła (38x38)
   const sawPrev = document.getElementById("prevSaw")
   if (sawPrev) {
     const p = sawPrev.getContext("2d")
-    const cx2 = 16, cy2 = 16, r = 13, teeth = 10
-    // Tarcza
-    const dg = p.createRadialGradient(-3,-3,1, cx2,cy2, r*0.85)
+    const cx2=19, cy2=19, r=16, teeth=10
+    const dg = p.createRadialGradient(cx2-3,cy2-3,1, cx2,cy2,r*0.85)
     dg.addColorStop(0,"#e8e8e8"); dg.addColorStop(0.5,"#aaaaaa"); dg.addColorStop(1,"#444")
     p.fillStyle=dg; p.beginPath(); p.arc(cx2,cy2,r*0.82,0,Math.PI*2); p.fill()
-    // Zęby
-    p.fillStyle="#bbbbbb"; p.strokeStyle="#444"; p.lineWidth=0.7
+    p.fillStyle="#bbbbbb"; p.strokeStyle="#444"; p.lineWidth=0.8
     for(let i=0;i<teeth;i++){
       const a=(i/teeth)*Math.PI*2, an=((i+0.5)/teeth)*Math.PI*2
       p.beginPath()
@@ -5648,7 +5965,6 @@ function initObjectsBarPreviews() {
       p.lineTo(cx2+Math.cos(a+Math.PI*2/teeth)*r*0.82, cy2+Math.sin(a+Math.PI*2/teeth)*r*0.82)
       p.closePath(); p.fill(); p.stroke()
     }
-    // Hub
     const hg = p.createRadialGradient(cx2-1,cy2-1,0, cx2,cy2,r*0.2)
     hg.addColorStop(0,"#fff"); hg.addColorStop(1,"#666")
     p.fillStyle=hg; p.beginPath(); p.arc(cx2,cy2,r*0.2,0,Math.PI*2); p.fill()
