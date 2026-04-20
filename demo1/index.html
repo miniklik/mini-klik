@@ -736,6 +736,7 @@ function zapiszZycia(){
 
 let keys = {}
 let copiedObject = null
+let copiedObjects = []  // multi-kopiowanie
 let trybKopiowania = false
 
 let sterowanie = { lewo:null, prawo:null, skok:null, dol:null, strzal:null }
@@ -907,6 +908,40 @@ function toggleFX(){
 }
 
 let selectedObject = null
+let selectedObjects = []  // multi-zaznaczenie (Ctrl+klik)
+let ctrlHeld = false
+
+// Helper: zaznacza obiekt z uwzględnieniem Ctrl (multi-select)
+function selectObj(obj) {
+  if (ctrlHeld) {
+    const idx = selectedObjects.indexOf(obj)
+    if (idx >= 0) {
+      // Już zaznaczony - usuń z zaznaczenia
+      selectedObjects.splice(idx, 1)
+      selectedObject = selectedObjects[selectedObjects.length - 1] || null
+    } else {
+      // Dodaj do zaznaczenia
+      selectedObjects.push(obj)
+      selectedObject = obj
+    }
+  } else {
+    // Zwykły klik - wyczyść multi i zaznacz pojedyncze
+    selectedObjects = [obj]
+    selectedObject = obj
+  }
+}
+
+window.addEventListener("keydown", e => {
+  if (e.key === "Control") ctrlHeld = true
+  if (e.key === "Escape") {
+    selectedObjects = []
+    selectedObject = null
+    document.getElementById("panel").innerHTML = "<h3>PANEL</h3><div>Wybierz narzędzie z góry.</div>"
+  }
+})
+window.addEventListener("keyup", e => {
+  if (e.key === "Control") ctrlHeld = false
+})
 
 function showFxList(){
   if (!selectedObject) return
@@ -925,10 +960,23 @@ function showFxList(){
   trybFX = false
   updateButtonStates()
 
-  // Jeśli to platforma — pokaż opcję kolizji na górze
   let html = ""
+
+  // === INFO O MULTI-SELECT ===
+  if (selectedObjects.length > 1) {
+    html += `
+      <div style="background:#2a4a5a; border:2px solid #4CAF50; padding:10px; margin-bottom:12px; border-radius:6px;">
+        <div style="color:#4CAF50; font-weight:bold; font-size:14px;">🎯 ZAZNACZONO: ${selectedObjects.length} obiektów</div>
+        <div style="color:#aaa; font-size:11px; margin-top:4px;">
+          Efekty zostaną dodane do wszystkich. Ctrl+klik dodaje/usuwa z zaznaczenia. ESC czyści.
+        </div>
+      </div>
+    `
+  }
+
+  // Jeśli to platforma — pokaż opcję kolizji na górze
   const isPlatform = selectedObject.typ === "round" || selectedObject.typ === "rect" || selectedObject.typ === "line"
-  if (isPlatform) {
+  if (isPlatform && selectedObjects.length <= 1) {
     const solidVal = selectedObject.solid || "top"
     html += `
       <h4 style="margin-bottom:6px;">KOLIZJA</h4>
@@ -949,7 +997,10 @@ function showFxList(){
   }
 
   html += `<h3>Efekty</h3>`
-  if (!selectedObject.effects || selectedObject.effects.length === 0) {
+  if (selectedObjects.length > 1) {
+    // Multi-select — nie pokazuj listy efektów bo są różne na różnych obiektach
+    html += `<p style="color:#aaa; font-size:12px;">Dodaj efekty do wszystkich zaznaczonych obiektów naraz:</p>`
+  } else if (!selectedObject.effects || selectedObject.effects.length === 0) {
     html += `<p style="color:#888">Brak efektów</p>`
   } else {
     html += `<div class="fx-list">`
@@ -1021,53 +1072,51 @@ function showAddFxMenu(){
 }
 
 function addGravityFx(){
-  if (!selectedObject) return
-  if (!selectedObject.effects) selectedObject.effects = []
+  const targets = selectedObjects.length > 1 ? selectedObjects : (selectedObject ? [selectedObject] : [])
+  if (targets.length === 0) return
 
-  if (selectedObject.effects.length >= 3) {
-    alert("❌ Max 3 efekty")
-    return
+  let added = 0, skipped = 0
+  for (const obj of targets) {
+    if (!obj.effects) obj.effects = []
+    if (obj.effects.length >= 3) { skipped++; continue }
+    // Tylko wrogowie mogą mieć grawitację
+    if (obj.type === undefined) { skipped++; continue }
+    // Kamienie nie mogą mieć grawitacji
+    if (obj.type === "rock1" || obj.type === "rock2" || obj.type === "rock3") { skipped++; continue }
+    // Sprawdź czy już ma
+    if (obj.effects.some(fx => fx.type === "gravity")) { skipped++; continue }
+
+    obj.effects.push({ type: "gravity", enabled: true })
+    obj.baseY = null
+    obj._prevFloat = null
+    obj.vy = 0
+    added++
   }
 
-  // Tylko wrogowie mogą mieć grawitację
-  if (selectedObject.type === undefined) {
-    alert("❌ Grawitację można dodać tylko do wrogów")
-    return
+  if (targets.length > 1 && skipped > 0) {
+    console.log(`GRAVITY: dodano do ${added}, pominięto ${skipped} (kamienie/platformy/gracze/już mają)`)
   }
-
-  // Kamienie nie mogą mieć grawitacji - lewitują zawsze
-  if (selectedObject.type === "rock1" || selectedObject.type === "rock2" || selectedObject.type === "rock3") {
-    alert("❌ Kamienie księżycowe zawsze lewitują — grawitacja niedostępna")
-    return
-  }
-
-  selectedObject.effects.push({
-    type: "gravity",
-    enabled: true
-  })
-
-  // Reset Y/X baseowych żeby pierwsze wejście w update było świeże
-  selectedObject.baseY = null
-  selectedObject._prevFloat = null
-  selectedObject.vy = 0
-
   showFxList()
 }
 
 function addNeonFx(){
-  if (!selectedObject) return
-  if (!selectedObject.effects) selectedObject.effects = []
+  // Ustal listę obiektów do modyfikacji
+  const targets = selectedObjects.length > 1 ? selectedObjects : (selectedObject ? [selectedObject] : [])
+  if (targets.length === 0) return
 
-  if (selectedObject.effects.length >= 2) {
-    alert("❌ Max 2 efekty")
-    return
+  let added = 0, skipped = 0
+  for (const obj of targets) {
+    if (!obj.effects) obj.effects = []
+    // Sprawdź czy już ma neon
+    if (obj.effects.some(fx => fx.type === "neon")) { skipped++; continue }
+    if (obj.effects.length >= 3) { skipped++; continue }
+    obj.effects.push({ type: "neon", enabled: true })
+    added++
   }
 
-  selectedObject.effects.push({
-    type: "neon",
-    enabled: true
-  })
-
+  if (targets.length > 1) {
+    console.log(`NEON: dodano do ${added}, pominięto ${skipped}`)
+  }
   showFxList()
 }
 
@@ -1104,33 +1153,43 @@ function setDir(d){
 }
 
 function saveMove(){
-  if (!selectedObject) return
-  if (!selectedObject.effects) selectedObject.effects = []
-
-  if (editingFxIndex === -1 && selectedObject.effects.length >= 2) {
-    alert("❌ Maksymalnie 2 efekty na obiekt")
-    return
-  }
+  // Multi-select: przy edycji istniejącego efektu — tylko na selectedObject
+  // Przy dodawaniu nowego — na wszystkie zaznaczone
+  const targets = (editingFxIndex >= 0)
+    ? (selectedObject ? [selectedObject] : [])
+    : (selectedObjects.length > 1 ? selectedObjects : (selectedObject ? [selectedObject] : []))
+  if (targets.length === 0) return
 
   let speed = Number(document.getElementById("speed")?.value) || 2
   let dist  = Number(document.getElementById("dist")?.value)  || 200
   let loop  = document.getElementById("loop")?.checked ?? true
 
-  let effect = {
-    type: "move",
-    dx: moveDir.dx,
-    dy: moveDir.dy,
-    speed, distance: dist, loop,
-    travel: 0,
-    enabled: true
+  let added = 0, skipped = 0
+  for (const obj of targets) {
+    if (!obj.effects) obj.effects = []
+
+    let effect = {
+      type: "move",
+      dx: moveDir.dx,
+      dy: moveDir.dy,
+      speed, distance: dist, loop,
+      travel: 0,
+      enabled: true
+    }
+
+    if (editingFxIndex >= 0) {
+      obj.effects[editingFxIndex] = effect
+      added++
+    } else {
+      if (obj.effects.length >= 3) { skipped++; continue }
+      obj.effects.push(effect)
+      added++
+    }
   }
 
-  if (editingFxIndex >= 0) {
-    selectedObject.effects[editingFxIndex] = effect
-  } else {
-    selectedObject.effects.push(effect)
+  if (targets.length > 1) {
+    console.log(`MOVE: dodano do ${added}, pominięto ${skipped}`)
   }
-
   showFxList()
 }
 
@@ -1664,12 +1723,21 @@ function kopiujObiekt(){
     return
   }
 
-  copiedObject = JSON.parse(JSON.stringify(selectedObject))
+  // Ustal listę do kopiowania - wszystkie zaznaczone lub pojedynczy
+  const toCopy = selectedObjects.length > 1 ? selectedObjects : [selectedObject]
+
+  // Filtr - pomijamy graczy
+  const validCopies = toCopy.filter(o => !(o.r && !o.w))
+
+  copiedObjects = validCopies.map(o => JSON.parse(JSON.stringify(o)))
+  copiedObject = copiedObjects[0] || null
   trybKopiowania = true
 
+  const count = copiedObjects.length
   document.getElementById("panel").innerHTML = `
     <h3>KOPIOWANIE</h3>
-    Kliknij na planszy aby wkleić obiekt
+    ${count > 1 ? `<p style="color:#4CAF50;">📋 Skopiowano ${count} obiektów</p>` : ''}
+    Kliknij na planszy aby wkleić
     <br><br>
     <button onclick="showFxList()">anuluj</button>
   `
@@ -2074,52 +2142,78 @@ document.addEventListener("keyup", e => {
 // ================= MYSZ =================
 canvas.addEventListener("mousedown", e => {
   if (trybGry || trybHTML) return
-  if (trybKopiowania && copiedObject) {
+  if (trybKopiowania && copiedObjects.length > 0) {
     const c = getCanvasCoords(e)
     const mx = c.x + cameraX
     const my = c.y
 
-    let nowy = JSON.parse(JSON.stringify(copiedObject))
+    // Punkt odniesienia: pierwszy obiekt z copiedObjects
+    // Jego nowa pozycja ma być mx/my - pozostałe względem niego
+    const anchor = copiedObjects[0]
+    const anchorX = (anchor.x !== undefined) ? anchor.x : 0
+    const anchorY = (anchor.y !== undefined) ? anchor.y : 0
 
-    if (nowy.r && !nowy.w) {
-      // GRACZ — ma promień r, nie ma szerokości w
-      nowy.x = mx
-      nowy.y = my
-      const lvl = getLevel()
-      lvl.players.push(nowy)
-      syncLevelData()
-    } else if (nowy.type !== undefined && nowy.w) {
-      // WRÓG — ma pole type (enemy1, ghost, walker itp.)
-      nowy.x = mx - (nowy.w || 40)/2
-      nowy.y = my - (nowy.h || 40)/2
-      const lvl = getLevel()
-      lvl.enemies.push(nowy)
-      syncLevelData()
-    } else if (nowy.typ === "block" || nowy.typ === "blockTall" || nowy.typ === "blockGrid" || nowy.typ === "blockIce" || nowy.typ === "blockBomb") {
-      // BLOK — ma typ === "block"
-      nowy.x = mx - (nowy.w || 60)/2
-      nowy.y = my - (nowy.h || 60)/2
-      const lvl = getLevel()
-      lvl.blocks.push(nowy)
-      syncLevelData()
-    } else if (nowy.typ === "round" || nowy.typ === "rect" || nowy.typ === "line") {
-      // PLATFORMA — ma typ round/rect/line
-      nowy.x = mx - (nowy.w || 120)/2
-      nowy.y = my - (nowy.h || 20)/2
-      const lvl = getLevel()
-      lvl.platforms.push(nowy)
-      syncLevelData()
-    } else {
-      // FALLBACK — traktuj jako platformę
-      nowy.x = mx - (nowy.w || 120)/2
-      nowy.y = my - (nowy.h || 20)/2
-      const lvl = getLevel()
-      lvl.platforms.push(nowy)
-      syncLevelData()
+    // Środek anchora (dla centrowania na kursorze)
+    const anchorCX = anchorX + (anchor.w || anchor.r*2 || 0)/2
+    const anchorCY = anchorY + (anchor.h || anchor.r*2 || 0)/2
+
+    const lvl = getLevel()
+    const wklejoneNowe = []
+
+    for (const src of copiedObjects) {
+      let nowy = JSON.parse(JSON.stringify(src))
+
+      // Offset względem anchora
+      const srcCX = (src.x || 0) + (src.w || src.r*2 || 0)/2
+      const srcCY = (src.y || 0) + (src.h || src.r*2 || 0)/2
+      const offX = srcCX - anchorCX
+      const offY = srcCY - anchorCY
+
+      if (nowy.r && !nowy.w) {
+        // GRACZ (i tak nie kopiujemy, ale zostaw)
+        nowy.x = mx + offX
+        nowy.y = my + offY
+        lvl.players.push(nowy)
+      } else if (nowy.type !== undefined && nowy.w) {
+        // WRÓG
+        nowy.x = mx + offX - (nowy.w || 40)/2
+        nowy.y = my + offY - (nowy.h || 40)/2
+        lvl.enemies.push(nowy)
+      } else if (nowy.typ === "block" || nowy.typ === "blockTall" || nowy.typ === "blockGrid" || nowy.typ === "blockIce" || nowy.typ === "blockBomb") {
+        // BLOK
+        nowy.x = mx + offX - (nowy.w || 60)/2
+        nowy.y = my + offY - (nowy.h || 60)/2
+        lvl.blocks.push(nowy)
+      } else if (nowy.typ === "round" || nowy.typ === "rect" || nowy.typ === "line") {
+        // PLATFORMA
+        nowy.x = mx + offX - (nowy.w || 120)/2
+        nowy.y = my + offY - (nowy.h || 20)/2
+        lvl.platforms.push(nowy)
+      } else if (nowy.r !== undefined && (nowy.type === "diamond" || nowy.type === "key_win" || nowy.type === "key_level")) {
+        // BONUS (ma r, ma type)
+        nowy.x = mx + offX
+        nowy.y = my + offY
+        lvl.bonuses.push(nowy)
+      } else {
+        // FALLBACK - platforma
+        nowy.x = mx + offX - (nowy.w || 120)/2
+        nowy.y = my + offY - (nowy.h || 20)/2
+        lvl.platforms.push(nowy)
+      }
+      wklejoneNowe.push(nowy)
     }
 
+    syncLevelData()
     trybKopiowania = false
-    selectedObject = nowy
+
+    // Nowe wklejone obiekty stają się zaznaczone
+    if (wklejoneNowe.length > 1) {
+      selectedObjects = wklejoneNowe
+      selectedObject = wklejoneNowe[0]
+    } else {
+      selectedObjects = []
+      selectedObject = wklejoneNowe[0] || null
+    }
     showFxList()
     return
   }
@@ -2154,11 +2248,14 @@ canvas.addEventListener("mousedown", e => {
   }
 
   if (trybFX) {
-    selectedObject = null
+    if (!ctrlHeld) {
+      selectedObject = null
+      selectedObjects = []
+    }
 
     for (const p of players) {
       if (Math.hypot(mx - p.x, my - p.y) < p.r + 8) {
-        selectedObject = p
+        selectObj(p)
         showFxList()
         return
       }
@@ -2170,7 +2267,7 @@ canvas.addEventListener("mousedown", e => {
           mx >= obj.x && mx <= obj.x + obj.w &&
           my >= obj.y && my <= obj.y + obj.h
         ) {
-          selectedObject = obj
+          selectObj(obj)
           showFxList()
           return
         }
@@ -2179,7 +2276,10 @@ canvas.addEventListener("mousedown", e => {
     return
   }
 
-  selectedObject = null
+  if (!ctrlHeld) {
+    selectedObject = null
+    selectedObjects = []
+  }
 
   // BONUSY
   for (const bonus of bonuses) {
@@ -2188,13 +2288,17 @@ canvas.addEventListener("mousedown", e => {
     let dist = Math.sqrt(dx*dx + dy*dy)
 
     if (dist < (bonus.r || 12) + 10) {
-      selectedObject = bonus
-      dragging = bonus
-      dragOffsetX = mx - bonus.x
-      dragOffsetY = my - bonus.y
+      selectObj(bonus)
+      if (!ctrlHeld) {
+        dragging = bonus
+        dragOffsetX = mx - bonus.x
+        dragOffsetY = my - bonus.y
+      }
 
-      if (bonus.type === "key_level") {
+      if (bonus.type === "key_level" && !ctrlHeld) {
         pokazPanelKlucza(bonus)
+      } else if (ctrlHeld) {
+        showFxList()
       }
       return
     }
@@ -2211,16 +2315,23 @@ canvas.addEventListener("mousedown", e => {
     const hMid = by + bh/2   // środek w pionie
     const wMid = bx + bw/2   // środek w poziomie
 
-    // Uchwyty — środki krawędzi
-    if (nearHandle(mx, my, bx + bw, hMid)) { resizing = b; b.resizeSide = "right";  selectedObject = b; return }
-    if (nearHandle(mx, my, bx,      hMid)) { resizing = b; b.resizeSide = "left";   selectedObject = b; return }
-    if (nearHandle(mx, my, wMid, by + bh)) { resizing = b; b.resizeSide = "bottom"; selectedObject = b; return }
-    if (nearHandle(mx, my, wMid, by     )) { resizing = b; b.resizeSide = "top";    selectedObject = b; return }
+    // Uchwyty — środki krawędzi (tylko bez Ctrl)
+    if (!ctrlHeld) {
+      if (nearHandle(mx, my, bx + bw, hMid)) { resizing = b; b.resizeSide = "right";  selectObj(b); return }
+      if (nearHandle(mx, my, bx,      hMid)) { resizing = b; b.resizeSide = "left";   selectObj(b); return }
+      if (nearHandle(mx, my, wMid, by + bh)) { resizing = b; b.resizeSide = "bottom"; selectObj(b); return }
+      if (nearHandle(mx, my, wMid, by     )) { resizing = b; b.resizeSide = "top";    selectObj(b); return }
+    }
 
     // Drag — cała powierzchnia z małą tolerancją
     if (mx >= bx - 6 && mx <= bx + bw + 6 && my >= by - 6 && my <= by + bh + 6) {
-      selectedObject = b; dragging = b
-      dragOffsetX = mx - bx; dragOffsetY = my - by
+      selectObj(b)
+      if (!ctrlHeld) {
+        dragging = b
+        dragOffsetX = mx - bx; dragOffsetY = my - by
+      } else {
+        showFxList()
+      }
       return
     }
   }
@@ -2232,16 +2343,22 @@ canvas.addEventListener("mousedown", e => {
     const hMid = py + ph/2
     const wMid = px + pw/2
 
-    // Uchwyty — środki krawędzi
-    if (nearHandle(mx, my, px + pw, hMid)) { resizing = pl; pl.resizeSide = "right";  selectedObject = pl; return }
-    if (nearHandle(mx, my, px,      hMid)) { resizing = pl; pl.resizeSide = "left";   selectedObject = pl; return }
-    if (nearHandle(mx, my, wMid, py + ph)) { resizing = pl; pl.resizeSide = "bottom"; selectedObject = pl; return }
-    if (nearHandle(mx, my, wMid, py     )) { resizing = pl; pl.resizeSide = "top";    selectedObject = pl; return }
+    if (!ctrlHeld) {
+      if (nearHandle(mx, my, px + pw, hMid)) { resizing = pl; pl.resizeSide = "right";  selectObj(pl); return }
+      if (nearHandle(mx, my, px,      hMid)) { resizing = pl; pl.resizeSide = "left";   selectObj(pl); return }
+      if (nearHandle(mx, my, wMid, py + ph)) { resizing = pl; pl.resizeSide = "bottom"; selectObj(pl); return }
+      if (nearHandle(mx, my, wMid, py     )) { resizing = pl; pl.resizeSide = "top";    selectObj(pl); return }
+    }
 
     // Drag — cała powierzchnia z tolerancją (ważne dla cienkich linii)
     if (mx >= px - 8 && mx <= px + pw + 8 && my >= py - 10 && my <= py + ph + 10) {
-      selectedObject = pl; dragging = pl
-      dragOffsetX = mx - px; dragOffsetY = my - py
+      selectObj(pl)
+      if (!ctrlHeld) {
+        dragging = pl
+        dragOffsetX = mx - px; dragOffsetY = my - py
+      } else {
+        showFxList()
+      }
       return
     }
   }
@@ -2266,20 +2383,28 @@ canvas.addEventListener("mousedown", e => {
   for (const en of enemies) {
     const PAD = 8
     if (mx >= en.x - PAD && mx <= en.x + en.w + PAD && my >= en.y - PAD && my <= en.y + en.h + PAD) {
-      selectedObject = en
-      dragging = en
-      dragOffsetX = mx - en.x
-      dragOffsetY = my - en.y
+      selectObj(en)
+      if (!ctrlHeld) {
+        dragging = en
+        dragOffsetX = mx - en.x
+        dragOffsetY = my - en.y
+      } else {
+        showFxList()
+      }
       return
     }
   }
 
   for (const p of players) {
     if (Math.hypot(mx - p.x, my - p.y) < p.r + 8) {
-      selectedObject = p
-      dragging = p
-      dragOffsetX = mx - p.x
-      dragOffsetY = my - p.y
+      selectObj(p)
+      if (!ctrlHeld) {
+        dragging = p
+        dragOffsetX = mx - p.x
+        dragOffsetY = my - p.y
+      } else {
+        showFxList()
+      }
       return
     }
   }
@@ -3396,7 +3521,7 @@ function draw(){
 
     ctx.shadowBlur = 0
 
-    if (pl === selectedObject) {
+    if ((pl === selectedObject || selectedObjects.includes(pl))) {
       ctx.strokeStyle = "red"
       ctx.lineWidth = 2
       ctx.setLineDash([4, 4])
@@ -3686,7 +3811,7 @@ function draw(){
 
     ctx.shadowBlur = 0
 
-    if (b === selectedObject) {
+    if ((b === selectedObject || selectedObjects.includes(b))) {
       ctx.strokeStyle = "red"
       ctx.lineWidth = 2
       ctx.setLineDash([4, 4])
@@ -3722,7 +3847,7 @@ function draw(){
       drawCar(p.x, p.y, p.r, p.vx || 0)
     }
 
-    if (p === selectedObject) {
+    if ((p === selectedObject || selectedObjects.includes(p))) {
       ctx.strokeStyle = "yellow"
       ctx.lineWidth = 3
       ctx.beginPath()
@@ -4265,7 +4390,7 @@ function draw(){
       ctx.fillRect(x, y, w, h)
     }
 
-    if (en === selectedObject) {
+    if ((en === selectedObject || selectedObjects.includes(en))) {
       ctx.strokeStyle = "red"
       ctx.lineWidth = 3
       ctx.strokeRect(x, y, w, h)
@@ -4423,7 +4548,7 @@ function draw(){
       ctx.strokeText(t.text, screenX, t.y)
     }
 
-    if (t === selectedObject) {
+    if ((t === selectedObject || selectedObjects.includes(t))) {
       ctx.strokeStyle = "red"
       ctx.lineWidth = 3
       ctx.setLineDash([4, 4])
