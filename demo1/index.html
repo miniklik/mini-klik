@@ -3234,14 +3234,25 @@ function draw(){
       g.addColorStop(1, "#3d2010")
       ctx.fillStyle = g
       ctx.fillRect(x, y, w, h)
-      // Fugi poziome
-      const bH = 12
-      ctx.strokeStyle = "rgba(0,0,0,0.5)"; ctx.lineWidth = 1.5
-      for (let row = 0; row * bH < h; row++) {
+
+      // Cegły dopasowane do siatki 20px — kwadratowe 20×20
+      const bH = 20
+      const bW = 20
+      ctx.strokeStyle = "rgba(0,0,0,0.5)"; ctx.lineWidth = 1.2
+      ctx.save()
+      ctx.beginPath()
+      ctx.rect(x, y, w, h)
+      ctx.clip()
+      for (let row = 0; row * bH < h + bH; row++) {
         const by2 = y + row * bH
-        ctx.beginPath(); ctx.moveTo(x, by2); ctx.lineTo(x+w, by2); ctx.stroke()
-        ctx.beginPath(); ctx.moveTo(x+w/2, by2); ctx.lineTo(x+w/2, by2+bH); ctx.stroke()
+        ctx.beginPath(); ctx.moveTo(x, by2); ctx.lineTo(x + w, by2); ctx.stroke()
+        const offset = row % 2 === 0 ? 0 : bW / 2
+        for (let col = offset; col <= w + bW; col += bW) {
+          ctx.beginPath(); ctx.moveTo(x + col, by2); ctx.lineTo(x + col, by2 + bH); ctx.stroke()
+        }
       }
+      ctx.restore()
+
       // Połysk
       ctx.strokeStyle = "rgba(200,140,80,0.4)"; ctx.lineWidth = 1.5
       ctx.beginPath(); ctx.moveTo(x, y+h); ctx.lineTo(x, y); ctx.lineTo(x+w, y); ctx.stroke()
@@ -3426,21 +3437,26 @@ function draw(){
     ctx.fillStyle = bGrad
     ctx.fillRect(x, y, w, h)
 
-    // Fugi cegieł (poziome)
-    const brickH = 14
-    const brickW = w / 2
+    // Cegły dopasowane do siatki 20px — cegła 40x20 (2 pola szer × 1 pole wys)
+    const brickH = 20
+    const brickW = 40
     ctx.strokeStyle = "rgba(0,0,0,0.5)"
-    ctx.lineWidth = 1.5
-    for (let row = 0; row * brickH < h; row++) {
+    ctx.lineWidth = 1.2
+    ctx.save()
+    ctx.beginPath()
+    ctx.rect(x, y, w, h)
+    ctx.clip()
+    for (let row = 0; row * brickH < h + brickH; row++) {
       const by2 = y + row * brickH
       // Pozioma fuga
       ctx.beginPath(); ctx.moveTo(x, by2); ctx.lineTo(x + w, by2); ctx.stroke()
-      // Pionowe fugi (co drugi rząd przesunięte)
+      // Pionowe fugi - co drugi rząd przesunięte o 20px (pół cegły)
       const offset = row % 2 === 0 ? 0 : brickW / 2
-      for (let col = offset; col < w; col += brickW) {
+      for (let col = offset; col <= w + brickW; col += brickW) {
         ctx.beginPath(); ctx.moveTo(x + col, by2); ctx.lineTo(x + col, by2 + brickH); ctx.stroke()
       }
     }
+    ctx.restore()
 
     // Połysk górny
     const bShine = ctx.createLinearGradient(x, y, x, y + h * 0.4)
@@ -4799,7 +4815,10 @@ function otworzGre(){
           playerStartX = level.playerStartX ?? 100
           playerStartY = level.playerStartY ?? 100
 
-          sterowanie = gameData.settings?.sterowanie || {lewo:null, prawo:null, skok:null}
+          sterowanie = gameData.settings?.sterowanie || {lewo:null, prawo:null, skok:null, dol:null, strzal:null}
+          // Uzupełnij brakujące pola w starych zapisach
+          if (!("dol" in sterowanie)) sterowanie.dol = null
+          if (!("strzal" in sterowanie)) sterowanie.strzal = null
 
           counters = {
             lives: gameData.settings?.counters?.lives ?? 3,
@@ -5106,7 +5125,7 @@ function drawBackground(){
     ctx.fillRect(0, 0, canvas.width, canvas.height)
     ctx.fillStyle = "#ffffff"
     for (let i = 0; i < 120; i++){
-      let x = (i * 97 - cameraX * 0.1) % 2000
+      let x = (i * 97 - cameraX * 0.1) % (canvas.width + 200)
       let y = (i * 53 + Date.now() * 0.2) % canvas.height
       ctx.beginPath()
       ctx.arc(x, y, 2, 0, Math.PI * 2)
@@ -5183,7 +5202,7 @@ function drawBackground(){
     ctx.strokeStyle = "#88aaff"
     ctx.lineWidth = 1
     for (let i = 0; i < 120; i++){
-      let x = (i * 97 - cameraX * 0.2) % 2000
+      let x = (i * 97 - cameraX * 0.2) % (canvas.width + 200)
       let y = (i * 53 + Date.now() * 0.5) % canvas.height
       ctx.beginPath()
       ctx.moveTo(x, y)
@@ -5463,7 +5482,7 @@ function drawBackground(){
     for (const s of window.cityStars) {
       const alpha = 0.5 + Math.sin(t * 2 + s.twinkle) * 0.4
       ctx.fillStyle = `rgba(255,255,220,${alpha})`
-      ctx.fillRect(s.x - cameraX * 0.05 % (canvas.width + 100), s.y, s.size, s.size)
+      ctx.fillRect((s.x - cameraX * 0.05) % (canvas.width + 100), s.y, s.size, s.size)
     }
 
     // Księżyc — duży z kraterami i poświatą
@@ -5535,7 +5554,7 @@ function drawBackground(){
       for (let wy = 12; wy < h - 15; wy += 22) {
         for (let wx = 8; wx < w - 8; wx += 20) {
           const key = (wx * 7 + wy * 13 + i * 31) % 100
-          if (key < 50) continue  // część okien ciemna
+          if (key < 75) continue  // część okien ciemna
           const col = winColors[(wx + wy + i) % winColors.length]
           ctx.fillStyle = col
           ctx.shadowColor = col
@@ -5799,9 +5818,13 @@ function drawForest() {
   drawNewStars()
   drawRealFog()
 
+  const wrapW = canvas.width + 300
+
+  // Dalsze drzewa (najmniejsze, najciemniejsze)
   for (let i = 0; i < 40; i++) {
     if (i % 3 === 0) continue
-    let x = (i * 90 - cameraX * 0.2) % (canvas.width + 200)
+    let raw = i * 90 - cameraX * 0.2
+    let x = ((raw % wrapW) + wrapW) % wrapW - 100  // poprawne modulo
     let h = 80 + (i * 37 % 60)
     let w = 40 + (i * 23 % 30)
     ctx.fillStyle = "#0a1f16"
@@ -5812,9 +5835,11 @@ function drawForest() {
     ctx.fill()
   }
 
+  // Średnie drzewa
   for (let i = 0; i < 30; i++) {
     if (i % 3 === 0) continue
-    let x = (i * 120 - cameraX * 0.4) % (canvas.width + 200)
+    let raw = i * 120 - cameraX * 0.4
+    let x = ((raw % wrapW) + wrapW) % wrapW - 100
     let h = 120 + (i * 47 % 100)
     let w = 50 + (i * 31 % 40)
     ctx.fillStyle = "#123524"
@@ -5826,9 +5851,11 @@ function drawForest() {
     ctx.fill()
   }
 
+  // Bliskie drzewa (największe, najjaśniejsze)
   for (let i = 0; i < 20; i++) {
     if (i % 3 !== 0) continue
-    let x = (i * 160 - cameraX * 0.7) % (canvas.width + 200)
+    let raw = i * 160 - cameraX * 0.7
+    let x = ((raw % wrapW) + wrapW) % wrapW - 100
     let h = 160 + (i * 63 % 120)
     let w = 60 + (i * 27 % 40)
     ctx.fillStyle = "#1f5f2e"
@@ -5980,7 +6007,7 @@ function pokazUstawienia() {
     <input type="number" id="editWorld"
           value="${worldWidth}"
           min="800"
-          max="20000"
+          max="10000"
           step="100"
           style="width:80px;"
           oninput="limitWorldInput(this)">
