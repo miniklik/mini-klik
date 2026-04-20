@@ -1143,6 +1143,15 @@ function update(){
         obj._prevFloat = obj.floatTime
       }
     }
+
+    // KAMIENIE KSIĘŻYCOWE — lewitują i obracają się
+    if (obj.type === "rock1" || obj.type === "rock2" || obj.type === "rock3") {
+      obj.rotation = (obj.rotation || 0) + (obj.rotSpeed || 0.01)
+      obj.floatTime = (obj.floatTime || 0) + 0.04
+      const prevFloat = obj._prevFloat || 0
+      obj.y += (Math.sin(obj.floatTime) - Math.sin(prevFloat)) * 12
+      obj._prevFloat = obj.floatTime
+    }
   }
 
   // Player movement
@@ -1151,14 +1160,34 @@ function update(){
 
     // === STATEK KOSMICZNY ===
     if (p.type === "spaceship") {
-      p.vx = 0; p.vy = 0
-      if (keys[sterowanie.lewo])  p.vx = -4
-      if (keys[sterowanie.prawo]) p.vx = 4
-      if (keys[sterowanie.skok])  p.vy = -4
-      if (keys[sterowanie.dol])   p.vy = 4
+      const accel = 0.35, maxSpeed = 4, friction = 0.94
+
+      if (keys[sterowanie.lewo])  p.vx -= accel
+      if (keys[sterowanie.prawo]) p.vx += accel
+      if (keys[sterowanie.skok])  p.vy -= accel
+      if (keys[sterowanie.dol])   p.vy += accel
+
+      p.vx *= friction; p.vy *= friction
+
+      if (p.vx > maxSpeed) p.vx = maxSpeed
+      if (p.vx < -maxSpeed) p.vx = -maxSpeed
+      if (p.vy > maxSpeed) p.vy = maxSpeed
+      if (p.vy < -maxSpeed) p.vy = -maxSpeed
+
+      if (Math.abs(p.vx) < 0.05) p.vx = 0
+      if (Math.abs(p.vy) < 0.05) p.vy = 0
+
+      if (!p.floatTime) p.floatTime = 0
+      p.floatTime += 0.04
+      const idle = (Math.abs(p.vx) + Math.abs(p.vy)) < 0.3
+      if (idle) {
+        p.x += Math.sin(p.floatTime * 0.7) * 0.3
+        p.y += Math.sin(p.floatTime) * 0.4
+      }
+
       p.x += p.vx; p.y += p.vy
-      if (p.y < p.r) p.y = p.r
-      if (p.y > floorY) p.y = floorY
+      if (p.y < p.r) { p.y = p.r; p.vy = 0 }
+      if (p.y > canvas.height - 10 - p.r) { p.y = canvas.height - 10 - p.r; p.vy = 0 }
 
       // Strzelanie
       if (burstReload > 0) {
@@ -1221,7 +1250,8 @@ function update(){
     p.x += p.vx
     p.y += p.vy
 
-    if (p.y > floorY) { p.y = floorY; p.vy = 0 }
+    const floorStop = canvas.height - 10 - p.r
+    if (p.y > floorStop) { p.y = floorStop; p.vy = 0 }
 
     for (let pl of platforms) {
       if (p.x > pl.x - p.r && p.x < pl.x + pl.w + p.r) {
@@ -1404,6 +1434,9 @@ function update(){
     const player = players[0]
     if (autoScroll) {
       cameraX += autoScrollSpeed
+      if (player.type === "spaceship") {
+        player.x += autoScrollSpeed
+      }
     } else {
       const targetX = player.x - canvas.width / 2 + player.r
       cameraX += (targetX - cameraX) * 0.12
@@ -1638,8 +1671,9 @@ canvas.addEventListener("click", e => {
   if (gameState === "results" || gameState === "win") {
     const rect = canvas.getBoundingClientRect()
     const scaleX = canvas.width / rect.width
+    const scaleY = canvas.height / rect.height
     const mx = (e.clientX - rect.left) * scaleX
-    const my = (e.clientY - rect.top) * scaleX
+    const my = (e.clientY - rect.top) * scaleY
     if (resultsBtn1 && mx>resultsBtn1.x && mx<resultsBtn1.x+resultsBtn1.w && my>resultsBtn1.y && my<resultsBtn1.y+resultsBtn1.h) { restartGame(); return }
     if (resultsBtn2 && mx>resultsBtn2.x && mx<resultsBtn2.x+resultsBtn2.w && my>resultsBtn2.y && my<resultsBtn2.y+resultsBtn2.h) { location.reload(); return }
   }
@@ -1677,6 +1711,7 @@ function draw(){
 
   ctx.clearRect(0, 0, canvas.width, canvas.height)
   drawBackground()
+  drawFloor()
 
   ctx.save()
   ctx.translate(-cameraX, 0)
@@ -2180,6 +2215,8 @@ function draw(){
     ctx.fillStyle="#333"; ctx.beginPath(); ctx.arc(0,0,r*0.07,0,Math.PI*2); ctx.fill()
     ctx.restore()
 
+  } else if (en.type === "rock1" || en.type === "rock2" || en.type === "rock3") {
+    drawMoonRock(en, x, y, w, h)
   } else {
     ctx.fillStyle = "#7b3fe4"; ctx.fillRect(x, y, w, h)
   }
@@ -2190,9 +2227,14 @@ function draw(){
     ctx.save()
     ctx.translate(b.x, b.y)
     ctx.scale(b.scale||1, b.scale||1)
-    ctx.font = "22px Arial"; ctx.textAlign = "center"; ctx.textBaseline = "middle"
-    let icon = b.type === "key_win" ? "🏁" : b.type === "key_level" ? "🔑" : "💎"
-    ctx.fillText(icon, 0, 0)
+    if (b.type === "key_win") {
+      drawFinishFlag(b.r || 24)
+    } else {
+      const fontSize = (b.r || 12) * 1.8
+      ctx.font = `${fontSize}px Arial`; ctx.textAlign = "center"; ctx.textBaseline = "middle"
+      let icon = b.type === "key_level" ? "🔑" : "💎"
+      ctx.fillText(icon, 0, 0)
+    }
     ctx.restore()
   }
 
@@ -2332,9 +2374,47 @@ function drawIntro(){
 }
 
 // ===== BACKGROUND =====
+function drawFloor() {
+  const bgType = getLevel()?.backgroundType || backgroundType || "none"
+  if (bgType === "west" || bgType === "forest" || bgType === "water" || bgType === "evening") return
+
+  const floorTop = canvas.height - 10
+
+  const grassHeight = 8
+  const grassGrad = ctx.createLinearGradient(0, floorTop, 0, floorTop + grassHeight)
+  grassGrad.addColorStop(0, "#5dd48a"); grassGrad.addColorStop(1, "#2a8046")
+  ctx.fillStyle = grassGrad
+  ctx.fillRect(0, floorTop, canvas.width, grassHeight)
+
+  ctx.strokeStyle = "#1f7a3a"; ctx.lineWidth = 1.2
+  for (let i = 0; i < canvas.width; i += 5) {
+    const h = 3 + ((i * 37) % 5)
+    ctx.beginPath(); ctx.moveTo(i, floorTop); ctx.lineTo(i + ((i * 13) % 3 - 1), floorTop - h); ctx.stroke()
+  }
+  ctx.strokeStyle = "#7cdb9a"; ctx.lineWidth = 1
+  for (let i = 3; i < canvas.width; i += 17) {
+    ctx.beginPath(); ctx.moveTo(i, floorTop); ctx.lineTo(i + 1, floorTop - 6 - (i % 3)); ctx.stroke()
+  }
+
+  const earthHeight = canvas.height - floorTop - grassHeight
+  const groundGrad = ctx.createLinearGradient(0, floorTop + grassHeight, 0, canvas.height)
+  groundGrad.addColorStop(0, "#8b6635"); groundGrad.addColorStop(1, "#5a3f1f")
+  ctx.fillStyle = groundGrad
+  ctx.fillRect(0, floorTop + grassHeight, canvas.width, earthHeight)
+
+  ctx.fillStyle = "rgba(40,25,10,0.5)"
+  for (let i = 0; i < 20; i++) {
+    const x = (i * 41) % canvas.width
+    const y = floorTop + grassHeight + 3 + ((i * 23) % Math.max(earthHeight - 5, 3))
+    ctx.beginPath(); ctx.arc(x, y, 1, 0, Math.PI * 2); ctx.fill()
+  }
+}
+
 function drawBackground(){
   let bgType = getLevel()?.backgroundType || backgroundType || "none"
   if (bgType === "water") { drawWater(); return }
+  if (bgType === "sunny") { drawSunny(); return }
+  if (bgType === "evening") { drawEvening(); return }
   if (bgType === "none") { ctx.fillStyle = "#87CEEB"; ctx.fillRect(0,0,canvas.width,canvas.height); return }
   if (bgType === "forest") { drawForest(); return }
   if (bgType === "snow") {
@@ -2356,6 +2436,409 @@ function drawBackground(){
     ctx.fillStyle=g;ctx.fillRect(0,0,canvas.width,canvas.height)
     drawParticles()
   }
+}
+
+function drawEvening() {
+  const t = Date.now() * 0.001
+
+  const skyGrad = ctx.createLinearGradient(0, 0, 0, canvas.height * 0.7)
+  skyGrad.addColorStop(0, "#1a0d3a"); skyGrad.addColorStop(0.2, "#3d1a5a")
+  skyGrad.addColorStop(0.45, "#8a2e5e"); skyGrad.addColorStop(0.65, "#ff6b4a")
+  skyGrad.addColorStop(0.85, "#ffb066"); skyGrad.addColorStop(1, "#ffd4a3")
+  ctx.fillStyle = skyGrad
+  ctx.fillRect(0, 0, canvas.width, canvas.height * 0.7)
+
+  if (!window.eveningStars) {
+    window.eveningStars = []
+    for (let i = 0; i < 40; i++) {
+      window.eveningStars.push({
+        x: Math.random() * canvas.width, y: Math.random() * canvas.height * 0.35,
+        size: 0.5 + Math.random() * 1.3, twinkle: Math.random() * Math.PI * 2,
+        speed: 1.5 + Math.random() * 2
+      })
+    }
+  }
+  for (const s of window.eveningStars) {
+    const alpha = 0.4 + Math.sin(t * s.speed + s.twinkle) * 0.55
+    if (alpha > 0) {
+      ctx.fillStyle = `rgba(255, 245, 220, ${alpha})`
+      ctx.shadowColor = "rgba(255, 230, 180, 0.7)"; ctx.shadowBlur = 3
+      ctx.fillRect(s.x, s.y, s.size, s.size)
+      if (alpha > 0.7 && s.size > 1) {
+        ctx.fillRect(s.x - 1, s.y + s.size/2 - 0.3, s.size + 2, 0.6)
+        ctx.fillRect(s.x + s.size/2 - 0.3, s.y - 1, 0.6, s.size + 2)
+      }
+      ctx.shadowBlur = 0
+    }
+  }
+
+  const sunX = canvas.width * 0.7, sunY = canvas.height * 0.55, sunR = 52
+  const glow1 = ctx.createRadialGradient(sunX, sunY, sunR * 0.5, sunX, sunY, sunR * 4)
+  glow1.addColorStop(0, "rgba(255, 180, 80, 0.5)")
+  glow1.addColorStop(0.3, "rgba(255, 120, 70, 0.3)")
+  glow1.addColorStop(0.7, "rgba(255, 80, 50, 0.12)")
+  glow1.addColorStop(1, "rgba(255, 80, 50, 0)")
+  ctx.fillStyle = glow1
+  ctx.beginPath(); ctx.arc(sunX, sunY, sunR * 4, 0, Math.PI * 2); ctx.fill()
+
+  const glow2 = ctx.createRadialGradient(sunX, sunY, sunR, sunX, sunY, sunR * 2.2)
+  glow2.addColorStop(0, "rgba(255, 150, 100, 0.4)")
+  glow2.addColorStop(1, "rgba(255, 100, 80, 0)")
+  ctx.fillStyle = glow2
+  ctx.beginPath(); ctx.arc(sunX, sunY, sunR * 2.2, 0, Math.PI * 2); ctx.fill()
+
+  const sunCore = ctx.createRadialGradient(sunX, sunY - sunR * 0.2, sunR * 0.1, sunX, sunY, sunR)
+  sunCore.addColorStop(0, "#ffee99"); sunCore.addColorStop(0.4, "#ffb84d")
+  sunCore.addColorStop(0.8, "#ff7b2e"); sunCore.addColorStop(1, "#e8501e")
+  ctx.fillStyle = sunCore
+  ctx.beginPath(); ctx.arc(sunX, sunY, sunR, 0, Math.PI * 2); ctx.fill()
+
+  ctx.fillStyle = "rgba(30, 15, 45, 0.85)"
+  const hillWrap = canvas.width + 400
+  for (let i = 0; i < 5; i++) {
+    let raw = i * 280 - cameraX * 0.08
+    const x = ((raw % hillWrap) + hillWrap) % hillWrap - 200
+    const h = 70 + (i * 31 % 40)
+    ctx.beginPath(); ctx.moveTo(x, canvas.height * 0.7)
+    ctx.quadraticCurveTo(x + 140, canvas.height * 0.7 - h, x + 280, canvas.height * 0.7); ctx.fill()
+  }
+  ctx.fillStyle = "rgba(15, 8, 30, 0.95)"
+  for (let i = 0; i < 4; i++) {
+    let raw = i * 350 - cameraX * 0.2
+    const x = ((raw % hillWrap) + hillWrap) % hillWrap - 150
+    const h = 55 + (i * 41 % 30)
+    ctx.beginPath(); ctx.moveTo(x, canvas.height * 0.7)
+    ctx.quadraticCurveTo(x + 175, canvas.height * 0.7 - h, x + 350, canvas.height * 0.7); ctx.fill()
+  }
+
+  const lakeTop = canvas.height * 0.7
+  const lakeHeight = canvas.height - lakeTop
+  const lakeGrad = ctx.createLinearGradient(0, lakeTop, 0, canvas.height)
+  lakeGrad.addColorStop(0, "#ff8c5a"); lakeGrad.addColorStop(0.25, "#c44a6e")
+  lakeGrad.addColorStop(0.55, "#5a2a5a"); lakeGrad.addColorStop(1, "#1a0d3a")
+  ctx.fillStyle = lakeGrad
+  ctx.fillRect(0, lakeTop, canvas.width, lakeHeight)
+
+  ctx.save()
+  const reflWidth = sunR * 2.2
+  ctx.beginPath()
+  ctx.moveTo(sunX - reflWidth/2, lakeTop)
+  ctx.lineTo(sunX + reflWidth/2, lakeTop)
+  ctx.lineTo(sunX + 8, canvas.height)
+  ctx.lineTo(sunX - 8, canvas.height)
+  ctx.closePath()
+  const reflectionGrad = ctx.createLinearGradient(0, lakeTop, 0, canvas.height)
+  reflectionGrad.addColorStop(0, "rgba(255, 200, 100, 0.55)")
+  reflectionGrad.addColorStop(0.4, "rgba(255, 140, 70, 0.3)")
+  reflectionGrad.addColorStop(1, "rgba(255, 100, 60, 0)")
+  ctx.fillStyle = reflectionGrad
+  ctx.fill()
+  ctx.restore()
+
+  ctx.save()
+  for (let i = 0; i < 20; i++) {
+    const progress = i / 20
+    const y = lakeTop + 4 + i * ((lakeHeight - 5) / 20)
+    const offset = Math.sin(t * 1.2 + i * 0.5) * 6
+    const maxW = sunR * 2, minW = 8
+    const w = maxW * (1 - progress * 0.85) + Math.sin(t * 2 + i) * 6
+    const centerAlpha = 0.6 - progress * 0.45
+    ctx.globalAlpha = Math.max(centerAlpha, 0.08)
+    ctx.fillStyle = "#ffd4a0"
+    ctx.fillRect(sunX - w/2 + offset, y, w, 1.5)
+  }
+  ctx.restore()
+
+  ctx.save()
+  ctx.strokeStyle = "rgba(255, 220, 180, 0.35)"; ctx.lineWidth = 1
+  for (let i = 0; i < 30; i++) {
+    const y = lakeTop + 5 + (i * 7 + Math.sin(t + i) * 4) % lakeHeight
+    const x = (i * 53 + Math.sin(t * 0.8 + i * 0.7) * 30) % canvas.width
+    const w = 15 + Math.abs(Math.sin(t + i * 0.3)) * 20
+    ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + w, y); ctx.stroke()
+  }
+  ctx.restore()
+
+  ctx.save(); ctx.globalAlpha = 0.3
+  for (const s of window.eveningStars) {
+    if (s.y < canvas.height * 0.2) {
+      const reflY = lakeTop + (canvas.height * 0.2 - s.y) * 0.5
+      if (reflY > lakeTop && reflY < lakeTop + 40) {
+        const alpha = 0.3 + Math.sin(t * s.speed + s.twinkle) * 0.2
+        ctx.fillStyle = `rgba(255, 220, 180, ${alpha})`
+        const wave = Math.sin(t * 2 + s.x * 0.1) * 3
+        ctx.fillRect(s.x + wave, reflY, s.size * 0.8, s.size * 0.6)
+      }
+    }
+  }
+  ctx.restore()
+
+  if (!window.eveningBirds) {
+    window.eveningBirds = []
+    for (let g = 0; g < 2; g++) {
+      const baseX = Math.random() * canvas.width
+      const baseY = canvas.height * 0.25 + Math.random() * 80
+      for (let i = 0; i < 5; i++) {
+        window.eveningBirds.push({
+          x: baseX - i * 20 + Math.random() * 6,
+          y: baseY + Math.abs(i - 2) * 10,
+          speed: 0.5 + Math.random() * 0.3,
+          wingPhase: Math.random() * Math.PI * 2,
+          size: 0.9 + Math.random() * 0.3
+        })
+      }
+    }
+  }
+  for (const b of window.eveningBirds) {
+    b.x -= b.speed
+    if (b.x < -40) { b.x = canvas.width + 40; b.y = canvas.height * 0.2 + Math.random() * 100 }
+    drawEveningBird(b.x, b.y, b.size, t + b.wingPhase)
+  }
+
+  ctx.save(); ctx.globalAlpha = 0.12
+  ctx.fillStyle = "#ffa080"
+  ctx.fillRect(0, lakeTop - 8, canvas.width, 16)
+  ctx.restore()
+
+  if (!window.eveningFireflies) {
+    window.eveningFireflies = []
+    for (let i = 0; i < 8; i++) {
+      window.eveningFireflies.push({
+        baseX: Math.random() * canvas.width,
+        baseY: canvas.height * 0.58 + Math.random() * (canvas.height * 0.12),
+        phaseX: Math.random() * Math.PI * 2,
+        phaseY: Math.random() * Math.PI * 2,
+        blink: Math.random() * Math.PI * 2
+      })
+    }
+  }
+  for (const f of window.eveningFireflies) {
+    const x = f.baseX + Math.sin(t * 0.4 + f.phaseX) * 50 - cameraX * 0.3
+    const y = f.baseY + Math.sin(t * 0.7 + f.phaseY) * 12
+    const wrapped = ((x % (canvas.width + 80)) + canvas.width + 80) % (canvas.width + 80) - 40
+    const glow = (Math.sin(t * 3 + f.blink) + 1) * 0.5
+    ctx.save()
+    ctx.globalAlpha = 0.4 + glow * 0.5
+    ctx.fillStyle = "#ffee99"
+    ctx.shadowColor = "#ffcc44"; ctx.shadowBlur = 6 + glow * 5
+    ctx.beginPath(); ctx.arc(wrapped, y, 1.5 + glow * 1, 0, Math.PI * 2); ctx.fill()
+    ctx.restore()
+  }
+}
+
+function drawEveningCloud(x, y, size, puffs) {
+  const baseR = 16 * size
+  ctx.save()
+  const cg = ctx.createLinearGradient(x, y - baseR, x, y + baseR)
+  cg.addColorStop(0, "rgba(255, 180, 120, 0.9)")
+  cg.addColorStop(0.6, "rgba(200, 100, 120, 0.85)")
+  cg.addColorStop(1, "rgba(100, 50, 90, 0.9)")
+  ctx.fillStyle = cg
+  for (let i = 0; i < puffs; i++) {
+    const px = x + i * baseR * 0.8
+    const py = y + Math.sin(i * 1.5) * baseR * 0.15
+    const r = baseR * (0.85 + Math.sin(i * 2.1) * 0.15)
+    ctx.beginPath(); ctx.arc(px, py, r, 0, Math.PI * 2); ctx.fill()
+  }
+  ctx.fillStyle = "rgba(255, 220, 160, 0.5)"
+  for (let i = 0; i < puffs; i++) {
+    const px = x + i * baseR * 0.8
+    const py = y + Math.sin(i * 1.5) * baseR * 0.15 - baseR * 0.35
+    ctx.beginPath(); ctx.arc(px, py, baseR * 0.35, 0, Math.PI * 2); ctx.fill()
+  }
+  ctx.restore()
+}
+
+function drawEveningBird(x, y, size, t) {
+  const wingY = Math.sin(t * 4) * 3.5 * size
+  const wingSpread = 9 * size + Math.abs(Math.cos(t * 4)) * 3 * size
+  ctx.save()
+  ctx.strokeStyle = "rgba(20, 10, 30, 0.8)"; ctx.lineWidth = 2 * size
+  ctx.lineCap = "round"; ctx.lineJoin = "round"
+  ctx.beginPath(); ctx.moveTo(x, y)
+  ctx.quadraticCurveTo(x - wingSpread * 0.5, y - wingY, x - wingSpread, y); ctx.stroke()
+  ctx.beginPath(); ctx.moveTo(x, y)
+  ctx.quadraticCurveTo(x + wingSpread * 0.5, y - wingY, x + wingSpread, y); ctx.stroke()
+  ctx.restore()
+}
+
+function drawSunny() {
+  const t = Date.now() * 0.001
+  const skyGrad = ctx.createLinearGradient(0, 0, 0, canvas.height)
+  skyGrad.addColorStop(0, "#4db8e8"); skyGrad.addColorStop(0.5, "#7dcfea")
+  skyGrad.addColorStop(0.85, "#d4e8f5"); skyGrad.addColorStop(1, "#ffe4c4")
+  ctx.fillStyle = skyGrad
+  ctx.fillRect(0, 0, canvas.width, canvas.height)
+
+  const sunX = canvas.width * 0.78, sunY = 80, sunR = 38
+  const sunGlow = ctx.createRadialGradient(sunX, sunY, sunR, sunX, sunY, sunR * 3)
+  sunGlow.addColorStop(0, "rgba(255, 230, 100, 0.5)")
+  sunGlow.addColorStop(0.5, "rgba(255, 200, 80, 0.2)")
+  sunGlow.addColorStop(1, "rgba(255, 200, 80, 0)")
+  ctx.fillStyle = sunGlow
+  ctx.beginPath(); ctx.arc(sunX, sunY, sunR * 3, 0, Math.PI * 2); ctx.fill()
+
+  ctx.save()
+  ctx.translate(sunX, sunY); ctx.rotate(t * 0.1)
+  ctx.strokeStyle = "rgba(255, 230, 100, 0.4)"; ctx.lineWidth = 2.5; ctx.lineCap = "round"
+  for (let i = 0; i < 12; i++) {
+    const angle = (i / 12) * Math.PI * 2
+    const len = 18 + Math.sin(t * 2 + i) * 4
+    ctx.beginPath()
+    ctx.moveTo(Math.cos(angle) * (sunR + 6), Math.sin(angle) * (sunR + 6))
+    ctx.lineTo(Math.cos(angle) * (sunR + 6 + len), Math.sin(angle) * (sunR + 6 + len))
+    ctx.stroke()
+  }
+  ctx.restore()
+
+  const sunCore = ctx.createRadialGradient(sunX - sunR * 0.2, sunY - sunR * 0.2, 1, sunX, sunY, sunR)
+  sunCore.addColorStop(0, "#fffce0"); sunCore.addColorStop(0.6, "#ffeb60"); sunCore.addColorStop(1, "#ffb340")
+  ctx.fillStyle = sunCore
+  ctx.beginPath(); ctx.arc(sunX, sunY, sunR, 0, Math.PI * 2); ctx.fill()
+
+  const hillGrad = ctx.createLinearGradient(0, canvas.height - 140, 0, canvas.height - 80)
+  hillGrad.addColorStop(0, "rgba(120, 180, 140, 0.6)")
+  hillGrad.addColorStop(1, "rgba(80, 150, 110, 0.8)")
+  ctx.fillStyle = hillGrad
+  const hillWrap = canvas.width + 400
+  for (let i = 0; i < 6; i++) {
+    let raw = i * 250 - cameraX * 0.15
+    const x = ((raw % hillWrap) + hillWrap) % hillWrap - 150
+    const h = 60 + (i * 23 % 30)
+    ctx.beginPath()
+    ctx.moveTo(x, canvas.height - 50)
+    ctx.quadraticCurveTo(x + 125, canvas.height - 50 - h, x + 250, canvas.height - 50)
+    ctx.fill()
+  }
+
+  if (!window.sunnyClouds) {
+    window.sunnyClouds = []
+    for (let i = 0; i < 8; i++) {
+      window.sunnyClouds.push({
+        x: Math.random() * canvas.width * 2,
+        y: 30 + Math.random() * 160,
+        size: 0.6 + Math.random() * 1.0,
+        speed: 0.15 + Math.random() * 0.25,
+        puffs: 4 + Math.floor(Math.random() * 3)
+      })
+    }
+  }
+  for (const c of window.sunnyClouds) {
+    c.x -= c.speed
+    if (c.x < -150) c.x = canvas.width + 100
+    drawCloud(c.x, c.y, c.size, c.puffs)
+  }
+
+  if (!window.sunnyBirds) {
+    window.sunnyBirds = []
+    for (let g = 0; g < 2; g++) {
+      const baseX = Math.random() * canvas.width, baseY = 60 + Math.random() * 100
+      for (let i = 0; i < 3; i++) {
+        window.sunnyBirds.push({
+          x: baseX + i * 25 + Math.random() * 10,
+          y: baseY + i * 8 + Math.random() * 10,
+          speed: 0.6 + Math.random() * 0.3,
+          wingPhase: Math.random() * Math.PI * 2,
+          size: 0.8 + Math.random() * 0.4
+        })
+      }
+    }
+  }
+  for (const b of window.sunnyBirds) {
+    b.x -= b.speed
+    if (b.x < -40) { b.x = canvas.width + 40; b.y = 60 + Math.random() * 120 }
+    drawBird(b.x, b.y, b.size, t + b.wingPhase)
+  }
+
+  if (!window.sunnyButterflies) {
+    window.sunnyButterflies = []
+    for (let i = 0; i < 4; i++) {
+      window.sunnyButterflies.push({
+        baseX: Math.random() * canvas.width,
+        baseY: canvas.height - 60 - Math.random() * 80,
+        phaseX: Math.random() * Math.PI * 2,
+        phaseY: Math.random() * Math.PI * 2,
+        color: ["#ff6ec7", "#ffa64d", "#ffed4e", "#b66eff"][i % 4],
+        size: 0.7 + Math.random() * 0.3
+      })
+    }
+  }
+  for (const bf of window.sunnyButterflies) {
+    const bx = bf.baseX + Math.sin(t * 0.6 + bf.phaseX) * 40 - cameraX * 0.5
+    const by = bf.baseY + Math.sin(t * 1.2 + bf.phaseY) * 18
+    let wrapped = ((bx % (canvas.width + 100)) + canvas.width + 100) % (canvas.width + 100) - 50
+    drawButterfly(wrapped, by, bf.size, bf.color, t * 8 + bf.phaseX)
+  }
+
+  ctx.save(); ctx.globalAlpha = 0.06
+  ctx.fillStyle = "#ffeb90"
+  ctx.fillRect(0, canvas.height * 0.5, canvas.width, canvas.height * 0.5)
+  ctx.restore()
+}
+
+function drawCloud(x, y, size, puffs) {
+  const baseR = 18 * size
+  ctx.save()
+  ctx.fillStyle = "rgba(180, 200, 220, 0.3)"
+  for (let i = 0; i < puffs; i++) {
+    const px = x + i * baseR * 0.9, py = y + baseR * 0.2
+    ctx.beginPath(); ctx.arc(px, py, baseR * (0.8 + Math.sin(i * 1.3) * 0.2), 0, Math.PI * 2); ctx.fill()
+  }
+  const cg = ctx.createLinearGradient(x, y - baseR, x, y + baseR)
+  cg.addColorStop(0, "#ffffff"); cg.addColorStop(0.7, "#f5f8fc"); cg.addColorStop(1, "#dde4ee")
+  ctx.fillStyle = cg
+  for (let i = 0; i < puffs; i++) {
+    const px = x + i * baseR * 0.9
+    const py = y + Math.sin(i * 1.5) * baseR * 0.15
+    const r = baseR * (0.85 + Math.sin(i * 2.1) * 0.15)
+    ctx.beginPath(); ctx.arc(px, py, r, 0, Math.PI * 2); ctx.fill()
+  }
+  ctx.fillStyle = "rgba(255, 255, 255, 0.6)"
+  for (let i = 0; i < puffs; i++) {
+    const px = x + i * baseR * 0.9
+    const py = y + Math.sin(i * 1.5) * baseR * 0.15 - baseR * 0.3
+    ctx.beginPath(); ctx.arc(px, py, baseR * 0.4, 0, Math.PI * 2); ctx.fill()
+  }
+  ctx.restore()
+}
+
+function drawBird(x, y, size, t) {
+  const wingY = Math.sin(t * 5) * 4 * size
+  const wingSpread = 10 * size + Math.abs(Math.cos(t * 5)) * 4 * size
+  ctx.save()
+  ctx.strokeStyle = "#2a2a3a"; ctx.lineWidth = 2 * size
+  ctx.lineCap = "round"; ctx.lineJoin = "round"
+  ctx.beginPath(); ctx.moveTo(x, y)
+  ctx.quadraticCurveTo(x - wingSpread * 0.5, y - wingY, x - wingSpread, y); ctx.stroke()
+  ctx.beginPath(); ctx.moveTo(x, y)
+  ctx.quadraticCurveTo(x + wingSpread * 0.5, y - wingY, x + wingSpread, y); ctx.stroke()
+  ctx.restore()
+}
+
+function drawButterfly(x, y, size, color, t) {
+  const flap = Math.abs(Math.sin(t * 0.6)) * 0.7 + 0.3
+  const wingW = 8 * size * flap, wingH = 6 * size
+  ctx.save(); ctx.translate(x, y)
+  ctx.fillStyle = "rgba(0,0,0,0.08)"
+  ctx.beginPath(); ctx.ellipse(0, 3, wingW * 2, 2, 0, 0, Math.PI * 2); ctx.fill()
+  ctx.fillStyle = "#2a1a1a"
+  ctx.beginPath(); ctx.ellipse(0, 0, 1.2 * size, 5 * size, 0, 0, Math.PI * 2); ctx.fill()
+  ctx.fillStyle = color
+  ctx.shadowColor = color; ctx.shadowBlur = 4
+  ctx.beginPath(); ctx.ellipse(-wingW * 0.7, -1, wingW, wingH, -0.3, 0, Math.PI * 2); ctx.fill()
+  ctx.beginPath(); ctx.ellipse(-wingW * 0.6, 2, wingW * 0.7, wingH * 0.7, 0.4, 0, Math.PI * 2); ctx.fill()
+  ctx.beginPath(); ctx.ellipse(wingW * 0.7, -1, wingW, wingH, 0.3, 0, Math.PI * 2); ctx.fill()
+  ctx.beginPath(); ctx.ellipse(wingW * 0.6, 2, wingW * 0.7, wingH * 0.7, -0.4, 0, Math.PI * 2); ctx.fill()
+  ctx.shadowBlur = 0
+  ctx.fillStyle = "rgba(255,255,255,0.6)"
+  ctx.beginPath(); ctx.arc(-wingW * 0.8, -2, 1 * size, 0, Math.PI * 2); ctx.fill()
+  ctx.beginPath(); ctx.arc(wingW * 0.8, -2, 1 * size, 0, Math.PI * 2); ctx.fill()
+  ctx.strokeStyle = "#2a1a1a"; ctx.lineWidth = 0.8
+  ctx.beginPath(); ctx.moveTo(-0.5, -4 * size)
+  ctx.quadraticCurveTo(-2 * size, -7 * size, -2.5 * size, -6 * size); ctx.stroke()
+  ctx.beginPath(); ctx.moveTo(0.5, -4 * size)
+  ctx.quadraticCurveTo(2 * size, -7 * size, 2.5 * size, -6 * size); ctx.stroke()
+  ctx.restore()
 }
 
 function drawWater() {
@@ -2814,6 +3297,188 @@ function spawnHitSpark(x, y) {
       color: colors[Math.floor(Math.random() * colors.length)]
     })
   }
+}
+
+function drawFinishFlag(size) {
+  const t = Date.now() * 0.003
+  const wave = Math.sin(t) * 0.15
+  const poleTop = -size * 2.8
+
+  const baseGrad = ctx.createRadialGradient(0, size, 1, 0, size, size * 0.7)
+  baseGrad.addColorStop(0, "#4ade80"); baseGrad.addColorStop(0.6, "#22a055"); baseGrad.addColorStop(1, "#0d6030")
+  ctx.fillStyle = baseGrad
+  ctx.beginPath(); ctx.ellipse(0, size * 0.85, size * 0.7, size * 0.22, 0, 0, Math.PI * 2); ctx.fill()
+  ctx.strokeStyle = "#0a4020"; ctx.lineWidth = 1.5; ctx.stroke()
+
+  const poleGrad = ctx.createLinearGradient(-2, 0, 2, 0)
+  poleGrad.addColorStop(0, "#0d6030"); poleGrad.addColorStop(0.5, "#2a8050"); poleGrad.addColorStop(1, "#0a4020")
+  ctx.fillStyle = poleGrad
+  ctx.fillRect(-2, poleTop, 4, size * 0.85 - poleTop)
+
+  ctx.fillStyle = "#ffdd44"
+  ctx.shadowColor = "#ffcc00"; ctx.shadowBlur = 5
+  ctx.beginPath(); ctx.arc(0, poleTop, 3, 0, Math.PI * 2); ctx.fill()
+  ctx.shadowBlur = 0
+
+  ctx.save()
+  ctx.translate(2, poleTop + size * 0.05)
+
+  const flagGrad = ctx.createLinearGradient(0, 0, size * 1.4, 0)
+  flagGrad.addColorStop(0, "#ff4444"); flagGrad.addColorStop(0.5, "#ee2222"); flagGrad.addColorStop(1, "#aa1111")
+  ctx.fillStyle = flagGrad
+
+  ctx.beginPath()
+  ctx.moveTo(0, 0)
+  ctx.quadraticCurveTo(size * 0.7, size * wave * 2, size * 1.4, size * 0.3 + wave * size * 0.3)
+  ctx.lineTo(size * 0.9, size * 0.5)
+  ctx.quadraticCurveTo(size * 0.3, size * 0.7 + wave * size * 0.2, 0, size * 0.7)
+  ctx.closePath()
+  ctx.fill()
+
+  ctx.strokeStyle = "#880000"; ctx.lineWidth = 1.2
+  ctx.stroke()
+
+  ctx.strokeStyle = "rgba(0,0,0,0.2)"; ctx.lineWidth = 1
+  ctx.beginPath()
+  ctx.moveTo(size * 0.2, size * 0.1)
+  ctx.quadraticCurveTo(size * 0.4, size * 0.3 + wave * size * 0.15, size * 0.5, size * 0.55)
+  ctx.stroke()
+
+  ctx.restore()
+}
+
+function drawMoonRock(en, x, y, w, h) {
+  const cx = x + w/2
+  const cy = y + h/2
+  const r = w/2
+  const angle = en.rotation || 0
+  const type = en.type
+
+  ctx.save()
+  ctx.translate(cx, cy)
+  ctx.rotate(angle)
+
+  if (type === "rock1") {
+    const rockGrad = ctx.createRadialGradient(-r*0.3, -r*0.3, r*0.1, 0, 0, r)
+    rockGrad.addColorStop(0, "#c8c4bd")
+    rockGrad.addColorStop(0.5, "#8a8580")
+    rockGrad.addColorStop(1, "#3a3530")
+    ctx.fillStyle = rockGrad
+    ctx.strokeStyle = "#2a2520"
+    ctx.lineWidth = 1.5
+
+    ctx.beginPath()
+    const points = [
+      [0.95, 0.1], [0.7, 0.65], [0.3, 0.9], [-0.2, 0.85], [-0.7, 0.55],
+      [-0.92, 0.05], [-0.78, -0.45], [-0.35, -0.82], [0.15, -0.88], [0.65, -0.6]
+    ]
+    ctx.moveTo(points[0][0] * r, points[0][1] * r)
+    for (let i = 1; i < points.length; i++) {
+      ctx.lineTo(points[i][0] * r, points[i][1] * r)
+    }
+    ctx.closePath()
+    ctx.fill()
+    ctx.stroke()
+
+    ctx.fillStyle = "rgba(40, 35, 30, 0.5)"
+    const craters = [[-0.25, -0.2, 0.2], [0.3, 0.1, 0.15], [-0.1, 0.4, 0.12], [0.45, -0.35, 0.1]]
+    for (const [cx2, cy2, cr] of craters) {
+      ctx.beginPath(); ctx.arc(cx2 * r, cy2 * r, cr * r, 0, Math.PI * 2); ctx.fill()
+    }
+
+    ctx.fillStyle = "rgba(255, 255, 240, 0.2)"
+    ctx.beginPath()
+    ctx.ellipse(-r * 0.3, -r * 0.35, r * 0.35, r * 0.15, 0.3, 0, Math.PI * 2)
+    ctx.fill()
+
+  } else if (type === "rock2") {
+    const moonGrad = ctx.createRadialGradient(-r*0.3, -r*0.3, r*0.1, 0, 0, r)
+    moonGrad.addColorStop(0, "#9a90a0")
+    moonGrad.addColorStop(0.4, "#5a5260")
+    moonGrad.addColorStop(0.8, "#3a3240")
+    moonGrad.addColorStop(1, "#1a1620")
+    ctx.fillStyle = moonGrad
+    ctx.strokeStyle = "#1a1620"
+    ctx.lineWidth = 1.5
+
+    ctx.beginPath()
+    const sides = 16
+    for (let i = 0; i < sides; i++) {
+      const a = (i / sides) * Math.PI * 2
+      const noise = 0.85 + ((i * 37) % 7) * 0.035
+      const rx = Math.cos(a) * r * noise
+      const ry = Math.sin(a) * r * noise
+      if (i === 0) ctx.moveTo(rx, ry)
+      else ctx.lineTo(rx, ry)
+    }
+    ctx.closePath()
+    ctx.fill()
+    ctx.stroke()
+
+    ctx.fillStyle = "rgba(20, 15, 25, 0.65)"
+    const craters = [[-0.3, -0.25, 0.22], [0.35, 0.15, 0.18], [-0.1, 0.45, 0.15], [0.5, -0.4, 0.12], [0.1, -0.5, 0.08]]
+    for (const [cx2, cy2, cr] of craters) {
+      ctx.beginPath(); ctx.arc(cx2 * r, cy2 * r, cr * r, 0, Math.PI * 2); ctx.fill()
+    }
+
+    ctx.strokeStyle = "rgba(200, 190, 200, 0.3)"
+    ctx.lineWidth = 0.8
+    for (const [cx2, cy2, cr] of craters) {
+      ctx.beginPath(); ctx.arc(cx2 * r, cy2 * r, cr * r, 0, Math.PI * 2); ctx.stroke()
+    }
+
+    ctx.fillStyle = "rgba(220, 210, 230, 0.15)"
+    ctx.beginPath()
+    ctx.ellipse(-r * 0.35, -r * 0.35, r * 0.3, r * 0.18, 0.3, 0, Math.PI * 2)
+    ctx.fill()
+
+  } else if (type === "rock3") {
+    const burntGrad = ctx.createLinearGradient(-r, 0, r, 0)
+    burntGrad.addColorStop(0, "#2a1810"); burntGrad.addColorStop(0.25, "#5a3a2a")
+    burntGrad.addColorStop(0.5, "#8a6a55"); burntGrad.addColorStop(0.75, "#4a3020")
+    burntGrad.addColorStop(1, "#1a0f08")
+    ctx.fillStyle = burntGrad
+    ctx.strokeStyle = "#0f0805"
+    ctx.lineWidth = 1.5
+
+    ctx.beginPath()
+    const pts = [
+      [0.95, 0.0], [0.75, 0.45], [0.2, 0.6], [-0.45, 0.5], [-0.85, 0.25],
+      [-0.95, -0.05], [-0.8, -0.3], [-0.35, -0.55], [0.3, -0.5], [0.8, -0.35]
+    ]
+    ctx.moveTo(pts[0][0] * r, pts[0][1] * r)
+    for (let i = 1; i < pts.length; i++) { ctx.lineTo(pts[i][0] * r, pts[i][1] * r) }
+    ctx.closePath()
+    ctx.fill(); ctx.stroke()
+
+    ctx.strokeStyle = "rgba(255, 100, 30, 0.7)"
+    ctx.shadowColor = "rgba(255, 120, 40, 0.8)"; ctx.shadowBlur = 4
+    ctx.lineWidth = 1.2
+    ctx.beginPath()
+    ctx.moveTo(-r * 0.4, -r * 0.15); ctx.lineTo(r * 0.3, r * 0.25)
+    ctx.moveTo(r * 0.1, -r * 0.35); ctx.lineTo(r * 0.6, -r * 0.1)
+    ctx.moveTo(-r * 0.2, r * 0.3); ctx.lineTo(r * 0.1, r * 0.1)
+    ctx.stroke()
+    ctx.shadowBlur = 0
+
+    ctx.fillStyle = "rgba(10, 5, 2, 0.7)"
+    ctx.beginPath(); ctx.ellipse(-r * 0.3, r * 0.1, r * 0.2, r * 0.12, 0.3, 0, Math.PI * 2); ctx.fill()
+    ctx.beginPath(); ctx.ellipse(r * 0.4, -r * 0.2, r * 0.18, r * 0.1, -0.5, 0, Math.PI * 2); ctx.fill()
+    ctx.beginPath(); ctx.ellipse(r * 0.0, r * 0.35, r * 0.15, r * 0.08, 0.2, 0, Math.PI * 2); ctx.fill()
+
+    ctx.fillStyle = "rgba(255, 140, 50, 0.9)"
+    ctx.shadowColor = "#ff6020"; ctx.shadowBlur = 5
+    const embers = [[-0.35, 0.12, 1.2], [0.45, -0.22, 1.0], [-0.1, -0.3, 0.8], [0.2, 0.15, 1.1]]
+    for (const [ex, ey, es] of embers) {
+      ctx.beginPath(); ctx.arc(ex * r, ey * r, es, 0, Math.PI * 2); ctx.fill()
+    }
+    ctx.shadowBlur = 0
+
+    ctx.fillStyle = "rgba(180, 80, 30, 0.15)"
+    ctx.beginPath(); ctx.ellipse(0, 0, r * 0.5, r * 0.3, 0, 0, Math.PI * 2); ctx.fill()
+  }
+
+  ctx.restore()
 }
 
 function drawSpaceship(x, y, r, time) {
