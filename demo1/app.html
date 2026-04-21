@@ -6,8 +6,89 @@
 <title>Edytor gier</title>
 <style>
   * { box-sizing: border-box; }
-  body { margin:0; font-family:Arial; background:#111; color:white; display:flex; flex-direction:column; align-items:center; }
-  #editor { width:1200px; max-width:95vw; }
+  body {
+    margin:0;
+    font-family:Arial;
+    /* Pogodny dzień jako tło - gradient od błękitu nieba do horyzontu */
+    background: linear-gradient(180deg,
+      #4db8e8 0%,
+      #7dcfea 30%,
+      #aee6f7 60%,
+      #d4e8f5 80%,
+      #ffe4c4 100%);
+    background-attachment: fixed;
+    color:white;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    min-height: 100vh;
+    position: relative;
+  }
+
+  #editor {
+    width:1200px;
+    max-width:95vw;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* ===== NAGŁÓWEK Z CHMURAMI I SŁOŃCEM ===== */
+  #skyHeader {
+    width: 100%;
+    height: 70px;
+    position: relative;
+    overflow: hidden;
+    margin-bottom: 4px;
+  }
+  #skyCanvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+  #skyTitle {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    pointer-events: none;
+    white-space: nowrap;
+    z-index: 2;
+  }
+  .sky-emoji {
+    font-size: 26px;
+    filter: drop-shadow(0 2px 5px rgba(0,0,0,0.2));
+  }
+  .sky-text {
+    font-size: 28px;
+    font-weight: bold;
+    color: #fff;
+    letter-spacing: 1.5px;
+    text-shadow: 0 2px 6px rgba(40, 80, 120, 0.5), 0 0 18px rgba(255, 255, 255, 0.3);
+  }
+  .sky-sub {
+    font-size: 12px;
+    color: #fff;
+    font-weight: normal;
+    letter-spacing: 1.5px;
+    opacity: 0.95;
+    margin-left: 8px;
+    border-left: 2px solid rgba(255,255,255,0.5);
+    padding-left: 10px;
+    text-shadow: 0 1px 3px rgba(40, 80, 120, 0.5);
+  }
+  @media (max-width: 700px) {
+    #skyHeader { height: 56px; }
+    .sky-emoji { font-size: 20px; }
+    .sky-text { font-size: 22px; letter-spacing: 1px; }
+    .sky-sub { font-size: 10px; margin-left: 5px; padding-left: 7px; }
+  }
+  @media (max-width: 450px) {
+    #skyHeader { height: 48px; }
+    .sky-sub { display: none; }
+  }
 
   /* ===== PRZYCISKI GLOBALNE ===== */
   button {
@@ -134,6 +215,43 @@
   .obj-btn .obj-icon { font-size: 26px; line-height: 1; }
   .obj-btn .obj-name { font-size: 10px; color: #888; white-space: nowrap; }
 
+  /* ===== NEON dla DODAJ i 3 graczy ===== */
+  .neon-label {
+    color: #00e0ff !important;
+    text-shadow:
+      0 0 4px rgba(0, 224, 255, 0.9),
+      0 0 10px rgba(0, 224, 255, 0.6),
+      0 0 18px rgba(0, 224, 255, 0.4);
+    animation: neonPulse 2.5s ease-in-out infinite;
+  }
+  .player-btn {
+    background: linear-gradient(145deg, #1a3550 0%, #0f2340 100%) !important;
+    border: 1.5px solid #00c4e0 !important;
+    box-shadow:
+      0 0 8px rgba(0, 200, 255, 0.5),
+      inset 0 0 12px rgba(0, 150, 220, 0.15) !important;
+    animation: neonPulse 2.5s ease-in-out infinite;
+  }
+  .player-btn:hover {
+    background: linear-gradient(145deg, #224870 0%, #153055 100%) !important;
+    border-color: #00f0ff !important;
+    box-shadow:
+      0 0 14px rgba(0, 240, 255, 0.8),
+      inset 0 0 14px rgba(0, 200, 255, 0.25) !important;
+    transform: translateY(-2px);
+  }
+  .player-btn .obj-name {
+    color: #7cdcff !important;
+    text-shadow: 0 0 4px rgba(0, 200, 255, 0.7);
+  }
+  .player-btn .obj-icon {
+    filter: drop-shadow(0 0 4px rgba(0, 220, 255, 0.6));
+  }
+  @keyframes neonPulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.88; }
+  }
+
   /* Canvas */
   canvas { background:#87CEEB; display:block; }
 
@@ -231,6 +349,16 @@
 </head>
 <body>
 
+<!-- ===== NAGŁÓWEK Z CHMURAMI I SŁOŃCEM ===== -->
+<div id="skyHeader">
+  <canvas id="skyCanvas"></canvas>
+  <div id="skyTitle">
+    <span class="sky-emoji">🎮</span>
+    <span class="sky-text">Edytor Gier</span>
+    <span class="sky-sub">mini-klik.pl</span>
+  </div>
+</div>
+
 <div id="editor">
 
 <div id="main">
@@ -275,18 +403,18 @@
 
   <!-- PASEK OBIEKTÓW -->
   <div id="objectsBar">
-    <span class="obj-label">dodaj</span>
+    <span class="obj-label neon-label">dodaj</span>
 
     <!-- GRACZE -->
-    <div class="obj-btn" onclick="selectedPlayerType='ball'; dodajGracza()" title="Piłka">
+    <div class="obj-btn player-btn" onclick="selectedPlayerType='ball'; dodajGracza()" title="Piłka">
       <span class="obj-icon">🔵</span>
       <span class="obj-name">Piłka</span>
     </div>
-    <div class="obj-btn" onclick="selectedPlayerType='car'; dodajGracza()" title="Samochód">
+    <div class="obj-btn player-btn" onclick="selectedPlayerType='car'; dodajGracza()" title="Samochód">
       <span class="obj-icon">🚗</span>
       <span class="obj-name">Auto</span>
     </div>
-    <div class="obj-btn" onclick="selectedPlayerType='spaceship'; dodajGracza()" title="Statek kosmiczny">
+    <div class="obj-btn player-btn" onclick="selectedPlayerType='spaceship'; dodajGracza()" title="Statek kosmiczny">
       <span class="obj-icon">🚀</span>
       <span class="obj-name">Statek</span>
     </div>
@@ -434,6 +562,149 @@
 const canvas = document.getElementById("scena")
 canvas.setAttribute("tabindex", "0")
 const ctx = canvas.getContext("2d")
+
+// ===== NAGŁÓWEK — chmury i słońce, tło przezroczyste (widać gradient body) =====
+;(function() {
+  const skyCanvas = document.getElementById("skyCanvas")
+  if (!skyCanvas) return
+  const sctx = skyCanvas.getContext("2d")
+
+  function resizeSky() {
+    skyCanvas.width = window.innerWidth
+    skyCanvas.height = skyCanvas.clientHeight || 70
+  }
+  resizeSky()
+  window.addEventListener("resize", resizeSky)
+
+  const skyClouds = []
+  for (let i = 0; i < 6; i++) {
+    skyClouds.push({
+      x: Math.random() * window.innerWidth,
+      y: 8 + Math.random() * 35,
+      size: 0.5 + Math.random() * 0.5,
+      speed: 0.15 + Math.random() * 0.2,
+      puffs: 4 + Math.floor(Math.random() * 3)
+    })
+  }
+
+  const skyBirds = []
+  for (let i = 0; i < 3; i++) {
+    skyBirds.push({
+      x: Math.random() * window.innerWidth,
+      y: 15 + Math.random() * 30,
+      speed: 0.5 + Math.random() * 0.3,
+      wingPhase: Math.random() * Math.PI * 2,
+      size: 0.7 + Math.random() * 0.2
+    })
+  }
+
+  function drawSkyCloud(x, y, size, puffs) {
+    const baseR = 12 * size
+    sctx.save()
+    sctx.fillStyle = "rgba(180, 200, 220, 0.25)"
+    for (let i = 0; i < puffs; i++) {
+      const px = x + i * baseR * 0.9, py = y + baseR * 0.2
+      sctx.beginPath()
+      sctx.arc(px, py, baseR * (0.8 + Math.sin(i * 1.3) * 0.2), 0, Math.PI * 2)
+      sctx.fill()
+    }
+    const cg = sctx.createLinearGradient(x, y - baseR, x, y + baseR)
+    cg.addColorStop(0, "#ffffff")
+    cg.addColorStop(0.7, "#f5f8fc")
+    cg.addColorStop(1, "#dde4ee")
+    sctx.fillStyle = cg
+    for (let i = 0; i < puffs; i++) {
+      const px = x + i * baseR * 0.9
+      const py = y + Math.sin(i * 1.5) * baseR * 0.15
+      const r = baseR * (0.85 + Math.sin(i * 2.1) * 0.15)
+      sctx.beginPath(); sctx.arc(px, py, r, 0, Math.PI * 2); sctx.fill()
+    }
+    sctx.fillStyle = "rgba(255, 255, 255, 0.6)"
+    for (let i = 0; i < puffs; i++) {
+      const px = x + i * baseR * 0.9
+      const py = y + Math.sin(i * 1.5) * baseR * 0.15 - baseR * 0.3
+      sctx.beginPath(); sctx.arc(px, py, baseR * 0.4, 0, Math.PI * 2); sctx.fill()
+    }
+    sctx.restore()
+  }
+
+  function drawSkyBird(x, y, size, t) {
+    const wingY = Math.sin(t * 5) * 2.5 * size
+    const wingSpread = 7 * size + Math.abs(Math.cos(t * 5)) * 2.5 * size
+    sctx.save()
+    sctx.strokeStyle = "#2a2a3a"
+    sctx.lineWidth = 1.6 * size
+    sctx.lineCap = "round"; sctx.lineJoin = "round"
+    sctx.beginPath(); sctx.moveTo(x, y)
+    sctx.quadraticCurveTo(x - wingSpread * 0.5, y - wingY, x - wingSpread, y); sctx.stroke()
+    sctx.beginPath(); sctx.moveTo(x, y)
+    sctx.quadraticCurveTo(x + wingSpread * 0.5, y - wingY, x + wingSpread, y); sctx.stroke()
+    sctx.restore()
+  }
+
+  function animateSky() {
+    const t = Date.now() * 0.001
+    const w = skyCanvas.width, h = skyCanvas.height
+
+    // Czyścimy (przezroczyste - widać body)
+    sctx.clearRect(0, 0, w, h)
+
+    // SŁOŃCE po lewej stronie
+    const sunX = Math.min(w * 0.1, 110)
+    const sunY = h * 0.5
+    const sunR = Math.min(h * 0.3, 18)
+
+    // Poświata
+    const sunGlow = sctx.createRadialGradient(sunX, sunY, sunR, sunX, sunY, sunR * 2.8)
+    sunGlow.addColorStop(0, "rgba(255, 230, 100, 0.6)")
+    sunGlow.addColorStop(0.6, "rgba(255, 200, 80, 0.15)")
+    sunGlow.addColorStop(1, "rgba(255, 200, 80, 0)")
+    sctx.fillStyle = sunGlow
+    sctx.beginPath(); sctx.arc(sunX, sunY, sunR * 2.8, 0, Math.PI * 2); sctx.fill()
+
+    // Promienie
+    sctx.save()
+    sctx.translate(sunX, sunY)
+    sctx.rotate(t * 0.15)
+    sctx.strokeStyle = "rgba(255, 230, 100, 0.6)"
+    sctx.lineWidth = 2
+    sctx.lineCap = "round"
+    for (let i = 0; i < 12; i++) {
+      const angle = (i / 12) * Math.PI * 2
+      const len = 8 + Math.sin(t * 2 + i) * 2
+      sctx.beginPath()
+      sctx.moveTo(Math.cos(angle) * (sunR + 3), Math.sin(angle) * (sunR + 3))
+      sctx.lineTo(Math.cos(angle) * (sunR + 3 + len), Math.sin(angle) * (sunR + 3 + len))
+      sctx.stroke()
+    }
+    sctx.restore()
+
+    // Dysk słońca
+    const sunCore = sctx.createRadialGradient(sunX - sunR * 0.2, sunY - sunR * 0.2, 1, sunX, sunY, sunR)
+    sunCore.addColorStop(0, "#fffce0")
+    sunCore.addColorStop(0.6, "#ffeb60")
+    sunCore.addColorStop(1, "#ffb340")
+    sctx.fillStyle = sunCore
+    sctx.beginPath(); sctx.arc(sunX, sunY, sunR, 0, Math.PI * 2); sctx.fill()
+
+    // CHMURKI
+    for (const c of skyClouds) {
+      c.x -= c.speed
+      if (c.x < -100) c.x = w + 50
+      drawSkyCloud(c.x, c.y, c.size, c.puffs)
+    }
+
+    // PTASZKI
+    for (const b of skyBirds) {
+      b.x -= b.speed
+      if (b.x < -30) { b.x = w + 30; b.y = 15 + Math.random() * 30 }
+      drawSkyBird(b.x, b.y, b.size, t + b.wingPhase)
+    }
+
+    requestAnimationFrame(animateSky)
+  }
+  animateSky()
+})()
 
 let trybGry = false
 let trybHTML = false
@@ -3232,14 +3503,28 @@ function update(){
     const player = players[0]
 
     if (autoScroll) {
-      cameraX += autoScrollSpeed
-      // Statek kosmiczny — przesuwa się razem ze światem (nie może zostać w tyle)
+      // STATEK: dynamiczne przyspieszenie gdy mija środek ekranu
+      let currentScrollSpeed = autoScrollSpeed
       if (player.type === "spaceship") {
-        player.x += autoScrollSpeed
+        const screenPos = (player.x - cameraX) / canvas.width
+        // Boost zaczyna się już przy 40% szerokości (ciut za środkiem)
+        const boostTarget = screenPos > 0.4
+          ? 1 + Math.min((screenPos - 0.4) * 1.0, 0.6)  // 0.4→1.0, 1.0→1.6
+          : 1.0
+        if (!window.scrollBoost) window.scrollBoost = 1
+        window.scrollBoost += (boostTarget - window.scrollBoost) * 0.05
+        currentScrollSpeed = autoScrollSpeed * window.scrollBoost
+      }
+
+      cameraX += currentScrollSpeed
+      if (player.type === "spaceship") {
+        player.x += currentScrollSpeed
       }
     } else {
       const targetX = player.x - canvas.width / 2 + player.r
       cameraX += (targetX - cameraX) * 0.12
+      // Reset boostu gdy autoScroll wyłączony
+      window.scrollBoost = 1
     }
 
     cameraX = Math.max(0, Math.min(cameraX, worldWidth - canvas.width))
@@ -5492,23 +5777,30 @@ function drawBackground(){
 
   if (bgType === "water"){
     drawWater()
+    if (window.scrollBoost && window.scrollBoost > 1.1) drawHyperspaceEffect(window.scrollBoost)
     return
   }
 
   if (bgType === "sunny"){
     drawSunny()
+    if (window.scrollBoost && window.scrollBoost > 1.1) drawHyperspaceEffect(window.scrollBoost)
     return
   }
 
   if (bgType === "evening"){
     drawEvening()
+    if (window.scrollBoost && window.scrollBoost > 1.1) drawHyperspaceEffect(window.scrollBoost)
     return
   }
 
-  if (bgType === "none") return
+  if (bgType === "none") {
+    if (window.scrollBoost && window.scrollBoost > 1.1) drawHyperspaceEffect(window.scrollBoost)
+    return
+  }
 
   if (bgType === "forest"){
     drawForest()
+    if (window.scrollBoost && window.scrollBoost > 1.1) drawHyperspaceEffect(window.scrollBoost)
     return
   }
 
@@ -6088,6 +6380,12 @@ function drawBackground(){
       ctx.fillRect(p.x, p.y, p.size, p.size)
     })
     ctx.globalAlpha = 1
+  }
+
+  // === EFEKT HIPERPRZESTRZENI — streak'i gwiazd gdy statek przyspiesza ===
+  // Działa na wszystkich tłach, gdy boost > 1.1
+  if (window.scrollBoost && window.scrollBoost > 1.1) {
+    drawHyperspaceEffect(window.scrollBoost)
   }
 }
 
@@ -7578,6 +7876,72 @@ function drawCrosshairScreen(x, y, r, time) {
 
 function drawCrosshairPlayer(x, y, r, time) {
   drawCrosshairScreen(x, y, r, time)
+}
+
+function drawHyperspaceEffect(boost) {
+  const intensity = Math.min((boost - 1.1) / 0.5, 1)
+
+  if (!window.hyperStreaks) {
+    window.hyperStreaks = []
+    for (let i = 0; i < 50; i++) {
+      window.hyperStreaks.push({
+        y: Math.random() * canvas.height,
+        x: Math.random() * canvas.width,
+        speed: 8 + Math.random() * 20,
+        length: 30 + Math.random() * 80,
+        alpha: 0.3 + Math.random() * 0.5
+      })
+    }
+  }
+
+  ctx.save()
+  for (const s of window.hyperStreaks) {
+    s.x -= s.speed * intensity * 1.5
+    if (s.x + s.length < 0) {
+      s.x = canvas.width + Math.random() * 50
+      s.y = Math.random() * canvas.height
+      s.speed = 8 + Math.random() * 20
+      s.length = 30 + Math.random() * 80
+    }
+
+    const len = s.length * (0.5 + intensity * 1.5)
+
+    const grad = ctx.createLinearGradient(s.x, s.y, s.x + len, s.y)
+    grad.addColorStop(0, "rgba(180, 220, 255, 0)")
+    grad.addColorStop(0.7, `rgba(220, 240, 255, ${s.alpha * intensity})`)
+    grad.addColorStop(1, `rgba(255, 255, 255, ${s.alpha * intensity})`)
+    ctx.fillStyle = grad
+    ctx.fillRect(s.x, s.y, len, 1.5)
+
+    if (intensity > 0.3) {
+      ctx.fillStyle = `rgba(255, 255, 255, ${intensity * 0.9})`
+      ctx.shadowColor = "#88bbff"
+      ctx.shadowBlur = 5 + intensity * 8
+      ctx.fillRect(s.x + len - 2, s.y - 0.5, 2, 2.5)
+      ctx.shadowBlur = 0
+    }
+  }
+
+  // Niebieski blask globalny
+  if (intensity > 0.5) {
+    ctx.globalAlpha = (intensity - 0.5) * 0.15
+    ctx.fillStyle = "#6090ff"
+    ctx.fillRect(0, 0, canvas.width, canvas.height)
+  }
+
+  // Winieta (tunnel vision)
+  if (intensity > 0.3) {
+    const vig = ctx.createRadialGradient(
+      canvas.width/2, canvas.height/2, canvas.width * 0.3,
+      canvas.width/2, canvas.height/2, canvas.width * 0.7
+    )
+    vig.addColorStop(0, "rgba(0, 0, 20, 0)")
+    vig.addColorStop(1, `rgba(0, 0, 20, ${intensity * 0.4})`)
+    ctx.fillStyle = vig
+    ctx.globalAlpha = 1
+    ctx.fillRect(0, 0, canvas.width, canvas.height)
+  }
+  ctx.restore()
 }
 
 function drawNewStars(){
