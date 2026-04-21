@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<title>demo • mini-klik</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+    :root {
+        --cyan: #00f7ff;
+        --pink: #ff00c8;
+    }
+
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body {
+        font-family: 'Segoe UI', Arial, sans-serif;
+        background: #0a0a0a;
+        color: #eee;
+        min-height: 100vh;
+    }
+
+    body::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        background: radial-gradient(circle at 30% 20%, rgba(0,247,255,0.12), transparent 50%),
+                    radial-gradient(circle at 70% 80%, rgba(255,0,200,0.12), transparent 50%);
+        z-index: -2;
+    }
+
+    /* GÓRNY PASEK */
+    nav {
+        background: rgba(10,10,10,0.96);
+        backdrop-filter: blur(12px);
+        border-bottom: 1px solid var(--cyan);
+        padding: 16px 20px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+    .logo {
+        font-size: 24px;
+        font-weight: bold;
+        color: var(--cyan);
+        text-shadow: 0 0 15px var(--cyan);
+        text-decoration: none;
+    }
+    .back-link {
+        color: #ccc;
+        text-decoration: none;
+        font-size: 0.95rem;
+        transition: color 0.3s;
+    }
+    .back-link:hover { color: var(--cyan); }
+
+    /* KONTENER GRY */
+    .game-page {
+        max-width: 900px;
+        margin: 40px auto;
+        padding: 0 20px;
+    }
+
+    /* HEADER GRY */
+    .game-header {
+        text-align: center;
+        margin-bottom: 40px;
+    }
+    .game-header h1 {
+        font-size: 3.2rem;
+        background: linear-gradient(90deg, var(--cyan), var(--pink));
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        text-shadow: 0 0 40px rgba(0,247,255,0.6);
+        margin-bottom: 12px;
+        line-height: 1.1;
+    }
+    .game-header .tag {
+        color: #888;
+        font-size: 0.85rem;
+        letter-spacing: 2px;
+    }
+
+    /* OKŁADKA */
+    .cover {
+        width: 100%;
+        max-width: 560px;
+        margin: 0 auto 35px;
+        aspect-ratio: 16 / 9;
+        background: #111;
+        border: 1px solid #222;
+        border-radius: 14px;
+        overflow: hidden;
+        box-shadow: 0 0 40px rgba(0,247,255,0.15);
+    }
+    .cover img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    /* INFO GRID */
+    .info-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 16px;
+        margin-bottom: 35px;
+    }
+    .info-card {
+        background: #111;
+        border: 1px solid #222;
+        border-radius: 12px;
+        padding: 18px 20px;
+    }
+    .info-card .label {
+        font-size: 0.72rem;
+        color: #666;
+        letter-spacing: 1.5px;
+        margin-bottom: 6px;
+    }
+    .info-card .value {
+        color: #eee;
+        font-size: 1rem;
+        font-weight: 500;
+    }
+    .info-card .value.accent { color: var(--cyan); }
+    .info-card .value.pink   { color: var(--pink); }
+
+    /* OPIS */
+    .description {
+        background: #111;
+        border: 1px solid #222;
+        border-radius: 14px;
+        padding: 28px 30px;
+        margin-bottom: 35px;
+        line-height: 1.8;
+        color: #bbb;
+    }
+    .description h3 {
+        color: var(--cyan);
+        margin-bottom: 14px;
+        font-size: 1.25rem;
+    }
+
+    /* STEROWANIE */
+    .controls {
+        background: #111;
+        border: 1px solid #222;
+        border-radius: 14px;
+        padding: 28px 30px;
+        margin-bottom: 40px;
+    }
+    .controls h3 {
+        color: var(--pink);
+        margin-bottom: 18px;
+        font-size: 1.25rem;
+    }
+    .controls-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+        gap: 14px;
+    }
+    .ctrl-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+    .ctrl-key {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 44px;
+        height: 44px;
+        padding: 0 12px;
+        background: #1f1f1f;
+        border: 1px solid #333;
+        border-bottom: 3px solid #444;
+        border-radius: 8px;
+        font-family: monospace;
+        font-size: 1rem;
+        color: var(--cyan);
+        font-weight: 600;
+    }
+    .ctrl-label {
+        color: #aaa;
+        font-size: 0.9rem;
+    }
+
+    /* PRZYCISKI */
+    .actions {
+        display: flex;
+        gap: 16px;
+        margin-bottom: 30px;
+        flex-wrap: wrap;
+    }
+    .btn {
+        flex: 1;
+        min-width: 200px;
+        padding: 18px 28px;
+        font-size: 1.15rem;
+        font-weight: bold;
+        border: none;
+        border-radius: 50px;
+        cursor: pointer;
+        text-decoration: none;
+        text-align: center;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        transition: all 0.3s;
+        letter-spacing: 0.5px;
+    }
+    .btn-play {
+        background: var(--cyan);
+        color: #000;
+        box-shadow: 0 0 25px rgba(0,247,255,0.5);
+    }
+    .btn-play:hover {
+        transform: scale(1.04);
+        box-shadow: 0 0 40px rgba(0,247,255,0.8);
+    }
+    .btn-edit {
+        background: transparent;
+        color: var(--pink);
+        border: 2px solid var(--pink);
+    }
+    .btn-edit:hover {
+        background: var(--pink);
+        color: #000;
+        transform: scale(1.04);
+        box-shadow: 0 0 30px rgba(255,0,200,0.5);
+    }
+
+    @media (max-width: 600px) {
+        .game-header h1 { font-size: 2.2rem; }
+        .btn { min-width: 100%; }
+        .description, .controls { padding: 22px 20px; }
+    }
+</style>
+</head>
+
+<body>
+
+<nav>
+    <a href="../" class="logo">🎮 mini-klik</a>
+    <a href="../" class="back-link">← powrót</a>
+</nav>
+
+<div class="game-page">
+
+    <!-- HEADER -->
+    <div class="game-header">
+        <h1 id="gameTitle">demo</h1>
+        <div class="tag" id="gameTag">PLATFORMÓWKA • DEMO 1</div>
+    </div>
+
+    <!-- OKŁADKA -->
+    <div class="cover">
+        <img src="../images/demo1.png" alt="okładka gry"
+             onerror="this.style.display='none'; this.parentElement.style.display='flex'; this.parentElement.style.alignItems='center'; this.parentElement.style.justifyContent='center'; this.parentElement.innerHTML='<span style=&quot;color:#333;font-size:0.9rem;&quot;>[ okładka gry ]</span>';">
+    </div>
+
+    <!-- INFO -->
+    <div class="info-grid">
+        <div class="info-card">
+            <div class="label">TWÓRCA</div>
+            <div class="value pink" id="gameAuthor">mini-klik.pl</div>
+        </div>
+        <div class="info-card">
+            <div class="label">POZIOMY</div>
+            <div class="value accent" id="gameLevels">6</div>
+        </div>
+        <div class="info-card">
+            <div class="label">GATUNEK</div>
+            <div class="value">Platformówka 2D</div>
+        </div>
+    </div>
+
+    <!-- OPIS -->
+    <div class="description">
+        <h3>📖 O grze</h3>
+        <p id="gameDescription">Witaj w świecie gier — mini-klik.pl. Skacz po platformach, omijaj przeszkody i zbieraj punkty. Gra stworzona w całości w edytorze mini-klik bezpośrednio w przeglądarce.</p>
+    </div>
+
+    <!-- STEROWANIE -->
+    <div class="controls">
+        <h3>🎮 Sterowanie</h3>
+        <div class="controls-grid" id="controlsGrid">
+            <div class="ctrl-item">
+                <span class="ctrl-key">←</span>
+                <span class="ctrl-label">w lewo</span>
+            </div>
+            <div class="ctrl-item">
+                <span class="ctrl-key">→</span>
+                <span class="ctrl-label">w prawo</span>
+            </div>
+            <div class="ctrl-item">
+                <span class="ctrl-key">↑</span>
+                <span class="ctrl-label">skok</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- PRZYCISKI -->
+    <div class="actions">
+        <a href="app.html?play=1" class="btn btn-play">
+            ▶ GRAJ TERAZ
+        </a>
+        <a href="app.html" class="btn btn-edit">
+            ✎ OTWÓRZ EDYTOR
+        </a>
+    </div>
+
+</div>
+
+<footer style="text-align:center; padding:30px 20px 50px; color:#555; font-size:0.85rem; border-top: 1px solid #1a1a1a; margin-top: 40px;">
+    © 2026 mini-klik • <a href="../" style="color:var(--cyan); text-decoration:none;">mini-klik.pl</a>
+</footer>
+
+<script>
+// Auto-wczytaj metadane z demo.json (tytuł, autor, opis, sterowanie, liczba poziomów)
+fetch('demo.json')
+    .then(r => r.ok ? r.json() : null)
+    .then(data => {
+        if (!data) return;
+        const s = data.settings || {};
+
+        if (s.nazwaGry)  document.getElementById('gameTitle').textContent  = s.nazwaGry;
+        if (s.autorGry)  document.getElementById('gameAuthor').textContent = s.autorGry;
+        if (s.opisGry)   document.getElementById('gameDescription').textContent = s.opisGry;
+
+        if (Array.isArray(data.levels)) {
+            document.getElementById('gameLevels').textContent = data.levels.length;
+        }
+
+        // Sterowanie
+        if (s.sterowanie) {
+            const labels = {
+                lewo: 'w lewo', prawo: 'w prawo', skok: 'skok',
+                dol: 'w dół', strzal: 'strzał'
+            };
+            const keyMap = {
+                'ArrowLeft':'←', 'ArrowRight':'→', 'ArrowUp':'↑', 'ArrowDown':'↓',
+                'Space':'Spacja', ' ':'Spacja'
+            };
+            const grid = document.getElementById('controlsGrid');
+            grid.innerHTML = '';
+            for (const [k, v] of Object.entries(s.sterowanie)) {
+                if (!v) continue;
+                const key = keyMap[v] || v;
+                const lab = labels[k] || k;
+                grid.insertAdjacentHTML('beforeend',
+                    `<div class="ctrl-item"><span class="ctrl-key">${key}</span><span class="ctrl-label">${lab}</span></div>`);
+            }
+        }
+    })
+    .catch(() => {});
+</script>
+
+</body>
+</html>
