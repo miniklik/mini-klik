@@ -16,18 +16,76 @@
     * { margin:0; padding:0; box-sizing:border-box; }
     body {
         font-family: 'Segoe UI', Arial, sans-serif;
-        background: #0a0a0a;
-        color: #eee;
+        background:
+            linear-gradient(180deg,
+                #1a0d3a 0%,
+                #3d1a5a 12%,
+                #7a2a6e 22%,
+                #c94a6e 35%,
+                #ff7a3d 50%,
+                #8a2e5e 70%,
+                #2a1550 85%,
+                #0a0520 100%);
+        background-attachment: fixed;
+        color: #f5e8dc;
         overflow-x: hidden;
     }
 
+    /* Gwiazdy na niebie (u góry) */
     body::before {
         content: "";
         position: fixed;
+        top: 0; left: 0; right: 0;
+        height: 40vh;
+        background-image:
+            radial-gradient(circle 1.5px at 10% 15%, #fff, transparent 2px),
+            radial-gradient(circle 1px at 25% 25%, #fff, transparent 2px),
+            radial-gradient(circle 2px at 40% 10%, #fff5d0, transparent 3px),
+            radial-gradient(circle 1.5px at 55% 30%, #fff, transparent 2px),
+            radial-gradient(circle 1px at 70% 12%, #fff, transparent 2px),
+            radial-gradient(circle 2px at 85% 28%, #ffe6a0, transparent 3px),
+            radial-gradient(circle 1px at 95% 18%, #fff, transparent 2px),
+            radial-gradient(circle 1.5px at 15% 35%, #fff, transparent 2px),
+            radial-gradient(circle 1px at 50% 8%, #fff, transparent 2px);
+        opacity: 0.85;
+        animation: twinkle 4s ease-in-out infinite;
+        pointer-events: none;
+        z-index: -1;
+    }
+    @keyframes twinkle {
+        0%, 100% { opacity: 0.85; }
+        50% { opacity: 0.4; }
+    }
+
+    /* Unoszące się świetliki */
+    body::after {
+        content: "";
+        position: fixed;
         inset: 0;
-        background: radial-gradient(circle at 30% 20%, rgba(0,247,255,0.12), transparent 50%),
-                    radial-gradient(circle at 70% 80%, rgba(255,0,200,0.12), transparent 50%);
-        z-index: -2;
+        background-image:
+            radial-gradient(circle 2px at 12% 60%, rgba(255, 220, 100, 0.9), transparent 4px),
+            radial-gradient(circle 2px at 88% 65%, rgba(255, 220, 100, 0.8), transparent 4px),
+            radial-gradient(circle 2px at 28% 80%, rgba(255, 220, 100, 0.7), transparent 4px),
+            radial-gradient(circle 2px at 70% 85%, rgba(255, 220, 100, 0.8), transparent 4px),
+            radial-gradient(circle 2px at 45% 72%, rgba(255, 220, 100, 0.6), transparent 4px);
+        filter: blur(0.5px);
+        animation: fireflies 7s ease-in-out infinite;
+        pointer-events: none;
+        z-index: -1;
+    }
+    @keyframes fireflies {
+        0%, 100% { opacity: 0.6; transform: translateY(0); }
+        50% { opacity: 1; transform: translateY(-25px); }
+    }
+
+    /* ===== EPICKA SCENA KOSMICZNA ===== */
+    #spaceCanvas {
+        position: fixed;
+        top: 0; left: 0;
+        width: 100vw;
+        height: 100vh;
+        pointer-events: none;
+        z-index: -1;
     }
 
     nav {
@@ -244,6 +302,9 @@
 
 <body>
 
+<!-- EPICKA SCENA KOSMICZNA W TLE -->
+<canvas id="spaceCanvas"></canvas>
+
 <nav>
     <div class="logo">🎮 mini-klik</div>
     <div class="menu" id="menu">
@@ -315,7 +376,7 @@
 <!-- ═══════════════════════════════════════════
      SEKCJA: WASZE GRY
 ════════════════════════════════════════════ -->
-<section id="wasze-gry" style="background: #0a0a0a; padding: 90px 20px 80px;">
+<section id="wasze-gry" style="padding: 90px 20px 80px;">
     <div style="text-align:center; max-width: 900px; margin: 0 auto;">
         <h2 style="color:var(--pink); font-size:2.7rem; margin-bottom: 12px;">
             Graj od razu
@@ -479,8 +540,8 @@ for (let i = 0; i < 12; i++) {
 }
 
 function animate() {
-    ctx.fillStyle = 'rgba(10, 10, 20, 0.88)';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    // Czyścimy canvas — bez wypełniania czarnym, żeby widać było kosmos z tyłu
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     ctx.fillStyle = '#99ffff';
     particles.forEach(p => {
@@ -503,17 +564,115 @@ function animate() {
     });
     ctx.shadowBlur = 0;
 
-    player.vy += 0.55;
-    player.y += player.vy;
-    if (player.y > 520) { player.y = 520; player.vy = -13; }
+    // === STATEK KOSMICZNY — lewituje bezwładnie po ekranie ===
+    player.floatT = (player.floatT || 0) + 0.02;
+    // Powolne dryfowanie po torze Lissajous
+    player.x = canvas.width * 0.25 + Math.sin(player.floatT) * 200;
+    player.y = canvas.height * 0.55 + Math.sin(player.floatT * 0.7) * 120;
 
-    ctx.shadowBlur = 35;
-    ctx.shadowColor = '#ff00ff';
-    ctx.fillStyle = '#ff00ff';
-    ctx.fillRect(player.x - player.size/2, player.y - player.size/2, player.size, player.size);
-    ctx.shadowBlur = 0;
+    // Kierunek lotu — lekki tilt zgodnie z kierunkiem ruchu
+    const vx = Math.cos(player.floatT) * 200 * 0.02;
+    const tilt = Math.max(-0.25, Math.min(0.25, vx * 0.08));
+
+    drawSpaceshipIntro(ctx, player.x, player.y, 28, tilt, Date.now());
 
     requestAnimationFrame(animate);
+}
+
+// === RYSOWANIE STATKU KOSMICZNEGO (uproszczona wersja z edytora) ===
+function drawSpaceshipIntro(c, x, y, r, tilt, time) {
+    const t = time * 0.001;
+    const hover = Math.sin(t * 2.2) * 2.5;
+    c.save();
+    c.translate(x, y + hover);
+    c.rotate(tilt);
+
+    // Płomień silnika (z tyłu)
+    const flameLen = r * 0.9 + Math.sin(t * 20) * 3;
+    const flameGrad = c.createLinearGradient(-r * 0.7, 0, -r * 0.7 - flameLen, 0);
+    flameGrad.addColorStop(0, 'rgba(255, 230, 100, 0.95)');
+    flameGrad.addColorStop(0.3, 'rgba(255, 120, 40, 0.8)');
+    flameGrad.addColorStop(0.7, 'rgba(255, 60, 30, 0.4)');
+    flameGrad.addColorStop(1, 'rgba(255, 50, 30, 0)');
+    c.fillStyle = flameGrad;
+    c.beginPath();
+    c.moveTo(-r * 0.7, -r * 0.35);
+    c.lineTo(-r * 0.7 - flameLen, 0);
+    c.lineTo(-r * 0.7, r * 0.35);
+    c.closePath();
+    c.fill();
+
+    // Dysza silnika
+    c.fillStyle = '#2a2a3a';
+    c.fillRect(-r * 0.85, -r * 0.28, r * 0.2, r * 0.56);
+
+    // Kadłub — srebrzyste ciało
+    const hullGrad = c.createLinearGradient(0, -r * 0.5, 0, r * 0.5);
+    hullGrad.addColorStop(0, '#f0f0f5');
+    hullGrad.addColorStop(0.5, '#b8b8c8');
+    hullGrad.addColorStop(1, '#606070');
+    c.fillStyle = hullGrad;
+    c.beginPath();
+    c.moveTo(r * 1.0, 0);            // dziób
+    c.lineTo(r * 0.3, -r * 0.45);    // górna przednia
+    c.lineTo(-r * 0.7, -r * 0.35);   // górna tylna
+    c.lineTo(-r * 0.7, r * 0.35);    // dolna tylna
+    c.lineTo(r * 0.3, r * 0.45);     // dolna przednia
+    c.closePath();
+    c.fill();
+    c.strokeStyle = '#2a2a3a';
+    c.lineWidth = 1.3;
+    c.stroke();
+
+    // Skrzydła
+    c.fillStyle = '#e04a4a';
+    c.strokeStyle = '#2a2a3a';
+    c.lineWidth = 1;
+    // Górne skrzydło
+    c.beginPath();
+    c.moveTo(-r * 0.3, -r * 0.35);
+    c.lineTo(-r * 0.6, -r * 0.85);
+    c.lineTo(-r * 0.1, -r * 0.4);
+    c.closePath();
+    c.fill(); c.stroke();
+    // Dolne skrzydło
+    c.beginPath();
+    c.moveTo(-r * 0.3, r * 0.35);
+    c.lineTo(-r * 0.6, r * 0.85);
+    c.lineTo(-r * 0.1, r * 0.4);
+    c.closePath();
+    c.fill(); c.stroke();
+
+    // Kokpit (szyba)
+    const cockpitGrad = c.createRadialGradient(r * 0.3, -r * 0.1, 1, r * 0.3, 0, r * 0.3);
+    cockpitGrad.addColorStop(0, '#a0e8ff');
+    cockpitGrad.addColorStop(0.6, '#4080c0');
+    cockpitGrad.addColorStop(1, '#0a2040');
+    c.fillStyle = cockpitGrad;
+    c.beginPath();
+    c.ellipse(r * 0.35, 0, r * 0.25, r * 0.18, 0, 0, Math.PI * 2);
+    c.fill();
+    c.strokeStyle = '#2a2a3a';
+    c.lineWidth = 1;
+    c.stroke();
+    // Blik na szybie
+    c.fillStyle = 'rgba(255, 255, 255, 0.6)';
+    c.beginPath();
+    c.ellipse(r * 0.3, -r * 0.08, r * 0.08, r * 0.04, 0, 0, Math.PI * 2);
+    c.fill();
+
+    // Dziób — czerwony czubek
+    c.fillStyle = '#c83030';
+    c.beginPath();
+    c.moveTo(r * 1.0, 0);
+    c.lineTo(r * 0.7, -r * 0.15);
+    c.lineTo(r * 0.7, r * 0.15);
+    c.closePath();
+    c.fill();
+    c.strokeStyle = '#2a2a3a';
+    c.stroke();
+
+    c.restore();
 }
 animate();
 
@@ -643,6 +802,378 @@ const db = firebase.firestore();
 // 🔥 TERAZ dopiero
 loadComments();
 
+// ========================================
+// EPICKA SCENA KOSMICZNA W TLE
+// ========================================
+;(function() {
+  const canvas = document.getElementById('spaceCanvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+
+  function resize() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  // === WIELKA PLANETA (zajmuje 1/3 ekranu, w prawym dolnym rogu) ===
+  const bigPlanet = {
+    cx: () => canvas.width * 0.75,
+    cy: () => canvas.height * 0.8,
+    r: () => Math.min(canvas.width, canvas.height) * 0.4,
+    rotation: 0
+  };
+
+  // === KSIĘŻYC (lewy górny obszar) ===
+  const moon = {
+    cx: () => canvas.width * 0.18,
+    cy: () => canvas.height * 0.25,
+    r: () => Math.min(canvas.width, canvas.height) * 0.06,
+    rotation: 0
+  };
+
+  // === ASTEROIDY (wiele, różne rozmiary, poruszają się) ===
+  const asteroids = [];
+  for (let i = 0; i < 18; i++) {
+    asteroids.push({
+      x: Math.random() * canvas.width,
+      y: Math.random() * canvas.height * 0.7,
+      vx: (Math.random() - 0.5) * 0.3,
+      vy: (Math.random() - 0.5) * 0.15,
+      size: 4 + Math.random() * 18,
+      rotation: Math.random() * Math.PI * 2,
+      rotSpeed: (Math.random() - 0.5) * 0.015,
+      points: 6 + Math.floor(Math.random() * 4)
+    });
+  }
+
+  // === FLOTA STATKÓW (lecą przez ekran) ===
+  const ships = [];
+  function spawnShip() {
+    const fromLeft = Math.random() > 0.5;
+    const y = canvas.height * (0.1 + Math.random() * 0.6);
+    ships.push({
+      x: fromLeft ? -80 : canvas.width + 80,
+      y,
+      targetY: y + (Math.random() - 0.5) * 60,
+      vx: (fromLeft ? 1 : -1) * (0.3 + Math.random() * 0.4),
+      size: 0.6 + Math.random() * 1.2,
+      type: Math.floor(Math.random() * 3), // 3 typy statków
+      flame: 0,
+      fromLeft
+    });
+  }
+  // Kilka statków na start
+  for (let i = 0; i < 4; i++) {
+    spawnShip();
+    ships[ships.length - 1].x = Math.random() * canvas.width;
+  }
+  setInterval(() => {
+    if (ships.length < 8) spawnShip();
+  }, 4000);
+
+  // === FUNKCJA RYSUJĄCA WIELKĄ PLANETĘ ===
+  function drawBigPlanet(t) {
+    const cx = bigPlanet.cx();
+    const cy = bigPlanet.cy();
+    const r = bigPlanet.r();
+
+    // Ogromna poświata wokół planety (light leak od strony słońca)
+    const glowGrad = ctx.createRadialGradient(cx - r*0.3, cy - r*0.3, r*0.3, cx, cy, r * 1.8);
+    glowGrad.addColorStop(0, 'rgba(255, 140, 70, 0.5)');
+    glowGrad.addColorStop(0.3, 'rgba(255, 100, 50, 0.25)');
+    glowGrad.addColorStop(0.7, 'rgba(200, 50, 80, 0.08)');
+    glowGrad.addColorStop(1, 'rgba(100, 30, 60, 0)');
+    ctx.fillStyle = glowGrad;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r * 1.8, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Sama planeta — ciemna sylwetka z pomarańczową krawędzią
+    const planetGrad = ctx.createRadialGradient(
+      cx - r * 0.4, cy - r * 0.4, r * 0.2,
+      cx, cy, r
+    );
+    planetGrad.addColorStop(0, '#2a1a3a');
+    planetGrad.addColorStop(0.7, '#1a0a20');
+    planetGrad.addColorStop(1, '#0a0515');
+    ctx.fillStyle = planetGrad;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Pierścień pomarańczowego konturu (rim light)
+    const rimGrad = ctx.createRadialGradient(
+      cx - r * 0.5, cy - r * 0.5, r * 0.75,
+      cx - r * 0.5, cy - r * 0.5, r * 1.05
+    );
+    rimGrad.addColorStop(0, 'rgba(255, 100, 50, 0)');
+    rimGrad.addColorStop(0.9, 'rgba(255, 140, 60, 0.5)');
+    rimGrad.addColorStop(1, 'rgba(255, 180, 80, 0.9)');
+    ctx.fillStyle = rimGrad;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Subtelna atmosfera (jasna obwódka)
+    ctx.strokeStyle = 'rgba(255, 180, 100, 0.3)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r + 4, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // Pierścień wokół planety (jak Saturn) — obraca się lekko
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(-0.4 + Math.sin(t * 0.1) * 0.02);
+    ctx.scale(1, 0.25); // perspektywiczne spłaszczenie
+    ctx.strokeStyle = 'rgba(255, 140, 80, 0.4)';
+    ctx.lineWidth = 8;
+    ctx.beginPath();
+    ctx.arc(0, 0, r * 1.35, 0, Math.PI, false); // tylko połowa (przód pierścienia)
+    ctx.stroke();
+    ctx.strokeStyle = 'rgba(255, 120, 70, 0.25)';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(0, 0, r * 1.5, 0, Math.PI, false);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // === FUNKCJA RYSUJĄCA KSIĘŻYC ===
+  function drawMoon() {
+    const cx = moon.cx();
+    const cy = moon.cy();
+    const r = moon.r();
+
+    // Poświata
+    const glowGrad = ctx.createRadialGradient(cx, cy, r, cx, cy, r * 2.5);
+    glowGrad.addColorStop(0, 'rgba(255, 220, 160, 0.35)');
+    glowGrad.addColorStop(0.5, 'rgba(255, 180, 120, 0.1)');
+    glowGrad.addColorStop(1, 'rgba(255, 180, 120, 0)');
+    ctx.fillStyle = glowGrad;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r * 2.5, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Księżyc — ciemna sylwetka z pomarańczowym rimem
+    const moonGrad = ctx.createRadialGradient(
+      cx - r * 0.3, cy - r * 0.3, r * 0.1,
+      cx, cy, r
+    );
+    moonGrad.addColorStop(0, '#3a2a3a');
+    moonGrad.addColorStop(0.7, '#1a0a1a');
+    moonGrad.addColorStop(1, '#0a0510');
+    ctx.fillStyle = moonGrad;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Rim light pomarańczowy
+    const rimGrad = ctx.createRadialGradient(
+      cx - r * 0.4, cy - r * 0.4, r * 0.75,
+      cx - r * 0.4, cy - r * 0.4, r * 1.05
+    );
+    rimGrad.addColorStop(0, 'rgba(255, 120, 60, 0)');
+    rimGrad.addColorStop(0.9, 'rgba(255, 160, 80, 0.6)');
+    rimGrad.addColorStop(1, 'rgba(255, 200, 100, 0.95)');
+    ctx.fillStyle = rimGrad;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Kratery - małe plamki
+    ctx.fillStyle = 'rgba(10, 5, 15, 0.6)';
+    const craters = [[-0.3, 0.1, 0.15], [0.2, -0.25, 0.1], [0.05, 0.35, 0.12], [-0.15, -0.15, 0.08]];
+    for (const [dx, dy, dr] of craters) {
+      ctx.beginPath();
+      ctx.arc(cx + dx * r, cy + dy * r, dr * r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  // === FUNKCJA RYSUJĄCA ASTEROIDĘ (nieregularny kształt) ===
+  function drawAsteroid(a) {
+    ctx.save();
+    ctx.translate(a.x, a.y);
+    ctx.rotate(a.rotation);
+
+    // Ciemna sylwetka z pomarańczowym rimem
+    ctx.beginPath();
+    for (let i = 0; i < a.points; i++) {
+      const angle = (i / a.points) * Math.PI * 2;
+      const variation = 0.7 + ((i * 37) % 7) * 0.05;
+      const px = Math.cos(angle) * a.size * variation;
+      const py = Math.sin(angle) * a.size * variation;
+      if (i === 0) ctx.moveTo(px, py);
+      else ctx.lineTo(px, py);
+    }
+    ctx.closePath();
+    ctx.fillStyle = '#1a0a1a';
+    ctx.fill();
+
+    // Pomarańczowa krawędź od strony "światła"
+    ctx.strokeStyle = 'rgba(255, 140, 70, 0.7)';
+    ctx.lineWidth = 1.2;
+    ctx.stroke();
+
+    ctx.restore();
+  }
+
+  // === FUNKCJA RYSUJĄCA STATEK ===
+  function drawShip(s) {
+    ctx.save();
+    ctx.translate(s.x, s.y);
+
+    // Interpolacja Y płynnie
+    s.y += (s.targetY - s.y) * 0.02;
+
+    const sc = s.size;
+    const flip = s.fromLeft ? 1 : -1;
+    ctx.scale(sc * flip, sc);
+
+    // Różne typy statków
+    if (s.type === 0) {
+      // Typ 1: klasyczny fighter — trójkątny
+      ctx.fillStyle = '#0a0515';
+      ctx.strokeStyle = 'rgba(255, 150, 80, 0.85)';
+      ctx.lineWidth = 0.8;
+      ctx.beginPath();
+      ctx.moveTo(12, 0);
+      ctx.lineTo(-6, -5);
+      ctx.lineTo(-10, 0);
+      ctx.lineTo(-6, 5);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      // Silniki
+      ctx.fillStyle = 'rgba(255, 100, 50, 0.8)';
+      ctx.fillRect(-10, -1.5, 3, 3);
+      // Kokpit
+      ctx.fillStyle = 'rgba(255, 200, 100, 0.8)';
+      ctx.beginPath();
+      ctx.arc(4, 0, 2, 0, Math.PI * 2);
+      ctx.fill();
+
+    } else if (s.type === 1) {
+      // Typ 2: frachtowiec - długi prostokąt
+      ctx.fillStyle = '#0a0515';
+      ctx.strokeStyle = 'rgba(255, 140, 70, 0.8)';
+      ctx.lineWidth = 0.8;
+      ctx.beginPath();
+      ctx.moveTo(18, 0);
+      ctx.lineTo(14, -4);
+      ctx.lineTo(-12, -4);
+      ctx.lineTo(-14, 0);
+      ctx.lineTo(-12, 4);
+      ctx.lineTo(14, 4);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      // 3 okna
+      ctx.fillStyle = 'rgba(255, 200, 120, 0.7)';
+      ctx.fillRect(-4, -1, 2, 2);
+      ctx.fillRect(2, -1, 2, 2);
+      ctx.fillRect(8, -1, 2, 2);
+      // Silniki
+      ctx.fillStyle = 'rgba(255, 80, 40, 0.9)';
+      ctx.fillRect(-14, -2.5, 3, 5);
+
+    } else {
+      // Typ 3: szybki scout - delikatny ostrokątny
+      ctx.fillStyle = '#0a0515';
+      ctx.strokeStyle = 'rgba(255, 160, 90, 0.9)';
+      ctx.lineWidth = 0.8;
+      ctx.beginPath();
+      ctx.moveTo(14, 0);
+      ctx.lineTo(2, -3);
+      ctx.lineTo(-8, -4);
+      ctx.lineTo(-8, 4);
+      ctx.lineTo(2, 3);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      // Skrzydła
+      ctx.fillStyle = 'rgba(255, 140, 70, 0.5)';
+      ctx.beginPath();
+      ctx.moveTo(-5, -4);
+      ctx.lineTo(-2, -9);
+      ctx.lineTo(2, -4);
+      ctx.closePath();
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(-5, 4);
+      ctx.lineTo(-2, 9);
+      ctx.lineTo(2, 4);
+      ctx.closePath();
+      ctx.fill();
+      // Kokpit
+      ctx.fillStyle = 'rgba(255, 220, 150, 0.9)';
+      ctx.beginPath();
+      ctx.arc(6, 0, 1.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Ogon silnika (trail)
+    s.flame = (s.flame + 1) % 6;
+    const flameLen = 8 + s.flame * 0.5;
+    const flameGrad = ctx.createLinearGradient(-10, 0, -10 - flameLen, 0);
+    flameGrad.addColorStop(0, 'rgba(255, 180, 80, 0.8)');
+    flameGrad.addColorStop(0.5, 'rgba(255, 100, 50, 0.4)');
+    flameGrad.addColorStop(1, 'rgba(255, 50, 30, 0)');
+    ctx.fillStyle = flameGrad;
+    ctx.beginPath();
+    ctx.moveTo(-10, -1.5);
+    ctx.lineTo(-10 - flameLen, 0);
+    ctx.lineTo(-10, 1.5);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.restore();
+  }
+
+  // === PĘTLA ANIMACJI ===
+  function animate() {
+    const t = Date.now() * 0.001;
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // 1. Najdalszy plan: wielka planeta
+    drawBigPlanet(t);
+
+    // 2. Księżyc
+    drawMoon();
+
+    // 3. Asteroidy (środkowy plan)
+    for (const a of asteroids) {
+      a.x += a.vx;
+      a.y += a.vy;
+      a.rotation += a.rotSpeed;
+      // Zawijanie
+      if (a.x < -50) a.x = canvas.width + 50;
+      if (a.x > canvas.width + 50) a.x = -50;
+      if (a.y < -50) a.y = canvas.height + 50;
+      if (a.y > canvas.height + 50) a.y = -50;
+      drawAsteroid(a);
+    }
+
+    // 4. Statki (najbliższy plan)
+    for (let i = ships.length - 1; i >= 0; i--) {
+      const s = ships[i];
+      s.x += s.vx;
+      drawShip(s);
+      // Usuń jeśli wyleciał za ekran
+      if ((s.fromLeft && s.x > canvas.width + 100) ||
+          (!s.fromLeft && s.x < -100)) {
+        ships.splice(i, 1);
+      }
+    }
+
+    requestAnimationFrame(animate);
+  }
+  animate();
+})();
 </script>
 
 </body>
