@@ -382,6 +382,90 @@
     #lewy button { font-size: 10px; padding: 0 6px; height: 30px; }
     #objectsBar { padding: 4px 6px; gap: 4px; }
   }
+
+  /* ===================================================== */
+  /* ============ D-PAD DOTYKOWY (tablet/telefon) ======== */
+  /* ===================================================== */
+  #dpad {
+    position: fixed;
+    right: 20px;
+    bottom: 20px;
+    width: 210px;
+    height: 210px;
+    z-index: 9000;
+    display: none;             /* domyślnie schowany - pokazuje się w trybie gry */
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: none;
+    pointer-events: none;      /* tło nie przechwytuje kliknięć */
+  }
+  /* Pokaż D-pad tylko na urządzeniach dotykowych w trybie gry */
+  body.game-mode.touch-device #dpad {
+    display: block;
+  }
+
+  .dpad-btn {
+    position: absolute;
+    background: linear-gradient(180deg, rgba(70,70,70,0.85), rgba(30,30,30,0.85));
+    border: 3px solid rgba(255,255,255,0.3);
+    color: white;
+    font-size: 34px;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    pointer-events: auto;
+    -webkit-tap-highlight-color: transparent;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.5), inset 0 1px 3px rgba(255,255,255,0.2);
+    transition: all 0.08s ease;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.6);
+  }
+  .dpad-btn.pressed {
+    background: linear-gradient(180deg, #4CAF50, #2e7d32);
+    border-color: #81c784;
+    box-shadow: 0 0 15px #4CAF50, inset 0 2px 6px rgba(0,0,0,0.4);
+    transform: scale(0.95);
+  }
+
+  /* Układ: góra/lewo/prawo/dół to ramiona krzyża, środek to strzał */
+  .dpad-up    { top: 0;    left: 70px;  width: 70px; height: 70px; border-radius: 12px 12px 6px 6px; }
+  .dpad-down  { bottom: 0; left: 70px;  width: 70px; height: 70px; border-radius: 6px 6px 12px 12px; }
+  .dpad-left  { top: 70px; left: 0;     width: 70px; height: 70px; border-radius: 12px 6px 6px 12px; }
+  .dpad-right { top: 70px; right: 0;    width: 70px; height: 70px; border-radius: 6px 12px 12px 6px; }
+
+  /* Przycisk strzału w środku - okrągły, czerwono-pomarańczowy */
+  .dpad-fire {
+    top: 70px;
+    left: 70px;
+    width: 70px;
+    height: 70px;
+    border-radius: 50%;
+    font-size: 28px;
+    background: radial-gradient(circle at 30% 30%, #ff6a3d, #c02a00 70%, #5a1000);
+    border: 3px solid rgba(255,200,100,0.6);
+    box-shadow: 0 0 14px rgba(255,100,30,0.6), inset 0 2px 6px rgba(255,255,255,0.25);
+  }
+  .dpad-fire.pressed {
+    background: radial-gradient(circle at 30% 30%, #ffaa55, #ff4400 70%, #aa1a00);
+    border-color: #ffcc88;
+    box-shadow: 0 0 22px #ff6a00, inset 0 2px 6px rgba(0,0,0,0.4);
+    transform: scale(0.93);
+  }
+
+  /* Na bardzo małych ekranach D-pad nieco mniejszy */
+  @media (max-width: 500px) {
+    #dpad { width: 170px; height: 170px; right: 12px; bottom: 12px; }
+    .dpad-up, .dpad-down, .dpad-left, .dpad-right, .dpad-fire {
+      width: 56px; height: 56px;
+    }
+    .dpad-up    { left: 57px; }
+    .dpad-down  { left: 57px; }
+    .dpad-left  { top: 57px; }
+    .dpad-right { top: 57px; }
+    .dpad-fire  { top: 57px; left: 57px; font-size: 22px; }
+    .dpad-btn   { font-size: 26px; }
+  }
 </style>
 </head>
 <body>
@@ -766,7 +850,7 @@ let bullets = []           // aktywne pociski
 let bulletCooldown = 0     // klatki do następnego strzału
 let burstCount = 0         // ile strzałów w serii
 let burstReload = 0        // odliczanie przeładowania (2s = 120 klatek)
-const BURST_MAX = 20       // max strzałów w serii
+const BURST_MAX = 60       // max strzałów w serii
 const BURST_RELOAD = 120   // klatki przeładowania
 const BULLET_COOLDOWN = 4  // klatki między strzałami w serii
 
@@ -953,6 +1037,30 @@ function renderLevelsBar(){
     </div>
   `
 
+  // Przycisk MINUS — usuwa ostatni poziom (tylko gdy jest więcej niż 1)
+  if (levels.length > 1) {
+    html += `
+      <div onclick="removeLevelUI()"
+           title="Usuń ostatni poziom"
+           style="
+             width:32px;
+             height:32px;
+             background:#c0392b;
+             color:white;
+             display:flex;
+             align-items:center;
+             justify-content:center;
+             cursor:pointer;
+             border-radius:6px;
+             font-size:22px;
+             font-weight:bold;
+             margin-left:4px;
+           ">
+        −
+      </div>
+    `
+  }
+
   document.getElementById("levelsBar").innerHTML = html
 }
 
@@ -982,6 +1090,53 @@ function addLevelUI(){
   }
 
   renderLevelsBar()
+}
+
+function removeLevelUI(){
+  // Zabezpieczenie: musi zostać minimum 1 poziom
+  if (levels.length <= 1) {
+    pokazMsg("❌ Musi zostać przynajmniej 1 poziom")
+    return
+  }
+
+  const ostatniNr = levels.length
+  const lvl = levels[levels.length - 1]
+  const maObiekty =
+    (lvl.players?.length || 0) +
+    (lvl.platforms?.length || 0) +
+    (lvl.blocks?.length || 0) +
+    (lvl.enemies?.length || 0) +
+    (lvl.bonuses?.length || 0) +
+    (lvl.texts?.length || 0) > 0
+
+  // Potwierdzenie — ostrożniej jeśli poziom nie jest pusty
+  const komunikat = maObiekty
+    ? `⚠ Usunąć poziom ${ostatniNr}? Zawiera obiekty — TEJ OPERACJI NIE MOŻNA COFNĄĆ!`
+    : `Usunąć ostatni poziom (${ostatniNr})?`
+
+  if (!confirm(komunikat)) return
+
+  // Usuwamy ostatni poziom
+  levels.pop()
+
+  // Jeśli byliśmy na usuniętym poziomie — przesuwamy się na poprzedni
+  if (currentLevel >= levels.length) {
+    currentLevel = levels.length - 1
+  }
+
+  syncLevelData()
+
+  const nowy = getLevel()
+  playerStartX = nowy.playerStartX ?? 100
+  playerStartY = nowy.playerStartY ?? 100
+
+  if (players.length > 0) {
+    players[0].x = playerStartX
+    players[0].y = playerStartY
+  }
+
+  renderLevelsBar()
+  pokazMsg(`🗑 Usunięto poziom ${ostatniNr}`)
 }
 
 function switchLevelUI(i){
@@ -4991,8 +5146,13 @@ function checkEnemyCollision() {
 
     if (ex + ew < cameraX || ex > cameraX + canvas.width) continue
 
-    let px = player.x - player.r, py = player.y - player.r
-    let pw = player.r * 2, ph = player.r * 2
+    // Hitbox gracza zmniejszony o 9px z każdej strony (~70% powierzchni)
+    // Zapobiega śmierci od "powietrza" w rogach spritea
+    const hitboxMargin = 9
+    let px = player.x - player.r + hitboxMargin
+    let py = player.y - player.r + hitboxMargin
+    let pw = player.r * 2 - hitboxMargin * 2
+    let ph = player.r * 2 - hitboxMargin * 2
 
     if (px < ex + ew && px + pw > ex && py < ey + eh && py + ph > ey) {
       deathRespawnX = player.x
@@ -8165,12 +8325,97 @@ function initObjectsBarPreviews() {
   }
 }
 
+// ===================================================================
+// ======================= D-PAD DOTYKOWY ============================
+// ===================================================================
+// Wykrywanie czy urządzenie ma ekran dotykowy (tablet/telefon).
+// Używamy dwóch sygnałów: 'pointer:coarse' i obecność TouchEvent,
+// żeby laptop z touchpadem nie pokazał D-pada.
+(function detectTouchDevice(){
+  const coarse = window.matchMedia && window.matchMedia("(pointer: coarse)").matches
+  const hasTouch = "ontouchstart" in window || navigator.maxTouchPoints > 0
+  if (coarse && hasTouch) {
+    document.body.classList.add("touch-device")
+  }
+})()
+
+// Domyślne fallback-klawisze dla D-pada (jeśli użytkownik nie ustawił własnych).
+// D-pad zawsze działa — nawet gdy gracz nie skonfigurował klawiatury.
+const DPAD_FALLBACK = {
+  lewo:   "ArrowLeft",
+  prawo:  "ArrowRight",
+  skok:   "ArrowUp",
+  dol:    "ArrowDown",
+  strzal: " "           // spacja
+}
+
+// Mapa: kierunek → aktualnie "wciśnięty" klawisz (żeby release trafił w ten sam)
+const dpadHeldKeys = {}
+
+function dpadGetKey(dir){
+  return (sterowanie && sterowanie[dir]) || DPAD_FALLBACK[dir]
+}
+
+function dpadPress(e, dir){
+  if (e) { e.preventDefault(); e.stopPropagation() }
+  const key = dpadGetKey(dir)
+  if (!key) return
+  keys[key] = true
+  dpadHeldKeys[dir] = key
+  const btn = document.querySelector(`.dpad-btn[data-dir="${dir}"]`)
+  if (btn) btn.classList.add("pressed")
+}
+
+function dpadRelease(e, dir){
+  if (e) { e.preventDefault(); e.stopPropagation() }
+  const key = dpadHeldKeys[dir] || dpadGetKey(dir)
+  if (key) keys[key] = false
+  dpadHeldKeys[dir] = null
+  const btn = document.querySelector(`.dpad-btn[data-dir="${dir}"]`)
+  if (btn) btn.classList.remove("pressed")
+}
+
+// Synchronizacja klasy body.game-mode ze zmienną trybGry.
+// Używam getterów/setterów na window, żeby nie szukać wszystkich miejsc
+// gdzie ustawiane jest trybGry - wystarczy sprawdzać raz na klatkę.
+let _dpadLastTrybGry = null
+function syncDpadVisibility(){
+  if (trybGry !== _dpadLastTrybGry) {
+    _dpadLastTrybGry = trybGry
+    if (trybGry) {
+      document.body.classList.add("game-mode")
+    } else {
+      document.body.classList.remove("game-mode")
+      // Zwolnij wszystkie wciśnięte klawisze D-pada przy wyjściu z trybu gry
+      for (const dir in dpadHeldKeys) {
+        if (dpadHeldKeys[dir]) {
+          keys[dpadHeldKeys[dir]] = false
+          dpadHeldKeys[dir] = null
+        }
+      }
+      document.querySelectorAll(".dpad-btn.pressed").forEach(b => b.classList.remove("pressed"))
+    }
+  }
+}
+
+// Bezpieczeństwo: zwolnij wszystko gdy palec wyjedzie poza ekran
+window.addEventListener("blur", () => {
+  for (const dir in dpadHeldKeys) {
+    if (dpadHeldKeys[dir]) {
+      keys[dpadHeldKeys[dir]] = false
+      dpadHeldKeys[dir] = null
+    }
+  }
+  document.querySelectorAll(".dpad-btn.pressed").forEach(b => b.classList.remove("pressed"))
+})
+
 function loop(time){
   if (time - lastFrame < frameDelay) {
     requestAnimationFrame(loop)
     return
   }
   lastFrame = time
+  syncDpadVisibility()
   update()
   draw()
   requestAnimationFrame(loop)
@@ -8208,6 +8453,15 @@ requestAnimationFrame(loop)
     <br><br>
     <button onclick="zapiszAutora()">OK</button>
   </div>
+</div>
+
+<!-- ===== D-PAD DOTYKOWY (tylko tablet/telefon, tylko w trybie gry) ===== -->
+<div id="dpad" aria-hidden="true">
+  <div class="dpad-btn dpad-up"    data-dir="skok"   ontouchstart="dpadPress(event,'skok')"  ontouchend="dpadRelease(event,'skok')"  ontouchcancel="dpadRelease(event,'skok')"  onmousedown="dpadPress(event,'skok')"  onmouseup="dpadRelease(event,'skok')"  onmouseleave="dpadRelease(event,'skok')">▲</div>
+  <div class="dpad-btn dpad-left"  data-dir="lewo"   ontouchstart="dpadPress(event,'lewo')"  ontouchend="dpadRelease(event,'lewo')"  ontouchcancel="dpadRelease(event,'lewo')"  onmousedown="dpadPress(event,'lewo')"  onmouseup="dpadRelease(event,'lewo')"  onmouseleave="dpadRelease(event,'lewo')">◀</div>
+  <div class="dpad-btn dpad-right" data-dir="prawo"  ontouchstart="dpadPress(event,'prawo')" ontouchend="dpadRelease(event,'prawo')" ontouchcancel="dpadRelease(event,'prawo')" onmousedown="dpadPress(event,'prawo')" onmouseup="dpadRelease(event,'prawo')" onmouseleave="dpadRelease(event,'prawo')">▶</div>
+  <div class="dpad-btn dpad-down"  data-dir="dol"    ontouchstart="dpadPress(event,'dol')"   ontouchend="dpadRelease(event,'dol')"   ontouchcancel="dpadRelease(event,'dol')"   onmousedown="dpadPress(event,'dol')"   onmouseup="dpadRelease(event,'dol')"   onmouseleave="dpadRelease(event,'dol')">▼</div>
+  <div class="dpad-btn dpad-fire"  data-dir="strzal" ontouchstart="dpadPress(event,'strzal')" ontouchend="dpadRelease(event,'strzal')" ontouchcancel="dpadRelease(event,'strzal')" onmousedown="dpadPress(event,'strzal')" onmouseup="dpadRelease(event,'strzal')" onmouseleave="dpadRelease(event,'strzal')">🔫</div>
 </div>
 
 </body>
