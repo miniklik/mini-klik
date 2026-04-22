@@ -428,13 +428,13 @@
     transform: scale(0.95);
   }
 
-  /* Układ: góra/lewo/prawo/dół to ramiona krzyża, środek to strzał */
+  /* Układ: góra/lewo/prawo/dół to ramiona krzyża, środek to skok/strzał */
   .dpad-up    { top: 0;    left: 70px;  width: 70px; height: 70px; border-radius: 12px 12px 6px 6px; }
   .dpad-down  { bottom: 0; left: 70px;  width: 70px; height: 70px; border-radius: 6px 6px 12px 12px; }
   .dpad-left  { top: 70px; left: 0;     width: 70px; height: 70px; border-radius: 12px 6px 6px 12px; }
   .dpad-right { top: 70px; right: 0;    width: 70px; height: 70px; border-radius: 6px 12px 12px 6px; }
 
-  /* Przycisk strzału w środku - okrągły, czerwono-pomarańczowy */
+  /* Przycisk środkowy — dynamiczny (skok lub strzał) */
   .dpad-fire {
     top: 70px;
     left: 70px;
@@ -442,13 +442,33 @@
     height: 70px;
     border-radius: 50%;
     font-size: 28px;
+    border: 3px solid rgba(255,255,255,0.6);
+  }
+  /* Tryb SKOK (piłka/samochód) - zielony, góra i dół SCHOWANE */
+  body .dpad.mode-jump .dpad-up,
+  body .dpad.mode-jump .dpad-down,
+  #dpad.mode-jump .dpad-up,
+  #dpad.mode-jump .dpad-down {
+    display: none;
+  }
+  #dpad.mode-jump .dpad-fire {
+    background: radial-gradient(circle at 30% 30%, #66e066, #1f9d1f 70%, #0a5a0a);
+    border-color: rgba(180,255,180,0.7);
+    box-shadow: 0 0 14px rgba(60,220,80,0.6), inset 0 2px 6px rgba(255,255,255,0.25);
+  }
+  #dpad.mode-jump .dpad-fire.pressed {
+    background: radial-gradient(circle at 30% 30%, #aaffaa, #44dd44 70%, #1a8a1a);
+    box-shadow: 0 0 22px #55ff55, inset 0 2px 6px rgba(0,0,0,0.4);
+    transform: scale(0.93);
+  }
+  /* Tryb STATEK - czerwony strzał, wszystkie 4 kierunki widoczne */
+  #dpad.mode-ship .dpad-fire {
     background: radial-gradient(circle at 30% 30%, #ff6a3d, #c02a00 70%, #5a1000);
-    border: 3px solid rgba(255,200,100,0.6);
+    border-color: rgba(255,200,100,0.6);
     box-shadow: 0 0 14px rgba(255,100,30,0.6), inset 0 2px 6px rgba(255,255,255,0.25);
   }
-  .dpad-fire.pressed {
+  #dpad.mode-ship .dpad-fire.pressed {
     background: radial-gradient(circle at 30% 30%, #ffaa55, #ff4400 70%, #aa1a00);
-    border-color: #ffcc88;
     box-shadow: 0 0 22px #ff6a00, inset 0 2px 6px rgba(0,0,0,0.4);
     transform: scale(0.93);
   }
@@ -8353,37 +8373,84 @@ const DPAD_FALLBACK = {
 const dpadHeldKeys = {}
 
 function dpadGetKey(dir){
+  // Dla strzału: jeśli użytkownik nie skonfigurował, używamy fallbacku i
+  // dodatkowo ustawiamy sterowanie.strzal — bo strzelanie statku wymaga,
+  // żeby sterowanie.strzal było ustawione (sprawdza to linia strzelania).
+  if (dir === "strzal") {
+    if (!sterowanie.strzal) sterowanie.strzal = DPAD_FALLBACK.strzal
+    return sterowanie.strzal
+  }
   return (sterowanie && sterowanie[dir]) || DPAD_FALLBACK[dir]
+}
+
+// Środkowy przycisk zmienia funkcję zależnie od typu gracza:
+//  • statek kosmiczny → strzał
+//  • wszystko inne     → skok
+function dpadCenterAction(){
+  const p = players[0]
+  if (p && p.type === "spaceship") return "strzal"
+  return "skok"
 }
 
 function dpadPress(e, dir){
   if (e) { e.preventDefault(); e.stopPropagation() }
+  // Obsługa środkowego przycisku — dynamiczna funkcja
+  if (dir === "center") dir = dpadCenterAction()
   const key = dpadGetKey(dir)
   if (!key) return
   keys[key] = true
   dpadHeldKeys[dir] = key
-  const btn = document.querySelector(`.dpad-btn[data-dir="${dir}"]`)
-  if (btn) btn.classList.add("pressed")
+  // Podświetl właściwy przycisk (center używa klasy .dpad-fire)
+  const btn = document.querySelector(`.dpad-btn[data-dir="center"]`)
+  if (dir === "skok" || dir === "strzal") {
+    if (btn) btn.classList.add("pressed")
+  } else {
+    const b = document.querySelector(`.dpad-btn[data-dir="${dir}"]`)
+    if (b) b.classList.add("pressed")
+  }
 }
 
 function dpadRelease(e, dir){
   if (e) { e.preventDefault(); e.stopPropagation() }
+  if (dir === "center") dir = dpadCenterAction()
   const key = dpadHeldKeys[dir] || dpadGetKey(dir)
   if (key) keys[key] = false
   dpadHeldKeys[dir] = null
-  const btn = document.querySelector(`.dpad-btn[data-dir="${dir}"]`)
-  if (btn) btn.classList.remove("pressed")
+  if (dir === "skok" || dir === "strzal") {
+    const btn = document.querySelector(`.dpad-btn[data-dir="center"]`)
+    if (btn) btn.classList.remove("pressed")
+  } else {
+    const b = document.querySelector(`.dpad-btn[data-dir="${dir}"]`)
+    if (b) b.classList.remove("pressed")
+  }
+}
+
+// Aktualizacja wyglądu D-pada zależnie od typu gracza:
+//  • statek → pełny 4-kierunkowy + strzał (🔫, czerwony)
+//  • inne   → tylko lewo/prawo + skok (🆙, zielony), dół schowany
+function updateDpadForPlayer(){
+  const dpad = document.getElementById("dpad")
+  if (!dpad) return
+  const p = players[0]
+  const isShip = !!(p && p.type === "spaceship")
+  dpad.classList.toggle("mode-ship", isShip)
+  dpad.classList.toggle("mode-jump", !isShip)
+  // Aktualizuj ikonę środkowego przycisku
+  const fire = dpad.querySelector(".dpad-fire")
+  if (fire) fire.textContent = isShip ? "🔫" : "🆙"
 }
 
 // Synchronizacja klasy body.game-mode ze zmienną trybGry.
 // Używam getterów/setterów na window, żeby nie szukać wszystkich miejsc
 // gdzie ustawiane jest trybGry - wystarczy sprawdzać raz na klatkę.
 let _dpadLastTrybGry = null
+let _dpadLastPlayerType = null
 function syncDpadVisibility(){
   if (trybGry !== _dpadLastTrybGry) {
     _dpadLastTrybGry = trybGry
     if (trybGry) {
       document.body.classList.add("game-mode")
+      updateDpadForPlayer()
     } else {
       document.body.classList.remove("game-mode")
       // Zwolnij wszystkie wciśnięte klawisze D-pada przy wyjściu z trybu gry
@@ -8394,6 +8461,14 @@ function syncDpadVisibility(){
         }
       }
       document.querySelectorAll(".dpad-btn.pressed").forEach(b => b.classList.remove("pressed"))
+    }
+  }
+  // Śledź zmianę typu gracza (jeśli w trakcie gry gracz się zmienił)
+  if (trybGry) {
+    const currentType = players[0]?.type || null
+    if (currentType !== _dpadLastPlayerType) {
+      _dpadLastPlayerType = currentType
+      updateDpadForPlayer()
     }
   }
 }
@@ -8456,12 +8531,14 @@ requestAnimationFrame(loop)
 </div>
 
 <!-- ===== D-PAD DOTYKOWY (tylko tablet/telefon, tylko w trybie gry) ===== -->
+<!-- Środkowy przycisk: skok (piłka/samochód) lub strzał (statek) - zmienia się dynamicznie -->
+<!-- Góra ▲ i dół ▼ widoczne tylko dla statku kosmicznego -->
 <div id="dpad" aria-hidden="true">
   <div class="dpad-btn dpad-up"    data-dir="skok"   ontouchstart="dpadPress(event,'skok')"  ontouchend="dpadRelease(event,'skok')"  ontouchcancel="dpadRelease(event,'skok')"  onmousedown="dpadPress(event,'skok')"  onmouseup="dpadRelease(event,'skok')"  onmouseleave="dpadRelease(event,'skok')">▲</div>
   <div class="dpad-btn dpad-left"  data-dir="lewo"   ontouchstart="dpadPress(event,'lewo')"  ontouchend="dpadRelease(event,'lewo')"  ontouchcancel="dpadRelease(event,'lewo')"  onmousedown="dpadPress(event,'lewo')"  onmouseup="dpadRelease(event,'lewo')"  onmouseleave="dpadRelease(event,'lewo')">◀</div>
   <div class="dpad-btn dpad-right" data-dir="prawo"  ontouchstart="dpadPress(event,'prawo')" ontouchend="dpadRelease(event,'prawo')" ontouchcancel="dpadRelease(event,'prawo')" onmousedown="dpadPress(event,'prawo')" onmouseup="dpadRelease(event,'prawo')" onmouseleave="dpadRelease(event,'prawo')">▶</div>
   <div class="dpad-btn dpad-down"  data-dir="dol"    ontouchstart="dpadPress(event,'dol')"   ontouchend="dpadRelease(event,'dol')"   ontouchcancel="dpadRelease(event,'dol')"   onmousedown="dpadPress(event,'dol')"   onmouseup="dpadRelease(event,'dol')"   onmouseleave="dpadRelease(event,'dol')">▼</div>
-  <div class="dpad-btn dpad-fire"  data-dir="strzal" ontouchstart="dpadPress(event,'strzal')" ontouchend="dpadRelease(event,'strzal')" ontouchcancel="dpadRelease(event,'strzal')" onmousedown="dpadPress(event,'strzal')" onmouseup="dpadRelease(event,'strzal')" onmouseleave="dpadRelease(event,'strzal')">🔫</div>
+  <div class="dpad-btn dpad-fire"  data-dir="center" ontouchstart="dpadPress(event,'center')" ontouchend="dpadRelease(event,'center')" ontouchcancel="dpadRelease(event,'center')" onmousedown="dpadPress(event,'center')" onmouseup="dpadRelease(event,'center')" onmouseleave="dpadRelease(event,'center')">🆙</div>
 </div>
 
 </body>
