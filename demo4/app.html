@@ -944,6 +944,16 @@ function syncLevelData(){
   bonuses   = lvl.bonuses   || []
   texts     = lvl.texts     || []
 
+  // PER-LEVEL prędkość świata — każdy poziom ma własne ustawienia.
+  // Jeśli poziom nie ma zapisanych wartości (stare gry / nowy poziom),
+  // używamy globalnych jako fallback.
+  if (lvl.autoScroll !== undefined) {
+    autoScroll = !!lvl.autoScroll
+  }
+  if (lvl.autoScrollSpeed !== undefined) {
+    autoScrollSpeed = Number(lvl.autoScrollSpeed)
+  }
+
   if (!Array.isArray(bonuses)) bonuses = []
 }
 
@@ -1085,6 +1095,14 @@ function renderLevelsBar(){
 }
 
 function addLevelUI(){
+  // Dziedzicz prędkość z aktualnego poziomu i dodaj +0.5 dla progresji trudności
+  // (zgodnie z ideą: każdy kolejny poziom trudniejszy)
+  const currentLvl = getLevel()
+  const inheritedAutoScroll = currentLvl?.autoScroll ?? autoScroll
+  const inheritedSpeed = currentLvl?.autoScrollSpeed ?? autoScrollSpeed
+  // +0.5, max 10 (zakres suwaka)
+  const nowaSzybkosc = inheritedAutoScroll ? Math.min(10, inheritedSpeed + 0.5) : inheritedSpeed
+
   levels.push({
     players: [],
     platforms: [],
@@ -1094,7 +1112,9 @@ function addLevelUI(){
     texts: [],
     backgroundType: "none",
     playerStartX: 100,
-    playerStartY: 100
+    playerStartY: 100,
+    autoScroll: inheritedAutoScroll,
+    autoScrollSpeed: nowaSzybkosc
   })
 
   currentLevel = levels.length - 1
@@ -1171,6 +1191,17 @@ function switchLevelUI(i){
 
   respawnPlayer()
   renderLevelsBar()
+
+  // Jeśli panel "GRACZ" (z RUCH ŚWIATA) jest otwarty — przerenderuj go
+  // żeby pokazał wartości autoScroll/autoScrollSpeed nowego poziomu.
+  // Inaczej UI pokazuje stare wartości i użytkownik przy ZAPISZ nadpisze
+  // poziom złymi wartościami.
+  if (document.getElementById("autoScrollToggle")) {
+    pokazGraczy()
+  }
+
+  // Reset boostu przy przejściu na inny poziom
+  window.scrollBoost = 1
 }
 
 function pokazLiczniki(){
@@ -1711,7 +1742,7 @@ function pokazGraczy() {
       <div class="keybox" onclick="wybierzPole('strzal')" id="strzal" style="border-color:#aa4400; color:#ffaa66;">?</div>
     </div>
 
-    <h4>RUCH ŚWIATA</h4>
+    <h4>RUCH ŚWIATA <span style="font-size:11px; color:#ffcc44;">— poziom ${currentLevel + 1}</span></h4>
     <label style="display:block; margin-bottom:8px;">
       <input type="checkbox" id="autoScrollToggle"
        ${autoScroll ? "checked" : ""}
@@ -3090,6 +3121,7 @@ function update(){
       renderLevelsBar()
       respawnPlayer()
       cameraX = 0
+      window.scrollBoost = 1  // Reset boostu przy zmianie poziomu
 
       levelDelay = null
       levelTextAnim = null
@@ -3349,6 +3381,9 @@ function update(){
       p.y += p.vy
       if (p.y < p.r) { p.y = p.r; p.vy = 0 }
       if (p.y > canvas.height - 10 - p.r) { p.y = canvas.height - 10 - p.r; p.vy = 0 }
+      // Granice planszy w osi X — statek nie wyleci poza świat
+      if (p.x < p.r) { p.x = p.r; p.vx = 0 }
+      if (p.x > worldWidth - p.r) { p.x = worldWidth - p.r; p.vx = 0 }
 
       // === STRZELANIE ===
       if (burstReload > 0) {
@@ -3390,8 +3425,11 @@ function update(){
         }
         if (!crashed) {
           for (const pl of platforms) {
+            // Cienszy hitbox dla linii
+            const hitY = pl.typ === "line" ? pl.y + 8 : pl.y
+            const hitH = pl.typ === "line" ? 4 : (pl.h || 20)
             if (p.x + p.r > pl.x && p.x - p.r < pl.x + pl.w &&
-                p.y + p.r > pl.y && p.y - p.r < pl.y + (pl.h||20)) {
+                p.y + p.r > hitY && p.y - p.r < hitY + hitH) {
               crashed = true; break
             }
           }
@@ -3439,15 +3477,20 @@ function update(){
     }
 
     for (let pl of platforms) {
+      // Specjalny hitbox dla linii: tylko 4px wysokości, wycentrowany
+      // na widocznej grubości linii (rysowana jest w y + 10 z grubością ~4px).
+      const hitY = pl.typ === "line" ? pl.y + 8 : pl.y
+      const hitH = pl.typ === "line" ? 4 : (pl.h || 20)
+
       if (p.x > pl.x - p.r && p.x < pl.x + pl.w + p.r) {
-        if (p.y + p.r > pl.y && p.y < pl.y + (pl.h||20)) {
+        if (p.y + p.r > hitY && p.y < hitY + hitH) {
           if (pl.solid === "top" && p.vy > 0) {
-            p.y = pl.y - p.r
+            p.y = hitY - p.r
             p.vy = 0
           }
           if (pl.solid === "full") {
-            if (p.vy > 0) { p.y = pl.y - p.r; p.vy = 0 }
-            if (p.vy < 0) { p.y = pl.y + (pl.h||20) + p.r; p.vy = 1 }
+            if (p.vy > 0) { p.y = hitY - p.r; p.vy = 0 }
+            if (p.vy < 0) { p.y = hitY + hitH + p.r; p.vy = 1 }
           }
         }
       }
@@ -3574,8 +3617,11 @@ function update(){
 
       // Kolizja z platformami
       for (const pl of platforms) {
+        // Cienszy hitbox dla linii (pocisk przelatuje nad powietrzem)
+        const hitY = pl.typ === "line" ? pl.y + 8 : pl.y
+        const hitH = pl.typ === "line" ? 4 : (pl.h || 20)
         if (b.x + b.w > pl.x && b.x < pl.x + pl.w &&
-            b.y + b.h/2 > pl.y && b.y - b.h/2 < pl.y + (pl.h||20)) {
+            b.y + b.h/2 > hitY && b.y - b.h/2 < hitY + hitH) {
           spawnHitSpark(b.x + b.w - cameraX, b.y)
           bullets.splice(i, 1); hit = true; break
         }
@@ -3715,9 +3761,12 @@ function update(){
     const player = players[0]
 
     if (autoScroll) {
+      // Czy kamera dotarła już do końca planszy?
+      const cameraAtEnd = cameraX >= worldWidth - canvas.width - 0.5
+
       // STATEK: dynamiczne przyspieszenie gdy mija środek ekranu
       let currentScrollSpeed = autoScrollSpeed
-      if (player.type === "spaceship") {
+      if (player.type === "spaceship" && !cameraAtEnd) {
         const screenPos = (player.x - cameraX) / canvas.width
         // Boost zaczyna się już przy 40% szerokości (ciut za środkiem)
         const boostTarget = screenPos > 0.4
@@ -3728,9 +3777,15 @@ function update(){
         currentScrollSpeed = autoScrollSpeed * window.scrollBoost
       }
 
-      cameraX += currentScrollSpeed
-      if (player.type === "spaceship") {
-        player.x += currentScrollSpeed
+      if (cameraAtEnd) {
+        // KONIEC PLANSZY — zatrzymaj scroll, wygaś boost,
+        // pozwól graczowi kontrolować statek samodzielnie ←→
+        window.scrollBoost = 1
+      } else {
+        cameraX += currentScrollSpeed
+        if (player.type === "spaceship") {
+          player.x += currentScrollSpeed
+        }
       }
     } else {
       const targetX = player.x - canvas.width / 2 + player.r
@@ -5164,6 +5219,14 @@ function checkEnemyCollision() {
     let ex = enemy.x, ey = enemy.y
     let ew = enemy.w || 40, eh = enemy.h || 40
 
+    // Specjalny hitbox dla OGNIA: tylko dolne 50% spritea (górna połowa
+    // to bezpieczna strefa nad płomieniami). Sprite ognia ma podstawę
+    // na dole i wizualnie płomienie sięgają tylko do 60-80% wysokości.
+    if (enemy.type === "fire") {
+      ey = enemy.y + eh * 0.5
+      eh = eh * 0.5
+    }
+
     if (ex + ew < cameraX || ex > cameraX + canvas.width) continue
 
     // Hitbox gracza zmniejszony o 9px z każdej strony (~70% powierzchni)
@@ -5828,6 +5891,15 @@ function zapiszUstawienia(){
   const speedEl = document.getElementById("scrollSpeed")
   if (autoEl) autoScroll = autoEl.checked
   if (speedEl) autoScrollSpeed = Number(speedEl.value)
+
+  // Zapisz per-level — każdy poziom ma własną prędkość świata
+  const lvl = getLevel()
+  if (lvl) {
+    lvl.autoScroll = autoScroll
+    lvl.autoScrollSpeed = autoScrollSpeed
+  }
+
+  pokazMsg(`💾 Zapisano dla poziomu ${currentLevel + 1}: ${autoScroll ? "auto-scroll " + autoScrollSpeed : "bez scrolla"}`)
 }
 
 function powrotDoMenu() {
