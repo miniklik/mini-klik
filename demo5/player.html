@@ -139,6 +139,26 @@
     text-shadow: 0 0 10px #4af;
   }
 
+  #levelBadge {
+    font-size: 14px;
+    font-weight: bold;
+    color: #ffe97a;
+    letter-spacing: 2px;
+    padding: 6px 14px;
+    background: linear-gradient(180deg, #2a1a4a, #120828);
+    border: 2px solid #ff9e3d;
+    border-radius: 10px;
+    text-shadow: 0 0 8px #ff9e3d;
+    box-shadow: 0 0 12px rgba(255, 158, 61, 0.45), inset 0 0 8px rgba(255, 200, 100, 0.2);
+    white-space: nowrap;
+    user-select: none;
+    animation: levelGlow 2.5s ease-in-out infinite alternate;
+  }
+  @keyframes levelGlow {
+    from { box-shadow: 0 0 10px rgba(255,158,61,0.3), inset 0 0 6px rgba(255,200,100,0.15); }
+    to   { box-shadow: 0 0 20px rgba(255,158,61,0.7), inset 0 0 12px rgba(255,200,100,0.3); }
+  }
+
   #topControls {
     display: flex;
     gap: 10px;
@@ -342,6 +362,34 @@
     100% { opacity: 1; }
   }
 </style>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script>
+(function(){
+  try {
+    const gameId = (() => {
+      const parts = window.location.pathname.split('/').filter(Boolean);
+      return parts[parts.length - 2] || 'demo';
+    })();
+    const firebaseConfig = {
+      apiKey: "AIzaSyDRR3vSfgpEmbpZz_-VldMTnTHoXRfuGKg",
+      authDomain: "ksiega-ramzi.firebaseapp.com",
+      projectId: "ksiega-ramzi",
+      storageBucket: "ksiega-ramzi.firebasestorage.app",
+      messagingSenderId: "400735142662",
+      appId: "1:400735142662:web:0b52a57f4fedf367839487"
+    };
+    if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+    // +1 zagranie gdy player faktycznie się załaduje
+    window.addEventListener('load', () => {
+      db.collection("games").doc(gameId).set({
+        plays: firebase.firestore.FieldValue.increment(1)
+      }, { merge: true }).catch(err => console.error("Błąd licznika zagrań:", err));
+    });
+  } catch(e) { console.error("Firebase init error:", e); }
+})();
+</script>
 </head>
 <body>
 
@@ -354,6 +402,7 @@
 
   <div id="titleBar">
     <div id="gameTitle">🎮 GAME PLAYER</div>
+    <div id="levelBadge" title="Aktualna runda / łącznie rund">RUNDA 1/1</div>
     <div id="topControls">
       <button class="ctrl-btn nav-btn" id="navToggleBtn" onclick="toggleNav()">🕹 NAWIGACJA</button>
       <button class="ctrl-btn demo-btn" onclick="loadDemo()">MOJA GRA</button>
@@ -1910,6 +1959,13 @@ function restartGame(){
 
 // ===== DRAW =====
 function draw(){
+  // Aktualizacja wskaźnika rundy (tylko jeśli się zmienił - oszczędność)
+  const badge = document.getElementById('levelBadge');
+  if (badge && typeof levels !== 'undefined' && levels.length > 0) {
+    const txt = `RUNDA ${currentLevel + 1}/${levels.length}`;
+    if (badge.textContent !== txt) badge.textContent = txt;
+  }
+
   if (!gameLoaded) {
     ctx.fillStyle = "#111"
     ctx.fillRect(0, 0, canvas.width, canvas.height)
