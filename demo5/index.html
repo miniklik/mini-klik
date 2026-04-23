@@ -302,6 +302,8 @@
         .description, .controls { padding: 22px 20px; }
     }
 </style>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 </head>
 
 <body>
@@ -327,7 +329,7 @@
 
     <!-- PRZYCISKI NEONOWE -->
     <div class="actions">
-        <a href="player.html" class="btn btn-play" onclick="countPlay()">
+        <a href="player.html" class="btn btn-play">
             <span class="btn-sub">▶ PRESS START</span>
             <span class="btn-main">GRAJ TERAZ</span>
         </a>
@@ -392,14 +394,27 @@
 </footer>
 
 <script>
-// === IDENTYFIKATOR GRY — używamy nazwy folderu jako unikalnego ID ===
+// === IDENTYFIKATOR GRY — nazwa folderu jako unikalny ID ===
 const gameId = (() => {
     const parts = window.location.pathname.split('/').filter(Boolean);
     return parts[parts.length - 2] || 'demo';
 })();
-const STORAGE_PLAY       = `mk_plays_${gameId}`;
-const STORAGE_LIKE       = `mk_liked_${gameId}`;
-const STORAGE_LIKE_COUNT = `mk_likecount_${gameId}`;
+
+// Tylko dla polubień — pamiętamy w localStorage czy TEN użytkownik już polubił
+const STORAGE_LIKED_BY_ME = `mk_liked_${gameId}`;
+
+// === FIREBASE ===
+const firebaseConfig = {
+    apiKey: "AIzaSyDRR3vSfgpEmbpZz_-VldMTnTHoXRfuGKg",
+    authDomain: "ksiega-ramzi.firebaseapp.com",
+    projectId: "ksiega-ramzi",
+    storageBucket: "ksiega-ramzi.firebasestorage.app",
+    messagingSenderId: "400735142662",
+    appId: "1:400735142662:web:0b52a57f4fedf367839487"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+const gameRef = db.collection("games").doc(gameId);
 
 // === WCZYTAJ METADANE Z DEMO.JSON ===
 fetch('demo.json')
@@ -439,49 +454,69 @@ fetch('demo.json')
     })
     .catch(() => {});
 
-// === LICZNIK ZAGRAŃ (localStorage) ===
+// === POMOCNICZE ===
 function formatNumber(n) {
     if (n >= 1000) return (n / 1000).toFixed(1) + 'k';
     return n;
 }
-function loadPlayCount() {
-    const count = parseInt(localStorage.getItem(STORAGE_PLAY) || '0', 10);
-    document.getElementById('playCount').textContent = formatNumber(count);
-}
-function countPlay() {
-    const count = parseInt(localStorage.getItem(STORAGE_PLAY) || '0', 10) + 1;
-    localStorage.setItem(STORAGE_PLAY, count);
-    // nie aktualizujemy widoku — za chwilę przejdzie do player.html
+
+// === WCZYTAJ GLOBALNE LICZNIKI Z FIREBASE ===
+// Używamy onSnapshot — licznik aktualizuje się automatycznie live gdy inni grają/lubią
+gameRef.onSnapshot(doc => {
+    const data = doc.data() || {};
+    const plays = data.plays || 0;
+    const likes = data.likes || 0;
+
+    document.getElementById('playCount').textContent = formatNumber(plays);
+    document.getElementById('likeCount').textContent = formatNumber(likes);
+}, err => {
+    console.error("Błąd liczników:", err);
+});
+
+// Zaznacz serduszko jeśli TEN użytkownik już polubił
+if (localStorage.getItem(STORAGE_LIKED_BY_ME) === '1') {
+    document.getElementById('likeBtn').classList.add('liked');
 }
 
-// === POLUBIENIA ===
-function loadLikes() {
-    const liked = localStorage.getItem(STORAGE_LIKE) === '1';
-    const count = parseInt(localStorage.getItem(STORAGE_LIKE_COUNT) || '0', 10);
-    document.getElementById('likeCount').textContent = formatNumber(count);
-    if (liked) document.getElementById('likeBtn').classList.add('liked');
-}
-function toggleLike() {
+// === POLUBIENIA (toggle, +1 / -1) ===
+let likeInFlight = false;
+async function toggleLike() {
+    if (likeInFlight) return;
+    likeInFlight = true;
+
     const btn = document.getElementById('likeBtn');
-    const isLiked = btn.classList.contains('liked');
-    let count = parseInt(localStorage.getItem(STORAGE_LIKE_COUNT) || '0', 10);
+    const wasLiked = btn.classList.contains('liked');
 
-    if (isLiked) {
+    // Optymistyczna zmiana UI
+    if (wasLiked) {
         btn.classList.remove('liked');
-        count = Math.max(0, count - 1);
-        localStorage.setItem(STORAGE_LIKE, '0');
+        localStorage.setItem(STORAGE_LIKED_BY_ME, '0');
     } else {
         btn.classList.add('liked');
-        count++;
-        localStorage.setItem(STORAGE_LIKE, '1');
+        localStorage.setItem(STORAGE_LIKED_BY_ME, '1');
     }
-    localStorage.setItem(STORAGE_LIKE_COUNT, count);
-    document.getElementById('likeCount').textContent = formatNumber(count);
+
+    try {
+        await gameRef.set({
+            likes: firebase.firestore.FieldValue.increment(wasLiked ? -1 : 1)
+        }, { merge: true });
+    } catch (err) {
+        console.error("Błąd polubienia:", err);
+        // Rollback UI
+        if (wasLiked) {
+            btn.classList.add('liked');
+            localStorage.setItem(STORAGE_LIKED_BY_ME, '1');
+        } else {
+            btn.classList.remove('liked');
+            localStorage.setItem(STORAGE_LIKED_BY_ME, '0');
+        }
+    } finally {
+        likeInFlight = false;
+    }
 }
 
-// Init
-loadPlayCount();
-loadLikes();
+// UWAGA: countPlay() NIE jest już wywoływane z kliknięcia GRAJ
+// Zamiast tego zagranie jest liczone w player.html (gdy gra faktycznie się załaduje)
 </script>
 
 </body>
