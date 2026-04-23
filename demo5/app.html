@@ -66,7 +66,13 @@
     font-weight: bold;
     color: #fff;
     letter-spacing: 1.5px;
-    text-shadow: 0 2px 6px rgba(40, 80, 120, 0.5), 0 0 18px rgba(255, 255, 255, 0.3);
+    /* Neon różowo-niebieski wokół napisu "Edytor Gier" */
+    text-shadow:
+      0 0 4px #fff,
+      0 0 10px #fff,
+      0 0 18px #00d4ff,
+      0 0 28px #ff4ae0,
+      0 2px 6px rgba(40, 80, 120, 0.4);
   }
   .sky-sub {
     font-size: 12px;
@@ -79,42 +85,38 @@
     padding-left: 10px;
     text-shadow: 0 1px 3px rgba(40, 80, 120, 0.5);
   }
-  /* Link powrotu do mini-klik.pl — ciemny, czytelny na jasnym niebie */
+  /* Link powrotu do mini-klik.pl — wyraźnie podkreślony, klikalny */
   a.sky-link {
     pointer-events: auto;  /* włącz kliknięcie mimo pointer-events:none rodzica */
     cursor: pointer;
-    text-decoration: none;
     font-size: 16px;
     font-weight: bold;
     color: #0a1f3a;
+    text-decoration: underline;
+    text-decoration-color: #b8005a;
+    text-decoration-thickness: 2px;
+    text-underline-offset: 3px;
+    padding: 2px 8px;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.45);
     text-shadow:
       0 0 3px rgba(255,255,255,0.9),
-      0 0 6px rgba(255,255,255,0.7),
       0 1px 2px rgba(255,255,255,1);
     transition: all 0.25s;
     animation: skyLinkPulse 2.5s ease-in-out infinite alternate;
   }
   a.sky-link:hover {
-    color: #b8005a;
+    color: #fff;
+    background: #b8005a;
+    text-decoration-color: #fff;
     text-shadow:
-      0 0 4px rgba(255,255,255,1),
-      0 0 8px rgba(255,255,255,0.8),
-      0 0 14px rgba(255, 100, 180, 0.6);
-    transform: scale(1.1);
+      0 0 4px rgba(255,255,255,0.7),
+      0 0 10px rgba(255, 100, 180, 0.8);
+    transform: scale(1.08);
   }
   @keyframes skyLinkPulse {
-    from {
-      text-shadow:
-        0 0 3px rgba(255,255,255,0.9),
-        0 0 6px rgba(255,255,255,0.7),
-        0 1px 2px rgba(255,255,255,1);
-    }
-    to {
-      text-shadow:
-        0 0 5px rgba(255,255,255,1),
-        0 0 10px rgba(255,255,255,0.85),
-        0 1px 2px rgba(255,255,255,1);
-    }
+    from { box-shadow: 0 0 0 0 rgba(184, 0, 90, 0); }
+    to   { box-shadow: 0 0 0 4px rgba(184, 0, 90, 0.25); }
   }
   @media (max-width: 700px) {
     #skyHeader { height: 56px; }
@@ -381,6 +383,110 @@
   @media (max-width: 500px) {
     #lewy button { font-size: 10px; padding: 0 6px; height: 30px; }
     #objectsBar { padding: 4px 6px; gap: 4px; }
+  }
+
+  /* ===================================================== */
+  /* ============ D-PAD DOTYKOWY (tablet/telefon) ======== */
+  /* ===================================================== */
+  #dpad {
+    position: fixed;
+    right: 20px;
+    bottom: 20px;
+    width: 210px;
+    height: 210px;
+    z-index: 9000;
+    display: none;             /* domyślnie schowany - pokazuje się w trybie gry */
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: none;
+    pointer-events: none;      /* tło nie przechwytuje kliknięć */
+  }
+  /* Pokaż D-pad tylko na urządzeniach dotykowych w trybie gry */
+  body.game-mode.touch-device #dpad {
+    display: block;
+  }
+
+  .dpad-btn {
+    position: absolute;
+    background: linear-gradient(180deg, rgba(70,70,70,0.85), rgba(30,30,30,0.85));
+    border: 3px solid rgba(255,255,255,0.3);
+    color: white;
+    font-size: 34px;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    pointer-events: auto;
+    -webkit-tap-highlight-color: transparent;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.5), inset 0 1px 3px rgba(255,255,255,0.2);
+    transition: all 0.08s ease;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.6);
+  }
+  .dpad-btn.pressed {
+    background: linear-gradient(180deg, #4CAF50, #2e7d32);
+    border-color: #81c784;
+    box-shadow: 0 0 15px #4CAF50, inset 0 2px 6px rgba(0,0,0,0.4);
+    transform: scale(0.95);
+  }
+
+  /* Układ: góra/lewo/prawo/dół to ramiona krzyża, środek to skok/strzał */
+  .dpad-up    { top: 0;    left: 70px;  width: 70px; height: 70px; border-radius: 12px 12px 6px 6px; }
+  .dpad-down  { bottom: 0; left: 70px;  width: 70px; height: 70px; border-radius: 6px 6px 12px 12px; }
+  .dpad-left  { top: 70px; left: 0;     width: 70px; height: 70px; border-radius: 12px 6px 6px 12px; }
+  .dpad-right { top: 70px; right: 0;    width: 70px; height: 70px; border-radius: 6px 12px 12px 6px; }
+
+  /* Przycisk środkowy — dynamiczny (skok lub strzał) */
+  .dpad-fire {
+    top: 70px;
+    left: 70px;
+    width: 70px;
+    height: 70px;
+    border-radius: 50%;
+    font-size: 28px;
+    border: 3px solid rgba(255,255,255,0.6);
+  }
+  /* Tryb SKOK (piłka/samochód) - zielony, góra i dół SCHOWANE */
+  body .dpad.mode-jump .dpad-up,
+  body .dpad.mode-jump .dpad-down,
+  #dpad.mode-jump .dpad-up,
+  #dpad.mode-jump .dpad-down {
+    display: none;
+  }
+  #dpad.mode-jump .dpad-fire {
+    background: radial-gradient(circle at 30% 30%, #66e066, #1f9d1f 70%, #0a5a0a);
+    border-color: rgba(180,255,180,0.7);
+    box-shadow: 0 0 14px rgba(60,220,80,0.6), inset 0 2px 6px rgba(255,255,255,0.25);
+  }
+  #dpad.mode-jump .dpad-fire.pressed {
+    background: radial-gradient(circle at 30% 30%, #aaffaa, #44dd44 70%, #1a8a1a);
+    box-shadow: 0 0 22px #55ff55, inset 0 2px 6px rgba(0,0,0,0.4);
+    transform: scale(0.93);
+  }
+  /* Tryb STATEK - czerwony strzał, wszystkie 4 kierunki widoczne */
+  #dpad.mode-ship .dpad-fire {
+    background: radial-gradient(circle at 30% 30%, #ff6a3d, #c02a00 70%, #5a1000);
+    border-color: rgba(255,200,100,0.6);
+    box-shadow: 0 0 14px rgba(255,100,30,0.6), inset 0 2px 6px rgba(255,255,255,0.25);
+  }
+  #dpad.mode-ship .dpad-fire.pressed {
+    background: radial-gradient(circle at 30% 30%, #ffaa55, #ff4400 70%, #aa1a00);
+    box-shadow: 0 0 22px #ff6a00, inset 0 2px 6px rgba(0,0,0,0.4);
+    transform: scale(0.93);
+  }
+
+  /* Na bardzo małych ekranach D-pad nieco mniejszy */
+  @media (max-width: 500px) {
+    #dpad { width: 170px; height: 170px; right: 12px; bottom: 12px; }
+    .dpad-up, .dpad-down, .dpad-left, .dpad-right, .dpad-fire {
+      width: 56px; height: 56px;
+    }
+    .dpad-up    { left: 57px; }
+    .dpad-down  { left: 57px; }
+    .dpad-left  { top: 57px; }
+    .dpad-right { top: 57px; }
+    .dpad-fire  { top: 57px; left: 57px; font-size: 22px; }
+    .dpad-btn   { font-size: 26px; }
   }
 </style>
 </head>
@@ -766,7 +872,7 @@ let bullets = []           // aktywne pociski
 let bulletCooldown = 0     // klatki do następnego strzału
 let burstCount = 0         // ile strzałów w serii
 let burstReload = 0        // odliczanie przeładowania (2s = 120 klatek)
-const BURST_MAX = 20       // max strzałów w serii
+const BURST_MAX = 60       // max strzałów w serii
 const BURST_RELOAD = 120   // klatki przeładowania
 const BULLET_COOLDOWN = 4  // klatki między strzałami w serii
 
@@ -840,6 +946,16 @@ function syncLevelData(){
   bonuses   = lvl.bonuses   || []
   texts     = lvl.texts     || []
 
+  // PER-LEVEL prędkość świata — każdy poziom ma własne ustawienia.
+  // Jeśli poziom nie ma zapisanych wartości (stare gry / nowy poziom),
+  // używamy globalnych jako fallback.
+  if (lvl.autoScroll !== undefined) {
+    autoScroll = !!lvl.autoScroll
+  }
+  if (lvl.autoScrollSpeed !== undefined) {
+    autoScrollSpeed = Number(lvl.autoScrollSpeed)
+  }
+
   if (!Array.isArray(bonuses)) bonuses = []
 }
 
@@ -887,6 +1003,7 @@ let levelDelay = null
 let matrixCols = []
 let matrixFrame = 0
 let levelTextAnim = null
+let bonusLifeAnim = null  // pulsujący napis "ŻYCIE BONUS" po zebraniu diamentów
 
 let resultsBall = { x: 400, y: 220, r: 20 }
 let resultsEnemies = []
@@ -898,6 +1015,10 @@ let counters = {
 }
 let startTime = counters.time
 let useTimer = true
+// Bonus życia za diamenty
+let useBonusLives = false       // czy w ogóle przyznawać dodatkowe życia
+let livesPerDiamonds = 10       // co ile diamentów przyznać życie
+const MAX_LIVES = 9             // limit żyć (maks 9)
 let autorGry = "Nieznany"
 let nazwaGry = "Moja gra"
 let opisGry = ""
@@ -953,10 +1074,42 @@ function renderLevelsBar(){
     </div>
   `
 
+  // Przycisk MINUS — usuwa ostatni poziom (tylko gdy jest więcej niż 1)
+  if (levels.length > 1) {
+    html += `
+      <div onclick="removeLevelUI()"
+           title="Usuń ostatni poziom"
+           style="
+             width:32px;
+             height:32px;
+             background:#c0392b;
+             color:white;
+             display:flex;
+             align-items:center;
+             justify-content:center;
+             cursor:pointer;
+             border-radius:6px;
+             font-size:22px;
+             font-weight:bold;
+             margin-left:4px;
+           ">
+        −
+      </div>
+    `
+  }
+
   document.getElementById("levelsBar").innerHTML = html
 }
 
 function addLevelUI(){
+  // Dziedzicz prędkość z aktualnego poziomu i dodaj +0.5 dla progresji trudności
+  // (zgodnie z ideą: każdy kolejny poziom trudniejszy)
+  const currentLvl = getLevel()
+  const inheritedAutoScroll = currentLvl?.autoScroll ?? autoScroll
+  const inheritedSpeed = currentLvl?.autoScrollSpeed ?? autoScrollSpeed
+  // +0.5, max 10 (zakres suwaka)
+  const nowaSzybkosc = inheritedAutoScroll ? Math.min(10, inheritedSpeed + 0.5) : inheritedSpeed
+
   levels.push({
     players: [],
     platforms: [],
@@ -966,7 +1119,9 @@ function addLevelUI(){
     texts: [],
     backgroundType: "none",
     playerStartX: 100,
-    playerStartY: 100
+    playerStartY: 100,
+    autoScroll: inheritedAutoScroll,
+    autoScrollSpeed: nowaSzybkosc
   })
 
   currentLevel = levels.length - 1
@@ -984,6 +1139,53 @@ function addLevelUI(){
   renderLevelsBar()
 }
 
+function removeLevelUI(){
+  // Zabezpieczenie: musi zostać minimum 1 poziom
+  if (levels.length <= 1) {
+    pokazMsg("❌ Musi zostać przynajmniej 1 poziom")
+    return
+  }
+
+  const ostatniNr = levels.length
+  const lvl = levels[levels.length - 1]
+  const maObiekty =
+    (lvl.players?.length || 0) +
+    (lvl.platforms?.length || 0) +
+    (lvl.blocks?.length || 0) +
+    (lvl.enemies?.length || 0) +
+    (lvl.bonuses?.length || 0) +
+    (lvl.texts?.length || 0) > 0
+
+  // Potwierdzenie — ostrożniej jeśli poziom nie jest pusty
+  const komunikat = maObiekty
+    ? `⚠ Usunąć poziom ${ostatniNr}? Zawiera obiekty — TEJ OPERACJI NIE MOŻNA COFNĄĆ!`
+    : `Usunąć ostatni poziom (${ostatniNr})?`
+
+  if (!confirm(komunikat)) return
+
+  // Usuwamy ostatni poziom
+  levels.pop()
+
+  // Jeśli byliśmy na usuniętym poziomie — przesuwamy się na poprzedni
+  if (currentLevel >= levels.length) {
+    currentLevel = levels.length - 1
+  }
+
+  syncLevelData()
+
+  const nowy = getLevel()
+  playerStartX = nowy.playerStartX ?? 100
+  playerStartY = nowy.playerStartY ?? 100
+
+  if (players.length > 0) {
+    players[0].x = playerStartX
+    players[0].y = playerStartY
+  }
+
+  renderLevelsBar()
+  pokazMsg(`🗑 Usunięto poziom ${ostatniNr}`)
+}
+
 function switchLevelUI(i){
   if (i < 0 || i >= levels.length) return
 
@@ -996,6 +1198,17 @@ function switchLevelUI(i){
 
   respawnPlayer()
   renderLevelsBar()
+
+  // Jeśli panel "GRACZ" (z RUCH ŚWIATA) jest otwarty — przerenderuj go
+  // żeby pokazał wartości autoScroll/autoScrollSpeed nowego poziomu.
+  // Inaczej UI pokazuje stare wartości i użytkownik przy ZAPISZ nadpisze
+  // poziom złymi wartościami.
+  if (document.getElementById("autoScrollToggle")) {
+    pokazGraczy()
+  }
+
+  // Reset boostu przy przejściu na inny poziom
+  window.scrollBoost = 1
 }
 
 function pokazLiczniki(){
@@ -1026,7 +1239,21 @@ function pokazLiczniki(){
       Licz czas
     </label>
 
-    <br><br><br>
+    <br><br>
+
+    <div style="border-top: 1px solid #333; padding-top: 12px;">
+      <label style="display:block; margin-bottom:8px;">
+        <input type="checkbox" id="useBonusLives" ${useBonusLives ? "checked" : ""}>
+        💎 Bonus życia za diamenty
+      </label>
+      <div style="font-size:12px; color:#aaa; margin-bottom:6px;">
+        Co ile diamentów =&nbsp;+1 życie (max ${MAX_LIVES}):
+      </div>
+      <input type="number" id="editLivesPerDiamonds" value="${livesPerDiamonds}"
+             min="1" max="999" style="width:80px;">
+    </div>
+
+    <br><br>
 
     <button onclick="zapiszLiczniki()">ZAPISZ</button>
   `
@@ -1536,7 +1763,7 @@ function pokazGraczy() {
       <div class="keybox" onclick="wybierzPole('strzal')" id="strzal" style="border-color:#aa4400; color:#ffaa66;">?</div>
     </div>
 
-    <h4>RUCH ŚWIATA</h4>
+    <h4>RUCH ŚWIATA <span style="font-size:11px; color:#ffcc44;">— poziom ${currentLevel + 1}</span></h4>
     <label style="display:block; margin-bottom:8px;">
       <input type="checkbox" id="autoScrollToggle"
        ${autoScroll ? "checked" : ""}
@@ -2915,6 +3142,7 @@ function update(){
       renderLevelsBar()
       respawnPlayer()
       cameraX = 0
+      window.scrollBoost = 1  // Reset boostu przy zmianie poziomu
 
       levelDelay = null
       levelTextAnim = null
@@ -3174,6 +3402,9 @@ function update(){
       p.y += p.vy
       if (p.y < p.r) { p.y = p.r; p.vy = 0 }
       if (p.y > canvas.height - 10 - p.r) { p.y = canvas.height - 10 - p.r; p.vy = 0 }
+      // Granice planszy w osi X — statek nie wyleci poza świat
+      if (p.x < p.r) { p.x = p.r; p.vx = 0 }
+      if (p.x > worldWidth - p.r) { p.x = worldWidth - p.r; p.vx = 0 }
 
       // === STRZELANIE ===
       if (burstReload > 0) {
@@ -3204,19 +3435,27 @@ function update(){
       }
 
       // === KOLIZJA STATKU Z BLOKAMI I PLATFORMAMI ===
+      // Hitbox statku 20x20 wycentrowany na środku (zamiast pełnego p.r=30).
+      // Zapobiega "rozbiciu się o powietrze" wokół statku.
       if (trybGry && invulnerable === 0 && !gameOver) {
+        const shipHalf = 10  // hitbox 20x20 (10 od środka w każdą stronę)
+        const sx1 = p.x - shipHalf, sx2 = p.x + shipHalf
+        const sy1 = p.y - shipHalf, sy2 = p.y + shipHalf
         let crashed = false
         for (const b of blocks) {
           if (b.typ === "blockBomb" && b.exploded) continue
-          if (p.x + p.r > b.x && p.x - p.r < b.x + b.w &&
-              p.y + p.r > b.y && p.y - p.r < b.y + b.h) {
+          if (sx2 > b.x && sx1 < b.x + b.w &&
+              sy2 > b.y && sy1 < b.y + b.h) {
             crashed = true; break
           }
         }
         if (!crashed) {
           for (const pl of platforms) {
-            if (p.x + p.r > pl.x && p.x - p.r < pl.x + pl.w &&
-                p.y + p.r > pl.y && p.y - p.r < pl.y + (pl.h||20)) {
+            // Cienszy hitbox dla linii
+            const hitY = pl.typ === "line" ? pl.y + 8 : pl.y
+            const hitH = pl.typ === "line" ? 4 : (pl.h || 20)
+            if (sx2 > pl.x && sx1 < pl.x + pl.w &&
+                sy2 > hitY && sy1 < hitY + hitH) {
               crashed = true; break
             }
           }
@@ -3250,7 +3489,7 @@ function update(){
       if (keys[sterowanie.prawo]) p.vx = 4
     }
 
-    if (keys[sterowanie.skok] && p.vy === 0) p.vy = -10
+    if (keys[sterowanie.skok] && p.vy === 0) p.vy = -11  // skok (oryginał -10)
 
     p.vy += gravity
     p.x += p.vx
@@ -3264,15 +3503,20 @@ function update(){
     }
 
     for (let pl of platforms) {
+      // Specjalny hitbox dla linii: tylko 4px wysokości, wycentrowany
+      // na widocznej grubości linii (rysowana jest w y + 10 z grubością ~4px).
+      const hitY = pl.typ === "line" ? pl.y + 8 : pl.y
+      const hitH = pl.typ === "line" ? 4 : (pl.h || 20)
+
       if (p.x > pl.x - p.r && p.x < pl.x + pl.w + p.r) {
-        if (p.y + p.r > pl.y && p.y < pl.y + (pl.h||20)) {
+        if (p.y + p.r > hitY && p.y < hitY + hitH) {
           if (pl.solid === "top" && p.vy > 0) {
-            p.y = pl.y - p.r
+            p.y = hitY - p.r
             p.vy = 0
           }
           if (pl.solid === "full") {
-            if (p.vy > 0) { p.y = pl.y - p.r; p.vy = 0 }
-            if (p.vy < 0) { p.y = pl.y + (pl.h||20) + p.r; p.vy = 1 }
+            if (p.vy > 0) { p.y = hitY - p.r; p.vy = 0 }
+            if (p.vy < 0) { p.y = hitY + hitH + p.r; p.vy = 1 }
           }
         }
       }
@@ -3399,8 +3643,11 @@ function update(){
 
       // Kolizja z platformami
       for (const pl of platforms) {
+        // Cienszy hitbox dla linii (pocisk przelatuje nad powietrzem)
+        const hitY = pl.typ === "line" ? pl.y + 8 : pl.y
+        const hitH = pl.typ === "line" ? 4 : (pl.h || 20)
         if (b.x + b.w > pl.x && b.x < pl.x + pl.w &&
-            b.y + b.h/2 > pl.y && b.y - b.h/2 < pl.y + (pl.h||20)) {
+            b.y + b.h/2 > hitY && b.y - b.h/2 < hitY + hitH) {
           spawnHitSpark(b.x + b.w - cameraX, b.y)
           bullets.splice(i, 1); hit = true; break
         }
@@ -3527,7 +3774,7 @@ function update(){
         return
       }
 
-      counters.points += 1
+      addPoint()
       bonuses.splice(i, 1)
       // Synchronizuj z poziomem
       const lvl = getLevel()
@@ -3540,9 +3787,12 @@ function update(){
     const player = players[0]
 
     if (autoScroll) {
+      // Czy kamera dotarła już do końca planszy?
+      const cameraAtEnd = cameraX >= worldWidth - canvas.width - 0.5
+
       // STATEK: dynamiczne przyspieszenie gdy mija środek ekranu
       let currentScrollSpeed = autoScrollSpeed
-      if (player.type === "spaceship") {
+      if (player.type === "spaceship" && !cameraAtEnd) {
         const screenPos = (player.x - cameraX) / canvas.width
         // Boost zaczyna się już przy 40% szerokości (ciut za środkiem)
         const boostTarget = screenPos > 0.4
@@ -3553,9 +3803,15 @@ function update(){
         currentScrollSpeed = autoScrollSpeed * window.scrollBoost
       }
 
-      cameraX += currentScrollSpeed
-      if (player.type === "spaceship") {
-        player.x += currentScrollSpeed
+      if (cameraAtEnd) {
+        // KONIEC PLANSZY — zatrzymaj scroll, wygaś boost,
+        // pozwól graczowi kontrolować statek samodzielnie ←→
+        window.scrollBoost = 1
+      } else {
+        cameraX += currentScrollSpeed
+        if (player.type === "spaceship") {
+          player.x += currentScrollSpeed
+        }
       }
     } else {
       const targetX = player.x - canvas.width / 2 + player.r
@@ -4259,7 +4515,7 @@ function draw(){
       ctx.ellipse(x + w/2, y + h/2, w * 0.65, h * 0.65, 0, 0, Math.PI * 2)
       ctx.fill()
       ctx.restore()
-      ctx.globalAlpha = 0.82  // lekko przezroczysty
+      ctx.globalAlpha = 0.82  // sam wróg lekko przezroczysty (resetowane przed bonusami)
     }
 
     if (en.type === "ghost") {
@@ -4721,6 +4977,7 @@ function draw(){
   }
 
   for (let b of bonuses) {
+    ctx.globalAlpha = 1  // reset - żeby diamenty były zawsze wyraźne (nie po lewitujących wrogach)
     ctx.save()
     ctx.translate(b.x, b.y)
     let scale = b.scale || 1
@@ -4910,6 +5167,30 @@ function draw(){
     ctx.restore()
   }
 
+  // === PULSUJĄCY NAPIS "ŻYCIE BONUS" po zebraniu diamentów ===
+  if (bonusLifeAnim) {
+    bonusLifeAnim.time--
+    if (bonusLifeAnim.time <= 0) bonusLifeAnim = null
+    else {
+      const t = Date.now() * 0.012
+      const pulse = Math.sin(t) * 0.25 + 1  // skala 0.75-1.25
+      const alpha = Math.min(1, bonusLifeAnim.time / 20)  // fade-out w ostatnie 20 klatek
+      ctx.save()
+      ctx.globalAlpha = alpha
+      ctx.textAlign = "center"
+      ctx.textBaseline = "middle"
+      ctx.translate(canvas.width / 2, 75)
+      ctx.scale(pulse, pulse)
+      // Poświata różowa
+      ctx.shadowColor = "#ff3a8a"
+      ctx.shadowBlur = 25
+      ctx.font = "bold 34px Arial"
+      ctx.fillStyle = "#ff4ea8"
+      ctx.fillText("❤️  ŻYCIE BONUS", 0, 0)
+      ctx.restore()
+    }
+  }
+
   // podłoga
   ctx.fillStyle = "#444"
   ctx.fillRect(0, 450, 800, 50)
@@ -4942,6 +5223,9 @@ async function zapiszProjekt(){
       counters,
       startTime,
       useTimer,
+      useLives,
+      useBonusLives,
+      livesPerDiamonds,
       backgroundType,
       playerStartX,
       playerStartY,
@@ -4989,12 +5273,31 @@ function checkEnemyCollision() {
     let ex = enemy.x, ey = enemy.y
     let ew = enemy.w || 40, eh = enemy.h || 40
 
+    // Specjalny hitbox dla OGNIA: tylko dolne 50% spritea (górna połowa
+    // to bezpieczna strefa nad płomieniami). Sprite ognia ma podstawę
+    // na dole i wizualnie płomienie sięgają tylko do 60-80% wysokości.
+    if (enemy.type === "fire") {
+      ey = enemy.y + eh * 0.5
+      eh = eh * 0.5
+    }
+
     if (ex + ew < cameraX || ex > cameraX + canvas.width) continue
 
-    let px = player.x - player.r, py = player.y - player.r
-    let pw = player.r * 2, ph = player.r * 2
+    // ===== HITBOX PUNKTOWY / MAŁY =====
+    // Statek: 1 piksel w kabinie (bardzo precyzyjna kolizja).
+    // Piłka/samochód: mały kwadrat 30x30 w środku.
+    let hitboxX = player.x
+    let hitboxY = player.y
+    let hitboxSize = 30  // domyślnie 30x30 dla ball/car
+    if (player.type === "spaceship") {
+      hitboxY = player.y - 2
+      hitboxSize = 1  // statek - precyzyjny 1 piksel
+    }
+    const half = hitboxSize / 2
+    const hx1 = hitboxX - half, hx2 = hitboxX + half
+    const hy1 = hitboxY - half, hy2 = hitboxY + half
 
-    if (px < ex + ew && px + pw > ex && py < ey + eh && py + ph > ey) {
+    if (hx1 < ex + ew && hx2 > ex && hy1 < ey + eh && hy2 > ey) {
       deathRespawnX = player.x
       deathRespawnY = player.y
       if (useLives) counters.lives--
@@ -5415,6 +5718,9 @@ function wczytajProjekt(){
 
         startTime = s.startTime ?? counters.time
         useTimer  = !!s.useTimer
+        if (s.useLives !== undefined) useLives = !!s.useLives
+        useBonusLives = !!s.useBonusLives
+        livesPerDiamonds = Number(s.livesPerDiamonds) || 10
 
         showIntro = true
         lastTime = Date.now()
@@ -5648,6 +5954,15 @@ function zapiszUstawienia(){
   const speedEl = document.getElementById("scrollSpeed")
   if (autoEl) autoScroll = autoEl.checked
   if (speedEl) autoScrollSpeed = Number(speedEl.value)
+
+  // Zapisz per-level — każdy poziom ma własną prędkość świata
+  const lvl = getLevel()
+  if (lvl) {
+    lvl.autoScroll = autoScroll
+    lvl.autoScrollSpeed = autoScrollSpeed
+  }
+
+  pokazMsg(`💾 Zapisano dla poziomu ${currentLevel + 1}: ${autoScroll ? "auto-scroll " + autoScrollSpeed : "bez scrolla"}`)
 }
 
 function powrotDoMenu() {
@@ -5673,6 +5988,15 @@ function zapiszLiczniki(){
 
   useTimer = timerOn
   useLives = livesOn
+
+  // Bonus życia za diamenty
+  const bonusEl = document.getElementById("useBonusLives")
+  const perEl = document.getElementById("editLivesPerDiamonds")
+  if (bonusEl) useBonusLives = bonusEl.checked
+  if (perEl) {
+    const v = Number(perEl.value)
+    if (!isNaN(v) && v >= 1) livesPerDiamonds = v
+  }
 
   let el = document.getElementById("editWorld")
   if (el) {
@@ -5735,6 +6059,9 @@ function loadDemo() {
       }
       startTime       = s.startTime ?? counters.time
       useTimer        = !!s.useTimer
+      if (s.useLives !== undefined) useLives = !!s.useLives
+      useBonusLives   = !!s.useBonusLives
+      livesPerDiamonds = Number(s.livesPerDiamonds) || 10
       respawnMode     = s.respawnMode     || "death"
       autoScroll      = !!s.autoScroll
       autoScrollSpeed = Number(s.autoScrollSpeed) || 2
@@ -8028,6 +8355,20 @@ function pokazMsg(txt){
   setTimeout(() => msg.remove(), 2000)
 }
 
+// Dodaje 1 punkt i sprawdza czy gracz zasłużył na dodatkowe życie.
+// Wywoływane wszędzie tam gdzie wcześniej było counters.points++
+function addPoint(){
+  counters.points++
+  if (!useBonusLives) return
+  if (!trybGry) return                                  // tylko w grze, nie w edytorze
+  if (livesPerDiamonds < 1) return
+  if (counters.points % livesPerDiamonds !== 0) return  // nie co punkt, tylko co N
+  if (counters.lives >= MAX_LIVES) return               // limit żyć
+  counters.lives++
+  // Pulsujący napis "❤️ ŻYCIE BONUS" na planszy (nie poza nią)
+  bonusLifeAnim = { time: 90 }  // ~1.5s @ 60fps
+}
+
 // ================= START =================
 updateButtonStates()
 renderLevelsBar()
@@ -8165,12 +8506,151 @@ function initObjectsBarPreviews() {
   }
 }
 
+// ===================================================================
+// ======================= D-PAD DOTYKOWY ============================
+// ===================================================================
+// Wykrywanie czy urządzenie ma ekran dotykowy (tablet/telefon).
+// Używamy dwóch sygnałów: 'pointer:coarse' i obecność TouchEvent,
+// żeby laptop z touchpadem nie pokazał D-pada.
+(function detectTouchDevice(){
+  const coarse = window.matchMedia && window.matchMedia("(pointer: coarse)").matches
+  const hasTouch = "ontouchstart" in window || navigator.maxTouchPoints > 0
+  if (coarse && hasTouch) {
+    document.body.classList.add("touch-device")
+  }
+})()
+
+// Domyślne fallback-klawisze dla D-pada (jeśli użytkownik nie ustawił własnych).
+// D-pad zawsze działa — nawet gdy gracz nie skonfigurował klawiatury.
+const DPAD_FALLBACK = {
+  lewo:   "ArrowLeft",
+  prawo:  "ArrowRight",
+  skok:   "ArrowUp",
+  dol:    "ArrowDown",
+  strzal: " "           // spacja
+}
+
+// Mapa: kierunek → aktualnie "wciśnięty" klawisz (żeby release trafił w ten sam)
+const dpadHeldKeys = {}
+
+function dpadGetKey(dir){
+  // Jeśli użytkownik nie skonfigurował danego klawisza - ustawiamy fallback.
+  // Inaczej gra czyta keys[sterowanie.dir] = keys[null] → nic się nie dzieje.
+  // Ten sam trick zastosowany dla wszystkich kierunków, nie tylko dla strzału.
+  if (!sterowanie[dir]) {
+    sterowanie[dir] = DPAD_FALLBACK[dir]
+  }
+  return sterowanie[dir]
+}
+
+// Środkowy przycisk zmienia funkcję zależnie od typu gracza:
+//  • statek kosmiczny → strzał
+//  • wszystko inne     → skok
+function dpadCenterAction(){
+  const p = players[0]
+  if (p && p.type === "spaceship") return "strzal"
+  return "skok"
+}
+
+function dpadPress(e, dir){
+  if (e) { e.preventDefault(); e.stopPropagation() }
+  // Obsługa środkowego przycisku — dynamiczna funkcja
+  if (dir === "center") dir = dpadCenterAction()
+  const key = dpadGetKey(dir)
+  if (!key) return
+  keys[key] = true
+  dpadHeldKeys[dir] = key
+  // Podświetl właściwy przycisk (center używa klasy .dpad-fire)
+  const btn = document.querySelector(`.dpad-btn[data-dir="center"]`)
+  if (dir === "skok" || dir === "strzal") {
+    if (btn) btn.classList.add("pressed")
+  } else {
+    const b = document.querySelector(`.dpad-btn[data-dir="${dir}"]`)
+    if (b) b.classList.add("pressed")
+  }
+}
+
+function dpadRelease(e, dir){
+  if (e) { e.preventDefault(); e.stopPropagation() }
+  if (dir === "center") dir = dpadCenterAction()
+  const key = dpadHeldKeys[dir] || dpadGetKey(dir)
+  if (key) keys[key] = false
+  dpadHeldKeys[dir] = null
+  if (dir === "skok" || dir === "strzal") {
+    const btn = document.querySelector(`.dpad-btn[data-dir="center"]`)
+    if (btn) btn.classList.remove("pressed")
+  } else {
+    const b = document.querySelector(`.dpad-btn[data-dir="${dir}"]`)
+    if (b) b.classList.remove("pressed")
+  }
+}
+
+// Aktualizacja wyglądu D-pada zależnie od typu gracza:
+//  • statek → pełny 4-kierunkowy + strzał (🔫, czerwony)
+//  • inne   → tylko lewo/prawo + skok (🆙, zielony), dół schowany
+function updateDpadForPlayer(){
+  const dpad = document.getElementById("dpad")
+  if (!dpad) return
+  const p = players[0]
+  const isShip = !!(p && p.type === "spaceship")
+  dpad.classList.toggle("mode-ship", isShip)
+  dpad.classList.toggle("mode-jump", !isShip)
+  // Aktualizuj ikonę środkowego przycisku
+  const fire = dpad.querySelector(".dpad-fire")
+  if (fire) fire.textContent = isShip ? "🔫" : "🆙"
+}
+
+// Synchronizacja klasy body.game-mode ze zmienną trybGry.
+// Używam getterów/setterów na window, żeby nie szukać wszystkich miejsc
+// gdzie ustawiane jest trybGry - wystarczy sprawdzać raz na klatkę.
+let _dpadLastTrybGry = null
+let _dpadLastPlayerType = null
+function syncDpadVisibility(){
+  if (trybGry !== _dpadLastTrybGry) {
+    _dpadLastTrybGry = trybGry
+    if (trybGry) {
+      document.body.classList.add("game-mode")
+      updateDpadForPlayer()
+    } else {
+      document.body.classList.remove("game-mode")
+      // Zwolnij wszystkie wciśnięte klawisze D-pada przy wyjściu z trybu gry
+      for (const dir in dpadHeldKeys) {
+        if (dpadHeldKeys[dir]) {
+          keys[dpadHeldKeys[dir]] = false
+          dpadHeldKeys[dir] = null
+        }
+      }
+      document.querySelectorAll(".dpad-btn.pressed").forEach(b => b.classList.remove("pressed"))
+    }
+  }
+  // Śledź zmianę typu gracza (jeśli w trakcie gry gracz się zmienił)
+  if (trybGry) {
+    const currentType = players[0]?.type || null
+    if (currentType !== _dpadLastPlayerType) {
+      _dpadLastPlayerType = currentType
+      updateDpadForPlayer()
+    }
+  }
+}
+
+// Bezpieczeństwo: zwolnij wszystko gdy palec wyjedzie poza ekran
+window.addEventListener("blur", () => {
+  for (const dir in dpadHeldKeys) {
+    if (dpadHeldKeys[dir]) {
+      keys[dpadHeldKeys[dir]] = false
+      dpadHeldKeys[dir] = null
+    }
+  }
+  document.querySelectorAll(".dpad-btn.pressed").forEach(b => b.classList.remove("pressed"))
+})
+
 function loop(time){
   if (time - lastFrame < frameDelay) {
     requestAnimationFrame(loop)
     return
   }
   lastFrame = time
+  syncDpadVisibility()
   update()
   draw()
   requestAnimationFrame(loop)
@@ -8208,6 +8688,17 @@ requestAnimationFrame(loop)
     <br><br>
     <button onclick="zapiszAutora()">OK</button>
   </div>
+</div>
+
+<!-- ===== D-PAD DOTYKOWY (tylko tablet/telefon, tylko w trybie gry) ===== -->
+<!-- Środkowy przycisk: skok (piłka/samochód) lub strzał (statek) - zmienia się dynamicznie -->
+<!-- Góra ▲ i dół ▼ widoczne tylko dla statku kosmicznego -->
+<div id="dpad" aria-hidden="true">
+  <div class="dpad-btn dpad-up"    data-dir="skok"   ontouchstart="dpadPress(event,'skok')"  ontouchend="dpadRelease(event,'skok')"  ontouchcancel="dpadRelease(event,'skok')"  onmousedown="dpadPress(event,'skok')"  onmouseup="dpadRelease(event,'skok')"  onmouseleave="dpadRelease(event,'skok')">▲</div>
+  <div class="dpad-btn dpad-left"  data-dir="lewo"   ontouchstart="dpadPress(event,'lewo')"  ontouchend="dpadRelease(event,'lewo')"  ontouchcancel="dpadRelease(event,'lewo')"  onmousedown="dpadPress(event,'lewo')"  onmouseup="dpadRelease(event,'lewo')"  onmouseleave="dpadRelease(event,'lewo')">◀</div>
+  <div class="dpad-btn dpad-right" data-dir="prawo"  ontouchstart="dpadPress(event,'prawo')" ontouchend="dpadRelease(event,'prawo')" ontouchcancel="dpadRelease(event,'prawo')" onmousedown="dpadPress(event,'prawo')" onmouseup="dpadRelease(event,'prawo')" onmouseleave="dpadRelease(event,'prawo')">▶</div>
+  <div class="dpad-btn dpad-down"  data-dir="dol"    ontouchstart="dpadPress(event,'dol')"   ontouchend="dpadRelease(event,'dol')"   ontouchcancel="dpadRelease(event,'dol')"   onmousedown="dpadPress(event,'dol')"   onmouseup="dpadRelease(event,'dol')"   onmouseleave="dpadRelease(event,'dol')">▼</div>
+  <div class="dpad-btn dpad-fire"  data-dir="center" ontouchstart="dpadPress(event,'center')" ontouchend="dpadRelease(event,'center')" ontouchcancel="dpadRelease(event,'center')" onmousedown="dpadPress(event,'center')" onmouseup="dpadRelease(event,'center')" onmouseleave="dpadRelease(event,'center')">🆙</div>
 </div>
 
 </body>
