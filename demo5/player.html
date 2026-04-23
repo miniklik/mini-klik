@@ -865,6 +865,10 @@ let counters = { lives: 3, points: 0, time: 60 }
 let startTime = 60
 let useTimer = true
 let useLives = true
+// Bonus życia za diamenty
+let useBonusLives = false
+let livesPerDiamonds = 10
+const MAX_LIVES = 9
 let invulnerable = 0
 let invulnerabilityTime = 80
 let hitPause = 0
@@ -884,6 +888,7 @@ let levelDelay = null
 let matrixCols = []
 let matrixFrame = 0
 let levelTextAnim = null
+let bonusLifeAnim = null
 let effectsPaused = false
 let gameData = { stats: {} }
 const floorY = 430
@@ -907,12 +912,52 @@ function syncLevelData(){
   enemies   = lvl.enemies   || []
   bonuses   = Array.isArray(lvl.bonuses) ? lvl.bonuses : []
   texts     = lvl.texts     || []
+
+  // PER-LEVEL prędkość świata — każdy poziom może mieć własną.
+  // Fallback na globalną wartość dla starszych zapisanych gier.
+  if (lvl.autoScroll !== undefined) {
+    autoScroll = !!lvl.autoScroll
+  }
+  if (lvl.autoScrollSpeed !== undefined) {
+    autoScrollSpeed = Number(lvl.autoScrollSpeed)
+  }
+
   exhaustParticles = []
   explosions = []
   bullets = []; bulletCooldown = 0; burstCount = 0; burstReload = 0; hitSparks = []
   for (const b of blocks) {
     if (b.typ === "blockBomb") { b.bombTimer = 0; b.exploded = false; b.respawnTimer = 0 }
   }
+}
+
+// Krótki komunikat (np. "+1 życie") wyświetlany na górze ekranu na 2 sekundy
+function pokazMsg(txt){
+  let msg = document.createElement("div")
+  msg.innerText = txt
+  msg.style.position = "fixed"
+  msg.style.top = "20px"
+  msg.style.left = "50%"
+  msg.style.transform = "translateX(-50%)"
+  msg.style.background = "#222"
+  msg.style.color = "#fff"
+  msg.style.padding = "12px 18px"
+  msg.style.borderRadius = "10px"
+  msg.style.boxShadow = "0 4px 12px rgba(0,0,0,0.6)"
+  msg.style.zIndex = "9999"
+  msg.style.fontWeight = "bold"
+  document.body.appendChild(msg)
+  setTimeout(() => msg.remove(), 2000)
+}
+
+// Dodaje 1 diament i sprawdza czy gracz zasłużył na dodatkowe życie
+function addPoint(){
+  counters.points++
+  if (!useBonusLives) return
+  if (livesPerDiamonds < 1) return
+  if (counters.points % livesPerDiamonds !== 0) return
+  if (counters.lives >= MAX_LIVES) return
+  counters.lives++
+  bonusLifeAnim = { time: 90 }
 }
 
 function syncScrollbar(){
@@ -996,15 +1041,7 @@ function applyGameData(data){
     levels.push({ players:[], platforms:[], blocks:[], enemies:[], bonuses:[], texts:[], backgroundType:"none", playerStartX:100, playerStartY:100 })
   }
 
-  currentLevel = 0
-  syncLevelData()
-
-  const lvl = getLevel() || {}
-  bonuses = Array.isArray(lvl.bonuses) ? lvl.bonuses : []
-  backgroundType = lvl.backgroundType || "none"
-  playerStartX = lvl.playerStartX ?? 100
-  playerStartY = lvl.playerStartY ?? 100
-
+  // ===== NAJPIERW wczytaj GLOBALNE ustawienia (fallback dla starych gier) =====
   const s = gameData.settings || {}
   nazwaGry   = s.nazwaGry   || "Gra"
   autorGry   = s.autorGry   || ""
@@ -1022,12 +1059,25 @@ function applyGameData(data){
   startTime       = s.startTime ?? counters.time
   useTimer        = s.useTimer !== undefined ? !!s.useTimer : true
   useLives        = s.useLives !== undefined ? !!s.useLives : true
+  useBonusLives   = !!s.useBonusLives
+  livesPerDiamonds = Number(s.livesPerDiamonds) || 10
   respawnMode     = s.respawnMode || "death"
   autoScroll      = !!s.autoScroll
   autoScrollSpeed = Number(s.autoScrollSpeed) || 2
   worldWidth      = Number(s.worldWidth) || 2000
 
   scrollXEl.max = worldWidth - canvas.width
+
+  // ===== TERAZ syncLevelData NADPISZE per-level gdy poziom ma własne pola =====
+  // (krytyczna kolejność: globalne najpierw jako fallback, potem per-level z poziomu)
+  currentLevel = 0
+  syncLevelData()
+
+  const lvl = getLevel() || {}
+  bonuses = Array.isArray(lvl.bonuses) ? lvl.bonuses : []
+  backgroundType = lvl.backgroundType || "none"
+  playerStartX = lvl.playerStartX ?? 100
+  playerStartY = lvl.playerStartY ?? 100
 
   gameLoaded = true
   gameState = "game"
@@ -1042,6 +1092,7 @@ function applyGameData(data){
   levelDelay = null
   levelTextAnim = null
   cameraX = 0
+  window.scrollBoost = 1  // Reset boostu przy nowej grze
 
   showIntro = true
   lastTime = Date.now()
@@ -1087,6 +1138,7 @@ function update(){
       playerStartY = lvl?.playerStartY ?? 100
       respawnPlayer()
       cameraX = 0
+      window.scrollBoost = 1  // Reset boostu przy zmianie poziomu
       levelDelay = null
       levelTextAnim = null
       gameState = "game"
@@ -1289,6 +1341,9 @@ function update(){
       p.x += p.vx; p.y += p.vy
       if (p.y < p.r) { p.y = p.r; p.vy = 0 }
       if (p.y > canvas.height - 10 - p.r) { p.y = canvas.height - 10 - p.r; p.vy = 0 }
+      // Granice planszy w osi X — statek nie wyleci poza świat
+      if (p.x < p.r) { p.x = p.r; p.vx = 0 }
+      if (p.x > worldWidth - p.r) { p.x = worldWidth - p.r; p.vx = 0 }
 
       // Strzelanie
       if (burstReload > 0) {
@@ -1306,17 +1361,24 @@ function update(){
       }
 
       // Kolizja statku z blokami i platformami
+      // Hitbox statku 20x20 wycentrowany na środku (zamiast pełnego p.r=30).
       if (invulnerable === 0 && !gameOver) {
+        const shipHalf = 10
+        const sx1 = p.x - shipHalf, sx2 = p.x + shipHalf
+        const sy1 = p.y - shipHalf, sy2 = p.y + shipHalf
         let crashed = false
         for (const b of blocks) {
           if (b.typ === "blockBomb" && b.exploded) continue
-          if (p.x + p.r > b.x && p.x - p.r < b.x + b.w &&
-              p.y + p.r > b.y && p.y - p.r < b.y + b.h) { crashed = true; break }
+          if (sx2 > b.x && sx1 < b.x + b.w &&
+              sy2 > b.y && sy1 < b.y + b.h) { crashed = true; break }
         }
         if (!crashed) {
           for (const pl of platforms) {
-            if (p.x + p.r > pl.x && p.x - p.r < pl.x + pl.w &&
-                p.y + p.r > pl.y && p.y - p.r < pl.y + (pl.h||20)) { crashed = true; break }
+            // Cienszy hitbox dla linii
+            const hitY = pl.typ === "line" ? pl.y + 8 : pl.y
+            const hitH = pl.typ === "line" ? 4 : (pl.h || 20)
+            if (sx2 > pl.x && sx1 < pl.x + pl.w &&
+                sy2 > hitY && sy1 < hitY + hitH) { crashed = true; break }
           }
         }
         if (crashed) {
@@ -1346,7 +1408,7 @@ function update(){
       if (keys[sterowanie.lewo])  p.vx = -4
       if (keys[sterowanie.prawo]) p.vx = 4
     }
-    if (keys[sterowanie.skok] && p.vy === 0) p.vy = -10
+    if (keys[sterowanie.skok] && p.vy === 0) p.vy = -11  // skok (oryginał -10)
     p.vy += gravity
     p.x += p.vx
     p.y += p.vy
@@ -1355,12 +1417,17 @@ function update(){
     if (p.y > floorStop) { p.y = floorStop; p.vy = 0 }
 
     for (let pl of platforms) {
+      // Specjalny hitbox dla linii: tylko 4px wysokości, wycentrowany
+      // na widocznej grubości linii (rysowana jest w y + 10 z grubością ~4px).
+      const hitY = pl.typ === "line" ? pl.y + 8 : pl.y
+      const hitH = pl.typ === "line" ? 4 : (pl.h || 20)
+
       if (p.x > pl.x - p.r && p.x < pl.x + pl.w + p.r) {
-        if (p.y + p.r > pl.y && p.y < pl.y + (pl.h||20)) {
-          if (pl.solid === "top" && p.vy > 0) { p.y = pl.y - p.r; p.vy = 0 }
+        if (p.y + p.r > hitY && p.y < hitY + hitH) {
+          if (pl.solid === "top" && p.vy > 0) { p.y = hitY - p.r; p.vy = 0 }
           if (pl.solid === "full") {
-            if (p.vy > 0) { p.y = pl.y - p.r; p.vy = 0 }
-            if (p.vy < 0) { p.y = pl.y + (pl.h||20) + p.r; p.vy = 1 }
+            if (p.vy > 0) { p.y = hitY - p.r; p.vy = 0 }
+            if (p.vy < 0) { p.y = hitY + hitH + p.r; p.vy = 1 }
           }
         }
       }
@@ -1491,8 +1558,11 @@ function update(){
     }
     if (hit) continue
     for (const pl of platforms) {
+      // Cienszy hitbox dla linii (pocisk przelatuje nad powietrzem)
+      const hitY = pl.typ === "line" ? pl.y + 8 : pl.y
+      const hitH = pl.typ === "line" ? 4 : (pl.h || 20)
       if (b.x + b.w > pl.x && b.x < pl.x + pl.w &&
-          b.y + b.h/2 > pl.y && b.y - b.h/2 < pl.y + (pl.h||20)) {
+          b.y + b.h/2 > hitY && b.y - b.h/2 < hitY + hitH) {
         spawnHitSpark(b.x + b.w - cameraX, b.y)
         bullets.splice(i, 1); break
       }
@@ -1523,7 +1593,7 @@ function update(){
       if (b.type === "key_win") {
         gameOver = true; gameOverTriggered = true; gameState = "win"; initResultsScene(); return
       }
-      counters.points += 1
+      addPoint()
       bonuses.splice(i, 1)
       const lvl = getLevel()
       if (lvl) lvl.bonuses = bonuses
@@ -1534,8 +1604,11 @@ function update(){
   if (players.length > 0) {
     const player = players[0]
     if (autoScroll) {
+      // Czy kamera dotarła już do końca planszy?
+      const cameraAtEnd = cameraX >= worldWidth - canvas.width - 0.5
+
       let currentScrollSpeed = autoScrollSpeed
-      if (player.type === "spaceship") {
+      if (player.type === "spaceship" && !cameraAtEnd) {
         const screenPos = (player.x - cameraX) / canvas.width
         const boostTarget = screenPos > 0.4
           ? 1 + Math.min((screenPos - 0.4) * 1.0, 0.6)
@@ -1544,9 +1617,16 @@ function update(){
         window.scrollBoost += (boostTarget - window.scrollBoost) * 0.05
         currentScrollSpeed = autoScrollSpeed * window.scrollBoost
       }
-      cameraX += currentScrollSpeed
-      if (player.type === "spaceship") {
-        player.x += currentScrollSpeed
+
+      if (cameraAtEnd) {
+        // KONIEC PLANSZY — zatrzymaj scroll, wygaś boost,
+        // pozwól graczowi kontrolować statek samodzielnie ←→
+        window.scrollBoost = 1
+      } else {
+        cameraX += currentScrollSpeed
+        if (player.type === "spaceship") {
+          player.x += currentScrollSpeed
+        }
       }
     } else {
       const targetX = player.x - canvas.width / 2 + player.r
@@ -1564,10 +1644,31 @@ function checkEnemyCollision(){
   if (invulnerable > 0) { invulnerable--; return }
   const player = players[0]
   for (let enemy of enemies) {
+    let ex = enemy.x, ey = enemy.y
     let ew = enemy.w || 40, eh = enemy.h || 40
-    let px = player.x - player.r, py = player.y - player.r
-    let pw = player.r * 2, ph = player.r * 2
-    if (px < enemy.x + ew && px + pw > enemy.x && py < enemy.y + eh && py + ph > enemy.y) {
+
+    // Specjalny hitbox dla OGNIA: tylko dolne 50% spritea (górna połowa
+    // to bezpieczna strefa nad płomieniami).
+    if (enemy.type === "fire") {
+      ey = enemy.y + eh * 0.5
+      eh = eh * 0.5
+    }
+
+    // ===== HITBOX PUNKTOWY / MAŁY =====
+    // Statek: 1 piksel w kabinie (bardzo precyzyjna kolizja).
+    // Piłka/samochód: mały kwadrat 30x30 w środku.
+    let hitboxX = player.x
+    let hitboxY = player.y
+    let hitboxSize = 30
+    if (player.type === "spaceship") {
+      hitboxY = player.y - 2
+      hitboxSize = 1
+    }
+    const half = hitboxSize / 2
+    const hx1 = hitboxX - half, hx2 = hitboxX + half
+    const hy1 = hitboxY - half, hy2 = hitboxY + half
+
+    if (hx1 < ex + ew && hx2 > ex && hy1 < ey + eh && hy2 > ey) {
       deathRespawnX = player.x; deathRespawnY = player.y
       if (useLives) counters.lives--
       hitEffect = { x: player.x, y: player.y, time: 60 }
@@ -2430,6 +2531,29 @@ function draw(){
     ctx.font = "bold 26px Arial"; ctx.fillStyle = "#ff8888"
     ctx.fillText("Spadniesz za chwilę!", canvas.width/2, canvas.height/2 + 30)
     ctx.restore()
+  }
+
+  // === PULSUJĄCY NAPIS "ŻYCIE BONUS" po zebraniu diamentów ===
+  if (bonusLifeAnim) {
+    bonusLifeAnim.time--
+    if (bonusLifeAnim.time <= 0) bonusLifeAnim = null
+    else {
+      const t = Date.now() * 0.012
+      const pulse = Math.sin(t) * 0.25 + 1
+      const alpha = Math.min(1, bonusLifeAnim.time / 20)
+      ctx.save()
+      ctx.globalAlpha = alpha
+      ctx.textAlign = "center"
+      ctx.textBaseline = "middle"
+      ctx.translate(canvas.width / 2, 75)
+      ctx.scale(pulse, pulse)
+      ctx.shadowColor = "#ff3a8a"
+      ctx.shadowBlur = 25
+      ctx.font = "bold 34px Arial"
+      ctx.fillStyle = "#ff4ea8"
+      ctx.fillText("❤️  ŻYCIE BONUS", 0, 0)
+      ctx.restore()
+    }
   }
 
   ctx.fillStyle = "#333"
@@ -3459,7 +3583,7 @@ let bulletCooldown = 0
 let burstCount = 0
 let burstReload = 0
 let hitSparks = []
-const BURST_MAX = 20
+const BURST_MAX = 60
 const BURST_RELOAD = 120
 const BULLET_COOLDOWN = 4
 
