@@ -66,7 +66,13 @@
     font-weight: bold;
     color: #fff;
     letter-spacing: 1.5px;
-    text-shadow: 0 2px 6px rgba(40, 80, 120, 0.5), 0 0 18px rgba(255, 255, 255, 0.3);
+    /* Neon różowo-niebieski wokół napisu "Edytor Gier" */
+    text-shadow:
+      0 0 4px #fff,
+      0 0 10px #fff,
+      0 0 18px #00d4ff,
+      0 0 28px #ff4ae0,
+      0 2px 6px rgba(40, 80, 120, 0.4);
   }
   .sky-sub {
     font-size: 12px;
@@ -79,42 +85,38 @@
     padding-left: 10px;
     text-shadow: 0 1px 3px rgba(40, 80, 120, 0.5);
   }
-  /* Link powrotu do mini-klik.pl — ciemny, czytelny na jasnym niebie */
+  /* Link powrotu do mini-klik.pl — wyraźnie podkreślony, klikalny */
   a.sky-link {
     pointer-events: auto;  /* włącz kliknięcie mimo pointer-events:none rodzica */
     cursor: pointer;
-    text-decoration: none;
     font-size: 16px;
     font-weight: bold;
     color: #0a1f3a;
+    text-decoration: underline;
+    text-decoration-color: #b8005a;
+    text-decoration-thickness: 2px;
+    text-underline-offset: 3px;
+    padding: 2px 8px;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.45);
     text-shadow:
       0 0 3px rgba(255,255,255,0.9),
-      0 0 6px rgba(255,255,255,0.7),
       0 1px 2px rgba(255,255,255,1);
     transition: all 0.25s;
     animation: skyLinkPulse 2.5s ease-in-out infinite alternate;
   }
   a.sky-link:hover {
-    color: #b8005a;
+    color: #fff;
+    background: #b8005a;
+    text-decoration-color: #fff;
     text-shadow:
-      0 0 4px rgba(255,255,255,1),
-      0 0 8px rgba(255,255,255,0.8),
-      0 0 14px rgba(255, 100, 180, 0.6);
-    transform: scale(1.1);
+      0 0 4px rgba(255,255,255,0.7),
+      0 0 10px rgba(255, 100, 180, 0.8);
+    transform: scale(1.08);
   }
   @keyframes skyLinkPulse {
-    from {
-      text-shadow:
-        0 0 3px rgba(255,255,255,0.9),
-        0 0 6px rgba(255,255,255,0.7),
-        0 1px 2px rgba(255,255,255,1);
-    }
-    to {
-      text-shadow:
-        0 0 5px rgba(255,255,255,1),
-        0 0 10px rgba(255,255,255,0.85),
-        0 1px 2px rgba(255,255,255,1);
-    }
+    from { box-shadow: 0 0 0 0 rgba(184, 0, 90, 0); }
+    to   { box-shadow: 0 0 0 4px rgba(184, 0, 90, 0.25); }
   }
   @media (max-width: 700px) {
     #skyHeader { height: 56px; }
@@ -1001,6 +1003,7 @@ let levelDelay = null
 let matrixCols = []
 let matrixFrame = 0
 let levelTextAnim = null
+let bonusLifeAnim = null  // pulsujący napis "ŻYCIE BONUS" po zebraniu diamentów
 
 let resultsBall = { x: 400, y: 220, r: 20 }
 let resultsEnemies = []
@@ -1012,6 +1015,10 @@ let counters = {
 }
 let startTime = counters.time
 let useTimer = true
+// Bonus życia za diamenty
+let useBonusLives = false       // czy w ogóle przyznawać dodatkowe życia
+let livesPerDiamonds = 10       // co ile diamentów przyznać życie
+const MAX_LIVES = 9             // limit żyć (maks 9)
 let autorGry = "Nieznany"
 let nazwaGry = "Moja gra"
 let opisGry = ""
@@ -1232,7 +1239,21 @@ function pokazLiczniki(){
       Licz czas
     </label>
 
-    <br><br><br>
+    <br><br>
+
+    <div style="border-top: 1px solid #333; padding-top: 12px;">
+      <label style="display:block; margin-bottom:8px;">
+        <input type="checkbox" id="useBonusLives" ${useBonusLives ? "checked" : ""}>
+        💎 Bonus życia za diamenty
+      </label>
+      <div style="font-size:12px; color:#aaa; margin-bottom:6px;">
+        Co ile diamentów =&nbsp;+1 życie (max ${MAX_LIVES}):
+      </div>
+      <input type="number" id="editLivesPerDiamonds" value="${livesPerDiamonds}"
+             min="1" max="999" style="width:80px;">
+    </div>
+
+    <br><br>
 
     <button onclick="zapiszLiczniki()">ZAPISZ</button>
   `
@@ -3414,12 +3435,17 @@ function update(){
       }
 
       // === KOLIZJA STATKU Z BLOKAMI I PLATFORMAMI ===
+      // Hitbox statku 20x20 wycentrowany na środku (zamiast pełnego p.r=30).
+      // Zapobiega "rozbiciu się o powietrze" wokół statku.
       if (trybGry && invulnerable === 0 && !gameOver) {
+        const shipHalf = 10  // hitbox 20x20 (10 od środka w każdą stronę)
+        const sx1 = p.x - shipHalf, sx2 = p.x + shipHalf
+        const sy1 = p.y - shipHalf, sy2 = p.y + shipHalf
         let crashed = false
         for (const b of blocks) {
           if (b.typ === "blockBomb" && b.exploded) continue
-          if (p.x + p.r > b.x && p.x - p.r < b.x + b.w &&
-              p.y + p.r > b.y && p.y - p.r < b.y + b.h) {
+          if (sx2 > b.x && sx1 < b.x + b.w &&
+              sy2 > b.y && sy1 < b.y + b.h) {
             crashed = true; break
           }
         }
@@ -3428,8 +3454,8 @@ function update(){
             // Cienszy hitbox dla linii
             const hitY = pl.typ === "line" ? pl.y + 8 : pl.y
             const hitH = pl.typ === "line" ? 4 : (pl.h || 20)
-            if (p.x + p.r > pl.x && p.x - p.r < pl.x + pl.w &&
-                p.y + p.r > hitY && p.y - p.r < hitY + hitH) {
+            if (sx2 > pl.x && sx1 < pl.x + pl.w &&
+                sy2 > hitY && sy1 < hitY + hitH) {
               crashed = true; break
             }
           }
@@ -3463,7 +3489,7 @@ function update(){
       if (keys[sterowanie.prawo]) p.vx = 4
     }
 
-    if (keys[sterowanie.skok] && p.vy === 0) p.vy = -10
+    if (keys[sterowanie.skok] && p.vy === 0) p.vy = -11  // skok (oryginał -10)
 
     p.vy += gravity
     p.x += p.vx
@@ -3748,7 +3774,7 @@ function update(){
         return
       }
 
-      counters.points += 1
+      addPoint()
       bonuses.splice(i, 1)
       // Synchronizuj z poziomem
       const lvl = getLevel()
@@ -4489,7 +4515,7 @@ function draw(){
       ctx.ellipse(x + w/2, y + h/2, w * 0.65, h * 0.65, 0, 0, Math.PI * 2)
       ctx.fill()
       ctx.restore()
-      ctx.globalAlpha = 0.82  // lekko przezroczysty
+      ctx.globalAlpha = 0.82  // sam wróg lekko przezroczysty (resetowane przed bonusami)
     }
 
     if (en.type === "ghost") {
@@ -4951,6 +4977,7 @@ function draw(){
   }
 
   for (let b of bonuses) {
+    ctx.globalAlpha = 1  // reset - żeby diamenty były zawsze wyraźne (nie po lewitujących wrogach)
     ctx.save()
     ctx.translate(b.x, b.y)
     let scale = b.scale || 1
@@ -5140,6 +5167,30 @@ function draw(){
     ctx.restore()
   }
 
+  // === PULSUJĄCY NAPIS "ŻYCIE BONUS" po zebraniu diamentów ===
+  if (bonusLifeAnim) {
+    bonusLifeAnim.time--
+    if (bonusLifeAnim.time <= 0) bonusLifeAnim = null
+    else {
+      const t = Date.now() * 0.012
+      const pulse = Math.sin(t) * 0.25 + 1  // skala 0.75-1.25
+      const alpha = Math.min(1, bonusLifeAnim.time / 20)  // fade-out w ostatnie 20 klatek
+      ctx.save()
+      ctx.globalAlpha = alpha
+      ctx.textAlign = "center"
+      ctx.textBaseline = "middle"
+      ctx.translate(canvas.width / 2, 75)
+      ctx.scale(pulse, pulse)
+      // Poświata różowa
+      ctx.shadowColor = "#ff3a8a"
+      ctx.shadowBlur = 25
+      ctx.font = "bold 34px Arial"
+      ctx.fillStyle = "#ff4ea8"
+      ctx.fillText("❤️  ŻYCIE BONUS", 0, 0)
+      ctx.restore()
+    }
+  }
+
   // podłoga
   ctx.fillStyle = "#444"
   ctx.fillRect(0, 450, 800, 50)
@@ -5172,6 +5223,9 @@ async function zapiszProjekt(){
       counters,
       startTime,
       useTimer,
+      useLives,
+      useBonusLives,
+      livesPerDiamonds,
       backgroundType,
       playerStartX,
       playerStartY,
@@ -5229,15 +5283,21 @@ function checkEnemyCollision() {
 
     if (ex + ew < cameraX || ex > cameraX + canvas.width) continue
 
-    // Hitbox gracza zmniejszony o 9px z każdej strony (~70% powierzchni)
-    // Zapobiega śmierci od "powietrza" w rogach spritea
-    const hitboxMargin = 9
-    let px = player.x - player.r + hitboxMargin
-    let py = player.y - player.r + hitboxMargin
-    let pw = player.r * 2 - hitboxMargin * 2
-    let ph = player.r * 2 - hitboxMargin * 2
+    // ===== HITBOX PUNKTOWY / MAŁY =====
+    // Statek: 1 piksel w kabinie (bardzo precyzyjna kolizja).
+    // Piłka/samochód: mały kwadrat 30x30 w środku.
+    let hitboxX = player.x
+    let hitboxY = player.y
+    let hitboxSize = 30  // domyślnie 30x30 dla ball/car
+    if (player.type === "spaceship") {
+      hitboxY = player.y - 2
+      hitboxSize = 1  // statek - precyzyjny 1 piksel
+    }
+    const half = hitboxSize / 2
+    const hx1 = hitboxX - half, hx2 = hitboxX + half
+    const hy1 = hitboxY - half, hy2 = hitboxY + half
 
-    if (px < ex + ew && px + pw > ex && py < ey + eh && py + ph > ey) {
+    if (hx1 < ex + ew && hx2 > ex && hy1 < ey + eh && hy2 > ey) {
       deathRespawnX = player.x
       deathRespawnY = player.y
       if (useLives) counters.lives--
@@ -5658,6 +5718,9 @@ function wczytajProjekt(){
 
         startTime = s.startTime ?? counters.time
         useTimer  = !!s.useTimer
+        if (s.useLives !== undefined) useLives = !!s.useLives
+        useBonusLives = !!s.useBonusLives
+        livesPerDiamonds = Number(s.livesPerDiamonds) || 10
 
         showIntro = true
         lastTime = Date.now()
@@ -5926,6 +5989,15 @@ function zapiszLiczniki(){
   useTimer = timerOn
   useLives = livesOn
 
+  // Bonus życia za diamenty
+  const bonusEl = document.getElementById("useBonusLives")
+  const perEl = document.getElementById("editLivesPerDiamonds")
+  if (bonusEl) useBonusLives = bonusEl.checked
+  if (perEl) {
+    const v = Number(perEl.value)
+    if (!isNaN(v) && v >= 1) livesPerDiamonds = v
+  }
+
   let el = document.getElementById("editWorld")
   if (el) {
     let w = Number(el.value)
@@ -5987,6 +6059,9 @@ function loadDemo() {
       }
       startTime       = s.startTime ?? counters.time
       useTimer        = !!s.useTimer
+      if (s.useLives !== undefined) useLives = !!s.useLives
+      useBonusLives   = !!s.useBonusLives
+      livesPerDiamonds = Number(s.livesPerDiamonds) || 10
       respawnMode     = s.respawnMode     || "death"
       autoScroll      = !!s.autoScroll
       autoScrollSpeed = Number(s.autoScrollSpeed) || 2
@@ -8278,6 +8353,20 @@ function pokazMsg(txt){
   msg.style.fontWeight = "bold"
   document.body.appendChild(msg)
   setTimeout(() => msg.remove(), 2000)
+}
+
+// Dodaje 1 punkt i sprawdza czy gracz zasłużył na dodatkowe życie.
+// Wywoływane wszędzie tam gdzie wcześniej było counters.points++
+function addPoint(){
+  counters.points++
+  if (!useBonusLives) return
+  if (!trybGry) return                                  // tylko w grze, nie w edytorze
+  if (livesPerDiamonds < 1) return
+  if (counters.points % livesPerDiamonds !== 0) return  // nie co punkt, tylko co N
+  if (counters.lives >= MAX_LIVES) return               // limit żyć
+  counters.lives++
+  // Pulsujący napis "❤️ ŻYCIE BONUS" na planszy (nie poza nią)
+  bonusLifeAnim = { time: 90 }  // ~1.5s @ 60fps
 }
 
 // ================= START =================
