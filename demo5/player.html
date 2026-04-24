@@ -139,6 +139,26 @@
     text-shadow: 0 0 10px #4af;
   }
 
+  #levelBadge {
+    font-size: 14px;
+    font-weight: bold;
+    color: #ffe97a;
+    letter-spacing: 2px;
+    padding: 6px 14px;
+    background: linear-gradient(180deg, #2a1a4a, #120828);
+    border: 2px solid #ff9e3d;
+    border-radius: 10px;
+    text-shadow: 0 0 8px #ff9e3d;
+    box-shadow: 0 0 12px rgba(255, 158, 61, 0.45), inset 0 0 8px rgba(255, 200, 100, 0.2);
+    white-space: nowrap;
+    user-select: none;
+    animation: levelGlow 2.5s ease-in-out infinite alternate;
+  }
+  @keyframes levelGlow {
+    from { box-shadow: 0 0 10px rgba(255,158,61,0.3), inset 0 0 6px rgba(255,200,100,0.15); }
+    to   { box-shadow: 0 0 20px rgba(255,158,61,0.7), inset 0 0 12px rgba(255,200,100,0.3); }
+  }
+
   #topControls {
     display: flex;
     gap: 10px;
@@ -342,6 +362,34 @@
     100% { opacity: 1; }
   }
 </style>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script>
+(function(){
+  try {
+    const gameId = (() => {
+      const parts = window.location.pathname.split('/').filter(Boolean);
+      return parts[parts.length - 2] || 'demo';
+    })();
+    const firebaseConfig = {
+      apiKey: "AIzaSyDRR3vSfgpEmbpZz_-VldMTnTHoXRfuGKg",
+      authDomain: "ksiega-ramzi.firebaseapp.com",
+      projectId: "ksiega-ramzi",
+      storageBucket: "ksiega-ramzi.firebasestorage.app",
+      messagingSenderId: "400735142662",
+      appId: "1:400735142662:web:0b52a57f4fedf367839487"
+    };
+    if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+    // +1 zagranie gdy player faktycznie się załaduje
+    window.addEventListener('load', () => {
+      db.collection("games").doc(gameId).set({
+        plays: firebase.firestore.FieldValue.increment(1)
+      }, { merge: true }).catch(err => console.error("Błąd licznika zagrań:", err));
+    });
+  } catch(e) { console.error("Firebase init error:", e); }
+})();
+</script>
 </head>
 <body>
 
@@ -354,6 +402,7 @@
 
   <div id="titleBar">
     <div id="gameTitle">🎮 GAME PLAYER</div>
+    <div id="levelBadge" title="Aktualna runda / łącznie rund">RUNDA 1/1</div>
     <div id="topControls">
       <button class="ctrl-btn nav-btn" id="navToggleBtn" onclick="toggleNav()">🕹 NAWIGACJA</button>
       <button class="ctrl-btn demo-btn" onclick="loadDemo()">MOJA GRA</button>
@@ -11268,6 +11317,10 @@ let counters = { lives: 3, points: 0, time: 60 }
 let startTime = 60
 let useTimer = true
 let useLives = true
+// Bonus życia za diamenty
+let useBonusLives = false
+let livesPerDiamonds = 10
+const MAX_LIVES = 9
 let invulnerable = 0
 let invulnerabilityTime = 80
 let hitPause = 0
@@ -11287,6 +11340,7 @@ let levelDelay = null
 let matrixCols = []
 let matrixFrame = 0
 let levelTextAnim = null
+let bonusLifeAnim = null
 let effectsPaused = false
 let gameData = { stats: {} }
 const floorY = 430
@@ -11310,12 +11364,52 @@ function syncLevelData(){
   enemies   = lvl.enemies   || []
   bonuses   = Array.isArray(lvl.bonuses) ? lvl.bonuses : []
   texts     = lvl.texts     || []
+
+  // PER-LEVEL prędkość świata — każdy poziom może mieć własną.
+  // Fallback na globalną wartość dla starszych zapisanych gier.
+  if (lvl.autoScroll !== undefined) {
+    autoScroll = !!lvl.autoScroll
+  }
+  if (lvl.autoScrollSpeed !== undefined) {
+    autoScrollSpeed = Number(lvl.autoScrollSpeed)
+  }
+
   exhaustParticles = []
   explosions = []
   bullets = []; bulletCooldown = 0; burstCount = 0; burstReload = 0; hitSparks = []
   for (const b of blocks) {
     if (b.typ === "blockBomb") { b.bombTimer = 0; b.exploded = false; b.respawnTimer = 0 }
   }
+}
+
+// Krótki komunikat (np. "+1 życie") wyświetlany na górze ekranu na 2 sekundy
+function pokazMsg(txt){
+  let msg = document.createElement("div")
+  msg.innerText = txt
+  msg.style.position = "fixed"
+  msg.style.top = "20px"
+  msg.style.left = "50%"
+  msg.style.transform = "translateX(-50%)"
+  msg.style.background = "#222"
+  msg.style.color = "#fff"
+  msg.style.padding = "12px 18px"
+  msg.style.borderRadius = "10px"
+  msg.style.boxShadow = "0 4px 12px rgba(0,0,0,0.6)"
+  msg.style.zIndex = "9999"
+  msg.style.fontWeight = "bold"
+  document.body.appendChild(msg)
+  setTimeout(() => msg.remove(), 2000)
+}
+
+// Dodaje 1 diament i sprawdza czy gracz zasłużył na dodatkowe życie
+function addPoint(){
+  counters.points++
+  if (!useBonusLives) return
+  if (livesPerDiamonds < 1) return
+  if (counters.points % livesPerDiamonds !== 0) return
+  if (counters.lives >= MAX_LIVES) return
+  counters.lives++
+  bonusLifeAnim = { time: 90 }
 }
 
 function syncScrollbar(){
@@ -11359,16 +11453,6 @@ document.addEventListener("keydown", e => {
   if (["ArrowUp","ArrowDown","ArrowLeft","ArrowRight"," ","PageUp","PageDown","Home","End"].includes(e.key)) {
     e.preventDefault()
   }
-  // 🎥 Klawisz C — przełącz culling (do porównań wydajności)
-  if (e.key === "c" || e.key === "C") {
-    CULL.enabled = !CULL.enabled
-    console.log("🎥 CULL:", CULL.enabled ? "ON" : "OFF")
-  }
-  // 🎨 Klawisz V — przełącz sprite cache (do porównań)
-  if (e.key === "v" || e.key === "V") {
-    SPRITE_CACHE.enabled = !SPRITE_CACHE.enabled
-    console.log("🎨 SPRITE CACHE:", SPRITE_CACHE.enabled ? "ON" : "OFF")
-  }
   keys[e.key] = true
 })
 document.addEventListener("keyup",   e => { keys[e.key] = false })
@@ -11404,25 +11488,12 @@ function applyGameData(data){
   gameData = data || {}
   gameData.stats = gameData.stats || {}
 
-  // 🎨 Zbuduj cache spriteów (raz na grę — nie na klatkę!)
-  if (SPRITE_CACHE.enabled && Object.keys(SPRITE_CACHE.sprites).length === 0) {
-    SPRITE_CACHE.buildAll()
-  }
-
   levels = gameData.levels || []
   if (levels.length === 0) {
     levels.push({ players:[], platforms:[], blocks:[], enemies:[], bonuses:[], texts:[], backgroundType:"none", playerStartX:100, playerStartY:100 })
   }
 
-  currentLevel = 0
-  syncLevelData()
-
-  const lvl = getLevel() || {}
-  bonuses = Array.isArray(lvl.bonuses) ? lvl.bonuses : []
-  backgroundType = lvl.backgroundType || "none"
-  playerStartX = lvl.playerStartX ?? 100
-  playerStartY = lvl.playerStartY ?? 100
-
+  // ===== NAJPIERW wczytaj GLOBALNE ustawienia (fallback dla starych gier) =====
   const s = gameData.settings || {}
   nazwaGry   = s.nazwaGry   || "Gra"
   autorGry   = s.autorGry   || ""
@@ -11440,12 +11511,25 @@ function applyGameData(data){
   startTime       = s.startTime ?? counters.time
   useTimer        = s.useTimer !== undefined ? !!s.useTimer : true
   useLives        = s.useLives !== undefined ? !!s.useLives : true
+  useBonusLives   = !!s.useBonusLives
+  livesPerDiamonds = Number(s.livesPerDiamonds) || 10
   respawnMode     = s.respawnMode || "death"
   autoScroll      = !!s.autoScroll
   autoScrollSpeed = Number(s.autoScrollSpeed) || 2
   worldWidth      = Number(s.worldWidth) || 2000
 
   scrollXEl.max = worldWidth - canvas.width
+
+  // ===== TERAZ syncLevelData NADPISZE per-level gdy poziom ma własne pola =====
+  // (krytyczna kolejność: globalne najpierw jako fallback, potem per-level z poziomu)
+  currentLevel = 0
+  syncLevelData()
+
+  const lvl = getLevel() || {}
+  bonuses = Array.isArray(lvl.bonuses) ? lvl.bonuses : []
+  backgroundType = lvl.backgroundType || "none"
+  playerStartX = lvl.playerStartX ?? 100
+  playerStartY = lvl.playerStartY ?? 100
 
   gameLoaded = true
   gameState = "game"
@@ -11460,6 +11544,7 @@ function applyGameData(data){
   levelDelay = null
   levelTextAnim = null
   cameraX = 0
+  window.scrollBoost = 1  // Reset boostu przy nowej grze
 
   showIntro = true
   lastTime = Date.now()
@@ -11505,6 +11590,7 @@ function update(){
       playerStartY = lvl?.playerStartY ?? 100
       respawnPlayer()
       cameraX = 0
+      window.scrollBoost = 1  // Reset boostu przy zmianie poziomu
       levelDelay = null
       levelTextAnim = null
       gameState = "game"
@@ -11561,7 +11647,6 @@ function update(){
 
   // FX on objects
   for (let obj of [...platforms, ...blocks, ...enemies]) {
-    if (!isLive(obj)) continue  // 🎥 CULL: pomiń daleko/zabite — NIE update'uj animacji/FX
     if (!obj.effects) obj.effects = []
     for (let fx of obj.effects) {
       if (fx.enabled === false) continue
@@ -11708,6 +11793,9 @@ function update(){
       p.x += p.vx; p.y += p.vy
       if (p.y < p.r) { p.y = p.r; p.vy = 0 }
       if (p.y > canvas.height - 10 - p.r) { p.y = canvas.height - 10 - p.r; p.vy = 0 }
+      // Granice planszy w osi X — statek nie wyleci poza świat
+      if (p.x < p.r) { p.x = p.r; p.vx = 0 }
+      if (p.x > worldWidth - p.r) { p.x = worldWidth - p.r; p.vx = 0 }
 
       // Strzelanie
       if (burstReload > 0) {
@@ -11725,17 +11813,24 @@ function update(){
       }
 
       // Kolizja statku z blokami i platformami
+      // Hitbox statku 20x20 wycentrowany na środku (zamiast pełnego p.r=30).
       if (invulnerable === 0 && !gameOver) {
+        const shipHalf = 10
+        const sx1 = p.x - shipHalf, sx2 = p.x + shipHalf
+        const sy1 = p.y - shipHalf, sy2 = p.y + shipHalf
         let crashed = false
         for (const b of blocks) {
           if (b.typ === "blockBomb" && b.exploded) continue
-          if (p.x + p.r > b.x && p.x - p.r < b.x + b.w &&
-              p.y + p.r > b.y && p.y - p.r < b.y + b.h) { crashed = true; break }
+          if (sx2 > b.x && sx1 < b.x + b.w &&
+              sy2 > b.y && sy1 < b.y + b.h) { crashed = true; break }
         }
         if (!crashed) {
           for (const pl of platforms) {
-            if (p.x + p.r > pl.x && p.x - p.r < pl.x + pl.w &&
-                p.y + p.r > pl.y && p.y - p.r < pl.y + (pl.h||20)) { crashed = true; break }
+            // Cienszy hitbox dla linii
+            const hitY = pl.typ === "line" ? pl.y + 8 : pl.y
+            const hitH = pl.typ === "line" ? 4 : (pl.h || 20)
+            if (sx2 > pl.x && sx1 < pl.x + pl.w &&
+                sy2 > hitY && sy1 < hitY + hitH) { crashed = true; break }
           }
         }
         if (crashed) {
@@ -11765,7 +11860,7 @@ function update(){
       if (keys[sterowanie.lewo])  p.vx = -4
       if (keys[sterowanie.prawo]) p.vx = 4
     }
-    if (keys[sterowanie.skok] && p.vy === 0) p.vy = -10
+    if (keys[sterowanie.skok] && p.vy === 0) p.vy = -11  // skok (oryginał -10)
     p.vy += gravity
     p.x += p.vx
     p.y += p.vy
@@ -11774,19 +11869,23 @@ function update(){
     if (p.y > floorStop) { p.y = floorStop; p.vy = 0 }
 
     for (let pl of platforms) {
+      // Specjalny hitbox dla linii: tylko 4px wysokości, wycentrowany
+      // na widocznej grubości linii (rysowana jest w y + 10 z grubością ~4px).
+      const hitY = pl.typ === "line" ? pl.y + 8 : pl.y
+      const hitH = pl.typ === "line" ? 4 : (pl.h || 20)
+
       if (p.x > pl.x - p.r && p.x < pl.x + pl.w + p.r) {
-        if (p.y + p.r > pl.y && p.y < pl.y + (pl.h||20)) {
-          if (pl.solid === "top" && p.vy > 0) { p.y = pl.y - p.r; p.vy = 0 }
+        if (p.y + p.r > hitY && p.y < hitY + hitH) {
+          if (pl.solid === "top" && p.vy > 0) { p.y = hitY - p.r; p.vy = 0 }
           if (pl.solid === "full") {
-            if (p.vy > 0) { p.y = pl.y - p.r; p.vy = 0 }
-            if (p.vy < 0) { p.y = pl.y + (pl.h||20) + p.r; p.vy = 1 }
+            if (p.vy > 0) { p.y = hitY - p.r; p.vy = 0 }
+            if (p.vy < 0) { p.y = hitY + hitH + p.r; p.vy = 1 }
           }
         }
       }
     }
 
     for (let b of blocks) {
-      if (!isLive(b)) continue  // 🎥 CULL
       if (b.typ === "blockBomb" && b.exploded) continue
       if (p.x + p.r > b.x && p.x - p.r < b.x + b.w && p.y + p.r > b.y && p.y - p.r < b.y + b.h) {
         if (b.typ === "blockBomb") { if (!b.bombTimer) b.bombTimer = 1 }
@@ -11834,7 +11933,6 @@ function update(){
   for (let i = blocks.length - 1; i >= 0; i--) {
     const b = blocks[i]
     if (b.typ !== "blockBomb") continue
-    if (!isLive(b)) continue  // 🎥 CULL: bomby daleko nie liczą timerów
     if (b.exploded) {
       b.respawnTimer = (b.respawnTimer || 0) + 1
       if (b.respawnTimer > 180) { b.exploded = false; b.bombTimer = 0; b.respawnTimer = 0 }
@@ -11855,7 +11953,6 @@ function update(){
         // Zabij wrogów w zasięgu wybuchu
         for (let ei = enemies.length - 1; ei >= 0; ei--) {
           const en = enemies[ei]
-          if (!isLive(en)) continue  // 🎥 CULL
           const enCX = en.x + (en.w||40)/2
           const enCY = en.y + (en.h||40)/2
           const dist = Math.hypot(enCX - bombCX, enCY - bombCY)
@@ -11894,7 +11991,6 @@ function update(){
     let hit = false
     for (let ei = enemies.length - 1; ei >= 0; ei--) {
       const en = enemies[ei]
-      if (!isLive(en)) continue  // 🎥 CULL
       if (b.x + b.w > en.x && b.x < en.x + (en.w||40) &&
           b.y > en.y && b.y < en.y + (en.h||40)) {
         spawnExplosion(en.x - cameraX + (en.w||40)/2, en.y + (en.h||40)/2)
@@ -11904,7 +12000,6 @@ function update(){
     }
     if (hit) continue
     for (const bl of blocks) {
-      if (!isLive(bl)) continue  // 🎥 CULL
       if (bl.typ === "blockBomb" && bl.exploded) continue
       if (b.x + b.w > bl.x && b.x < bl.x + bl.w &&
           b.y > bl.y && b.y < bl.y + bl.h) {
@@ -11915,8 +12010,11 @@ function update(){
     }
     if (hit) continue
     for (const pl of platforms) {
+      // Cienszy hitbox dla linii (pocisk przelatuje nad powietrzem)
+      const hitY = pl.typ === "line" ? pl.y + 8 : pl.y
+      const hitH = pl.typ === "line" ? 4 : (pl.h || 20)
       if (b.x + b.w > pl.x && b.x < pl.x + pl.w &&
-          b.y + b.h/2 > pl.y && b.y - b.h/2 < pl.y + (pl.h||20)) {
+          b.y + b.h/2 > hitY && b.y - b.h/2 < hitY + hitH) {
         spawnHitSpark(b.x + b.w - cameraX, b.y)
         bullets.splice(i, 1); break
       }
@@ -11925,14 +12023,12 @@ function update(){
 
   // Bonuses
   for (let b of bonuses) {
-    if (!isLive(b)) continue  // 🎥 CULL
     b.pulseTime = (b.pulseTime || 0) + 0.05
     b.scale = 1 + Math.sin(b.pulseTime) * 0.05
   }
 
   for (let i = bonuses.length - 1; i >= 0; i--) {
     let b = bonuses[i]
-    if (!isLive(b)) continue  // 🎥 CULL: nie sprawdzaj kolizji z daleko/zabitymi
     let p = players[0]
     if (!p) continue
     let dist = Math.hypot(p.x - b.x, p.y - b.y)
@@ -11949,7 +12045,7 @@ function update(){
       if (b.type === "key_win") {
         gameOver = true; gameOverTriggered = true; gameState = "win"; initResultsScene(); return
       }
-      counters.points += 1
+      addPoint()
       bonuses.splice(i, 1)
       const lvl = getLevel()
       if (lvl) lvl.bonuses = bonuses
@@ -11960,8 +12056,11 @@ function update(){
   if (players.length > 0) {
     const player = players[0]
     if (autoScroll) {
+      // Czy kamera dotarła już do końca planszy?
+      const cameraAtEnd = cameraX >= worldWidth - canvas.width - 0.5
+
       let currentScrollSpeed = autoScrollSpeed
-      if (player.type === "spaceship") {
+      if (player.type === "spaceship" && !cameraAtEnd) {
         const screenPos = (player.x - cameraX) / canvas.width
         const boostTarget = screenPos > 0.4
           ? 1 + Math.min((screenPos - 0.4) * 1.0, 0.6)
@@ -11970,9 +12069,16 @@ function update(){
         window.scrollBoost += (boostTarget - window.scrollBoost) * 0.05
         currentScrollSpeed = autoScrollSpeed * window.scrollBoost
       }
-      cameraX += currentScrollSpeed
-      if (player.type === "spaceship") {
-        player.x += currentScrollSpeed
+
+      if (cameraAtEnd) {
+        // KONIEC PLANSZY — zatrzymaj scroll, wygaś boost,
+        // pozwól graczowi kontrolować statek samodzielnie ←→
+        window.scrollBoost = 1
+      } else {
+        cameraX += currentScrollSpeed
+        if (player.type === "spaceship") {
+          player.x += currentScrollSpeed
+        }
       }
     } else {
       const targetX = player.x - canvas.width / 2 + player.r
@@ -11990,11 +12096,31 @@ function checkEnemyCollision(){
   if (invulnerable > 0) { invulnerable--; return }
   const player = players[0]
   for (let enemy of enemies) {
-    if (!isLive(enemy)) continue  // 🎥 CULL: pomiń daleko/zabite
+    let ex = enemy.x, ey = enemy.y
     let ew = enemy.w || 40, eh = enemy.h || 40
-    let px = player.x - player.r, py = player.y - player.r
-    let pw = player.r * 2, ph = player.r * 2
-    if (px < enemy.x + ew && px + pw > enemy.x && py < enemy.y + eh && py + ph > enemy.y) {
+
+    // Specjalny hitbox dla OGNIA: tylko dolne 50% spritea (górna połowa
+    // to bezpieczna strefa nad płomieniami).
+    if (enemy.type === "fire") {
+      ey = enemy.y + eh * 0.5
+      eh = eh * 0.5
+    }
+
+    // ===== HITBOX PUNKTOWY / MAŁY =====
+    // Statek: 1 piksel w kabinie (bardzo precyzyjna kolizja).
+    // Piłka/samochód: mały kwadrat 30x30 w środku.
+    let hitboxX = player.x
+    let hitboxY = player.y
+    let hitboxSize = 30
+    if (player.type === "spaceship") {
+      hitboxY = player.y - 2
+      hitboxSize = 1
+    }
+    const half = hitboxSize / 2
+    const hx1 = hitboxX - half, hx2 = hitboxX + half
+    const hy1 = hitboxY - half, hy2 = hitboxY + half
+
+    if (hx1 < ex + ew && hx2 > ex && hy1 < ey + eh && hy2 > ey) {
       deathRespawnX = player.x; deathRespawnY = player.y
       if (useLives) counters.lives--
       hitEffect = { x: player.x, y: player.y, time: 60 }
@@ -12236,6 +12362,13 @@ function restartGame(){
 
 // ===== DRAW =====
 function draw(){
+  // Aktualizacja wskaźnika rundy (tylko jeśli się zmienił - oszczędność)
+  const badge = document.getElementById('levelBadge');
+  if (badge && typeof levels !== 'undefined' && levels.length > 0) {
+    const txt = `RUNDA ${currentLevel + 1}/${levels.length}`;
+    if (badge.textContent !== txt) badge.textContent = txt;
+  }
+
   if (!gameLoaded) {
     ctx.fillStyle = "#111"
     ctx.fillRect(0, 0, canvas.width, canvas.height)
@@ -12317,7 +12450,6 @@ function draw(){
 
   // Blocks
   for (let b of blocks) {
-    if (!isVisible(b)) continue  // 🎥 CULL: nie rysuj niewidocznych bloków
     const x = b.x, y = b.y, w = b.w, h = b.h
     let neon = b.effects?.some(fx => fx.type === "neon" && fx.enabled !== false)
     if (neon) { ctx.shadowColor = "#00ffff"; ctx.shadowBlur = 10 + Math.sin(Date.now()*0.001)*10 }
@@ -12512,7 +12644,6 @@ function draw(){
 
 // Enemies
   for (let en of enemies) {
-  if (!isVisible(en)) continue  // 🎥 CULL: nie rysuj niewidocznych wrogów
   ctx.globalAlpha = 1
   const x = en.x, y = en.y, w = en.w || 40, h = en.h || 40
 
@@ -12607,27 +12738,21 @@ function draw(){
     ctx.restore()
 
   } else if (en.type === "spikes") {
-    // 🎨 SPRITE CACHE — ~50× szybsze niż rysowanie gradientów
-    if (SPRITE_CACHE.enabled && SPRITE_CACHE.sprites.spikes_40 && w === 40 && h === 40) {
-      ctx.drawImage(SPRITE_CACHE.sprites.spikes_40.canvas, x, y)
-    } else {
-      // Fallback (oryginalny kod — dla różnych rozmiarów)
-      const spikeCount=4, sw=w/spikeCount, base=y+h
-      ctx.save()
-      for(let i=0;i<spikeCount;i++){
-        const sx=x+i*sw, tip=y+4
-        const sGrad=ctx.createLinearGradient(sx,base,sx+sw/2,tip)
-        sGrad.addColorStop(0,"#2a2a3a"); sGrad.addColorStop(0.5,"#8899bb"); sGrad.addColorStop(1,"#ddeeff")
-        ctx.fillStyle=sGrad
-        ctx.beginPath(); ctx.moveTo(sx+1,base); ctx.lineTo(sx+sw/2,tip); ctx.lineTo(sx+sw-1,base); ctx.closePath(); ctx.fill()
-        ctx.strokeStyle="rgba(200,230,255,0.7)"; ctx.lineWidth=1.5
-        ctx.beginPath(); ctx.moveTo(sx+2,base-2); ctx.lineTo(sx+sw/2,tip+1); ctx.stroke()
-      }
-      const baseGrad=ctx.createLinearGradient(x,base-5,x,base)
-      baseGrad.addColorStop(0,"#333344"); baseGrad.addColorStop(1,"#111122")
-      ctx.fillStyle=baseGrad; ctx.fillRect(x,base-5,w,5)
-      ctx.restore()
+    const spikeCount=4, sw=w/spikeCount, base=y+h
+    ctx.save()
+    for(let i=0;i<spikeCount;i++){
+      const sx=x+i*sw, tip=y+4
+      const sGrad=ctx.createLinearGradient(sx,base,sx+sw/2,tip)
+      sGrad.addColorStop(0,"#2a2a3a"); sGrad.addColorStop(0.5,"#8899bb"); sGrad.addColorStop(1,"#ddeeff")
+      ctx.fillStyle=sGrad
+      ctx.beginPath(); ctx.moveTo(sx+1,base); ctx.lineTo(sx+sw/2,tip); ctx.lineTo(sx+sw-1,base); ctx.closePath(); ctx.fill()
+      ctx.strokeStyle="rgba(200,230,255,0.7)"; ctx.lineWidth=1.5
+      ctx.beginPath(); ctx.moveTo(sx+2,base-2); ctx.lineTo(sx+sw/2,tip+1); ctx.stroke()
     }
+    const baseGrad=ctx.createLinearGradient(x,base-5,x,base)
+    baseGrad.addColorStop(0,"#333344"); baseGrad.addColorStop(1,"#111122")
+    ctx.fillStyle=baseGrad; ctx.fillRect(x,base-5,w,5)
+    ctx.restore()
 
   } else if (en.type === "walker") {
     const t=Date.now()*0.004, cx2=x+w/2, cy2=y+h/2, legBob=Math.sin(t*2)*4
@@ -12771,7 +12896,6 @@ function draw(){
 
   // Bonuses
   for (let b of bonuses) {
-    if (!isVisible(b)) continue  // 🎥 CULL: nie rysuj niewidocznych bonusów
     ctx.save()
     ctx.translate(b.x, b.y)
     ctx.scale(b.scale||1, b.scale||1)
@@ -12855,44 +12979,6 @@ function draw(){
   ctx.textAlign = "right"
   if (useTimer) ctx.fillText("⏱ " + Math.ceil(counters.time), canvas.width - 20, 30)
 
-  // 🎥 CULL DEBUG PANEL — widoczne statystyki aktywności obiektów
-  if (CULL.enabled) {
-    // Licz na bieżąco (nie trzymamy stanu między klatkami)
-    let active = 0, buffer = 0, dormant = 0, killed = 0
-    const allObjects = [...enemies, ...blocks, ...bonuses]
-    for (const o of allObjects) {
-      const z = getCullZone(o)
-      if (z === "ACTIVE") active++
-      else if (z === "BUFFER") buffer++
-      else if (z === "KILLED") killed++
-      else dormant++
-    }
-    const total = allObjects.length
-    ctx.save()
-    ctx.textAlign = "left"
-    ctx.font = "bold 13px monospace"
-    // tło panelu
-    ctx.fillStyle = "rgba(0, 20, 40, 0.75)"
-    ctx.fillRect(10, canvas.height - 96, 220, 86)
-    ctx.strokeStyle = "rgba(0, 247, 255, 0.6)"
-    ctx.lineWidth = 1
-    ctx.strokeRect(10, canvas.height - 96, 220, 86)
-    // tytuł
-    ctx.fillStyle = "#00f7ff"
-    ctx.fillText("🎥 CULL " + (CULL.enabled?"ON":"OFF") + "  🎨 CACHE " + (SPRITE_CACHE.enabled?"ON":"OFF"), 20, canvas.height - 78)
-    // liczniki
-    ctx.font = "13px monospace"
-    ctx.fillStyle = "#88ff88"
-    ctx.fillText(`ACTIVE:  ${active}`, 20, canvas.height - 60)
-    ctx.fillStyle = "#ffff88"
-    ctx.fillText(`BUFFER:  ${buffer}`, 20, canvas.height - 44)
-    ctx.fillStyle = "#888888"
-    ctx.fillText(`DORMANT: ${dormant}`, 20, canvas.height - 28)
-    ctx.fillStyle = "#ff6666"
-    ctx.fillText(`KILLED:  ${killed}  /  ${total}`, 20, canvas.height - 12)
-    ctx.restore()
-  }
-
   if (warningText) {
     warningText.time--
     if (warningText.time <= 0) warningText = null
@@ -12904,6 +12990,29 @@ function draw(){
     ctx.font = "bold 26px Arial"; ctx.fillStyle = "#ff8888"
     ctx.fillText("Spadniesz za chwilę!", canvas.width/2, canvas.height/2 + 30)
     ctx.restore()
+  }
+
+  // === PULSUJĄCY NAPIS "ŻYCIE BONUS" po zebraniu diamentów ===
+  if (bonusLifeAnim) {
+    bonusLifeAnim.time--
+    if (bonusLifeAnim.time <= 0) bonusLifeAnim = null
+    else {
+      const t = Date.now() * 0.012
+      const pulse = Math.sin(t) * 0.25 + 1
+      const alpha = Math.min(1, bonusLifeAnim.time / 20)
+      ctx.save()
+      ctx.globalAlpha = alpha
+      ctx.textAlign = "center"
+      ctx.textBaseline = "middle"
+      ctx.translate(canvas.width / 2, 75)
+      ctx.scale(pulse, pulse)
+      ctx.shadowColor = "#ff3a8a"
+      ctx.shadowBlur = 25
+      ctx.font = "bold 34px Arial"
+      ctx.fillStyle = "#ff4ea8"
+      ctx.fillText("❤️  ŻYCIE BONUS", 0, 0)
+      ctx.restore()
+    }
   }
 
   ctx.fillStyle = "#333"
@@ -13933,212 +14042,9 @@ let bulletCooldown = 0
 let burstCount = 0
 let burstReload = 0
 let hitSparks = []
-const BURST_MAX = 20
+const BURST_MAX = 60
 const BURST_RELOAD = 120
 const BULLET_COOLDOWN = 4
-
-// ═══════════════════════════════════════════════════════════════════
-// 🎥 SYSTEM CULLINGU ARKADOWEGO — "Strefowy culling"
-// ═══════════════════════════════════════════════════════════════════
-// Klasyka R-Type/Gradius/Zybex: obiekty pozostają nieaktywne,
-// dopóki kamera się do nich nie zbliży. Po ich minięciu (w autoscroll)
-// są despawnowane na stałe.
-//
-// STREFY:
-//   ACTIVE   — widoczne na ekranie → update + draw
-//   BUFFER   — tuż przy ekranie   → tylko update (przygotowane do wyświetlenia)
-//   DORMANT  — daleko              → kompletnie pominięte (60 FPS zysk!)
-//   KILLED   — opuściło ekran w autoscroll → nigdy nie wróci (pozostaje skip)
-// ═══════════════════════════════════════════════════════════════════
-const CULL = {
-  enabled: true,                      // można wyłączyć do testów/porównań
-  bufferLeft: 300,                    // px — bufor za lewą krawędzią ekranu
-  bufferRight: 300,                   // px — bufor za prawą krawędzią ekranu
-  killLeftAutoScroll: true,           // w trybie autoscroll obiekty z lewa idą w KILLED
-  killMargin: 200,                    // px — dopiero poza tę granicę "killujemy"
-
-  // Stany dla stats panelu
-  stats: { active: 0, buffer: 0, dormant: 0, killed: 0, total: 0 }
-}
-
-/**
- * Zwraca strefę obiektu względem kamery.
- * obj musi mieć .x oraz .w (albo .r).
- * @returns "ACTIVE" | "BUFFER" | "DORMANT" | "KILLED"
- */
-function getCullZone(obj) {
-  if (!CULL.enabled) return "ACTIVE"
-  if (obj._killed) return "KILLED"
-
-  const camL = cameraX
-  const camR = cameraX + canvas.width
-  const objL = obj.x
-  const objR = obj.x + (obj.w || obj.r * 2 || 40)
-
-  // Zabity w autoscroll — daleko za lewą krawędzią, już NIGDY nie wróci
-  if (CULL.killLeftAutoScroll && autoScroll && objR < camL - CULL.killMargin) {
-    obj._killed = true
-    return "KILLED"
-  }
-
-  // ACTIVE — widoczne na ekranie
-  if (objR >= camL && objL <= camR) return "ACTIVE"
-
-  // BUFFER — tuż za lewą lub prawą krawędzią (strefa przygotowania)
-  if (objR >= camL - CULL.bufferLeft && objL <= camR + CULL.bufferRight) return "BUFFER"
-
-  // DORMANT — za daleko, nie ruszamy
-  return "DORMANT"
-}
-
-// Pomocnicze: czy obiekt ma być update'owany (ACTIVE lub BUFFER)
-function isLive(obj) {
-  const z = getCullZone(obj)
-  return z === "ACTIVE" || z === "BUFFER"
-}
-
-// Pomocnicze: czy rysujemy (tylko ACTIVE)
-function isVisible(obj) {
-  return getCullZone(obj) === "ACTIVE"
-}
-
-// Debug — restartowanie stref na początku klatki (do statystyk)
-function resetCullStats() {
-  CULL.stats.active = 0
-  CULL.stats.buffer = 0
-  CULL.stats.dormant = 0
-  CULL.stats.killed = 0
-  CULL.stats.total = 0
-}
-
-// ═══════════════════════════════════════════════════════════════════
-
-// ═══════════════════════════════════════════════════════════════════
-// 🎨 SPRITE CACHE — narysuj raz, kopiuj wiele
-// ═══════════════════════════════════════════════════════════════════
-// Zamiast rysować każdą asteroidę/kolca/pióry od zera przy 60 FPS,
-// rysujemy je RAZ na mały off-screen canvas podczas ładowania.
-// Potem tylko drawImage() — ~50× szybsze niż createGradient+fill.
-// ═══════════════════════════════════════════════════════════════════
-const SPRITE_CACHE = {
-  enabled: true,       // można wyłączyć do porównań
-  sprites: {},         // klucz -> {canvas, w, h}
-
-  // Stwórz sprite: drawFn rysuje na kontekście offscreen (0,0) do (w,h)
-  create(key, w, h, drawFn) {
-    const off = document.createElement('canvas')
-    off.width = w
-    off.height = h
-    const octx = off.getContext('2d')
-    drawFn(octx, w, h)
-    this.sprites[key] = { canvas: off, w, h }
-    return this.sprites[key]
-  },
-
-  // Pobierz i narysuj sprite przy (x,y)
-  draw(key, x, y, ctx) {
-    const sp = this.sprites[key]
-    if (!sp) return false
-    ctx.drawImage(sp.canvas, x, y)
-    return true
-  },
-
-  // Pobierz i narysuj z obrotem i skalą
-  drawRotated(key, x, y, rotation, scale, ctx) {
-    const sp = this.sprites[key]
-    if (!sp) return false
-    ctx.save()
-    ctx.translate(x + sp.w/2, y + sp.h/2)
-    ctx.rotate(rotation)
-    if (scale && scale !== 1) ctx.scale(scale, scale)
-    ctx.drawImage(sp.canvas, -sp.w/2, -sp.h/2)
-    ctx.restore()
-    return true
-  },
-
-  // Zbuduj wszystkie spritey na początku gry (wywołać raz)
-  buildAll() {
-    // --- KOLCE (spikes) ---
-    this.create('spikes_40', 40, 40, (ctx, w, h) => {
-      const spikeCount=4, sw=w/spikeCount, base=h
-      for(let i=0;i<spikeCount;i++){
-        const sx=i*sw, tip=4
-        const sGrad=ctx.createLinearGradient(sx,base,sx+sw/2,tip)
-        sGrad.addColorStop(0,"#2a2a3a"); sGrad.addColorStop(0.5,"#8899bb"); sGrad.addColorStop(1,"#ddeeff")
-        ctx.fillStyle=sGrad
-        ctx.beginPath(); ctx.moveTo(sx+1,base); ctx.lineTo(sx+sw/2,tip); ctx.lineTo(sx+sw-1,base); ctx.closePath(); ctx.fill()
-        ctx.strokeStyle="rgba(200,230,255,0.7)"; ctx.lineWidth=1.5
-        ctx.beginPath(); ctx.moveTo(sx+2,base-2); ctx.lineTo(sx+sw/2,tip+1); ctx.stroke()
-      }
-      const baseGrad=ctx.createLinearGradient(0,base-5,0,base)
-      baseGrad.addColorStop(0,"#333344"); baseGrad.addColorStop(1,"#111122")
-      ctx.fillStyle=baseGrad; ctx.fillRect(0,base-5,w,5)
-    })
-
-    // --- ASTEROIDY rock1, rock2, rock3 ---
-    // 3 warianty każdej, żeby nie wyglądały wszystkie identycznie
-    for (let variant = 0; variant < 3; variant++) {
-      this.create(`rock1_${variant}`, 60, 60, (ctx, w, h) => this._drawRock(ctx, w, h, 'rock1', variant))
-      this.create(`rock2_${variant}`, 60, 60, (ctx, w, h) => this._drawRock(ctx, w, h, 'rock2', variant))
-      this.create(`rock3_${variant}`, 60, 60, (ctx, w, h) => this._drawRock(ctx, w, h, 'rock3', variant))
-    }
-  },
-
-  // Pomocnik — rysuje asteroidę na offscreen canvasie
-  _drawRock(ctx, w, h, type, variant) {
-    const cx = w/2, cy = h/2, r = w/2 - 3
-    // Losowość na podstawie variant (deterministyczna)
-    const seed = variant * 31
-    const rand = (i) => ((Math.sin(seed * 7.3 + i * 13.1) + 1) / 2)
-
-    // Nieregularny kształt
-    ctx.beginPath()
-    const points = 8
-    for (let i = 0; i < points; i++) {
-      const a = (i / points) * Math.PI * 2
-      const variation = 0.7 + rand(i) * 0.3
-      const px = cx + Math.cos(a) * r * variation
-      const py = cy + Math.sin(a) * r * variation
-      if (i === 0) ctx.moveTo(px, py)
-      else ctx.lineTo(px, py)
-    }
-    ctx.closePath()
-
-    // Kolory różne per typ
-    let colors
-    if (type === 'rock1') {
-      colors = { fill1: '#a0a0a0', fill2: '#404040', stroke: '#202020' }
-    } else if (type === 'rock2') {
-      colors = { fill1: '#8a6a50', fill2: '#3a2a20', stroke: '#1a0a0a' }
-    } else {
-      colors = { fill1: '#6a4a3a', fill2: '#2a1a10', stroke: '#0a0505' }
-    }
-
-    const grad = ctx.createRadialGradient(cx - r*0.3, cy - r*0.3, r*0.1, cx, cy, r)
-    grad.addColorStop(0, colors.fill1)
-    grad.addColorStop(1, colors.fill2)
-    ctx.fillStyle = grad
-    ctx.fill()
-
-    ctx.strokeStyle = colors.stroke
-    ctx.lineWidth = 2
-    ctx.stroke()
-
-    // Kratery (3 sztuki)
-    ctx.fillStyle = 'rgba(0,0,0,0.5)'
-    for (let i = 0; i < 3; i++) {
-      const ca = rand(i + 10) * Math.PI * 2
-      const cd = rand(i + 20) * r * 0.5
-      const cr = 2 + rand(i + 30) * 4
-      ctx.beginPath()
-      ctx.arc(cx + Math.cos(ca) * cd, cy + Math.sin(ca) * cd, cr, 0, Math.PI * 2)
-      ctx.fill()
-    }
-  }
-}
-
-// Wywołamy buildAll() po załadowaniu gry — sprite'y będą gotowe przed pierwszą klatką
-// ═══════════════════════════════════════════════════════════════════
 
 function spawnHitSpark(x, y) {
   const colors = ["#00ffcc","#ffffff","#88ffee","#ffff00","#00aaff"]
@@ -14203,27 +14109,6 @@ function drawFinishFlag(size) {
 }
 
 function drawMoonRock(en, x, y, w, h) {
-  // 🎨 SPRITE CACHE — szybka ścieżka (50× szybsza)
-  if (SPRITE_CACHE.enabled) {
-    // Wybierz wariant deterministycznie (ta sama skała zawsze ten sam wariant)
-    const variant = Math.abs(Math.floor((en.x + en.y) / 17)) % 3
-    const key = `${en.type}_${variant}`
-    const sp = SPRITE_CACHE.sprites[key]
-    if (sp) {
-      const cx = x + w/2, cy = y + h/2
-      const angle = en.rotation || 0
-      const scale = w / sp.w
-      ctx.save()
-      ctx.translate(cx, cy)
-      ctx.rotate(angle)
-      if (scale !== 1) ctx.scale(scale, scale)
-      ctx.drawImage(sp.canvas, -sp.w/2, -sp.h/2)
-      ctx.restore()
-      return
-    }
-  }
-
-  // Fallback (oryginalny kod)
   const cx = x + w/2
   const cy = y + h/2
   const r = w/2
