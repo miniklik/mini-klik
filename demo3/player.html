@@ -239,6 +239,61 @@
     color: #667;
     margin-top: 20px;
   }
+  /* ════════════ MOBILE NAVIGATION (proste przyciski) ════════════ */
+  .canvas-nav-group {
+    position: absolute;
+    bottom: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    z-index: 50;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .canvas-nav-group.left-group { left: 12px; }
+  .canvas-nav-group.right-group { right: 12px; }
+
+  .nav-arrow {
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(180deg, rgba(60, 80, 120, 0.85) 0%, rgba(30, 40, 70, 0.85) 100%);
+    border: 1px solid rgba(120, 180, 255, 0.5);
+    border-radius: 10px;
+    color: white;
+    font-size: 22px;
+    cursor: pointer;
+    box-shadow: 0 0 8px rgba(80, 130, 200, 0.4);
+  }
+  .nav-arrow:active {
+    background: linear-gradient(180deg, rgba(100, 140, 200, 0.95) 0%, rgba(60, 80, 130, 0.95) 100%);
+  }
+
+  /* Przycisk STRZAŁ — czerwony, w lewej grupie zamiast ▲ */
+  .nav-arrow.nav-shoot-arrow {
+    background: linear-gradient(180deg, rgba(200, 60, 60, 0.9) 0%, rgba(140, 30, 30, 0.9) 100%);
+    border-color: rgba(255, 100, 100, 0.6);
+    box-shadow: 0 0 10px rgba(220, 80, 80, 0.5);
+    font-size: 24px;
+  }
+  .nav-arrow.nav-shoot-arrow:active {
+    background: linear-gradient(180deg, rgba(240, 100, 100, 1) 0%, rgba(180, 50, 50, 1) 100%);
+  }
+
+  /* Domyślnie ukryte — pokazują się po kliknięciu "🕹 NAWIGACJA" */
+  .hidden-nav { display: none !important; }
+
+  /* Przycisk NAWIGACJA */
+  .ctrl-btn.nav-btn {
+    border-color: #66ddaa;
+    box-shadow: 0 0 10px rgba(102, 221, 170, 0.3);
+  }
+  .ctrl-btn.nav-btn.active {
+    background: linear-gradient(180deg, #338866 0%, #226644 100%);
+    box-shadow: 0 0 15px rgba(102, 221, 170, 0.6);
+  }
 </style>
 </head>
 <body>
@@ -259,6 +314,9 @@
   </button>
   <button class="ctrl-btn restart-btn" onclick="restartGame()">
     🔄 RESTART
+  </button>
+  <button class="ctrl-btn nav-btn" id="navToggleBtn" onclick="toggleNav()">
+    🕹 NAWIGACJA
   </button>
   <input type="file" id="file-input" accept=".json" onchange="handleFileLoad(event)">
 </div>
@@ -284,6 +342,32 @@
     <div id="menu-controls"></div>
     <button id="menu-start-btn" onclick="startGameplay()">▶ ZAGRAJ</button>
     <div id="menu-info">💡 Naciśnij <kbd style="font-size:11px">ENTER</kbd> aby rozpocząć</div>
+  </div>
+
+  <!-- LEWA grupa: 🔫 STRZAŁ ◀ ▼ -->
+  <div class="canvas-nav-group left-group hidden-nav" id="navLeft">
+    <div class="nav-arrow nav-shoot-arrow"
+         ontouchstart="navPress('shoot',event)" ontouchend="navRelease('shoot')" ontouchcancel="navRelease('shoot')"
+         onmousedown="navPress('shoot',event)" onmouseup="navRelease('shoot')" onmouseleave="navRelease('shoot')">🔫</div>
+    <div class="nav-arrow"
+         ontouchstart="navPress('left',event)" ontouchend="navRelease('left')" ontouchcancel="navRelease('left')"
+         onmousedown="navPress('left',event)" onmouseup="navRelease('left')" onmouseleave="navRelease('left')">◀</div>
+    <div class="nav-arrow"
+         ontouchstart="navPress('down',event)" ontouchend="navRelease('down')" ontouchcancel="navRelease('down')"
+         onmousedown="navPress('down',event)" onmouseup="navRelease('down')" onmouseleave="navRelease('down')">▼</div>
+  </div>
+
+  <!-- PRAWA grupa: ▲ ▶ ▼ -->
+  <div class="canvas-nav-group right-group hidden-nav" id="navRight">
+    <div class="nav-arrow"
+         ontouchstart="navPress('up',event)" ontouchend="navRelease('up')" ontouchcancel="navRelease('up')"
+         onmousedown="navPress('up',event)" onmouseup="navRelease('up')" onmouseleave="navRelease('up')">▲</div>
+    <div class="nav-arrow"
+         ontouchstart="navPress('right',event)" ontouchend="navRelease('right')" ontouchcancel="navRelease('right')"
+         onmousedown="navPress('right',event)" onmouseup="navRelease('right')" onmouseleave="navRelease('right')">▶</div>
+    <div class="nav-arrow"
+         ontouchstart="navPress('down',event)" ontouchend="navRelease('down')" ontouchcancel="navRelease('down')"
+         onmousedown="navPress('down',event)" onmouseup="navRelease('down')" onmouseleave="navRelease('down')">▼</div>
   </div>
 </div>
 
@@ -643,6 +727,47 @@ window.addEventListener('keydown', e => {
   }
 })
 window.addEventListener('keyup', e => { keys[e.key] = false })
+
+// ════════════ MOBILE NAVIGATION ════════════
+let navVisible = false
+
+function toggleNav() {
+  navVisible = !navVisible
+  const btn = document.getElementById('navToggleBtn')
+  const navL = document.getElementById('navLeft')
+  const navR = document.getElementById('navRight')
+  if (navVisible) {
+    if (btn) btn.classList.add('active')
+    if (navL) navL.classList.remove('hidden-nav')
+    if (navR) navR.classList.remove('hidden-nav')
+  } else {
+    if (btn) btn.classList.remove('active')
+    if (navL) navL.classList.add('hidden-nav')
+    if (navR) navR.classList.add('hidden-nav')
+    // Wyczyść wszystkie wciśnięte klawisze nawigacji
+    Object.values(CONTROLS).forEach(k => keys[k] = false)
+  }
+}
+
+// Mapowanie kierunku na klawisz CONTROLS
+function navPress(dir, e) {
+  if (e) e.preventDefault()
+  const map = {
+    left: CONTROLS.lewo, right: CONTROLS.prawo,
+    up: CONTROLS.skok, down: CONTROLS.dol,
+    shoot: CONTROLS.strzal
+  }
+  if (map[dir]) keys[map[dir]] = true
+}
+
+function navRelease(dir) {
+  const map = {
+    left: CONTROLS.lewo, right: CONTROLS.prawo,
+    up: CONTROLS.skok, down: CONTROLS.dol,
+    shoot: CONTROLS.strzal
+  }
+  if (map[dir]) keys[map[dir]] = false
+}
 
 // === GENEROWANIE TŁA (GWIAZDY) ===
 function generateBackground() {
