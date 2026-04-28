@@ -410,22 +410,24 @@
   /* RESPONSYWNOŚĆ — hybryda: desktop 800×450 ostro, mobile CSS scale */
   /* ════════════════════════════════════════════════════════════════ */
 
-  /* game-container ZAWSZE max 800px szerokości, ale zwija się elastycznie */
+  /* ════════════════════════════════════════════════════════════════ */
+  /* LETTERBOX — gra zawsze 16:9, czarne pasy po bokach lub górze/dole */
+  /* ════════════════════════════════════════════════════════════════ */
+
+  /* game-container ZAWSZE 16:9, JS może go skalować */
   #game-container {
     width: 100%;
     max-width: 800px;
-    /* aspect-ratio gwarantuje 800:450 (16:9) niezależnie od szerokości */
     aspect-ratio: 800 / 450;
+    background: #000;
+    position: relative;
   }
 
-  /* Canvas wstrzyknięty przez PIXI — zostaje 800×450 wewnętrznie,
-     ale CSS skaluje go do szerokości kontenera. PIXI antialias=false
-     więc skalowanie nie psuje wyglądu (pixel-art friendly). */
+  /* Canvas wstrzyknięty przez PIXI — wypełnia kontener */
   #game-container canvas {
     width: 100% !important;
     height: 100% !important;
     display: block;
-    /* Ostry pixel-art przy skalowaniu na mobile — nie rozmazuj */
     image-rendering: pixelated;
     image-rendering: -moz-crisp-edges;
     image-rendering: crisp-edges;
@@ -796,6 +798,9 @@ html, body {
     max-width: 100% !important;
     width: 100% !important;
     gap: 4px !important;
+    /* Czarne tło wokół canvasa = czarne pasy letterbox */
+    background: #000 !important;
+    /* Niebieska ramka jednak zostaje wokół całej apki gry */
   }
   #titleBar {
     padding: 0 !important;
@@ -829,12 +834,25 @@ html, body {
 
 /* --- 4. PRZYCISKI NAWIGACJI — NA CANVASIE w rogach (półprzezroczyste) --- */
 @media (max-width: 860px), (hover: none) and (pointer: coarse) {
+  /* TRYB LETTERBOX MOBILNY:
+     game-container zachowuje aspect-ratio 16:9, ale skaluje się aby
+     ZMIEŚCIĆ SIĘ W EKRANIE — szerokość lub wysokość, co mniejsze.
+     Czarne pasy zapewnia tło #playerFrame i body (które są niebieskie),
+     ale my chcemy pasy CZARNE wokół canvasa - dlatego sam container
+     ma background #000 i jest centrowany w playerFrame. */
   #game-container {
-    margin-bottom: 0;
+    width: 100% !important;
+    max-width: 100% !important;
+    /* CSS magic: zmieść 16:9 w dostępnej przestrzeni */
+    /* min(100% szerokości, dostępna wysokość * 16/9) */
+    height: min(calc(100vh - 80px), calc((100vw - 12px) * 9 / 16)) !important;
+    width: min(calc(100vw - 12px), calc((100vh - 80px) * 16 / 9)) !important;
+    aspect-ratio: 16 / 9;
+    margin: 0 auto;
     overflow: hidden;
     position: relative;
   }
-  /* Lewa grupa — lewy dolny róg, w pionie */
+  /* Lewa grupa — lewy dolny róg, w pionie. Pozycjonowane WZGLĘDEM game-container czyli na canvasie. */
   .canvas-nav-group {
     position: absolute !important;
     bottom: 8px !important;
