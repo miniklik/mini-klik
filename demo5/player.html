@@ -1896,7 +1896,8 @@ function loadLevel(levelIndex) {
     y: playerData.y,
     vx: 0, vy: 0,
     r: 18,
-    cooldown: 0
+    cooldown: 0,
+    invincible: 0   // klatki niewrażliwości po stracie życia (180 = 3s przy 60fps)
   }
 
   // Wrogowie
@@ -2275,6 +2276,23 @@ function applyMoveEffect(obj, delta) {
   }
 }
 
+// Strata życia: eksplozja, reset pozycji na środek, 3s niewrażliwości z miganiem
+function damagePlayer() {
+  counters.lives--
+  spawnExplosion(player.x, player.y)
+  // Reset pozycji — środek widzialnego ekranu (poziomo + pionowo)
+  player.x = cameraX + 100
+  player.y = CANVAS_HEIGHT / 2
+  player.vx = 0
+  player.vy = 0
+  // 3 sekundy niewrażliwości (180 klatek przy 60 FPS)
+  player.invincible = 180
+  // Game over gdy wszystkie życia stracone
+  if (counters.lives <= 0) {
+    showResults(false)
+  }
+}
+
 function update(delta) {
   // Efekt przejścia między poziomami — działa NIEZALEŻNIE od gameRunning
   // (gameRunning=false podczas transition, ale animacja Matrix musi lecieć)
@@ -2631,36 +2649,36 @@ function update(delta) {
   for (let i = 0; i < blocks.length; i++) applyMoveEffect(blocks[i], delta)
   for (let i = 0; i < enemies.length; i++) applyMoveEffect(enemies[i], delta)
 
-  // Kolizje statku z wrogami
-  for (const e of enemies) {
-    if (player.x + player.r > e.x && player.x - player.r < e.x + e.w &&
-        player.y + player.r > e.y && player.y - player.r < e.y + e.h) {
-      counters.lives--
-      spawnExplosion(player.x, player.y)
-      // Reset pozycji
-      player.x = cameraX + 100
-      if (counters.lives <= 0) {
-        // Game over — ekran przegranej
-        showResults(false)
-        return
+  // Kolizje statku z wrogami (tylko gdy NIE invincible)
+  if (player.invincible <= 0) {
+    for (const e of enemies) {
+      if (player.x + player.r > e.x && player.x - player.r < e.x + e.w &&
+          player.y + player.r > e.y && player.y - player.r < e.y + e.h) {
+        damagePlayer()
+        break
       }
-      break
     }
   }
 
-  // Kolizje statku z blockGrid (zabójcze, jak wrogowie)
-  for (const b of blocks) {
-    if (b.typ !== 'blockGrid') continue
-    if (player.x + player.r > b.x && player.x - player.r < b.x + b.w &&
-        player.y + player.r > b.y && player.y - player.r < b.y + b.h) {
-      counters.lives--
-      spawnExplosion(player.x, player.y)
-      player.x = cameraX + 100
-      if (counters.lives <= 0) {
-        showResults(false)
-        return
+  // Kolizje statku z blockGrid (tylko gdy NIE invincible)
+  if (player.invincible <= 0) {
+    for (const b of blocks) {
+      if (b.typ !== 'blockGrid') continue
+      if (player.x + player.r > b.x && player.x - player.r < b.x + b.w &&
+          player.y + player.r > b.y && player.y - player.r < b.y + b.h) {
+        damagePlayer()
+        break
       }
-      break
+    }
+  }
+
+  // Aktualizacja niewrażliwości — miganie sprite (3s = 180 klatek)
+  if (player.invincible > 0) {
+    player.invincible -= delta
+    // Miganie: sin oscyluje alpha między 0.3 a 1.0
+    player.sprite.alpha = 0.5 + Math.sin(frameCount * 0.5) * 0.4
+    if (player.invincible <= 0) {
+      player.sprite.alpha = 1   // przywróć pełną widoczność
     }
   }
 
