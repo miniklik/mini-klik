@@ -903,7 +903,8 @@ if (statusEl) {
 
 // === KONTENERY (warstwy renderowania na GPU) ===
 const stage = app.stage
-const bgLayer = new PIXI.Container()           // Tło (gwiazdy)
+const bgLayer = new PIXI.Container()           // Tło (gwiazdy + parallax)
+const bgFxLayer = new PIXI.Container()         // Tło fx (cząstki neon/snow + hyperspace, screen space)
 const enemyLayer = new PIXI.Container()         // Wrogowie
 const blockLayer = new PIXI.Container()         // Bloki
 const bonusLayer = new PIXI.Container()         // Bonusy
@@ -912,7 +913,7 @@ const playerLayer = new PIXI.Container()        // Statek
 const bulletLayer = new PIXI.Container()        // Pociski
 const fxLayer = new PIXI.Container()            // Eksplozje, particle
 const transitionLayer = new PIXI.Container()    // Efekt Matrix + NEXT LEVEL (na samym wierzchu)
-stage.addChild(bgLayer, blockLayer, bonusLayer, enemyLayer, textLayer, bulletLayer, playerLayer, fxLayer, transitionLayer)
+stage.addChild(bgLayer, bgFxLayer, blockLayer, bonusLayer, enemyLayer, textLayer, bulletLayer, playerLayer, fxLayer, transitionLayer)
 transitionLayer.visible = false   // domyślnie ukryty
 
 // === TWORZENIE TEKSTUR Z GRAFIKI (RAZ — potem GPU używa) ===
@@ -1601,24 +1602,160 @@ function navRelease(dir) {
   if (map[dir]) keys[map[dir]] = false
 }
 
-// === GENEROWANIE TŁA (GWIAZDY) ===
+// === GENEROWANIE TŁA (wiele typów: stars/space/neon/snow) ===
+// Konteneryzowane: bgLayer trzyma statyczne elementy (gradient + parę warstw),
+// fxBgParticles (animowane cząstki) i hyperLayer (boost smugi) są dynamiczne.
+let bgParticles = []      // dla "neon" (cyjan padające)
+let snowParticles = []    // dla "snow" (kosmiczny śnieg)
+let spaceMountains = []   // dla "space" (piramidy z dali)
+let hyperStreaks = []     // dla efektu hiperprzestrzeni (boost)
+let currentBgType = 'stars'
+
 function generateBackground() {
   // Wyczyść poprzednie
   bgLayer.removeChildren()
   stars = []
-  // 100 gwiazd rozmieszczonych w worldWidth
-  for (let i = 0; i < 200; i++) {
-    const star = new PIXI.Graphics()
-    const size = Math.random() < 0.7 ? 1 : 2
-    const brightness = 0.3 + Math.random() * 0.7
-    star.beginFill(0xffffff, brightness)
-    star.drawCircle(0, 0, size)
-    star.endFill()
-    star.x = Math.random() * worldWidth
-    star.y = Math.random() * CANVAS_HEIGHT
-    star.parallax = 0.3 + Math.random() * 0.4  // różne prędkości
-    bgLayer.addChild(star)
-    stars.push(star)
+  bgParticles = []
+  snowParticles = []
+  spaceMountains = []
+  hyperStreaks = []
+
+  // Czytamy backgroundType z settings (level lub global, fallback "stars")
+  const level = levels[currentLevel] || {}
+  let bgType = level.backgroundType || (GAME_DATA && GAME_DATA.settings && GAME_DATA.settings.backgroundType) || 'stars'
+  if (!['stars', 'space', 'neon', 'snow'].includes(bgType)) bgType = 'stars'
+  currentBgType = bgType
+
+  // === GRADIENT TŁA (różny dla każdego typu) ===
+  const bg = new PIXI.Graphics()
+  if (bgType === 'neon') {
+    // Fioletowy gradient #0a001f → #1a0033
+    bg.beginFill(0x0a001f); bg.drawRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT/2); bg.endFill()
+    bg.beginFill(0x1a0033); bg.drawRect(0, CANVAS_HEIGHT/2, CANVAS_WIDTH, CANVAS_HEIGHT/2); bg.endFill()
+  } else if (bgType === 'snow') {
+    bg.beginFill(0x0f1a2b); bg.drawRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT); bg.endFill()
+  } else {
+    // stars / space → ciemnogranatowe
+    bg.beginFill(0x000814); bg.drawRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT); bg.endFill()
+  }
+  bg._fixed = true  // tag żeby nie ruszać przy parallax
+  bgLayer.addChild(bg)
+
+  // === GWIAZDY (stars + space + neon mają tło z gwiazdami) ===
+  if (bgType === 'stars' || bgType === 'space' || bgType === 'neon') {
+    const count = bgType === 'neon' ? 100 : 200
+    for (let i = 0; i < count; i++) {
+      const star = new PIXI.Graphics()
+      const size = Math.random() < 0.7 ? 1 : 2
+      const brightness = 0.3 + Math.random() * 0.7
+      star.beginFill(0xffffff, brightness)
+      star.drawCircle(0, 0, size)
+      star.endFill()
+      star.x = Math.random() * worldWidth
+      star.y = Math.random() * CANVAS_HEIGHT
+      star.parallax = 0.3 + Math.random() * 0.4
+      bgLayer.addChild(star)
+      stars.push(star)
+    }
+  }
+
+  // === PIRAMIDY DLA "space" — góry kosmiczne z dali ===
+  if (bgType === 'space') {
+    for (let i = 0; i < 18; i++) {
+      const m = new PIXI.Graphics()
+      const h = 95 + (i * 53 % 95)
+      const x = i * 220
+      m.beginFill(0x1e2f52)
+      m.moveTo(x - 20, CANVAS_HEIGHT)
+      m.lineTo(x + 80, CANVAS_HEIGHT - h)
+      m.lineTo(x + 190, CANVAS_HEIGHT)
+      m.endFill()
+      m._baseX = x  // zapisujemy bazowe x dla parallax animacji
+      m.parallax = 0.15
+      bgLayer.addChild(m)
+      spaceMountains.push(m)
+    }
+  }
+
+  // === CZĄSTKI NEON — cyjanowe punkty spadające (screen space) ===
+  if (bgType === 'neon') {
+    bgFxLayer.removeChildren()
+    for (let i = 0; i < 90; i++) {
+      const p = new PIXI.Graphics()
+      const size = Math.random() * 2.2 + 0.7
+      p.beginFill(0x99ffff)
+      p.drawRect(0, 0, size, size)
+      p.endFill()
+      p.x = Math.random() * CANVAS_WIDTH
+      p.y = Math.random() * CANVAS_HEIGHT
+      p._speed = Math.random() * 0.9 + 0.4
+      p._phase = Math.random() * Math.PI * 2  // dla migotania
+      bgFxLayer.addChild(p)
+      bgParticles.push(p)
+    }
+  }
+
+  // === CZĄSTKI SNOW — białe punkty padające szybko (screen space) ===
+  if (bgType === 'snow') {
+    bgFxLayer.removeChildren()
+    for (let i = 0; i < 120; i++) {
+      const p = new PIXI.Graphics()
+      p.beginFill(0xffffff)
+      p.drawCircle(0, 0, 2)
+      p.endFill()
+      p.x = Math.random() * CANVAS_WIDTH
+      p.y = Math.random() * CANVAS_HEIGHT
+      p._speed = 1 + Math.random() * 1.5
+      bgFxLayer.addChild(p)
+      snowParticles.push(p)
+    }
+  }
+
+  // Wyczyść bgFxLayer dla typów które jej nie używają
+  if (bgType === 'stars' || bgType === 'space') {
+    bgFxLayer.removeChildren()
+  }
+}
+
+// === EFEKT HIPERPRZESTRZENI — smugi światła gdy boost > 1.1 ===
+// Aktywuje się automatycznie gdy gracz leci szybko w prawo.
+function updateHyperspace(delta) {
+  if (scrollBoost <= 1.1) {
+    // Wyłącz: schowaj wszystkie smugi
+    for (const s of hyperStreaks) s.visible = false
+    return
+  }
+  // Pierwsze użycie? Stwórz smugi.
+  if (hyperStreaks.length === 0) {
+    for (let i = 0; i < 50; i++) {
+      const streak = new PIXI.Graphics()
+      streak.beginFill(0xffffff)
+      streak.drawRect(0, 0, 1, 1.5)
+      streak.endFill()
+      streak.tint = 0xddeeff
+      streak._y = Math.random() * CANVAS_HEIGHT
+      streak._x = Math.random() * CANVAS_WIDTH
+      streak._speed = 8 + Math.random() * 20
+      streak._length = 30 + Math.random() * 80
+      streak._alpha = 0.3 + Math.random() * 0.5
+      bgFxLayer.addChild(streak)
+      hyperStreaks.push(streak)
+    }
+  }
+  // Animuj
+  const intensity = Math.min((scrollBoost - 1.1) / 0.5, 1)
+  for (const s of hyperStreaks) {
+    s.visible = true
+    s._x -= s._speed * intensity * 1.5 * delta
+    if (s._x + s._length < 0) {
+      s._x = CANVAS_WIDTH + Math.random() * 50
+      s._y = Math.random() * CANVAS_HEIGHT
+    }
+    const len = s._length * (0.5 + intensity * 1.5)
+    s.x = s._x
+    s.y = s._y
+    s.width = len
+    s.alpha = s._alpha * intensity
   }
 }
 
@@ -2206,6 +2343,28 @@ function spawnExplosion(x, y) {
 }
 
 // === GŁÓWNA PĘTLA — UPDATE + RENDER (PIXI render automatyczne!) ===
+// Helper - aplikuje effects.move na pojedynczy obiekt (blok/wróg)
+// Optymalizacja: brak alokacji nowych tablic w pętli update
+function applyMoveEffect(obj, delta) {
+  if (!obj.effects) return
+  for (let i = 0; i < obj.effects.length; i++) {
+    const eff = obj.effects[i]
+    if (eff.type !== 'move' || eff.enabled === false) continue
+    const step = eff.speed * delta
+    const dx = eff.dx * step
+    const dy = eff.dy * step
+    obj.x += dx
+    obj.y += dy
+    eff.travel = (eff.travel || 0) + step
+    if (eff.travel >= eff.distance) {
+      if (eff.loop) { eff.dx *= -1; eff.dy *= -1; eff.travel = 0 }
+      else eff.speed = 0
+    }
+    if (obj.sprite) { obj.sprite.x += dx; obj.sprite.y += dy }
+    if (obj.frame) { obj.frame.x += dx; obj.frame.y += dy }
+  }
+}
+
 function update(delta) {
   // Efekt przejścia między poziomami — działa NIEZALEŻNIE od gameRunning
   // (gameRunning=false podczas transition, ale animacja Matrix musi lecieć)
@@ -2299,7 +2458,30 @@ function update(delta) {
   for (const star of stars) {
     star.x = star.x  // gwiazdy zostają na świecie
   }
-  bgLayer.x = -cameraX * 0.3  // parallax tła
+  bgLayer.x = -cameraX * 0.3  // parallax tła (gwiazdy + piramidy)
+
+  // === ANIMACJE TŁA — cząstki neon/snow + hiperprzestrzeń (screen space, bgFxLayer) ===
+  // Cyjanowe cząstki (neon) — padają z migotaniem, wraparound
+  if (currentBgType === 'neon') {
+    const t = Date.now() / 300
+    for (const p of bgParticles) {
+      p.y += p._speed * delta
+      if (p.y > CANVAS_HEIGHT) p.y = -5
+      p.alpha = 0.75 + Math.sin(t + p._phase) * 0.25
+    }
+  }
+  // Białe cząstki (snow) — padają szybciej, wraparound
+  if (currentBgType === 'snow') {
+    for (const p of snowParticles) {
+      p.y += p._speed * delta * 2
+      if (p.y > CANVAS_HEIGHT) {
+        p.y = -5
+        p.x = Math.random() * CANVAS_WIDTH
+      }
+    }
+  }
+  // Hiperprzestrzeń — overlay smug światła przy boost
+  updateHyperspace(delta)
 
   // Asteroidy się obracają i lewitują (1:1 ze starego)
   // Stary: obj.rotation += obj.rotSpeed; obj.floatTime += 0.04; obj.y += (sin(t)-sin(prev))*12
@@ -2538,33 +2720,11 @@ function update(delta) {
     }
   }
 
-  // === WSPÓLNA PĘTLA EFFECTS.MOVE (bloki + wrogowie) — 1:1 ze starego ===
-  // Każdy obiekt z effects.move latać po ścieżce: dx, dy, speed, distance, loop
-  for (const obj of [...blocks, ...enemies]) {
-    if (!obj.effects) continue
-    for (const eff of obj.effects) {
-      if (eff.type !== 'move' || eff.enabled === false) continue
-      const step = eff.speed * delta
-      const dx = eff.dx * step
-      const dy = eff.dy * step
-      obj.x += dx
-      obj.y += dy
-      eff.travel = (eff.travel || 0) + step
-      if (eff.travel >= eff.distance) {
-        if (eff.loop) { eff.dx *= -1; eff.dy *= -1; eff.travel = 0 }
-        else eff.speed = 0
-      }
-      // Synchronizuj sprite + dodatkowe elementy (ramka blockGrid)
-      if (obj.sprite) {
-        obj.sprite.x += dx
-        obj.sprite.y += dy
-      }
-      if (obj.frame) {
-        obj.frame.x += dx
-        obj.frame.y += dy
-      }
-    }
-  }
+  // === WSPÓLNA LOGIKA EFFECTS.MOVE (bloki + wrogowie) — 1:1 ze starego ===
+  // UWAGA: NIE używamy [...blocks, ...enemies] bo to alokuje tablicę co klatkę i morduje GC.
+  // Każdy obiekt z effects.move lata po ścieżce: dx, dy, speed, distance, loop
+  for (let i = 0; i < blocks.length; i++) applyMoveEffect(blocks[i], delta)
+  for (let i = 0; i < enemies.length; i++) applyMoveEffect(enemies[i], delta)
 
   // Kolizje statku z wrogami
   for (const e of enemies) {
