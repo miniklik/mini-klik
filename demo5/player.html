@@ -869,7 +869,7 @@ if (statusEl) {
 // === KONTENERY (warstwy renderowania na GPU) ===
 const stage = app.stage
 const bgLayer = new PIXI.Container()           // Tło (gwiazdy + parallax)
-const bgFxLayer = new PIXI.Container()         // Tło fx (cząstki neon/snow + hyperspace, screen space)
+const bgFxLayer = new PIXI.Container()         // Tło fx (cząstki, hyperspace) - sprite'y batchują się automatycznie
 const enemyLayer = new PIXI.Container()         // Wrogowie
 const blockLayer = new PIXI.Container()         // Bloki
 const bonusLayer = new PIXI.Container()         // Bonusy
@@ -1607,15 +1607,16 @@ function generateBackground() {
   bgLayer.addChild(bg)
 
   // === GWIAZDY (stars + space + neon mają tło z gwiazdami) ===
+  // OPTYMALIZACJA: Sprite z gotowej tekstury zamiast Graphics. PIXI batchuje sprite'y w 1 draw call,
+  // Graphics by się nie batchowało (200 osobnych draw calls).
   if (bgType === 'stars' || bgType === 'space' || bgType === 'neon') {
     const count = bgType === 'neon' ? 100 : 200
     for (let i = 0; i < count; i++) {
-      const star = new PIXI.Graphics()
-      const size = Math.random() < 0.7 ? 1 : 2
-      const brightness = 0.3 + Math.random() * 0.7
-      star.beginFill(0xffffff, brightness)
-      star.drawCircle(0, 0, size)
-      star.endFill()
+      const star = new PIXI.Sprite(TEXTURES.particleCircle)
+      star.anchor.set(0.5)
+      const scale = (Math.random() < 0.7 ? 1 : 2) / 6  // tekstura jest 12px, chcemy 1-2px
+      star.scale.set(scale)
+      star.alpha = 0.3 + Math.random() * 0.7
       star.x = Math.random() * worldWidth
       star.y = Math.random() * CANVAS_HEIGHT
       star.parallax = 0.3 + Math.random() * 0.4
@@ -1642,32 +1643,32 @@ function generateBackground() {
     }
   }
 
-  // === CZĄSTKI NEON — cyjanowe punkty spadające (screen space) ===
+  // === CZĄSTKI NEON — cyjanowe punkty spadające (screen space, ParticleContainer) ===
   if (bgType === 'neon') {
     bgFxLayer.removeChildren()
     for (let i = 0; i < 90; i++) {
-      const p = new PIXI.Graphics()
-      const size = Math.random() * 2.2 + 0.7
-      p.beginFill(0x99ffff)
-      p.drawRect(0, 0, size, size)
-      p.endFill()
+      const p = new PIXI.Sprite(TEXTURES.particleCircle)
+      p.anchor.set(0.5)
+      p.tint = 0x99ffff
+      const scale = (Math.random() * 2.2 + 0.7) / 6
+      p.scale.set(scale)
       p.x = Math.random() * CANVAS_WIDTH
       p.y = Math.random() * CANVAS_HEIGHT
       p._speed = Math.random() * 0.9 + 0.4
-      p._phase = Math.random() * Math.PI * 2  // dla migotania
+      p._phase = Math.random() * Math.PI * 2
+      p._baseScale = scale
       bgFxLayer.addChild(p)
       bgParticles.push(p)
     }
   }
 
-  // === CZĄSTKI SNOW — białe punkty padające szybko (screen space) ===
+  // === CZĄSTKI SNOW — białe punkty padające szybko (screen space, ParticleContainer) ===
   if (bgType === 'snow') {
     bgFxLayer.removeChildren()
     for (let i = 0; i < 120; i++) {
-      const p = new PIXI.Graphics()
-      p.beginFill(0xffffff)
-      p.drawCircle(0, 0, 2)
-      p.endFill()
+      const p = new PIXI.Sprite(TEXTURES.particleCircle)
+      p.anchor.set(0.5)
+      p.scale.set(2/6)  // tekstura 12px → 2px
       p.x = Math.random() * CANVAS_WIDTH
       p.y = Math.random() * CANVAS_HEIGHT
       p._speed = 1 + Math.random() * 1.5
@@ -1687,19 +1688,18 @@ function generateBackground() {
 function updateHyperspace(delta) {
   if (scrollBoost <= 1.1) {
     // Wyłącz: schowaj wszystkie smugi
-    for (const s of hyperStreaks) s.visible = false
+    for (let i = 0; i < hyperStreaks.length; i++) hyperStreaks[i].visible = false
     return
   }
   // Pierwsze użycie? Stwórz smugi.
   if (hyperStreaks.length === 0) {
     for (let i = 0; i < 50; i++) {
-      const streak = new PIXI.Graphics()
-      streak.beginFill(0xffffff)
-      streak.drawRect(0, 0, 1, 1.5)
-      streak.endFill()
+      const streak = new PIXI.Sprite(TEXTURES.particleRect)
+      streak.anchor.set(0, 0.5)  // anchor po lewej
       streak.tint = 0xddeeff
-      streak._y = Math.random() * CANVAS_HEIGHT
+      streak.height = 1.5  // wysokość smugi
       streak._x = Math.random() * CANVAS_WIDTH
+      streak._y = Math.random() * CANVAS_HEIGHT
       streak._speed = 8 + Math.random() * 20
       streak._length = 30 + Math.random() * 80
       streak._alpha = 0.3 + Math.random() * 0.5
@@ -1709,7 +1709,8 @@ function updateHyperspace(delta) {
   }
   // Animuj
   const intensity = Math.min((scrollBoost - 1.1) / 0.5, 1)
-  for (const s of hyperStreaks) {
+  for (let i = 0; i < hyperStreaks.length; i++) {
+    const s = hyperStreaks[i]
     s.visible = true
     s._x -= s._speed * intensity * 1.5 * delta
     if (s._x + s._length < 0) {
@@ -2419,17 +2420,15 @@ function update(delta) {
   fxLayer.x = -cameraX
   playerLayer.x = -cameraX
   textLayer.x = -cameraX
-  // Tło z parallax
-  for (const star of stars) {
-    star.x = star.x  // gwiazdy zostają na świecie
-  }
-  bgLayer.x = -cameraX * 0.3  // parallax tła (gwiazdy + piramidy)
+  // Tło z parallax (sam offset bgLayer wystarczy, gwiazdy ruszają się razem)
+  bgLayer.x = -cameraX * 0.3
 
   // === ANIMACJE TŁA — cząstki neon/snow + hiperprzestrzeń (screen space, bgFxLayer) ===
   // Cyjanowe cząstki (neon) — padają z migotaniem, wraparound
   if (currentBgType === 'neon') {
     const t = Date.now() / 300
-    for (const p of bgParticles) {
+    for (let i = 0; i < bgParticles.length; i++) {
+      const p = bgParticles[i]
       p.y += p._speed * delta
       if (p.y > CANVAS_HEIGHT) p.y = -5
       p.alpha = 0.75 + Math.sin(t + p._phase) * 0.25
@@ -2437,7 +2436,8 @@ function update(delta) {
   }
   // Białe cząstki (snow) — padają szybciej, wraparound
   if (currentBgType === 'snow') {
-    for (const p of snowParticles) {
+    for (let i = 0; i < snowParticles.length; i++) {
+      const p = snowParticles[i]
       p.y += p._speed * delta * 2
       if (p.y > CANVAS_HEIGHT) {
         p.y = -5
