@@ -1569,9 +1569,7 @@ function navRelease(dir) {
 
 // === GENEROWANIE TŁA (wiele typów: stars/space/neon/snow) ===
 // Konteneryzowane: bgLayer trzyma statyczne elementy (gradient + parę warstw),
-// fxBgParticles (animowane cząstki) i hyperLayer (boost smugi) są dynamiczne.
-let bgParticles = []      // dla "neon" (cyjan padające)
-let snowParticles = []    // dla "snow" (kosmiczny śnieg)
+// bgFxLayer trzyma dynamiczne (hyperspace smugi).
 let spaceMountains = []   // dla "space" (piramidy z dali)
 let hyperStreaks = []     // dla efektu hiperprzestrzeni (boost)
 let currentBgType = 'stars'
@@ -1579,50 +1577,35 @@ let currentBgType = 'stars'
 function generateBackground() {
   // Wyczyść poprzednie
   bgLayer.removeChildren()
+  bgFxLayer.removeChildren()
   stars = []
-  bgParticles = []
-  snowParticles = []
   spaceMountains = []
   hyperStreaks = []
 
   // Czytamy backgroundType z settings (level lub global, fallback "stars")
   const level = levels[currentLevel] || {}
   let bgType = level.backgroundType || (GAME_DATA && GAME_DATA.settings && GAME_DATA.settings.backgroundType) || 'stars'
-  if (!['stars', 'space', 'neon', 'snow'].includes(bgType)) bgType = 'stars'
+  if (!['stars', 'space'].includes(bgType)) bgType = 'stars'  // fallback do stars
   currentBgType = bgType
 
-  // === GRADIENT TŁA (różny dla każdego typu) ===
+  // === GRADIENT TŁA — ciemnogranatowe dla obu typów ===
   const bg = new PIXI.Graphics()
-  if (bgType === 'neon') {
-    // Fioletowy gradient #0a001f → #1a0033
-    bg.beginFill(0x0a001f); bg.drawRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT/2); bg.endFill()
-    bg.beginFill(0x1a0033); bg.drawRect(0, CANVAS_HEIGHT/2, CANVAS_WIDTH, CANVAS_HEIGHT/2); bg.endFill()
-  } else if (bgType === 'snow') {
-    bg.beginFill(0x0f1a2b); bg.drawRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT); bg.endFill()
-  } else {
-    // stars / space → ciemnogranatowe
-    bg.beginFill(0x000814); bg.drawRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT); bg.endFill()
-  }
-  bg._fixed = true  // tag żeby nie ruszać przy parallax
+  bg.beginFill(0x000814); bg.drawRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT); bg.endFill()
   bgLayer.addChild(bg)
 
-  // === GWIAZDY (stars + space + neon mają tło z gwiazdami) ===
-  // OPTYMALIZACJA: Sprite z gotowej tekstury zamiast Graphics. PIXI batchuje sprite'y w 1 draw call,
-  // Graphics by się nie batchowało (200 osobnych draw calls).
-  if (bgType === 'stars' || bgType === 'space' || bgType === 'neon') {
-    const count = bgType === 'neon' ? 100 : 200
-    for (let i = 0; i < count; i++) {
-      const star = new PIXI.Sprite(TEXTURES.particleCircle)
-      star.anchor.set(0.5)
-      const scale = (Math.random() < 0.7 ? 1 : 2) / 6  // tekstura jest 12px, chcemy 1-2px
-      star.scale.set(scale)
-      star.alpha = 0.3 + Math.random() * 0.7
-      star.x = Math.random() * worldWidth
-      star.y = Math.random() * CANVAS_HEIGHT
-      star.parallax = 0.3 + Math.random() * 0.4
-      bgLayer.addChild(star)
-      stars.push(star)
-    }
+  // === GWIAZDY (stars + space) ===
+  // OPTYMALIZACJA: Sprite z gotowej tekstury zamiast Graphics. PIXI batchuje sprite'y w 1 draw call.
+  for (let i = 0; i < 200; i++) {
+    const star = new PIXI.Sprite(TEXTURES.particleCircle)
+    star.anchor.set(0.5)
+    const scale = (Math.random() < 0.7 ? 1 : 2) / 6  // tekstura jest 12px, chcemy 1-2px
+    star.scale.set(scale)
+    star.alpha = 0.3 + Math.random() * 0.7
+    star.x = Math.random() * worldWidth
+    star.y = Math.random() * CANVAS_HEIGHT
+    star.parallax = 0.3 + Math.random() * 0.4
+    bgLayer.addChild(star)
+    stars.push(star)
   }
 
   // === PIRAMIDY DLA "space" — góry kosmiczne z dali ===
@@ -1636,50 +1619,11 @@ function generateBackground() {
       m.lineTo(x + 80, CANVAS_HEIGHT - h)
       m.lineTo(x + 190, CANVAS_HEIGHT)
       m.endFill()
-      m._baseX = x  // zapisujemy bazowe x dla parallax animacji
+      m._baseX = x
       m.parallax = 0.15
       bgLayer.addChild(m)
       spaceMountains.push(m)
     }
-  }
-
-  // === CZĄSTKI NEON — cyjanowe punkty spadające (screen space, ParticleContainer) ===
-  if (bgType === 'neon') {
-    bgFxLayer.removeChildren()
-    for (let i = 0; i < 90; i++) {
-      const p = new PIXI.Sprite(TEXTURES.particleCircle)
-      p.anchor.set(0.5)
-      p.tint = 0x99ffff
-      const scale = (Math.random() * 2.2 + 0.7) / 6
-      p.scale.set(scale)
-      p.x = Math.random() * CANVAS_WIDTH
-      p.y = Math.random() * CANVAS_HEIGHT
-      p._speed = Math.random() * 0.9 + 0.4
-      p._phase = Math.random() * Math.PI * 2
-      p._baseScale = scale
-      bgFxLayer.addChild(p)
-      bgParticles.push(p)
-    }
-  }
-
-  // === CZĄSTKI SNOW — białe punkty padające szybko (screen space, ParticleContainer) ===
-  if (bgType === 'snow') {
-    bgFxLayer.removeChildren()
-    for (let i = 0; i < 120; i++) {
-      const p = new PIXI.Sprite(TEXTURES.particleCircle)
-      p.anchor.set(0.5)
-      p.scale.set(2/6)  // tekstura 12px → 2px
-      p.x = Math.random() * CANVAS_WIDTH
-      p.y = Math.random() * CANVAS_HEIGHT
-      p._speed = 1 + Math.random() * 1.5
-      bgFxLayer.addChild(p)
-      snowParticles.push(p)
-    }
-  }
-
-  // Wyczyść bgFxLayer dla typów które jej nie używają
-  if (bgType === 'stars' || bgType === 'space') {
-    bgFxLayer.removeChildren()
   }
 }
 
@@ -2421,31 +2365,27 @@ function update(delta) {
   playerLayer.x = -cameraX
   textLayer.x = -cameraX
   // Tło z parallax (sam offset bgLayer wystarczy, gwiazdy ruszają się razem)
-  bgLayer.x = -cameraX * 0.3
+  bgLayer.x = -cameraX * 0.3  // parallax tła (gwiazdy + piramidy)
 
-  // === ANIMACJE TŁA — cząstki neon/snow + hiperprzestrzeń (screen space, bgFxLayer) ===
-  // Cyjanowe cząstki (neon) — padają z migotaniem, wraparound
-  if (currentBgType === 'neon') {
-    const t = Date.now() / 300
-    for (let i = 0; i < bgParticles.length; i++) {
-      const p = bgParticles[i]
-      p.y += p._speed * delta
-      if (p.y > CANVAS_HEIGHT) p.y = -5
-      p.alpha = 0.75 + Math.sin(t + p._phase) * 0.25
-    }
+  // === FRUSTUM CULLING — bloki i wrogowie poza ekranem są niewidoczne ===
+  // GPU pomija render dla sprite.visible = false. Animacje/logika lecą dalej.
+  // Margines 100px po każdej stronie żeby nie było widać "wskakiwania" obiektów.
+  const cullLeft = cameraX - 100
+  const cullRight = cameraX + CANVAS_WIDTH + 100
+  for (let i = 0; i < blocks.length; i++) {
+    const b = blocks[i]
+    if (b.sprite) b.sprite.visible = (b.x + b.w > cullLeft) && (b.x < cullRight)
+    if (b.frame) b.frame.visible = b.sprite ? b.sprite.visible : true
   }
-  // Białe cząstki (snow) — padają szybciej, wraparound
-  if (currentBgType === 'snow') {
-    for (let i = 0; i < snowParticles.length; i++) {
-      const p = snowParticles[i]
-      p.y += p._speed * delta * 2
-      if (p.y > CANVAS_HEIGHT) {
-        p.y = -5
-        p.x = Math.random() * CANVAS_WIDTH
-      }
-    }
+  for (let i = 0; i < enemies.length; i++) {
+    const e = enemies[i]
+    const onScreen = (e.x + e.w > cullLeft) && (e.x < cullRight)
+    if (e.sprite) e.sprite.visible = onScreen
+    if (e.ufoBeam) e.ufoBeam.visible = onScreen
+    if (e.ufoLights) e.ufoLights.visible = onScreen
   }
-  // Hiperprzestrzeń — overlay smug światła przy boost
+
+  // Hiperprzestrzeń — overlay smug światła przy boost (tylko gdy scrollBoost > 1.1)
   updateHyperspace(delta)
 
   // Asteroidy się obracają i lewitują (1:1 ze starego)
