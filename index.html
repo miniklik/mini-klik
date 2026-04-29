@@ -1,1230 +1,3341 @@
 <!DOCTYPE html>
 <html lang="pl">
 <head>
-<meta charset="UTF-8">
-<title>mini-klik • portal z grami</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
-
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Studio — Edytor Stron</title>
 <style>
-    :root {
-        --cyan: #00f7ff;
-        --pink: #ff00c8;
-    }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+  body { display: grid; grid-template-columns: 240px 1fr 280px; grid-template-rows: 48px 1fr; background: #0f0f14; color: #e8e8ea; user-select: none; }
 
-    * { margin:0; padding:0; box-sizing:border-box; }
+  /* ========== TOPBAR ========== */
+  #topbar {
+    grid-column: 1 / 4;
+    background: #16161d;
+    border-bottom: 1px solid #2a2a35;
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    gap: 12px;
+  }
+  .logo { font-weight: 700; font-size: 16px; letter-spacing: 0.5px; color: #ffb84d; }
+  .logo span { color: #888; font-weight: 400; font-size: 12px; margin-left: 6px; }
+  .topbar-spacer { flex: 1; }
+  .topbar-btn {
+    background: #2a2a35;
+    color: #e8e8ea;
+    border: 1px solid #3a3a45;
+    padding: 7px 14px;
+    border-radius: 6px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .topbar-btn:hover { background: #3a3a48; }
+  .topbar-btn.primary {
+    background: linear-gradient(180deg, #ff9a3d, #e87a1d);
+    border-color: #c66818;
+    color: #fff;
+    font-weight: 600;
+  }
+  .topbar-btn.primary:hover { filter: brightness(1.1); }
+  .topbar-btn.danger { background: #3a2025; border-color: #6a3035; color: #ff8090; }
+  .topbar-btn.undo-btn {
+    padding: 7px 10px;
+    font-size: 14px;
+    margin-left: 4px;
+    min-width: 38px;
+  }
+  .topbar-btn.undo-btn:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+  }
+  .topbar-btn.undo-btn:disabled:hover {
+    background: #2a2a35;
+  }
+
+  /* ========== LEWY PANEL — narzędzia ========== */
+  #left-panel {
+    background: #16161d;
+    border-right: 1px solid #2a2a35;
+    overflow-y: auto;
+    padding: 12px;
+  }
+  .section { margin-bottom: 18px; }
+  .section-title {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    color: #707080;
+    margin-bottom: 8px;
+    padding-left: 2px;
+  }
+  .tool-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
+  .tool-btn {
+    background: #22222c;
+    border: 1px solid #2e2e38;
+    border-radius: 6px;
+    padding: 10px 6px;
+    cursor: pointer;
+    color: #d0d0d8;
+    font-size: 11px;
+    text-align: center;
+    transition: all 0.12s;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+  }
+  .tool-btn .icon { font-size: 18px; }
+  .tool-btn:hover { background: #2e2e3a; border-color: #4a4a55; }
+  .tool-btn.active {
+    background: linear-gradient(180deg, #ff9a3d, #e87a1d);
+    border-color: #c66818;
+    color: #fff;
+  }
+
+  .emoji-pad {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 4px;
+  }
+  .emoji-btn {
+    background: #22222c;
+    border: 1px solid #2e2e38;
+    border-radius: 6px;
+    padding: 6px 0;
+    font-size: 18px;
+    cursor: pointer;
+    transition: all 0.12s;
+  }
+  .emoji-btn:hover { background: #3a3a48; transform: scale(1.1); }
+
+  .bg-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 6px;
+  }
+  .bg-swatch {
+    height: 36px;
+    border-radius: 6px;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: transform 0.1s;
+  }
+  .bg-swatch:hover { transform: scale(1.05); }
+  .bg-swatch.active { border-color: #ff9a3d; }
+
+  /* ========== ŚRODEK — canvas/scena ========== */
+  #canvas-wrap {
+    background: #0a0a0f;
+    overflow: hidden;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+  #scene {
+    position: relative;
+    /* Wymiary LOGICZNE — z CSS variables ustawianych w JS przy wyborze formatu */
+    width: var(--canvas-w, 800px);
+    height: var(--canvas-h, 600px);
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    border-radius: 8px;
+    box-shadow: 0 12px 48px rgba(0,0,0,0.6);
+    overflow: hidden;
+    /* Skalowanie do dostępnego miejsca — JS ustawia --scene-scale przez resizeCanvas() */
+    transform-origin: top left;
+    transform: scale(var(--scene-scale, 1));
+  }
+  /* Wrapper rezerwuje miejsce po przeskalowanej scenie.
+     Używamy CSS calc() — szerokość/wysokość = logiczna * skala.
+     Dzięki temu pasek poziomów pojawia się dokładnie pod sceną, nie zachodzi. */
+  #scene-frame {
+    position: relative;
+    width: calc(var(--canvas-w, 800px) * var(--scene-scale, 1));
+    height: calc(var(--canvas-h, 600px) * var(--scene-scale, 1));
+    flex-shrink: 0;
+  }
+  #scene.draw-mode { cursor: crosshair; }
+  #scene-bg-canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+  }
+  #scene.draw-mode #scene-bg-canvas { pointer-events: auto; }
+
+  .scene-item {
+    position: absolute;
+    cursor: grab;
+    user-select: none;
+    -webkit-user-select: none;
+    transform-origin: center;
+    padding: 4px;
+    touch-action: none;          /* blokuje scroll na telefonie podczas dragu */
+    will-change: transform, left, top;
+  }
+  .scene-item:active { cursor: grabbing; }
+  /* W trakcie przeciągania wyłączamy animację CSS, żeby nie walczyła z transformem.
+     Klasa .dragging dodawana z JS na czas operacji. */
+  .scene-item.dragging,
+  .scene-item.dragging * {
+    animation: none !important;
+    transition: none !important;
+  }
+  .scene-item.selected {
+    outline: 2px dashed #ff9a3d;
+    outline-offset: 2px;
+  }
+  .scene-item .handle {
+    position: absolute;
+    width: 14px;
+    height: 14px;
+    background: #ff9a3d;
+    border: 2px solid #fff;
+    border-radius: 50%;
+    display: none;
+    z-index: 10;
+  }
+  .scene-item.selected .handle { display: block; }
+  .scene-item .handle.resize {
+    bottom: -7px; right: -7px;
+    cursor: nwse-resize;
+  }
+  .scene-item .handle.rotate {
+    top: -7px; right: -7px;
+    cursor: grab;
+    background: #4dd4ff;
+  }
+  .scene-item .handle.delete {
+    top: -7px; left: -7px;
+    background: #ff4d6a;
+    cursor: pointer;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-size: 10px;
+    font-weight: bold;
+  }
+  .scene-item.selected .handle.delete { display: flex; }
+
+  .item-text {
+    color: #ffffff;
+    font-size: 32px;
+    font-family: Georgia, serif;
+    font-weight: 700;
+    white-space: nowrap;
+    text-shadow: 0 2px 8px rgba(0,0,0,0.4);
+  }
+  .item-text[contenteditable="true"] {
+    outline: 2px solid #4dd4ff;
+    cursor: text;
+  }
+  .item-emoji {
+    font-size: 64px;
+    line-height: 1;
+  }
+
+  /* ========== ANIMACJE ========== */
+  @keyframes anim-pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.15); } }
+  @keyframes anim-fly   { 0%,100% { transform: translateX(0); } 50% { transform: translateX(40px); } }
+  @keyframes anim-bounce{ 0%,100% { transform: translateY(0); } 50% { transform: translateY(-30px); } }
+  @keyframes anim-spin  { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+  @keyframes anim-fade  { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+  @keyframes anim-shake { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-8px); } 75% { transform: translateX(8px); } }
+  @keyframes anim-rainbow { 0%{filter:hue-rotate(0)} 100%{filter:hue-rotate(360deg)} }
+
+  .anim-pulse   { animation: anim-pulse 1.5s ease-in-out infinite; }
+  .anim-fly     { animation: anim-fly 2s ease-in-out infinite; }
+  .anim-bounce  { animation: anim-bounce 1s ease-in-out infinite; }
+  .anim-spin    { animation: anim-spin 4s linear infinite; }
+  .anim-fade    { animation: anim-fade 2s ease-in-out infinite; }
+  .anim-shake   { animation: anim-shake 0.5s ease-in-out infinite; }
+  .anim-rainbow { animation: anim-rainbow 3s linear infinite; }
+
+  /* ========== PRAWY PANEL — właściwości ========== */
+  #right-panel {
+    background: #16161d;
+    border-left: 1px solid #2a2a35;
+    overflow-y: auto;
+    padding: 12px;
+  }
+  .prop-group { margin-bottom: 14px; }
+  .prop-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #707080;
+    margin-bottom: 4px;
+  }
+  input[type="text"], input[type="number"], select, textarea {
+    width: 100%;
+    background: #22222c;
+    border: 1px solid #2e2e38;
+    border-radius: 4px;
+    padding: 6px 8px;
+    color: #e8e8ea;
+    font-size: 12px;
+    font-family: inherit;
+  }
+  input[type="color"] {
+    width: 100%;
+    height: 32px;
+    background: transparent;
+    border: 1px solid #2e2e38;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+  input[type="range"] {
+    width: 100%;
+    accent-color: #ff9a3d;
+  }
+  .anim-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px;
+  }
+  .anim-btn {
+    background: #22222c;
+    border: 1px solid #2e2e38;
+    border-radius: 4px;
+    padding: 6px 4px;
+    color: #d0d0d8;
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.12s;
+  }
+  .anim-btn:hover { background: #2e2e3a; }
+  .anim-btn.active {
+    background: linear-gradient(180deg, #ff9a3d, #e87a1d);
+    border-color: #c66818;
+    color: #fff;
+  }
+  .empty-state {
+    text-align: center;
+    color: #555;
+    font-size: 12px;
+    padding: 30px 10px;
+    line-height: 1.6;
+  }
+
+  /* ========== MODAL ========== */
+  .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+  }
+  .modal-backdrop.show { display: flex; }
+  .modal {
+    background: #16161d;
+    border: 1px solid #2a2a35;
+    border-radius: 10px;
+    padding: 24px;
+    max-width: 480px;
+    width: 90%;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.7);
+  }
+  .modal h2 { margin-bottom: 12px; font-size: 18px; color: #ff9a3d; }
+  .modal p { font-size: 13px; line-height: 1.6; color: #b0b0b8; margin-bottom: 14px; }
+  .modal-row { display: flex; gap: 8px; margin-top: 16px; justify-content: flex-end; }
+
+  /* ========== TOAST ========== */
+  #toast {
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: #ff9a3d;
+    color: #1a1a1a;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 13px;
+    opacity: 0;
+    transition: all 0.3s;
+    pointer-events: none;
+    z-index: 2000;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  }
+  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* ========== PASEK POZIOMÓW (pod sceną) ========== */
+  #canvas-wrap {
+    flex-direction: column;
+    gap: 12px;
+  }
+  #pages-bar {
+    width: calc(var(--canvas-w, 800px) * var(--scene-scale, 1));
+    max-width: 100%;
+    background: #16161d;
+    border: 1px solid #2a2a35;
+    border-radius: 8px;
+    padding: 8px 12px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    overflow-x: auto;
+    flex-shrink: 0;
+  }
+  #pages-bar .pages-label {
+    color: #4ade80;
+    font-weight: 700;
+    font-size: 12px;
+    letter-spacing: 1px;
+    margin-right: 4px;
+    flex-shrink: 0;
+  }
+  .page-btn {
+    background: #2a2a35;
+    border: 1px solid #3a3a45;
+    color: #d0d0d8;
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: all 0.12s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .page-btn:hover { background: #3a3a48; }
+  .page-btn.active {
+    background: linear-gradient(180deg, #4ade80, #22a755);
+    border-color: #1f7a3f;
+    color: #fff;
+  }
+  .page-btn.add { background: #d97706; border-color: #b45309; color: #fff; }
+  .page-btn.del { background: #b91c1c; border-color: #7f1d1d; color: #fff; }
+  .page-btn.add:hover { background: #ea8a14; }
+  .page-btn.del:hover { background: #dc2626; }
+  .page-btn.goto-target {
+    box-shadow: 0 0 0 3px #4dd4ff, 0 0 12px #4dd4ff;
+  }
+
+  /* ========== TRYB PRZEJŚĆ ========== */
+  body.transitions-mode #scene {
+    box-shadow: 0 12px 48px rgba(77, 212, 255, 0.4), 0 0 0 3px #4dd4ff;
+  }
+  body.transitions-mode .scene-item {
+    cursor: pointer !important;
+  }
+  body.transitions-mode .scene-item:hover {
+    outline: 2px solid #4dd4ff;
+    outline-offset: 4px;
+  }
+
+  /* ========== PRZYCISKI SCENICZNE (6 stylów) ========== */
+  /* item-button to wewnętrzny element przycisku — używany TYLKO w edytorze.
+     W eksporcie te same style są wstrzykiwane jako CSS w wynikowym HTML. */
+  .item-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    user-select: none;
+    white-space: nowrap;
+    font-family: 'Trebuchet MS', system-ui, sans-serif;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+  }
+
+  /* 1) CLASSIC — klasyczna prostokątna ramka z napisem */
+  .btn-style-classic {
+    padding: 12px 28px;
+    border-radius: 6px;
+    background: #ffffff;
+    border: 2px solid #1a1a1a;
+    color: #1a1a1a;
+    font-size: 17px;
+    box-shadow: 3px 3px 0 #1a1a1a;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  /* 2) ROUND — zaokrąglony pełny zielony "Start" */
+  .btn-style-round {
+    padding: 14px 36px;
+    border-radius: 999px;
+    background: linear-gradient(180deg, #22c55e, #15803d);
+    border: 2px solid #166534;
+    color: #ffffff;
+    font-size: 18px;
+    font-weight: 800;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+    box-shadow:
+      0 4px 0 #14532d,
+      0 6px 16px rgba(34,197,94,0.45),
+      inset 0 1px 0 rgba(255,255,255,0.4);
+  }
+
+  /* 3) FAB — koło ze strzałką → (jak Floating Action Button) */
+  .btn-style-fab {
+    width: 76px;
+    height: 76px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 30% 25%, #60a5fa, #2563eb 60%, #1e3a8a);
+    border: 3px solid #ffffff;
+    color: #ffffff;
+    font-size: 38px;
+    font-weight: 900;
+    line-height: 0;
+    padding: 0;
+    box-shadow: 0 8px 22px rgba(37,99,235,0.55), inset 0 -4px 8px rgba(0,0,0,0.25);
+  }
+  .btn-style-fab::after { content: '→'; transform: translateY(2px); }
+  .btn-style-fab .item-button-label { display: none; }
+
+  /* 4) PLAY — trójkąt ▶ (jak przycisk Play) */
+  .btn-style-play {
+    width: 86px;
+    height: 86px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, #fb923c, #ea580c 60%, #7c2d12);
+    border: 3px solid #ffffff;
+    color: #ffffff;
+    font-size: 36px;
+    line-height: 0;
+    padding: 0 0 0 6px;   /* lekkie przesunięcie ▶ na środek optycznie */
+    box-shadow: 0 8px 22px rgba(234,88,12,0.55), inset 0 -4px 8px rgba(0,0,0,0.3);
+  }
+  .btn-style-play::after { content: '▶'; }
+  .btn-style-play .item-button-label { display: none; }
+
+  /* 5) DOUBLE — dwie strzałki », przewiń dalej */
+  .btn-style-double {
+    padding: 11px 22px 11px 24px;
+    border-radius: 8px;
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    border: none;
+    color: #ffffff;
+    font-size: 17px;
+    box-shadow: 0 6px 18px rgba(139,92,246,0.5), inset 0 1px 0 rgba(255,255,255,0.3);
+  }
+  .btn-style-double::after {
+    content: '»';
+    margin-left: 10px;
+    font-size: 24px;
+    line-height: 1;
+    font-weight: 900;
+  }
+
+  /* 6) PIXEL — retro pixel-art z cieniem 3D pod spodem */
+  .btn-style-pixel {
+    padding: 12px 24px;
+    border-radius: 0;
+    background: #ef4444;
+    border: 0;
+    color: #ffffff;
+    font-family: 'Courier New', monospace;
+    font-size: 18px;
+    font-weight: 900;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    /* Schodkowy cień 3D zrobiony z box-shadow — efekt pixelowy */
+    box-shadow:
+      4px 0 0 #b91c1c,
+      0 4px 0 #b91c1c,
+      4px 4px 0 #7f1d1d,
+      8px 4px 0 #7f1d1d,
+      4px 8px 0 #7f1d1d;
+    /* Kanciasta krawędź — bez antyaliasingu efekt pixelowy */
+    image-rendering: pixelated;
+  }
+
+  /* ========== GALERIA PRZYCISKÓW W PANELU PRZEJŚĆ (prawy panel) ========== */
+  .button-gallery {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-top: 8px;
+  }
+  .button-gallery-item {
+    background: #1a1a24;
+    border: 1px solid #2a2a35;
+    border-radius: 8px;
+    padding: 14px 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 70px;
+    transition: all 0.15s;
+    overflow: hidden;
+  }
+  .button-gallery-item:hover {
+    border-color: #4dd4ff;
+    background: #1a2435;
+    transform: translateY(-1px);
+  }
+  /* W galerii pokazuję mini-podgląd, więc skaluję cały przycisk */
+  .button-gallery-item .item-button {
+    transform: scale(0.6);
+    pointer-events: none;
+  }
+  .transitions-card {
+    background: #0f1f2a;
+    border: 1px solid #1d3a4f;
+    border-radius: 8px;
+    padding: 10px;
+    margin-bottom: 10px;
+  }
+  .transitions-card h4 {
+    color: #4dd4ff;
+    font-size: 12px;
+    margin-bottom: 6px;
+    letter-spacing: 0.5px;
+  }
+  .transitions-card p { font-size: 11px; color: #a0a0a8; line-height: 1.5; margin-bottom: 8px; }
+
+  /* Wskaźnik: obiekt MA już akcję przejścia */
+  .scene-item.has-goto::after {
+    content: '🔑 →' attr(data-goto-label);
+    position: absolute;
+    top: -22px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #4dd4ff;
+    color: #000;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 4px;
+    white-space: nowrap;
+    pointer-events: none;
+    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+  }
+  /* Wskaźnik: obiekt MA przyklejony link */
+  .scene-item.has-link::before {
+    content: '🔗 ' attr(data-link-label);
+    position: absolute;
+    top: -22px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #a78bfa;
+    color: #1a1033;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 4px;
+    max-width: 240px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    pointer-events: none;
+    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+  }
+  /* Jeśli ma i link i goto — link wyżej */
+  .scene-item.has-link.has-goto::before { top: -42px; }
+
+  .topbar-btn.transitions {
+    background: linear-gradient(180deg, #4dd4ff, #2196c9);
+    border-color: #1a7aa3;
+    color: #001020;
+    font-weight: 600;
+  }
+  .topbar-btn.transitions.active {
+    background: linear-gradient(180deg, #ff4d6a, #c01535);
+    border-color: #7a0e22;
+    color: #fff;
+    box-shadow: 0 0 12px rgba(255, 77, 106, 0.5);
+  }
+  .topbar-btn.media {
+    background: linear-gradient(180deg, #c084fc, #8b5cf6);
+    border-color: #6d28d9;
+    color: #ffffff;
+    font-weight: 600;
+  }
+  .topbar-btn.media.active {
+    background: linear-gradient(180deg, #ff4d6a, #c01535);
+    border-color: #7a0e22;
+    color: #fff;
+    box-shadow: 0 0 12px rgba(192, 132, 252, 0.5);
+  }
+  .topbar-btn.layout {
+    background: linear-gradient(180deg, #fbbf24, #d97706);
+    border-color: #92400e;
+    color: #1a1a1a;
+    font-weight: 600;
+  }
+  .topbar-btn.layout.active {
+    background: linear-gradient(180deg, #ff4d6a, #c01535);
+    border-color: #7a0e22;
+    color: #fff;
+    box-shadow: 0 0 12px rgba(251, 191, 36, 0.5);
+  }
+
+  /* ========== TRYB UKŁAD — panel po prawej z 4 formatami ========== */
+  body.layout-mode #scene {
+    box-shadow: 0 12px 48px rgba(251, 191, 36, 0.4), 0 0 0 3px #fbbf24;
+  }
+  .layout-card {
+    background: #221a0d;
+    border: 1px solid #4a3a1c;
+    border-radius: 8px;
+    padding: 10px;
+    margin-bottom: 10px;
+  }
+  .layout-card h4 { color: #fbbf24; font-size: 12px; margin-bottom: 6px; letter-spacing: 0.5px; }
+  .layout-card p { font-size: 11px; color: #b8a878; line-height: 1.5; margin-bottom: 8px; }
+
+  .format-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .format-card {
+    background: #2a2218;
+    border: 2px solid #3a2a18;
+    border-radius: 8px;
+    padding: 10px 8px;
+    cursor: pointer;
+    transition: all 0.15s;
+    text-align: center;
+    position: relative;
+  }
+  .format-card:hover {
+    border-color: #fbbf24;
+    background: #322818;
+  }
+  .format-card.active {
+    border-color: #fbbf24;
+    background: linear-gradient(180deg, #3d2c12, #2a1f0c);
+    box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.25);
+  }
+  .format-card.active::after {
+    content: '✓';
+    position: absolute;
+    top: 4px; right: 6px;
+    color: #fbbf24;
+    font-weight: bold;
+    font-size: 14px;
+  }
+  /* Mini-podgląd proporcji — biały prostokąt o wymiarach proporcjonalnych do formatu */
+  .format-preview {
+    background: linear-gradient(135deg, #ffd6a5, #fdb47e);
+    border: 1px solid #92400e;
+    border-radius: 3px;
+    margin: 0 auto 6px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+  }
+  .format-card .format-name {
+    font-size: 12px;
+    color: #f5d684;
+    font-weight: 600;
+    margin-top: 6px;
+  }
+  .format-card .format-dims {
+    font-size: 10px;
+    color: #8a7a52;
+    font-family: 'Courier New', monospace;
+    margin-top: 2px;
+  }
+
+  /* ========== SIATKA ========== */
+  /* Rozmiar oczka czytany ze zmiennej CSS — JS ją ustawia. */
+  #scene { --grid-size: 20px; }
+  #scene::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background-image:
+      linear-gradient(to right, rgba(255,255,255,0.18) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(255,255,255,0.18) 1px, transparent 1px);
+    background-size: var(--grid-size) var(--grid-size);
+    opacity: 0;
+    transition: opacity 0.15s;
+    z-index: 0;
+  }
+  body.grid-on #scene::before { opacity: 1; }
+  /* Główny "co X" — co 5 oczek grubsza linia, jak w mini-klik */
+  body.grid-on #scene::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background-image:
+      linear-gradient(to right, rgba(255,255,255,0.32) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(255,255,255,0.32) 1px, transparent 1px);
+    background-size: calc(var(--grid-size) * 5) calc(var(--grid-size) * 5);
+    z-index: 0;
+  }
+  /* Elementy nad siatką */
+  .scene-item { z-index: 2; }
+  #scene-bg-canvas { z-index: 1; }
+
+  /* ========== TRYB MEDIA — panel po prawej ========== */
+  body.media-mode #scene {
+    box-shadow: 0 12px 48px rgba(192, 132, 252, 0.4), 0 0 0 3px #c084fc;
+  }
+  .media-card {
+    background: #1f1525;
+    border: 1px solid #3a2a48;
+    border-radius: 8px;
+    padding: 10px;
+    margin-bottom: 10px;
+  }
+  .media-card h4 {
+    color: #c084fc;
+    font-size: 12px;
+    margin-bottom: 6px;
+    letter-spacing: 0.5px;
+  }
+  .media-card p { font-size: 11px; color: #a0a0a8; line-height: 1.5; margin-bottom: 8px; }
+  .media-card input[type="text"], .media-card input[type="url"] {
+    margin-bottom: 6px;
+  }
+  .btn-go {
+    width: 100%;
+    background: linear-gradient(180deg, #c084fc, #8b5cf6);
+    color: #fff;
+    border: 1px solid #6d28d9;
+    padding: 8px;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+    font-size: 12px;
+  }
+  .btn-go:hover { filter: brightness(1.1); }
+  .btn-go:disabled { opacity: 0.4; cursor: not-allowed; }
+  .yt-preview {
+    width: 100%;
+    aspect-ratio: 16/9;
+    background: #000 center / contain no-repeat;
+    border-radius: 6px;
+    margin: 8px 0;
+    border: 1px solid #2a2a35;
+  }
+  .radio-row { display: flex; gap: 4px; margin: 6px 0; }
+  .radio-row label {
+    flex: 1;
+    background: #22222c;
+    border: 1px solid #2e2e38;
+    border-radius: 4px;
+    padding: 6px 4px;
+    cursor: pointer;
+    font-size: 11px;
+    color: #d0d0d8;
+    text-align: center;
+    transition: all 0.12s;
+  }
+  .radio-row label:hover { background: #2e2e3a; }
+  .radio-row input[type="radio"] { display: none; }
+  .radio-row input[type="radio"]:checked + span { color: #fff; }
+  .radio-row label:has(input:checked) {
+    background: linear-gradient(180deg, #c084fc, #8b5cf6);
+    border-color: #6d28d9;
+    color: #fff;
+  }
+
+  /* ========== PANEL RAMEK ========== */
+  .frame-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px;
+  }
+  .frame-btn {
+    background: #22222c;
+    border: 1px solid #2e2e38;
+    color: #d0d0d8;
+    padding: 8px 6px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 11px;
+    transition: all 0.12s;
+  }
+  .frame-btn:hover { background: #2e2e3a; }
+  .frame-btn.active {
+    background: linear-gradient(180deg, #c084fc, #8b5cf6);
+    border-color: #6d28d9;
+    color: #fff;
+  }
+
+  /* ========== RAMKI NA SCENIE I W EKSPORCIE ========== */
+  /* Wszystkie .frame-* dziedziczą szerokość/zaokrąglenie ze stylów inline (CSS vars) */
+  .scene-item .frame-wrap,
+  .item .frame-wrap {
+    display: inline-block;
+    box-sizing: border-box;
+  }
+  /* 1) Ramka — same kontury */
+  .frame-border {
+    border: var(--fw, 3px) solid var(--fc, #fff);
+    border-radius: var(--fr, 10px);
+    padding: var(--fp, 12px);
+  }
+  /* 2) Ramka z tłem */
+  .frame-filled {
+    border: var(--fw, 3px) solid var(--fc, #fff);
+    border-radius: var(--fr, 10px);
+    padding: var(--fp, 12px);
+    background: var(--fbg, rgba(0,0,0,0.8));
+  }
+  /* 3) Neon — świecąca ramka */
+  .frame-neon {
+    border: var(--fw, 3px) solid var(--fc, #4dd4ff);
+    border-radius: var(--fr, 10px);
+    padding: var(--fp, 12px);
+    background: var(--fbg, rgba(0,0,0,0.6));
+    box-shadow:
+      0 0 calc(var(--fw, 3px) * 1.5) var(--fc, #4dd4ff),
+      0 0 calc(var(--fw, 3px) * 4) var(--fc, #4dd4ff),
+      inset 0 0 calc(var(--fw, 3px) * 2) var(--fc, #4dd4ff);
+    animation: frame-neon-pulse 2s ease-in-out infinite;
+  }
+  @keyframes frame-neon-pulse {
+    0%,100% { filter: brightness(1); }
+    50%     { filter: brightness(1.25); }
+  }
+  /* 4) Ozdobna — podwójna ramka z rogami */
+  .frame-ornate {
+    position: relative;
+    border: var(--fw, 3px) double var(--fc, #d4a574);
+    border-radius: var(--fr, 10px);
+    padding: calc(var(--fp, 12px) + 6px);
+    background: var(--fbg, rgba(40,30,20,0.85));
+    box-shadow: inset 0 0 0 calc(var(--fw, 3px) * 0.7) var(--fbg, rgba(40,30,20,0.85)),
+                inset 0 0 0 calc(var(--fw, 3px) * 1.4) var(--fc, #d4a574);
+  }
+  .frame-ornate::before,
+  .frame-ornate::after {
+    content: '❖';
+    position: absolute;
+    color: var(--fc, #d4a574);
+    font-size: calc(var(--fw, 3px) * 4 + 8px);
+    line-height: 1;
+    pointer-events: none;
+  }
+  .frame-ornate::before { top: -0.4em; left: -0.2em; }
+  .frame-ornate::after  { bottom: -0.4em; right: -0.2em; }
+
+  /* ========== RESPONSYWNIE ==========
+     Laptop/PC (>1100px): desktop layout 240/1fr/280, bez zmian.
+     Tablet poziomy lub mały laptop (800-1100px): węższe panele.
+     Tablet pionowy / telefon (<800px): panele zwijane na górze, scena na środku.
+  */
+
+  /* Tablet poziomy — węższe panele, scena dostaje więcej miejsca */
+  @media (max-width: 1100px) {
+    body { grid-template-columns: 200px 1fr 240px; }
+    #left-panel { padding: 8px 6px; }
+    #right-panel { padding: 8px 6px; }
+    #lewy button, .tool-btn { font-size: 11px; }
+  }
+
+  /* Tablet pionowy / mały tablet — panele jako akordeony zwijane */
+  @media (max-width: 800px) {
     body {
-        font-family: 'Segoe UI', Arial, sans-serif;
-        background:
-            linear-gradient(180deg,
-                #1a0d3a 0%,
-                #3d1a5a 12%,
-                #7a2a6e 22%,
-                #c94a6e 35%,
-                #ff7a3d 50%,
-                #8a2e5e 70%,
-                #2a1550 85%,
-                #0a0520 100%);
-        background-attachment: fixed;
-        color: #f5e8dc;
-        overflow-x: hidden;
+      grid-template-columns: 1fr;
+      grid-template-rows: auto auto 1fr auto;
     }
+    #topbar {
+      flex-wrap: wrap;
+      height: auto;
+      min-height: 48px;
+      padding: 4px 8px;
+      gap: 4px;
+    }
+    .topbar-spacer { display: none; }
+    .topbar-btn {
+      padding: 8px 10px;
+      font-size: 12px;
+    }
+    #left-panel {
+      grid-row: 2;
+      max-height: 28vh;
+      overflow-y: auto;
+      border-right: none;
+      border-bottom: 1px solid #2a2a35;
+    }
+    #canvas-wrap {
+      grid-row: 3;
+      padding: 6px;
+      overflow-y: auto;
+      align-items: flex-start;
+    }
+    /* Scena i frame mają już automatyczne skalowanie z głównego CSS — nic nie nadpisujemy. */
+    #right-panel {
+      grid-row: 4;
+      max-height: 32vh;
+      overflow-y: auto;
+      border-left: none;
+      border-top: 1px solid #2a2a35;
+    }
+  }
 
-    /* Gwiazdy na niebie (u góry) */
-    body::before {
-        content: "";
-        position: fixed;
-        top: 0; left: 0; right: 0;
-        height: 40vh;
-        background-image:
-            radial-gradient(circle 1.5px at 10% 15%, #fff, transparent 2px),
-            radial-gradient(circle 1px at 25% 25%, #fff, transparent 2px),
-            radial-gradient(circle 2px at 40% 10%, #fff5d0, transparent 3px),
-            radial-gradient(circle 1.5px at 55% 30%, #fff, transparent 2px),
-            radial-gradient(circle 1px at 70% 12%, #fff, transparent 2px),
-            radial-gradient(circle 2px at 85% 28%, #ffe6a0, transparent 3px),
-            radial-gradient(circle 1px at 95% 18%, #fff, transparent 2px),
-            radial-gradient(circle 1.5px at 15% 35%, #fff, transparent 2px),
-            radial-gradient(circle 1px at 50% 8%, #fff, transparent 2px);
-        opacity: 0.85;
-        animation: twinkle 4s ease-in-out infinite;
-        pointer-events: none;
-        z-index: -1;
+  /* Touch-device — większe targety dotykowe (uchwyty na rogach itd.) */
+  @media (pointer: coarse) {
+    .scene-item .handle {
+      width: 22px;
+      height: 22px;
     }
-    @keyframes twinkle {
-        0%, 100% { opacity: 0.85; }
-        50% { opacity: 0.4; }
+    .scene-item .handle.resize { bottom: -11px; right: -11px; }
+    .scene-item .handle.rotate { top: -11px; right: -11px; }
+    .scene-item .handle.delete {
+      top: -11px; left: -11px;
+      font-size: 14px;
     }
-
-    /* Unoszące się świetliki */
-    body::after {
-        content: "";
-        position: fixed;
-        inset: 0;
-        background-image:
-            radial-gradient(circle 2px at 12% 60%, rgba(255, 220, 100, 0.9), transparent 4px),
-            radial-gradient(circle 2px at 88% 65%, rgba(255, 220, 100, 0.8), transparent 4px),
-            radial-gradient(circle 2px at 28% 80%, rgba(255, 220, 100, 0.7), transparent 4px),
-            radial-gradient(circle 2px at 70% 85%, rgba(255, 220, 100, 0.8), transparent 4px),
-            radial-gradient(circle 2px at 45% 72%, rgba(255, 220, 100, 0.6), transparent 4px);
-        filter: blur(0.5px);
-        animation: fireflies 7s ease-in-out infinite;
-        pointer-events: none;
-        z-index: -1;
+    /* Większe przyciski poziomów na dotyku */
+    .page-btn {
+      min-width: 40px;
+      min-height: 40px;
+      font-size: 15px;
     }
-    @keyframes fireflies {
-        0%, 100% { opacity: 0.6; transform: translateY(0); }
-        50% { opacity: 1; transform: translateY(-25px); }
+    /* Większy obszar kliknięcia na guziku w lewym panelu */
+    .tool-btn { min-height: 60px; }
+    /* Suwaki — grubsza ścieżka i większy thumb */
+    input[type="range"] {
+      height: 28px;
     }
-
-    /* ===== EPICKA SCENA KOSMICZNA ===== */
-    #spaceCanvas {
-        position: fixed;
-        top: 0; left: 0;
-        width: 100vw;
-        height: 100vh;
-        pointer-events: none;
-        z-index: -1;
-    }
-
-    nav {
-        position: sticky;
-        top: 0;
-        z-index: 100;
-        background: rgba(10,10,10,0.96);
-        backdrop-filter: blur(12px);
-        border-bottom: 1px solid var(--cyan);
-        padding: 16px 20px;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-    }
-
-    .logo {
-        font-size: 28px;
-        font-weight: bold;
-        color: var(--cyan);
-        text-shadow: 0 0 15px var(--cyan);
-    }
-
-    .menu { display: flex; gap: 28px; }
-    .menu a { 
-        color: #ccc; 
-        text-decoration: none; 
-        font-weight: 500; 
-        transition: color 0.3s;
-    }
-    .menu a:hover { color: var(--cyan); }
-
-    .hamburger { display: none; font-size: 30px; cursor: pointer; }
-
-    /* HERO */
-    .hero {
-        height: 88vh;
-        min-height: 580px;
-        position: relative;
-        overflow: hidden;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        text-align: center;
-    }
-
-    #heroCanvas {
-        position: absolute;
-        top: 0; left: 0;
-        width: 100%;
-        height: 100%;
-        z-index: 1;
-    }
-
-    .hero-content {
-        position: relative;
-        z-index: 2;
-    }
-
-    .hero h1 {
-        font-size: 4.5rem;
-        background: linear-gradient(90deg, var(--cyan), var(--pink));
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        text-shadow: 0 0 40px rgba(0,247,255,0.6);
-        margin-bottom: 20px;
-        line-height: 1.05;
-    }
-
-    .hero p {
-        font-size: 1.7rem;
-        margin-bottom: 12px;
-        text-shadow: 0 2px 8px rgba(0,0,0,0.7), 0 0 20px rgba(0,0,0,0.5);
-        line-height: 1.5;
-    }
-    .hero-subline {
-        font-size: 1.15rem !important;
-        margin-bottom: 35px !important;
-        color: #e8f4ff;
-        opacity: 0.92;
-    }
-    .hero-subline strong {
-        color: var(--cyan);
-        text-shadow: 0 0 12px var(--cyan);
-    }
-
-    .btn {
-        padding: 16px 42px;
-        font-size: 1.2rem;
-        border: none;
-        border-radius: 50px;
-        background: var(--cyan);
-        color: black;
-        font-weight: bold;
-        cursor: pointer;
-        box-shadow: 0 0 20px var(--cyan);
-        transition: all 0.3s;
-    }
-    .btn:hover {
-        transform: scale(1.08);
-        box-shadow: 0 0 35px var(--cyan);
-    }
-
-    /* MAŁA SIATKA */
-    .games-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(138px, 1fr));
-        gap: 18px;
-        padding: 20px;
-        max-width: 1550px;
-        margin: 0 auto;
-    }
-
-    .game-card {
-        background: #111;
-        border-radius: 12px;
-        overflow: hidden;
-        transition: all 0.35s ease;
-        border: 1px solid #222;
-        text-align: center;
-    }
-
-    .game-card:hover {
-        transform: translateY(-10px) scale(1.06);
-        box-shadow: 0 0 30px rgba(0, 247, 255, 0.5);
-        border-color: var(--cyan);
-    }
-
-    .game-card img {
-        width: 100%;
-        height: 98px;
-        object-fit: cover;
-    }
-
-    .game-card h3 {
-        font-size: 1.02rem;
-        margin: 9px 6px 4px;
-        line-height: 1.2;
-    }
-
-    .game-card .genre {
-        font-size: 0.76rem;
-        color: #888;
-        margin-bottom: 10px;
-    }
-
-    /* KSIĘGA GOŚCI */
-    .guestbook {
-        max-width: 900px;
-        margin: 60px auto;
-        background: #111;
-        border-radius: 16px;
-        padding: 35px;
-        border: 1px solid #222;
-    }
-
-    .guestbook h2 {
-        text-align: center;
-        color: var(--cyan);
-        margin-bottom: 30px;
-        font-size: 2.4rem;
-    }
-
-    .comments {
-        max-height: 520px;
-        overflow-y: auto;
-        margin-bottom: 30px;
-        display: flex;
-        flex-direction: column;
-        gap: 16px;
-        padding-right: 8px;
-    }
-
-    .comment {
-        background: #1a1a1a;
-        padding: 16px 20px;
-        border-radius: 12px;
-        border-left: 5px solid var(--cyan);
-    }
-
-    .comment-author {
-        color: var(--pink);
-        font-weight: 600;
-        margin-bottom: 6px;
-    }
-
-    form {
-        display: flex;
-        flex-direction: column;
-        gap: 14px;
-    }
-
-    input, textarea {
-        background: #1f1f1f;
-        border: 1px solid #333;
-        color: #eee;
-        padding: 14px 16px;
-        border-radius: 10px;
-        font-size: 1rem;
-    }
-
-    textarea { resize: vertical; min-height: 110px; }
-
-    section { padding: 40px 20px; }
-
-    @keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
-
-    @media (max-width: 768px) {
-        .games-grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
-        .game-card img { height: 88px; }
-        .hero h1 { font-size: 3.1rem; }
-        .menu { 
-            display: none; 
-            position: absolute; 
-            top: 75px; left:0; right:0; 
-            background:#0a0a0a; 
-            flex-direction:column; 
-            padding:20px; 
-            border-top:1px solid #333; 
-            gap: 15px;
-        }
-        .menu.active { display: flex; }
-        .hamburger { display: block; }
-    }
+  }
 </style>
 </head>
-
 <body>
 
-<!-- EPICKA SCENA KOSMICZNA W TLE -->
-<canvas id="spaceCanvas"></canvas>
-
-<nav>
-    <div class="logo">🎮 mini-klik</div>
-    <div class="menu" id="menu">
-        <a href="#home">Dom</a>
-        <a href="#nowe">Dema</a>
-        <a href="#wasze-gry">Nasze gry</a>
-        <a href="#opis">Opis</a>
-        <a href="#ksiega-gosci">Księga Gości</a>
-    </div>
-    <div style="display:flex; align-items:center;">
-        <span class="hamburger" id="hamburger">☰</span>
-    </div>
-</nav>
-
-<div class="hero" id="home">
-    <canvas id="heroCanvas"></canvas>
-    <div class="hero-content">
-        <h1>Twórz.<br>Graj.<br>Udostępniaj.</h1>
-        <p>Portal dla miłośników i twórców małych, kreatywnych gier bez potrzeby kodowania. U nas wystarczy sama wyobraźnia.</p>
-        <p class="hero-subline">mini-klik.pl — używa własnego silnika gry <strong>mini-klik Classic</strong>, edytor + Game Player.</p>
-        <button class="btn" onclick="document.getElementById('nowe').scrollIntoView({behavior:'smooth'})">
-            Zaczynamy!
-        </button>
-    </div>
+<!-- ===== TOPBAR ===== -->
+<div id="topbar">
+  <div class="logo">⚡ Studio <span>Edytor stron</span></div>
+  <button class="topbar-btn undo-btn" id="btn-undo" title="Cofnij (Ctrl+Z)" disabled>↶ Cofnij</button>
+  <button class="topbar-btn undo-btn" id="btn-redo" title="Ponów (Ctrl+Y)" disabled>↷ Ponów</button>
+  <div class="topbar-spacer"></div>
+  <button class="topbar-btn layout" id="btn-layout">📐 Układ</button>
+  <button class="topbar-btn transitions" id="btn-transitions">🔗 Przejścia</button>
+  <button class="topbar-btn media" id="btn-media">📺 Media</button>
+  <button class="topbar-btn" id="btn-preview">▶ Podgląd</button>
+  <button class="topbar-btn" id="btn-save-project">💾 Zapisz projekt</button>
+  <button class="topbar-btn" id="btn-load-project">📂 Wczytaj</button>
+  <button class="topbar-btn primary" id="btn-export">⬇ Eksportuj HTML</button>
+  <button class="topbar-btn danger" id="btn-clear">🗑 Wyczyść</button>
 </div>
 
-<!-- NOWE GRY / DEMO -->
-<section id="nowe">
-    <h2 style="text-align:center; color:var(--cyan); margin:60px 0 6px; font-size:2.7rem;">
-        Przykłady gier
-    </h2>
-    <h3 style="text-align:center; color:var(--cyan); margin:0 0 14px; font-size:1.8rem; font-weight:700;">
-        wybierz demo — twórz i graj
-    </h3>
-    <p style="text-align:center; color:#d0d0d0; font-size:1.25rem; max-width:700px; margin:0 auto 35px; line-height:1.7;">
-        Zero instalacji. Nasz edytor działa online — dodawaj obiekty, zapisz swój projekt — testuj grę natychmiast.
-    </p>
-   
-    <div class="games-grid" style="grid-template-columns: repeat(auto-fill, minmax(124px, 1fr)); 
-                                    gap: 20px; 
-                                    max-width: 620px; 
-                                    margin: 0 auto;">
-            
-            <!-- Demo 1 -->
-            <div class="game-card" onclick="window.location.href='demo1/'" style="cursor:pointer; aspect-ratio: 1 / 1; width:124px; height:124px; padding: 1px; background: transparent; border: 1px solid #000; border-radius:12px;">
-                <img src="images/demo1.png" alt="Demo 1" style="width: 100%; height: 100%; object-fit: cover; border-radius: 10px;">
-                <button style="margin-top: 12px; width:100%; padding:11px; background:var(--cyan); color:black; 
-                            border:none; border-radius:8px; font-weight:bold; cursor:pointer; font-size:0.92rem;">
-                    ▶ DEMO 1
-                </button>
-            </div>
+<!-- ===== LEWY PANEL: NARZĘDZIA ===== -->
+<div id="left-panel">
 
-            <!-- Demo 2 -->
-            <div class="game-card" onclick="window.location.href='demo2/'" style="cursor:pointer; aspect-ratio: 1 / 1; width:124px; height:124px; padding: 1px; background: transparent; border: 1px solid #000; border-radius:12px;">
-                <img src="images/demo2.png" alt="Demo 2" style="width: 100%; height: 100%; object-fit: cover; border-radius: 10px;">
-                <button style="margin-top: 12px; width:100%; padding:11px; background:var(--cyan); color:black; 
-                            border:none; border-radius:8px; font-weight:bold; cursor:pointer; font-size:0.92rem;">
-                    ▶ DEMO 2
-                </button>
-            </div>
-
-            <!-- Demo 3 -->
-            <div class="game-card" onclick="window.location.href='demo3/'" style="cursor:pointer; aspect-ratio: 1 / 1; width:124px; height:124px; padding: 1px; background: transparent; border: 1px solid #000; border-radius:12px;">
-                <img src="images/demo3.png" alt="Demo 3" style="width: 100%; height: 100%; object-fit: cover; border-radius: 10px;">
-                <button style="margin-top: 12px; width:100%; padding:11px; background:var(--cyan); color:black; 
-                            border:none; border-radius:8px; font-weight:bold; cursor:pointer; font-size:0.92rem;">
-                    ▶ DEMO 3
-                </button>
-            </div>
-
-            <!-- Demo 4 -->
-            <div class="game-card" onclick="window.location.href='demo4/'" style="cursor:pointer; aspect-ratio: 1 / 1; width:124px; height:124px; padding: 1px; background: transparent; border: 1px solid #000; border-radius:12px;">
-                <img src="images/demo4.png" alt="Demo 4" style="width: 100%; height: 100%; object-fit: cover; border-radius: 10px;">
-                <button style="margin-top: 12px; width:100%; padding:11px; background:var(--cyan); color:black; 
-                            border:none; border-radius:8px; font-weight:bold; cursor:pointer; font-size:0.92rem;">
-                    ▶ DEMO 4
-                </button>
-            </div>
-        </div>
-</section>
-
-<!-- ═══════════════════════════════════════════
-     SEKCJA: WASZE GRY
-════════════════════════════════════════════ -->
-<section id="wasze-gry" style="padding: 90px 20px 80px;">
-    <div style="text-align:center; max-width: 900px; margin: 0 auto;">
-        <h2 style="color:var(--cyan); font-size:2.7rem; margin-bottom: 12px;">
-            Zagrajmy w nasze gry
-        </h2>
-        <p style="color:#d0d0d0; font-size:1.25rem; margin-bottom: 55px; max-width:820px; margin-left:auto; margin-right:auto; line-height:1.7;">
-            To jest nasze miejsce — setki małych gier stworzonych przez społeczność. Każda gra posiada swój Game Player oraz swój unikatowy edytor, dzięki któremu możesz dalej tworzyć coś od siebie :)
-        </p>
-        
-        <!-- Grid z ikonami – identyczny jak demo -->
-        <div class="games-grid" style="grid-template-columns: repeat(auto-fill, minmax(124px, 1fr));
-                                       gap: 20px;
-                                       max-width: 460px;
-                                       margin: 0 auto;">
-            
-            <!-- Demo 5 -->
-            <div class="game-card" onclick="window.location.href='demo5/'" style="cursor:pointer; aspect-ratio: 1 / 1; width:124px; height:124px; padding: 1px; background: transparent; border: 1px solid #000; border-radius:12px;">
-                <img src="images/demo5.png" alt="Demo 5" style="width: 100%; height: 100%; object-fit: cover; border-radius: 10px;">
-                <button style="margin-top: 12px; width:100%; padding:11px; background:var(--cyan); color:black;
-                            border:none; border-radius:8px; font-weight:bold; cursor:pointer; font-size:0.92rem;">
-                    ▶ DEMO 5
-                </button>
-            </div>
-            
-        </div>
+  <div class="section">
+    <div class="section-title">Dodaj / Siatka</div>
+    <div class="tool-grid">
+      <button class="tool-btn" data-add="text"><span class="icon">T</span>Tekst</button>
+      <button class="tool-btn" id="btn-grid"><span class="icon">⊞</span>Siatka</button>
     </div>
-</section>
-
-<!-- ═══════════════ O MINI-KLIK ═══════════════ -->
-<section id="opis" style="padding: 70px 20px 60px;">
-    <h2 style="text-align:center; color:var(--cyan); margin-bottom:40px; font-size:2.5rem;">O mini-klik</h2>
-
-    <!-- Accordion szczegóły -->
-    <div style="max-width:900px; margin:0 auto; background:#111; border-radius:14px; border:1px solid #222; overflow:hidden;">
-        <details>
-            <summary style="padding:22px 26px; font-size:1.2rem; font-weight:600; color:var(--cyan); cursor:pointer; list-style:none; display:flex; align-items:center; gap:12px;">
-                ✨ Szczegóły — jak działa edytor mini-klik?
-            </summary>
-            <div style="padding:26px 30px; line-height:1.85; color:#ccc; border-top:1px solid #222;">
-
-                <!-- Info o Chrome - wyróżniona ramka -->
-                <div style="background:linear-gradient(90deg, rgba(255,184,77,0.08), rgba(255,120,70,0.08)); border-left:3px solid #ffb84d; padding:14px 18px; border-radius:8px; margin-bottom:22px; font-size:0.95rem;">
-                    <strong style="color:#ffb84d;">⚡ Wymagania techniczne:</strong>
-                    <span style="color:#e8d4c0;">Cały projekt <b>mini-klik.pl</b> został zoptymalizowany pod przeglądarkę <b>Google Chrome</b> na komputerze stacjonarnym. Na tabletach i telefonach funkcjonalność jest ograniczona ze względu na niższą wydajność silnika renderującego w mobilnych wersjach przeglądarek. Dla najlepszego doświadczenia zalecamy Chrome na PC.</span>
-                </div>
-
-                <h3 style="color:var(--cyan); margin-bottom:12px; font-size:1.4rem;">Witaj w świecie gier — mini-klik.pl 🎮</h3>
-
-                <p style="margin-bottom:14px;">
-                    Silnik mini-klik powstał z myślą o miłośnikach <b style="color:var(--pink);">starych, prostych gier z lat 90.</b> — tych, w których liczyła się pomysłowość, a nie grafika 4K.
-                </p>
-
-                <p style="margin-bottom:14px;">
-                    Stworzony został, by być <b>najprostszą formą rozrywki</b> — bez reklam, bez pobierania, bez instalowania. Wchodzisz na stronę, klikasz dowolną grę i grasz. Tak po prostu.
-                </p>
-
-                <p style="margin-bottom:14px;">
-                    <b style="color:var(--cyan);">Co nas wyróżnia od innych portali?</b>
-                    To, że <b>każdą grę możesz dowolnie przerabiać</b> — dodawać własne pomysły, zmieniać wrogów, tworzyć nowe poziomy. A wszystko w prosty sposób zapisać na własnym komputerze w pliku <b>.json</b>, gotowym do ponownej edycji.
-                </p>
-
-                <p style="margin-bottom:22px;">
-                    Każdy zapisany plik <b>.json</b> możesz później otworzyć w dowolnym edytorze tekstowym lub ponownie wczytać do edytora mini-klik — i bawić się dalej. 🔄
-                </p>
-
-                <hr style="border:none; border-top:1px dashed #333; margin:22px 0;">
-
-                <h3 style="color:var(--cyan); margin-bottom:12px; font-size:1.3rem;">⚙️ Jak działa edytor?</h3>
-
-                <p style="margin-bottom:14px;"><strong style="color:#eee;">mini-klik</strong> to środowisko do tworzenia gier 2D, które działa w całości w przeglądarce — bez żadnego programu do pobrania.</p>
-                <p style="margin-bottom:18px;">Edytor łączy dwa tryby pracy: wizualny <em>drag&amp;drop</em> do układania poziomów oraz prosty edytor kodu dla tych, którzy chcą więcej kontroli. Możesz mieszać oba tryby w dowolnym momencie.</p>
-                <ul style="margin-left:22px; line-height:2; color:#aaa;">
-                    <li>✅ Platformówki, endless runnery, RPG, gry logiczne i więcej</li>
-                    <li>✅ Natychmiastowe testowanie — kliknij Graj i sprawdź</li>
-                    <li>✅ Gotowa gra = jeden link do udostępnienia</li>
-                    <li>✅ Neonowy, przyjemny interfejs zaprojektowany dla twórców</li>
-                    <li>✅ Całkowicie darmowy — teraz i zawsze</li>
-                </ul>
-                <p style="margin-top:20px; color:#777; font-size:0.9rem;">Pierwszą grę możesz stworzyć w mniej niż 10 minut. Sprawdź demo powyżej i zacznij już dziś!</p>
-            </div>
-        </details>
+    <div id="grid-size-wrap" style="display:none;margin-top:8px;">
+      <div class="prop-label">Oczko: <span id="grid-size-val">20</span> px</div>
+      <input type="range" id="grid-size" min="10" max="80" step="2" value="20" />
     </div>
-</section>
+  </div>
 
-<!-- KSIĘGA GOŚCI -->
-<section id="ksiega-gosci" style="padding: 20px 20px 80px;">
-    <div class="guestbook">
-        <h2 style="display:flex; align-items:center; justify-content:center; gap:12px;">
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#00f7ff" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
-            Księga Gości
-        </h2>
-
-        <!-- licznik wpisów -->
-        <p id="commentCount" style="text-align:center; color:#555; font-size:0.85rem; margin:-16px 0 24px;">ładowanie wpisów…</p>
-
-        <div class="comments" id="comments" style="scrollbar-width:thin; scrollbar-color:#222 transparent;"></div>
-
-        <!-- formularz -->
-        <div style="background:#161616; border:1px solid #2a2a2a; border-radius:14px; padding:24px; margin-top:10px;">
-            <p style="color:#888; font-size:0.85rem; margin-bottom:16px; letter-spacing:.5px;">ZOSTAW SWÓJ ŚLAD</p>
-            <form id="guestbookForm">
-                <div style="display:flex; gap:12px; flex-wrap:wrap;">
-                    <input type="text" id="name" placeholder="Twój nick / imię" required
-                           style="flex:1; min-width:160px;">
-                </div>
-                <div style="position:relative; margin-top:14px;">
-                    <textarea id="message" placeholder="Napisz coś o mini-klik… 🎮" required
-                              maxlength="280"
-                              oninput="document.getElementById('charCount').textContent=this.value.length+'/280'"
-                              style="width:100%; padding-bottom:32px;"></textarea>
-                    <span id="charCount" style="position:absolute; bottom:10px; right:14px; font-size:0.75rem; color:#555;">0/280</span>
-                </div>
-                <button type="submit" class="btn" style="margin-top:4px; width:100%; display:flex; align-items:center; justify-content:center; gap:10px;">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-                    ZOSTAW WPIS
-                </button>
-            </form>
-        </div>
+  <div class="section">
+    <div class="section-title">Tryb rysowania</div>
+    <div class="tool-grid">
+      <button class="tool-btn" id="btn-draw"><span class="icon">🖌</span>Pędzel</button>
+      <button class="tool-btn" id="btn-erase"><span class="icon">🧽</span>Gumka</button>
     </div>
-</section>
-
-<!-- SOCIAL / WSPARCIE -->
-<section style="padding: 60px 20px; text-align:center; border-top: 1px solid #1a1a1a;">
-    <p style="color:#555; font-size:0.85rem; letter-spacing:1px; margin-bottom:28px;">ZNAJDŹ NAS / WESPRZYJ</p>
-    <div style="display:flex; align-items:center; justify-content:center; gap:20px; flex-wrap:wrap;">
-
-        <!-- YouTube -->
-        <a href="https://www.youtube.com/@mini-klik" target="_blank"
-           style="display:flex; align-items:center; gap:10px; padding:13px 24px;
-                  background:#111; border:1px solid #222; border-radius:50px;
-                  color:#eee; text-decoration:none; font-weight:600; font-size:0.95rem;
-                  transition:all .3s;"
-           onmouseover="this.style.borderColor='#ff0000'; this.style.color='#ff4444'; this.style.boxShadow='0 0 20px rgba(255,0,0,0.25)'"
-           onmouseout="this.style.borderColor='#222'; this.style.color='#eee'; this.style.boxShadow='none'">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="#ff0000">
-                <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
-            </svg>
-            YouTube
-        </a>
-
-        <!-- Postaw kawę -->
-        <a href="https://buycoffee.to/ramzi-studio" target="_blank"
-           style="display:flex; align-items:center; gap:10px; padding:13px 24px;
-                  background:#111; border:1px solid #222; border-radius:50px;
-                  color:#eee; text-decoration:none; font-weight:600; font-size:0.95rem;
-                  transition:all .3s;"
-           onmouseover="this.style.borderColor='var(--cyan)'; this.style.color='var(--cyan)'; this.style.boxShadow='0 0 20px rgba(0,247,255,0.2)'"
-           onmouseout="this.style.borderColor='#222'; this.style.color='#eee'; this.style.boxShadow='none'">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#00f7ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M18 8h1a4 4 0 0 1 0 8h-1"/>
-                <path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/>
-                <line x1="6" y1="1" x2="6" y2="4"/>
-                <line x1="10" y1="1" x2="10" y2="4"/>
-                <line x1="14" y1="1" x2="14" y2="4"/>
-            </svg>
-            Postaw kawę
-        </a>
-
+    <div style="margin-top:8px;">
+      <div class="prop-label">Kolor pędzla</div>
+      <input type="color" id="brush-color" value="#ffffff" />
+      <div class="prop-label" style="margin-top:6px;">Grubość: <span id="brush-size-val">6</span> px</div>
+      <input type="range" id="brush-size" min="1" max="60" value="6" />
     </div>
-</section>
+  </div>
 
-<footer style="text-align:center; padding:40px 20px 60px; color:#555; font-size:0.9rem;">
-    © 2026 mini-klik • zrobione z ❤️ i neonu
-</footer>
+  <div class="section">
+    <div class="section-title">Szybkie emotki</div>
+    <div class="emoji-pad" id="quick-emoji-pad"></div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Tła</div>
+    <div class="bg-grid" id="bg-grid"></div>
+    <div style="margin-top:8px;">
+      <div class="prop-label">Własny kolor tła</div>
+      <input type="color" id="custom-bg" value="#667eea" />
+    </div>
+  </div>
+</div>
+
+<!-- ===== ŚRODEK: SCENA ===== -->
+<div id="canvas-wrap">
+  <div id="scene-frame">
+    <div id="scene">
+      <canvas id="scene-bg-canvas"></canvas>
+    </div>
+  </div>
+
+  <!-- Pasek poziomów / stron -->
+  <div id="pages-bar">
+    <span class="pages-label">POZIOMY →</span>
+    <div id="pages-list" style="display:flex;gap:6px;flex-wrap:nowrap;"></div>
+    <button class="page-btn add" id="page-add" title="Dodaj nowy poziom">+</button>
+    <button class="page-btn del" id="page-del" title="Usuń aktualny poziom">−</button>
+  </div>
+</div>
+
+<!-- ===== PRAWY PANEL: WŁAŚCIWOŚCI ===== -->
+<div id="right-panel" id="props-panel">
+  <div id="props-content">
+    <div class="empty-state">
+      ← Dodaj element z lewego panelu<br>albo zaznacz coś na scenie,<br>żeby edytować właściwości.
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODAL POTWIERDZENIA ===== -->
+<div class="modal-backdrop" id="modal-confirm">
+  <div class="modal">
+    <h2 id="modal-title">Potwierdź</h2>
+    <p id="modal-msg">Czy na pewno?</p>
+    <div class="modal-row">
+      <button class="topbar-btn" id="modal-cancel">Anuluj</button>
+      <button class="topbar-btn primary" id="modal-ok">OK</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODAL EKSPORTU ===== -->
+<div class="modal-backdrop" id="modal-export">
+  <div class="modal">
+    <h2>⬇ Eksportuj jako HTML</h2>
+    <p>Twoja scena zostanie zapisana jako <strong>jeden plik HTML</strong> z wszystkimi animacjami w środku. Wrzuć go potem na <strong>app.netlify.com/drop</strong> i będziesz miał publiczny link.</p>
+    <div class="prop-label">Nazwa pliku</div>
+    <input type="text" id="export-filename" value="moja-strona.html" />
+    <div class="prop-label" style="margin-top:10px;">Tytuł strony (widoczny w karcie przeglądarki)</div>
+    <input type="text" id="export-title" value="Moja strona" />
+    <div class="modal-row">
+      <button class="topbar-btn" id="export-cancel">Anuluj</button>
+      <button class="topbar-btn primary" id="export-go">⬇ Pobierz HTML</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
 
 <script>
-// ================= ANIMACJA HERO =================
-const canvas = document.getElementById('heroCanvas');
-const ctx = canvas.getContext('2d');
-
-function resize() {
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight * 0.88;
-}
-resize();
-window.addEventListener('resize', resize);
-
-let particles = [];
-let platforms = [];
-let player = { x: 320, y: 420, vy: 0, size: 30 };
-
-for (let i = 0; i < 70; i++) {
-    particles.push({ x: Math.random()*canvas.width, y: Math.random()*canvas.height, size: Math.random()*2.2 + 0.8, speed: Math.random()*0.8 + 0.3 });
-}
-for (let i = 0; i < 12; i++) {
-    platforms.push({ x: Math.random() * canvas.width * 1.6, y: 220 + Math.random() * 320, w: 130 + Math.random() * 90, speed: 1 + Math.random() * 0.7 });
+// ============================================================
+// STAN APLIKACJI
+// Każda "strona" / "poziom" ma własne items, tło i rysunek.
+// Bieżąca strona to pages[currentPageIndex].
+// ============================================================
+function makeEmptyPage() {
+  return {
+    items: [],
+    background: { type: 'gradient', value: 'linear-gradient(135deg, #667eea, #764ba2)' },
+    drawingDataUrl: null   // PNG canvasa (zapisywany przy zmianie strony)
+  };
 }
 
-function animate() {
-    // Czyścimy canvas — bez wypełniania czarnym, żeby widać było kosmos z tyłu
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    ctx.fillStyle = '#99ffff';
-    particles.forEach(p => {
-        p.y += p.speed;
-        if (p.y > canvas.height) p.y = 0;
-        ctx.fillRect(p.x, p.y, p.size, p.size);
-    });
-
-    ctx.strokeStyle = '#00dddd';
-    ctx.lineWidth = 4;
-    platforms.forEach(pl => {
-        pl.x -= pl.speed;
-        if (pl.x < -300) pl.x = canvas.width + 300;
-        ctx.shadowBlur = 12;
-        ctx.shadowColor = '#00ffff';
-        ctx.beginPath();
-        ctx.moveTo(pl.x, pl.y);
-        ctx.lineTo(pl.x + pl.w, pl.y);
-        ctx.stroke();
-    });
-    ctx.shadowBlur = 0;
-
-    // === STATEK KOSMICZNY — lewituje bezwładnie po ekranie ===
-    player.floatT = (player.floatT || 0) + 0.02;
-    // Powolne dryfowanie po torze Lissajous
-    player.x = canvas.width * 0.25 + Math.sin(player.floatT) * 200;
-    player.y = canvas.height * 0.55 + Math.sin(player.floatT * 0.7) * 120;
-
-    // Kierunek lotu — lekki tilt zgodnie z kierunkiem ruchu
-    const vx = Math.cos(player.floatT) * 200 * 0.02;
-    const tilt = Math.max(-0.25, Math.min(0.25, vx * 0.08));
-
-    drawSpaceshipIntro(ctx, player.x, player.y, 28, tilt, Date.now());
-
-    requestAnimationFrame(animate);
-}
-
-// === RYSOWANIE STATKU KOSMICZNEGO (uproszczona wersja z edytora) ===
-function drawSpaceshipIntro(c, x, y, r, tilt, time) {
-    const t = time * 0.001;
-    const hover = Math.sin(t * 2.2) * 2.5;
-    c.save();
-    c.translate(x, y + hover);
-    c.rotate(tilt);
-
-    // Płomień silnika (z tyłu)
-    const flameLen = r * 0.9 + Math.sin(t * 20) * 3;
-    const flameGrad = c.createLinearGradient(-r * 0.7, 0, -r * 0.7 - flameLen, 0);
-    flameGrad.addColorStop(0, 'rgba(255, 230, 100, 0.95)');
-    flameGrad.addColorStop(0.3, 'rgba(255, 120, 40, 0.8)');
-    flameGrad.addColorStop(0.7, 'rgba(255, 60, 30, 0.4)');
-    flameGrad.addColorStop(1, 'rgba(255, 50, 30, 0)');
-    c.fillStyle = flameGrad;
-    c.beginPath();
-    c.moveTo(-r * 0.7, -r * 0.35);
-    c.lineTo(-r * 0.7 - flameLen, 0);
-    c.lineTo(-r * 0.7, r * 0.35);
-    c.closePath();
-    c.fill();
-
-    // Dysza silnika
-    c.fillStyle = '#2a2a3a';
-    c.fillRect(-r * 0.85, -r * 0.28, r * 0.2, r * 0.56);
-
-    // Kadłub — srebrzyste ciało
-    const hullGrad = c.createLinearGradient(0, -r * 0.5, 0, r * 0.5);
-    hullGrad.addColorStop(0, '#f0f0f5');
-    hullGrad.addColorStop(0.5, '#b8b8c8');
-    hullGrad.addColorStop(1, '#606070');
-    c.fillStyle = hullGrad;
-    c.beginPath();
-    c.moveTo(r * 1.0, 0);            // dziób
-    c.lineTo(r * 0.3, -r * 0.45);    // górna przednia
-    c.lineTo(-r * 0.7, -r * 0.35);   // górna tylna
-    c.lineTo(-r * 0.7, r * 0.35);    // dolna tylna
-    c.lineTo(r * 0.3, r * 0.45);     // dolna przednia
-    c.closePath();
-    c.fill();
-    c.strokeStyle = '#2a2a3a';
-    c.lineWidth = 1.3;
-    c.stroke();
-
-    // Skrzydła
-    c.fillStyle = '#e04a4a';
-    c.strokeStyle = '#2a2a3a';
-    c.lineWidth = 1;
-    // Górne skrzydło
-    c.beginPath();
-    c.moveTo(-r * 0.3, -r * 0.35);
-    c.lineTo(-r * 0.6, -r * 0.85);
-    c.lineTo(-r * 0.1, -r * 0.4);
-    c.closePath();
-    c.fill(); c.stroke();
-    // Dolne skrzydło
-    c.beginPath();
-    c.moveTo(-r * 0.3, r * 0.35);
-    c.lineTo(-r * 0.6, r * 0.85);
-    c.lineTo(-r * 0.1, r * 0.4);
-    c.closePath();
-    c.fill(); c.stroke();
-
-    // Kokpit (szyba)
-    const cockpitGrad = c.createRadialGradient(r * 0.3, -r * 0.1, 1, r * 0.3, 0, r * 0.3);
-    cockpitGrad.addColorStop(0, '#a0e8ff');
-    cockpitGrad.addColorStop(0.6, '#4080c0');
-    cockpitGrad.addColorStop(1, '#0a2040');
-    c.fillStyle = cockpitGrad;
-    c.beginPath();
-    c.ellipse(r * 0.35, 0, r * 0.25, r * 0.18, 0, 0, Math.PI * 2);
-    c.fill();
-    c.strokeStyle = '#2a2a3a';
-    c.lineWidth = 1;
-    c.stroke();
-    // Blik na szybie
-    c.fillStyle = 'rgba(255, 255, 255, 0.6)';
-    c.beginPath();
-    c.ellipse(r * 0.3, -r * 0.08, r * 0.08, r * 0.04, 0, 0, Math.PI * 2);
-    c.fill();
-
-    // Dziób — czerwony czubek
-    c.fillStyle = '#c83030';
-    c.beginPath();
-    c.moveTo(r * 1.0, 0);
-    c.lineTo(r * 0.7, -r * 0.15);
-    c.lineTo(r * 0.7, r * 0.15);
-    c.closePath();
-    c.fill();
-    c.strokeStyle = '#2a2a3a';
-    c.stroke();
-
-    c.restore();
-}
-animate();
-
-// Hamburger
-document.getElementById('hamburger').addEventListener('click', () => {
-    document.getElementById('menu').classList.toggle('active');
-});
-
-// ================= KSIĘGA GOŚCI =================
-const form = document.getElementById('guestbookForm');
-const commentsDiv = document.getElementById('comments');
-
-
-
-form.addEventListener('submit', async function(e) {
-    e.preventDefault();
-
-    const name = document.getElementById('name').value.trim();
-    const message = document.getElementById('message').value.trim();
-
-    if (!name || !message) return;
-
-    const btn = form.querySelector('button[type=submit]');
-    btn.disabled = true;
-    btn.textContent = 'Wysyłanie…';
-
-    try {
-        await db.collection("wpisy").add({
-            name,
-            message,
-            created: firebase.firestore.FieldValue.serverTimestamp()
-        });
-        form.reset();
-        document.getElementById('charCount').textContent = '0/280';
-        loadComments();
-    } catch (err) {
-        console.error("Błąd zapisu:", err);
-    } finally {
-        btn.disabled = false;
-        btn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg> ZOSTAW WPIS';
-    }
-});
-
-function avatarColor(name) {
-    const colors = ['#00f7ff','#ff00c8','#a855f7','#22d3ee','#f472b6','#34d399','#fb923c'];
-    let h = 0;
-    for (let c of name) h = (h * 31 + c.charCodeAt(0)) % colors.length;
-    return colors[h];
-}
-
-function timeAgo(ts) {
-    if (!ts) return '';
-    const diff = Math.floor((Date.now() - ts.toMillis()) / 1000);
-    if (diff < 60) return 'przed chwilą';
-    if (diff < 3600) return `${Math.floor(diff/60)} min temu`;
-    if (diff < 86400) return `${Math.floor(diff/3600)} godz. temu`;
-    return `${Math.floor(diff/86400)} dni temu`;
-}
-
-async function loadComments() {
-    const commentsDiv = document.getElementById('comments');
-    commentsDiv.innerHTML = '<p style="text-align:center;color:#444;padding:20px;">ładowanie…</p>';
-
-    try {
-        const snapshot = await db.collection("wpisy")
-            .orderBy("created", "desc")
-            .get();
-
-        const count = snapshot.size;
-        document.getElementById('commentCount').textContent =
-            count === 0 ? 'Bądź pierwszy!' : `${count} ${count === 1 ? 'wpis' : count < 5 ? 'wpisy' : 'wpisów'}`;
-
-        if (count === 0) {
-            commentsDiv.innerHTML = '<p style="text-align:center;color:#444;padding:30px;">Brak wpisów — bądź pierwszy! 👇</p>';
-            return;
-        }
-
-        commentsDiv.innerHTML = '';
-        snapshot.forEach(doc => {
-            const data = doc.data();
-            const name = data.name || 'anon';
-            const message = data.message || data.text || '';
-            const initials = name.slice(0,2).toUpperCase();
-            const color = avatarColor(name);
-            const ago = timeAgo(data.created);
-
-            const div = document.createElement('div');
-            div.className = 'comment';
-            div.style.cssText = 'display:flex; gap:14px; align-items:flex-start; animation: fadeIn .4s ease;';
-            div.innerHTML = `
-                <div style="flex-shrink:0; width:38px; height:38px; border-radius:50%;
-                            background:${color}22; border:2px solid ${color};
-                            display:flex; align-items:center; justify-content:center;
-                            font-size:0.75rem; font-weight:700; color:${color}; letter-spacing:.5px;">
-                    ${initials}
-                </div>
-                <div style="flex:1; min-width:0;">
-                    <div style="display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; margin-bottom:5px;">
-                        <span class="comment-author" style="color:${color};">@${name}</span>
-                        <span style="font-size:0.72rem; color:#444;">${ago}</span>
-                    </div>
-                    <p style="color:#ccc; line-height:1.6; word-break:break-word;">${message}</p>
-                </div>
-            `;
-            commentsDiv.appendChild(div);
-        });
-
-    } catch (err) {
-        console.error("Błąd ładowania:", err);
-        commentsDiv.innerHTML = '<p style="text-align:center;color:#f55;padding:20px;">Błąd ładowania wpisów.</p>';
-    }
-}
-
-// FIREBASE
-const firebaseConfig = {
-  apiKey: "AIzaSyDRR3vSfgpEmbpZz_-VldMTnTHoXRfuGKg",
-  authDomain: "ksiega-ramzi.firebaseapp.com",
-  projectId: "ksiega-ramzi",
-  storageBucket: "ksiega-ramzi.firebasestorage.app",
-  messagingSenderId: "400735142662",
-  appId: "1:400735142662:web:0b52a57f4fedf367839487"
+const state = {
+  pages: [ makeEmptyPage() ],
+  currentPageIndex: 0,
+  selectedId: null,
+  nextId: 1,
+  drawMode: null,         // null | 'draw' | 'erase'
+  brushColor: '#ffffff',
+  brushSize: 6,
+  drawing: false,
+  // === Tryb przejść ===
+  transitionsMode: false,
+  transitionsPickItem: null,
+  // === Tryb media ===
+  mediaMode: false,           // czy włączony
+  mediaPickItem: null,        // gdy "dołącz link do obiektu" — id obiektu czekającego na URL
+  // === Siatka ===
+  gridOn: false,
+  gridSize: 20,
+  // === Tryb układu strony ===
+  layoutMode: false,
+  canvasFormat: 'slide43'     // domyślnie 4:3 — pasuje do dotychczasowych projektów
 };
 
-firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
+// Skróty do bieżącej strony — używane wszędzie
+function currentPage()  { return state.pages[state.currentPageIndex]; }
+function currentItems() { return currentPage().items; }
+function currentBg()    { return currentPage().background; }
 
-// 🔥 TERAZ dopiero
-loadComments();
+// Definicje formatów sceny — pojedyncze źródło prawdy o wymiarach.
+// W edytorze scena jest skalowana CSS-em, ale logiczne wymiary są zawsze takie jak tu.
+const CANVAS_FORMATS = [
+  { id: 'slide43',   name: 'Slajd 4:3',     width:  800, height: 600,  desc: 'Klasyczny slajd / poster' },
+  { id: 'slide169',  name: 'Slajd 16:9',    width: 1280, height: 720,  desc: 'Szeroki slajd HD' },
+  { id: 'story',     name: 'HD pion',       width:  720, height: 1280, desc: 'Story / Reels' },
+  { id: 'square',    name: 'Plakat kwadrat',width: 1080, height: 1080, desc: 'Post Instagram' }
+];
 
-// ========================================
-// EPICKA SCENA KOSMICZNA W TLE
-// ========================================
-;(function() {
-  const canvas = document.getElementById('spaceCanvas');
-  if (!canvas) return;
-  const ctx = canvas.getContext('2d');
+function getCurrentFormat() {
+  return CANVAS_FORMATS.find(f => f.id === state.canvasFormat) || CANVAS_FORMATS[0];
+}
 
-  function resize() {
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-  }
-  resize();
-  window.addEventListener('resize', resize);
+const FONTS = ['Georgia', 'Arial', 'Courier New', 'Times New Roman', 'Verdana', 'Comic Sans MS', 'Impact', 'Trebuchet MS'];
+const ANIMATIONS = [
+  { id: '',          name: 'Brak' },
+  { id: 'pulse',     name: '💓 Pulsuj' },
+  { id: 'fly',       name: '✈ Latanie' },
+  { id: 'bounce',    name: '🦘 Skok' },
+  { id: 'spin',      name: '🔄 Obrót' },
+  { id: 'fade',      name: '👁 Zanikanie' },
+  { id: 'shake',     name: '📳 Trzęsienie' },
+  { id: 'rainbow',   name: '🌈 Tęcza' }
+];
+const QUICK_EMOJIS = ['😀','😍','🥳','🔥','⭐','💖','🎉','🎵','☀','🌙','⚡','🌈','🦄','🌸','🍕','🚀','👻','💀','🎮','🎨'];
+const BG_PRESETS = [
+  { name:'Sunset',  value:'linear-gradient(135deg, #ff6e7f, #bfe9ff)' },
+  { name:'Ocean',   value:'linear-gradient(135deg, #667eea, #764ba2)' },
+  { name:'Forest',  value:'linear-gradient(135deg, #11998e, #38ef7d)' },
+  { name:'Fire',    value:'linear-gradient(135deg, #f12711, #f5af19)' },
+  { name:'Night',   value:'linear-gradient(135deg, #0f2027, #2c5364)' },
+  { name:'Candy',   value:'linear-gradient(135deg, #ff9a9e, #fad0c4)' },
+  { name:'Mint',    value:'linear-gradient(135deg, #a1ffce, #faffd1)' },
+  { name:'Royal',   value:'linear-gradient(135deg, #141e30, #243b55)' },
+  { name:'Peach',   value:'linear-gradient(135deg, #ffecd2, #fcb69f)' }
+];
 
-  // === WIELKA PLANETA (zajmuje 1/3 ekranu, w prawym dolnym rogu) ===
-  const bigPlanet = {
-    cx: () => canvas.width * 0.75,
-    cy: () => canvas.height * 0.8,
-    r: () => Math.min(canvas.width, canvas.height) * 0.4,
-    rotation: 0
-  };
+// 6 stylów scenicznych przycisków. defaultText to to, co pojawia się na nim
+// po dodaniu — można edytować podwójnym klikiem (jak każdy tekst).
+// hasInternalText = false oznacza że przycisk nie pokazuje tekstu (np. sama strzałka).
+const BUTTON_STYLES = [
+  // 1) Klasyczna ramka z napisem
+  { id: 'classic', defaultText: 'DALEJ',   hasInternalText: true },
+  // 2) Zaokrąglony pełny — zielony "Start"
+  { id: 'round',   defaultText: 'Start',   hasInternalText: true },
+  // 3) Koło ze strzałką → (FAB) — bez tekstu wewnątrz, ale można dodać podpis
+  { id: 'fab',     defaultText: '',        hasInternalText: false },
+  // 4) Strzałka w trójkącie ▶ ("Play") — sam kształt, bez tekstu
+  { id: 'play',    defaultText: '',        hasInternalText: false },
+  // 5) Dwie strzałki » ("przewiń dalej") — z opcjonalnym tekstem
+  { id: 'double',  defaultText: 'Dalej',   hasInternalText: true },
+  // 6) Pixel-art 3D — retro, z cieniem
+  { id: 'pixel',   defaultText: 'PRESS',   hasInternalText: true }
+];
 
-  // === KSIĘŻYC (lewy górny obszar) ===
-  const moon = {
-    cx: () => canvas.width * 0.18,
-    cy: () => canvas.height * 0.25,
-    r: () => Math.min(canvas.width, canvas.height) * 0.06,
-    rotation: 0
-  };
+const scene = document.getElementById('scene');
+const bgCanvas = document.getElementById('scene-bg-canvas');
+const bgCtx = bgCanvas.getContext('2d');
 
-  // === ASTEROIDY (wiele, różne rozmiary, poruszają się) ===
-  const asteroids = [];
-  for (let i = 0; i < 18; i++) {
-    asteroids.push({
-      x: Math.random() * canvas.width,
-      y: Math.random() * canvas.height * 0.7,
-      vx: (Math.random() - 0.5) * 0.3,
-      vy: (Math.random() - 0.5) * 0.15,
-      size: 4 + Math.random() * 18,
-      rotation: Math.random() * Math.PI * 2,
-      rotSpeed: (Math.random() - 0.5) * 0.015,
-      points: 6 + Math.floor(Math.random() * 4)
-    });
-  }
-
-  // === FLOTA STATKÓW (lecą przez ekran) ===
-  const ships = [];
-  function spawnShip() {
-    const fromLeft = Math.random() > 0.5;
-    const y = canvas.height * (0.1 + Math.random() * 0.6);
-    ships.push({
-      x: fromLeft ? -80 : canvas.width + 80,
-      y,
-      targetY: y + (Math.random() - 0.5) * 60,
-      vx: (fromLeft ? 1 : -1) * (0.3 + Math.random() * 0.4),
-      size: 0.6 + Math.random() * 1.2,
-      type: Math.floor(Math.random() * 3), // 3 typy statków
-      flame: 0,
-      fromLeft
-    });
-  }
-  // Kilka statków na start
-  for (let i = 0; i < 4; i++) {
-    spawnShip();
-    ships[ships.length - 1].x = Math.random() * canvas.width;
-  }
-  setInterval(() => {
-    if (ships.length < 8) spawnShip();
-  }, 4000);
-
-  // === FUNKCJA RYSUJĄCA WIELKĄ PLANETĘ ===
-  function drawBigPlanet(t) {
-    const cx = bigPlanet.cx();
-    const cy = bigPlanet.cy();
-    const r = bigPlanet.r();
-
-    // Ogromna poświata wokół planety (light leak od strony słońca)
-    const glowGrad = ctx.createRadialGradient(cx - r*0.3, cy - r*0.3, r*0.3, cx, cy, r * 1.8);
-    glowGrad.addColorStop(0, 'rgba(255, 140, 70, 0.5)');
-    glowGrad.addColorStop(0.3, 'rgba(255, 100, 50, 0.25)');
-    glowGrad.addColorStop(0.7, 'rgba(200, 50, 80, 0.08)');
-    glowGrad.addColorStop(1, 'rgba(100, 30, 60, 0)');
-    ctx.fillStyle = glowGrad;
-    ctx.beginPath();
-    ctx.arc(cx, cy, r * 1.8, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Sama planeta — ciemna sylwetka z pomarańczową krawędzią
-    const planetGrad = ctx.createRadialGradient(
-      cx - r * 0.4, cy - r * 0.4, r * 0.2,
-      cx, cy, r
-    );
-    planetGrad.addColorStop(0, '#2a1a3a');
-    planetGrad.addColorStop(0.7, '#1a0a20');
-    planetGrad.addColorStop(1, '#0a0515');
-    ctx.fillStyle = planetGrad;
-    ctx.beginPath();
-    ctx.arc(cx, cy, r, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Pierścień pomarańczowego konturu (rim light)
-    const rimGrad = ctx.createRadialGradient(
-      cx - r * 0.5, cy - r * 0.5, r * 0.75,
-      cx - r * 0.5, cy - r * 0.5, r * 1.05
-    );
-    rimGrad.addColorStop(0, 'rgba(255, 100, 50, 0)');
-    rimGrad.addColorStop(0.9, 'rgba(255, 140, 60, 0.5)');
-    rimGrad.addColorStop(1, 'rgba(255, 180, 80, 0.9)');
-    ctx.fillStyle = rimGrad;
-    ctx.beginPath();
-    ctx.arc(cx, cy, r, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Subtelna atmosfera (jasna obwódka)
-    ctx.strokeStyle = 'rgba(255, 180, 100, 0.3)';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.arc(cx, cy, r + 4, 0, Math.PI * 2);
-    ctx.stroke();
-
-    // Pierścień wokół planety (jak Saturn) — obraca się lekko
-    ctx.save();
-    ctx.translate(cx, cy);
-    ctx.rotate(-0.4 + Math.sin(t * 0.1) * 0.02);
-    ctx.scale(1, 0.25); // perspektywiczne spłaszczenie
-    ctx.strokeStyle = 'rgba(255, 140, 80, 0.4)';
-    ctx.lineWidth = 8;
-    ctx.beginPath();
-    ctx.arc(0, 0, r * 1.35, 0, Math.PI, false); // tylko połowa (przód pierścienia)
-    ctx.stroke();
-    ctx.strokeStyle = 'rgba(255, 120, 70, 0.25)';
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.arc(0, 0, r * 1.5, 0, Math.PI, false);
-    ctx.stroke();
-    ctx.restore();
-  }
-
-  // === FUNKCJA RYSUJĄCA KSIĘŻYC ===
-  function drawMoon() {
-    const cx = moon.cx();
-    const cy = moon.cy();
-    const r = moon.r();
-
-    // Poświata
-    const glowGrad = ctx.createRadialGradient(cx, cy, r, cx, cy, r * 2.5);
-    glowGrad.addColorStop(0, 'rgba(255, 220, 160, 0.35)');
-    glowGrad.addColorStop(0.5, 'rgba(255, 180, 120, 0.1)');
-    glowGrad.addColorStop(1, 'rgba(255, 180, 120, 0)');
-    ctx.fillStyle = glowGrad;
-    ctx.beginPath();
-    ctx.arc(cx, cy, r * 2.5, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Księżyc — ciemna sylwetka z pomarańczowym rimem
-    const moonGrad = ctx.createRadialGradient(
-      cx - r * 0.3, cy - r * 0.3, r * 0.1,
-      cx, cy, r
-    );
-    moonGrad.addColorStop(0, '#3a2a3a');
-    moonGrad.addColorStop(0.7, '#1a0a1a');
-    moonGrad.addColorStop(1, '#0a0510');
-    ctx.fillStyle = moonGrad;
-    ctx.beginPath();
-    ctx.arc(cx, cy, r, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Rim light pomarańczowy
-    const rimGrad = ctx.createRadialGradient(
-      cx - r * 0.4, cy - r * 0.4, r * 0.75,
-      cx - r * 0.4, cy - r * 0.4, r * 1.05
-    );
-    rimGrad.addColorStop(0, 'rgba(255, 120, 60, 0)');
-    rimGrad.addColorStop(0.9, 'rgba(255, 160, 80, 0.6)');
-    rimGrad.addColorStop(1, 'rgba(255, 200, 100, 0.95)');
-    ctx.fillStyle = rimGrad;
-    ctx.beginPath();
-    ctx.arc(cx, cy, r, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Kratery - małe plamki
-    ctx.fillStyle = 'rgba(10, 5, 15, 0.6)';
-    const craters = [[-0.3, 0.1, 0.15], [0.2, -0.25, 0.1], [0.05, 0.35, 0.12], [-0.15, -0.15, 0.08]];
-    for (const [dx, dy, dr] of craters) {
-      ctx.beginPath();
-      ctx.arc(cx + dx * r, cy + dy * r, dr * r, 0, Math.PI * 2);
-      ctx.fill();
+function resizeCanvas() {
+  // Skalowanie sceny — działa dla WSZYSTKICH formatów i WSZYSTKICH ekranów.
+  // Logiczne wymiary sceny biorę ze state.canvasFormat (np. 1080×1080 dla kwadratu).
+  // Skala = min(dostępna_szer/szer_logiczna, dostępna_wys/wys_logiczna), ograniczona do 1.
+  const fmt = (typeof getCurrentFormat === 'function') ? getCurrentFormat() : { width: 800, height: 600 };
+  const wrap = document.getElementById('canvas-wrap');
+  if (wrap && fmt) {
+    // Dostępna powierzchnia w canvas-wrap minus padding minus pasek poziomów (~56px) i gap (12px)
+    const cw = wrap.clientWidth - 32;        // 16px padding po obu stronach (zapas)
+    const ch = wrap.clientHeight - 56 - 32;  // pasek poziomów ~56px + 24px paddingu/gap
+    let sc = 1;
+    if (cw > 0 && ch > 0) {
+      const scW = cw / fmt.width;
+      const scH = ch / fmt.height;
+      sc = Math.min(scW, scH, 1);            // nie powiększamy ponad 1:1
+      if (sc < 0.1) sc = 0.1;                // bezpiecznik — nie znikamy
     }
+    document.documentElement.style.setProperty('--scene-scale', String(sc));
   }
 
-  // === FUNKCJA RYSUJĄCA ASTEROIDĘ (nieregularny kształt) ===
-  function drawAsteroid(a) {
-    ctx.save();
-    ctx.translate(a.x, a.y);
-    ctx.rotate(a.rotation);
+  // Canvas używa LOGICZNYCH wymiarów sceny (offsetWidth/Height) a nie boundingRect,
+  // bo scena jest skalowana CSS-em — boundingRect dałby zmniejszony rozmiar.
+  const lw = scene.offsetWidth;
+  const lh = scene.offsetHeight;
+  if (bgCanvas.width !== lw || bgCanvas.height !== lh) {
+    // zachowaj rysunek przy zmianie rozmiaru
+    const tmp = document.createElement('canvas');
+    tmp.width = bgCanvas.width;
+    tmp.height = bgCanvas.height;
+    tmp.getContext('2d').drawImage(bgCanvas, 0, 0);
+    bgCanvas.width = lw;
+    bgCanvas.height = lh;
+    bgCtx.drawImage(tmp, 0, 0, lw, lh);
+  }
+}
+window.addEventListener('resize', resizeCanvas);
+window.addEventListener('orientationchange', resizeCanvas);
+setTimeout(resizeCanvas, 50);
 
-    // Ciemna sylwetka z pomarańczowym rimem
-    ctx.beginPath();
-    for (let i = 0; i < a.points; i++) {
-      const angle = (i / a.points) * Math.PI * 2;
-      const variation = 0.7 + ((i * 37) % 7) * 0.05;
-      const px = Math.cos(angle) * a.size * variation;
-      const py = Math.sin(angle) * a.size * variation;
-      if (i === 0) ctx.moveTo(px, py);
-      else ctx.lineTo(px, py);
+// ============================================================
+// TOAST
+// ============================================================
+function toast(msg, ms = 2200) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), ms);
+}
+
+// ============================================================
+// MODAL POTWIERDZENIA
+// ============================================================
+function confirmModal(title, msg) {
+  return new Promise(resolve => {
+    document.getElementById('modal-title').textContent = title;
+    document.getElementById('modal-msg').textContent = msg;
+    const back = document.getElementById('modal-confirm');
+    back.classList.add('show');
+    document.getElementById('modal-ok').onclick = () => { back.classList.remove('show'); resolve(true); };
+    document.getElementById('modal-cancel').onclick = () => { back.classList.remove('show'); resolve(false); };
+  });
+}
+
+// ============================================================
+// DODAWANIE ELEMENTÓW
+// ============================================================
+function addItem(type, opts = {}) {
+  const item = {
+    id: state.nextId++,
+    type,                                       // 'text' | 'emoji' | 'image' | 'button'
+    x: 100 + Math.random() * 200,
+    y: 100 + Math.random() * 200,
+    scale: 1,
+    rotate: 0,
+    animation: '',
+    content: opts.content !== undefined
+      ? opts.content
+      : (type === 'text' ? 'Twój tekst' : (type === 'emoji' ? '✨' : '')),
+    color: '#ffffff',
+    size: type === 'text' ? 32 : (type === 'image' ? 240 : 64),
+    font: 'Georgia',
+    bold: true,
+    gotoPage: null,                             // 1-based numer poziomu lub null
+    // === Media ===
+    link: opts.link || null,
+    linkMode: opts.linkMode || 'newtab',
+    imageUrl: opts.imageUrl || null,
+    youtubeId: opts.youtubeId || null,
+    youtubeAction: opts.youtubeAction || null,
+    // === Ramka ===
+    frame: opts.frame || { theme: 'none', color: '#ffffff', bg: '#000000', bgAlpha: 80, width: 3, padding: 12, radius: 10 },
+    // === Przycisk sceniczny ===
+    buttonStyle: opts.buttonStyle || null       // 'classic'|'round'|'fab'|'play'|'double'|'pixel'
+  };
+  // Dla przycisku: ustaw tekst domyślny ze stylu jeśli nie podano
+  if (type === 'button' && opts.content === undefined) {
+    const def = BUTTON_STYLES.find(s => s.id === item.buttonStyle);
+    item.content = def ? def.defaultText : 'Dalej';
+  }
+  currentItems().push(item);
+  state.selectedId = item.id;
+  render();
+  pushHistory();
+  return item;
+}
+
+document.querySelectorAll('[data-add]').forEach(btn => {
+  btn.addEventListener('click', () => addItem(btn.dataset.add));
+});
+
+// ============================================================
+// RENDER SCENY
+// ============================================================
+function render() {
+  // tło bieżącej strony
+  scene.style.background = currentBg().value;
+
+  // usuń wszystkie elementy oprócz canvasa
+  [...scene.querySelectorAll('.scene-item')].forEach(el => el.remove());
+
+  // narysuj wszystkie itemy bieżącej strony
+  for (const item of currentItems()) {
+    const el = document.createElement('div');
+    el.className = 'scene-item';
+    el.dataset.id = item.id;
+    if (state.selectedId === item.id) el.classList.add('selected');
+    if (item.animation) el.classList.add('anim-' + item.animation);
+    if (item.gotoPage) {
+      el.classList.add('has-goto');
+      el.setAttribute('data-goto-label', String(item.gotoPage));
     }
-    ctx.closePath();
-    ctx.fillStyle = '#1a0a1a';
-    ctx.fill();
+    if (item.link) {
+      el.classList.add('has-link');
+      // Skróć URL do wyświetlenia (bez protokołu, max 30 znaków)
+      const short = String(item.link).replace(/^https?:\/\//, '').slice(0, 30);
+      el.setAttribute('data-link-label', short + (item.link.length > 30 ? '…' : ''));
+    }
 
-    // Pomarańczowa krawędź od strony "światła"
-    ctx.strokeStyle = 'rgba(255, 140, 70, 0.7)';
-    ctx.lineWidth = 1.2;
-    ctx.stroke();
-
-    ctx.restore();
-  }
-
-  // === FUNKCJA RYSUJĄCA STATEK ===
-  function drawShip(s) {
-    ctx.save();
-    ctx.translate(s.x, s.y);
-
-    // Interpolacja Y płynnie
-    s.y += (s.targetY - s.y) * 0.02;
-
-    const sc = s.size;
-    const flip = s.fromLeft ? 1 : -1;
-    ctx.scale(sc * flip, sc);
-
-    // Różne typy statków
-    if (s.type === 0) {
-      // Typ 1: klasyczny fighter — trójkątny
-      ctx.fillStyle = '#0a0515';
-      ctx.strokeStyle = 'rgba(255, 150, 80, 0.85)';
-      ctx.lineWidth = 0.8;
-      ctx.beginPath();
-      ctx.moveTo(12, 0);
-      ctx.lineTo(-6, -5);
-      ctx.lineTo(-10, 0);
-      ctx.lineTo(-6, 5);
-      ctx.closePath();
-      ctx.fill();
-      ctx.stroke();
-      // Silniki
-      ctx.fillStyle = 'rgba(255, 100, 50, 0.8)';
-      ctx.fillRect(-10, -1.5, 3, 3);
-      // Kokpit
-      ctx.fillStyle = 'rgba(255, 200, 100, 0.8)';
-      ctx.beginPath();
-      ctx.arc(4, 0, 2, 0, Math.PI * 2);
-      ctx.fill();
-
-    } else if (s.type === 1) {
-      // Typ 2: frachtowiec - długi prostokąt
-      ctx.fillStyle = '#0a0515';
-      ctx.strokeStyle = 'rgba(255, 140, 70, 0.8)';
-      ctx.lineWidth = 0.8;
-      ctx.beginPath();
-      ctx.moveTo(18, 0);
-      ctx.lineTo(14, -4);
-      ctx.lineTo(-12, -4);
-      ctx.lineTo(-14, 0);
-      ctx.lineTo(-12, 4);
-      ctx.lineTo(14, 4);
-      ctx.closePath();
-      ctx.fill();
-      ctx.stroke();
-      // 3 okna
-      ctx.fillStyle = 'rgba(255, 200, 120, 0.7)';
-      ctx.fillRect(-4, -1, 2, 2);
-      ctx.fillRect(2, -1, 2, 2);
-      ctx.fillRect(8, -1, 2, 2);
-      // Silniki
-      ctx.fillStyle = 'rgba(255, 80, 40, 0.9)';
-      ctx.fillRect(-14, -2.5, 3, 5);
-
+    const inner = document.createElement('div');
+    if (item.type === 'text') {
+      inner.className = 'item-text';
+      inner.textContent = item.content;
+      inner.style.fontFamily = item.font;
+      inner.style.fontSize = item.size + 'px';
+      inner.style.color = item.color;
+      inner.style.fontWeight = item.bold ? '700' : '400';
+    } else if (item.type === 'image') {
+      // Miniaturka YouTube lub dowolny obrazek
+      inner.className = 'item-image';
+      inner.style.position = 'relative';
+      inner.style.width = item.size + 'px';
+      inner.style.height = (item.size * 9 / 16) + 'px';   // 16:9
+      inner.style.background = `#000 url("${item.imageUrl}") center / cover no-repeat`;
+      inner.style.borderRadius = '6px';
+      inner.style.boxShadow = '0 4px 12px rgba(0,0,0,0.5)';
+      if (item.youtubeId) {
+        const play = document.createElement('div');
+        play.textContent = '▶';
+        play.style.cssText = `
+          position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+          width:48px;height:48px;border-radius:50%;
+          background:rgba(255,0,0,0.9);color:#fff;
+          display:flex;align-items:center;justify-content:center;
+          font-size:22px;padding-left:4px;pointer-events:none;
+          box-shadow:0 2px 8px rgba(0,0,0,0.5);
+        `;
+        inner.appendChild(play);
+      }
+    } else if (item.type === 'button') {
+      // Sceniczny przycisk - 6 stylów. Tekst edytowalny przez dwuklik.
+      const styleId = item.buttonStyle || 'classic';
+      inner.className = 'item-button btn-style-' + styleId;
+      const def = BUTTON_STYLES.find(s => s.id === styleId);
+      if (def && def.hasInternalText) {
+        const label = document.createElement('span');
+        label.className = 'item-button-label';
+        label.textContent = item.content || '';
+        inner.appendChild(label);
+      }
+      // Dla stylów bez tekstu (fab, play) — sam kształt + ::after w CSS
     } else {
-      // Typ 3: szybki scout - delikatny ostrokątny
-      ctx.fillStyle = '#0a0515';
-      ctx.strokeStyle = 'rgba(255, 160, 90, 0.9)';
-      ctx.lineWidth = 0.8;
-      ctx.beginPath();
-      ctx.moveTo(14, 0);
-      ctx.lineTo(2, -3);
-      ctx.lineTo(-8, -4);
-      ctx.lineTo(-8, 4);
-      ctx.lineTo(2, 3);
-      ctx.closePath();
-      ctx.fill();
-      ctx.stroke();
-      // Skrzydła
-      ctx.fillStyle = 'rgba(255, 140, 70, 0.5)';
-      ctx.beginPath();
-      ctx.moveTo(-5, -4);
-      ctx.lineTo(-2, -9);
-      ctx.lineTo(2, -4);
-      ctx.closePath();
-      ctx.fill();
-      ctx.beginPath();
-      ctx.moveTo(-5, 4);
-      ctx.lineTo(-2, 9);
-      ctx.lineTo(2, 4);
-      ctx.closePath();
-      ctx.fill();
-      // Kokpit
-      ctx.fillStyle = 'rgba(255, 220, 150, 0.9)';
-      ctx.beginPath();
-      ctx.arc(6, 0, 1.5, 0, Math.PI * 2);
-      ctx.fill();
+      inner.className = 'item-emoji';
+      inner.textContent = item.content;
+      inner.style.fontSize = item.size + 'px';
     }
 
-    // Ogon silnika (trail)
-    s.flame = (s.flame + 1) % 6;
-    const flameLen = 8 + s.flame * 0.5;
-    const flameGrad = ctx.createLinearGradient(-10, 0, -10 - flameLen, 0);
-    flameGrad.addColorStop(0, 'rgba(255, 180, 80, 0.8)');
-    flameGrad.addColorStop(0.5, 'rgba(255, 100, 50, 0.4)');
-    flameGrad.addColorStop(1, 'rgba(255, 50, 30, 0)');
-    ctx.fillStyle = flameGrad;
-    ctx.beginPath();
-    ctx.moveTo(-10, -1.5);
-    ctx.lineTo(-10 - flameLen, 0);
-    ctx.lineTo(-10, 1.5);
-    ctx.closePath();
-    ctx.fill();
+    // Ramka — owinięcie inner w wrapper z odpowiednią klasą + style CSS-vars
+    const fs = frameStyleFor(item);
+    if (fs.className) {
+      const wrap = document.createElement('div');
+      wrap.className = 'frame-wrap ' + fs.className;
+      wrap.setAttribute('style', fs.style);
+      wrap.appendChild(inner);
+      el.appendChild(wrap);
+    } else {
+      el.appendChild(inner);
+    }
 
-    ctx.restore();
+    // handles
+    const hRes = document.createElement('div'); hRes.className = 'handle resize'; el.appendChild(hRes);
+    const hRot = document.createElement('div'); hRot.className = 'handle rotate'; el.appendChild(hRot);
+    const hDel = document.createElement('div'); hDel.className = 'handle delete'; hDel.textContent = '×'; el.appendChild(hDel);
+
+    el.style.left = item.x + 'px';
+    el.style.top = item.y + 'px';
+    el.style.transform = `scale(${item.scale}) rotate(${item.rotate}deg)`;
+
+    scene.appendChild(el);
+    attachItemEvents(el, item);
   }
 
-  // === PĘTLA ANIMACJI ===
-  function animate() {
-    const t = Date.now() * 0.001;
+  renderProps();
+  renderPagesBar();
+}
 
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+// ============================================================
+// INTERAKCJE — DRAG / RESIZE / ROTATE / SELECT / DELETE
+// Pointer Events: jeden zestaw obsługuje mysz + dotyk + pen.
+// W pętli ruchu NIE wołamy render() — aktualizujemy tylko pozycję
+// danego elementu, a właściwości synchronizują się przez rAF.
+// ============================================================
 
-    // 1. Najdalszy plan: wielka planeta
-    drawBigPlanet(t);
+// Wspólny stan aktywnej operacji (jednej naraz)
+let activeOp = null;
+// activeOp = {
+//   kind: 'drag' | 'resize' | 'rotate',
+//   el, item, pointerId,
+//   startX, startY,            // współrzędne pointera w sekundzie startowej (px sceny)
+//   startItemX, startItemY,    // pozycja elementu na starcie
+//   startScale, startRotate,
+//   centerX, centerY,          // dla rotate
+//   startAngleDeg,             // dla rotate
+//   pendingX, pendingY,        // ostatnio policzone wartości (do rAF)
+//   rafScheduled: false
+// }
 
-    // 2. Księżyc
-    drawMoon();
+// Konwersja współrzędnych pointera (clientX/Y) do układu sceny.
+// Dzięki temu drag działa nawet jak scena jest skalowana CSS-em.
+function clientToScene(clientX, clientY) {
+  const r = scene.getBoundingClientRect();
+  const sx = r.width  ? scene.offsetWidth  / r.width  : 1;
+  const sy = r.height ? scene.offsetHeight / r.height : 1;
+  return {
+    x: (clientX - r.left) * sx,
+    y: (clientY - r.top)  * sy
+  };
+}
 
-    // 3. Asteroidy (środkowy plan)
-    for (const a of asteroids) {
-      a.x += a.vx;
-      a.y += a.vy;
-      a.rotation += a.rotSpeed;
-      // Zawijanie
-      if (a.x < -50) a.x = canvas.width + 50;
-      if (a.x > canvas.width + 50) a.x = -50;
-      if (a.y < -50) a.y = canvas.height + 50;
-      if (a.y > canvas.height + 50) a.y = -50;
-      drawAsteroid(a);
+function applyTransform(el, item) {
+  el.style.transform = `scale(${item.scale}) rotate(${item.rotate}deg)`;
+}
+
+function flushOp() {
+  if (!activeOp) return;
+  activeOp.rafScheduled = false;
+  const op = activeOp;
+  if (op.kind === 'drag') {
+    op.el.style.left = op.pendingX + 'px';
+    op.el.style.top  = op.pendingY + 'px';
+    op.item.x = op.pendingX;
+    op.item.y = op.pendingY;
+  } else if (op.kind === 'resize') {
+    applyTransform(op.el, op.item);
+  } else if (op.kind === 'rotate') {
+    applyTransform(op.el, op.item);
+  }
+}
+
+function scheduleFlush() {
+  if (!activeOp || activeOp.rafScheduled) return;
+  activeOp.rafScheduled = true;
+  requestAnimationFrame(flushOp);
+}
+
+function endOp() {
+  if (!activeOp) return;
+  const op = activeOp;
+  op.el.classList.remove('dragging');
+  try { op.el.releasePointerCapture(op.pointerId); } catch(e) {}
+  activeOp = null;
+  // jednorazowy refresh wartości w prawym panelu (skala/obrót)
+  if (op.kind !== 'drag') renderProps();
+  // Snapshot do historii po każdym puszczeniu
+  pushHistory();
+}
+
+window.addEventListener('pointermove', (e) => {
+  if (!activeOp) return;
+  if (e.pointerId !== activeOp.pointerId) return;
+  const p = clientToScene(e.clientX, e.clientY);
+
+  if (activeOp.kind === 'drag') {
+    let nx = activeOp.startItemX + (p.x - activeOp.startX);
+    let ny = activeOp.startItemY + (p.y - activeOp.startY);
+    // SNAP do siatki — tylko gdy włączona, tylko przy przeciąganiu, Shift wyłącza chwilowo
+    if (state.gridOn && !e.shiftKey) {
+      const g = state.gridSize;
+      nx = Math.round(nx / g) * g;
+      ny = Math.round(ny / g) * g;
+    }
+    activeOp.pendingX = nx;
+    activeOp.pendingY = ny;
+  } else if (activeOp.kind === 'resize') {
+    const dx = p.x - activeOp.startX;
+    activeOp.item.scale = Math.max(0.2, Math.min(5, activeOp.startScale + dx / 100));
+  } else if (activeOp.kind === 'rotate') {
+    const a = Math.atan2(p.y - activeOp.centerY, p.x - activeOp.centerX) * 180 / Math.PI;
+    activeOp.item.rotate = activeOp.startRotate + (a - activeOp.startAngleDeg);
+  }
+  scheduleFlush();
+});
+
+window.addEventListener('pointerup',     endOp);
+window.addEventListener('pointercancel', endOp);
+
+function attachItemEvents(el, item) {
+  // ===== SELECT + DRAG (pointerdown na całym elemencie) =====
+  el.addEventListener('pointerdown', (e) => {
+    if (state.drawMode) return;
+    if (e.target.classList.contains('handle')) return;          // resize/rotate/delete obsługiwane osobno
+    if (el.firstChild && el.firstChild.isContentEditable) return; // edytowanie tekstu — nie ruszaj
+
+    // === TRYB PRZEJŚĆ: klik w obiekt = wybierz cel ===
+    if (state.transitionsMode) {
+      e.stopPropagation();
+      state.transitionsPickItem = item.id;
+      state.selectedId = item.id;
+      toast('Teraz kliknij numer poziomu (na pasku poziomów), do którego ma prowadzić ten obiekt');
+      render();
+      // Podświetl pasek poziomów (visual cue)
+      document.querySelectorAll('#pages-list .page-btn').forEach(b => b.classList.add('goto-target'));
+      return;
     }
 
-    // 4. Statki (najbliższy plan)
-    for (let i = ships.length - 1; i >= 0; i--) {
-      const s = ships[i];
-      s.x += s.vx;
-      drawShip(s);
-      // Usuń jeśli wyleciał za ekran
-      if ((s.fromLeft && s.x > canvas.width + 100) ||
-          (!s.fromLeft && s.x < -100)) {
-        ships.splice(i, 1);
+    // === TRYB MEDIA: klik w obiekt = poproś o URL ===
+    if (state.mediaMode && state.mediaPickItem === 'waiting') {
+      e.stopPropagation();
+      state.mediaPickItem = null;
+      state.selectedId = item.id;
+      render();
+      promptUrlForItem(item.id);
+      return;
+    }
+
+    e.stopPropagation();
+
+    // zaznacz (jeśli jeszcze niezaznaczony) — bez full render(), żeby nie pominąć dragu
+    if (state.selectedId !== item.id) {
+      const prev = scene.querySelector('.scene-item.selected');
+      if (prev) prev.classList.remove('selected');
+      state.selectedId = item.id;
+      el.classList.add('selected');
+      renderProps();
+    }
+
+    // double-click na tekst lub przycisk z tekstem = edycja
+    const inner = el.firstChild;
+    if (e.detail === 2 && item.type === 'text') {
+      startTextEdit(el, item, inner);
+      return;
+    }
+    if (e.detail === 2 && item.type === 'button') {
+      const def = BUTTON_STYLES.find(s => s.id === item.buttonStyle);
+      if (def && def.hasInternalText) {
+        // Edytujemy span.item-button-label wewnątrz inner
+        const label = inner.querySelector('.item-button-label');
+        if (label) {
+          startTextEdit(el, item, label);
+          return;
+        }
+      } else {
+        toast('Ten styl przycisku nie ma tekstu wewnątrz (sam kształt — strzałka lub ▶)');
+        return;
       }
     }
 
-    requestAnimationFrame(animate);
-  }
-  animate();
-})();
-</script>
+    // start drag
+    el.setPointerCapture(e.pointerId);
+    el.classList.add('dragging');
+    const p = clientToScene(e.clientX, e.clientY);
+    activeOp = {
+      kind: 'drag',
+      el, item,
+      pointerId: e.pointerId,
+      startX: p.x, startY: p.y,
+      startItemX: item.x, startItemY: item.y,
+      pendingX: item.x, pendingY: item.y,
+      rafScheduled: false
+    };
+  });
 
+  // ===== RESIZE =====
+  el.querySelector('.handle.resize').addEventListener('pointerdown', (e) => {
+    e.stopPropagation();
+    el.setPointerCapture(e.pointerId);
+    el.classList.add('dragging');
+    const p = clientToScene(e.clientX, e.clientY);
+    activeOp = {
+      kind: 'resize',
+      el, item,
+      pointerId: e.pointerId,
+      startX: p.x, startY: p.y,
+      startScale: item.scale,
+      rafScheduled: false
+    };
+  });
+
+  // ===== ROTATE =====
+  el.querySelector('.handle.rotate').addEventListener('pointerdown', (e) => {
+    e.stopPropagation();
+    el.setPointerCapture(e.pointerId);
+    el.classList.add('dragging');
+    const rect = el.getBoundingClientRect();
+    const centerClient = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+    const c = clientToScene(centerClient.x, centerClient.y);
+    const p = clientToScene(e.clientX, e.clientY);
+    activeOp = {
+      kind: 'rotate',
+      el, item,
+      pointerId: e.pointerId,
+      centerX: c.x, centerY: c.y,
+      startAngleDeg: Math.atan2(p.y - c.y, p.x - c.x) * 180 / Math.PI,
+      startRotate: item.rotate,
+      rafScheduled: false
+    };
+  });
+
+  // ===== DELETE =====
+  el.querySelector('.handle.delete').addEventListener('click', (e) => {
+    e.stopPropagation();
+    currentPage().items = currentItems().filter(i => i.id !== item.id);
+    state.selectedId = null;
+    render();
+    pushHistory();
+  });
+}
+
+// Tryb edycji tekstu — wydzielony, żeby drag handler był czysty
+function startTextEdit(el, item, inner) {
+  const before = item.content;
+  inner.setAttribute('contenteditable', 'true');
+  inner.style.cursor = 'text';
+  inner.focus();
+  const sel = window.getSelection();
+  const range = document.createRange();
+  range.selectNodeContents(inner);
+  sel.removeAllRanges();
+  sel.addRange(range);
+  const onBlur = () => {
+    item.content = (inner.textContent || 'Tekst').trim() || 'Tekst';
+    inner.removeAttribute('contenteditable');
+    inner.style.cursor = '';
+    inner.removeEventListener('blur', onBlur);
+    render();
+    if (item.content !== before) pushHistory();
+  };
+  inner.addEventListener('blur', onBlur);
+}
+
+// klik w tle — odznacz / anuluj wybór celu w trybie przejść/media
+scene.addEventListener('pointerdown', (e) => {
+  if (e.target === scene || e.target === bgCanvas) {
+    if (state.transitionsMode) {
+      if (state.transitionsPickItem !== null) {
+        state.transitionsPickItem = null;
+        toast('Anulowano — kliknij obiekt jeszcze raz, żeby spróbować ponownie');
+        render();
+      }
+      return;
+    }
+    if (state.mediaMode) {
+      if (state.mediaPickItem === 'waiting') {
+        state.mediaPickItem = null;
+        toast('Anulowano wybór obiektu');
+      }
+      return;
+    }
+    if (!state.drawMode) {
+      state.selectedId = null;
+      render();
+    }
+  }
+});
+
+// ============================================================
+// PANEL WŁAŚCIWOŚCI (prawy)
+// ============================================================
+function renderProps() {
+  const c = document.getElementById('props-content');
+
+  // Tryb układu — pokaż panel z formatami strony
+  if (state.layoutMode) {
+    if (c.dataset.panel !== 'layout') {
+      renderLayoutPanel();
+      c.dataset.panel = 'layout';
+    }
+    return;
+  }
+  // Tryb media — pokaż panel mediów zamiast zwykłych właściwości.
+  // Panel Media buduje DOM raz; przy kolejnych render() tylko synchronizujemy stan
+  // kontrolek (np. ramki) — żeby nie tracić focusu na inputach i bindów.
+  if (state.mediaMode) {
+    if (c.dataset.panel !== 'media') {
+      renderMediaPanel();
+      c.dataset.panel = 'media';
+    } else {
+      // DOM już zbudowany, tylko zsynchronizuj kontrolki ramki
+      bindFrameControls();
+    }
+    return;
+  }
+  // Tryb przejść — pokaż panel z galerią przycisków + instrukcją
+  if (state.transitionsMode) {
+    if (c.dataset.panel !== 'transitions') {
+      renderTransitionsPanel();
+      c.dataset.panel = 'transitions';
+    }
+    return;
+  }
+  // Wyjście z trybów specjalnych — wymuś przebudowę przy następnym wejściu
+  c.dataset.panel = '';
+
+  const item = currentItems().find(i => i.id === state.selectedId);
+
+  if (!item) {
+    c.innerHTML = `<div class="empty-state">← Dodaj element z lewego panelu<br>albo zaznacz coś na scenie,<br>żeby edytować właściwości.</div>`;
+    return;
+  }
+
+  const animBtns = ANIMATIONS.map(a => `
+    <button class="anim-btn ${item.animation === a.id ? 'active' : ''}" data-anim="${a.id}">${a.name}</button>
+  `).join('');
+
+  let html = `
+    <div class="prop-group">
+      <div class="prop-label">Typ: ${item.type === 'text' ? 'Tekst' : 'Emotka'}</div>
+    </div>
+
+    <div class="prop-group">
+      <div class="prop-label">Treść ${item.type === 'text' ? '(podwójny klik na scenie też edytuje)' : ''}</div>
+      <input type="text" id="prop-content" value="${item.content.replace(/"/g, '&quot;')}" />
+    </div>
+  `;
+
+  if (item.type === 'text') {
+    html += `
+      <div class="prop-group">
+        <div class="prop-label">Czcionka</div>
+        <select id="prop-font">${FONTS.map(f => `<option ${item.font===f?'selected':''}>${f}</option>`).join('')}</select>
+      </div>
+      <div class="prop-group">
+        <div class="prop-label">Kolor tekstu</div>
+        <input type="color" id="prop-color" value="${item.color}" />
+      </div>
+      <div class="prop-group">
+        <div class="prop-label">Pogrubienie</div>
+        <button class="anim-btn ${item.bold?'active':''}" id="prop-bold" style="width:100%">B</button>
+      </div>
+    `;
+  }
+
+  html += `
+    <div class="prop-group">
+      <div class="prop-label">Rozmiar: <span id="prop-size-val">${item.size}</span> px</div>
+      <input type="range" id="prop-size" min="10" max="200" value="${item.size}" />
+    </div>
+
+    <div class="prop-group">
+      <div class="prop-label">Skala: <span id="prop-scale-val">${item.scale.toFixed(2)}</span></div>
+      <input type="range" id="prop-scale" min="0.2" max="5" step="0.05" value="${item.scale}" />
+    </div>
+
+    <div class="prop-group">
+      <div class="prop-label">Obrót: <span id="prop-rotate-val">${Math.round(item.rotate)}</span>°</div>
+      <input type="range" id="prop-rotate" min="-180" max="180" value="${item.rotate}" />
+    </div>
+
+    <div class="prop-group">
+      <div class="prop-label">Animacja</div>
+      <div class="anim-grid">${animBtns}</div>
+    </div>
+
+    <div class="prop-group" style="border-top:1px solid #2a2a35;padding-top:10px;margin-top:14px;">
+      <div class="prop-label">🔑 Akcja przejścia (między poziomami)</div>
+      ${item.gotoPage
+        ? `<div style="background:#1a3548;border:1px solid #4dd4ff;border-radius:6px;padding:8px;margin-bottom:6px;font-size:12px;color:#bce8ff;">
+             Klik prowadzi do <strong>poziomu ${item.gotoPage}</strong>
+           </div>
+           <button class="anim-btn" id="prop-clear-goto" style="width:100%;background:#3a2025;border-color:#6a3035;color:#ff8090;">Usuń przejście</button>`
+        : `<div style="font-size:11px;color:#666;line-height:1.5;">
+             Włącz tryb <strong style="color:#4dd4ff;">🔗 Przejścia</strong> w górnym pasku, kliknij ten obiekt, potem wybierz numer poziomu.
+           </div>`
+      }
+    </div>
+
+    <div class="prop-group" style="border-top:1px solid #2a2a35;padding-top:10px;margin-top:10px;">
+      <div class="prop-label">🔗 Link zewnętrzny</div>
+      ${item.link
+        ? `<div style="background:#2a1f48;border:1px solid #a78bfa;border-radius:6px;padding:8px;margin-bottom:6px;font-size:11px;color:#d8c8ff;word-break:break-all;">
+             <div style="font-weight:600;margin-bottom:2px;">Klik otwiera:</div>
+             <div>${item.link.replace(/&/g,'&amp;').replace(/</g,'&lt;')}</div>
+             <div style="margin-top:4px;font-size:10px;color:#a89bcc;">
+               Tryb: ${item.linkMode === 'iframe' ? '📺 okno na scenie' : '🪟 nowa karta'}
+             </div>
+           </div>
+           <div style="display:flex;gap:4px;">
+             <button class="anim-btn" id="prop-edit-link" style="flex:1;">Edytuj</button>
+             <button class="anim-btn" id="prop-clear-link" style="flex:1;background:#3a2025;border-color:#6a3035;color:#ff8090;">Usuń</button>
+           </div>`
+        : `<div style="font-size:11px;color:#666;line-height:1.5;">
+             Włącz tryb <strong style="color:#c084fc;">📺 Media</strong> w górnym pasku, użyj sekcji "Dołącz link do obiektu".
+           </div>`
+      }
+    </div>
+  `;
+
+  c.innerHTML = html;
+
+  // bindowanie
+  // Dla suwaków: oninput aktualizuje na żywo, onchange (po puszczeniu) zapisuje do historii.
+  // Dla pól tekstowych/color pickerów: pushHistory na blur/change.
+  const propContent = document.getElementById('prop-content');
+  propContent.oninput = e => { item.content = e.target.value; render(); };
+  propContent.onchange = () => pushHistory();
+
+  document.getElementById('prop-size').oninput = e => {
+    item.size = +e.target.value;
+    document.getElementById('prop-size-val').textContent = item.size;
+    render();
+  };
+  document.getElementById('prop-size').onchange = () => pushHistory();
+
+  document.getElementById('prop-scale').oninput = e => {
+    item.scale = +e.target.value;
+    document.getElementById('prop-scale-val').textContent = item.scale.toFixed(2);
+    const el = document.querySelector(`.scene-item[data-id="${item.id}"]`);
+    if (el) el.style.transform = `scale(${item.scale}) rotate(${item.rotate}deg)`;
+  };
+  document.getElementById('prop-scale').onchange = () => pushHistory();
+
+  document.getElementById('prop-rotate').oninput = e => {
+    item.rotate = +e.target.value;
+    document.getElementById('prop-rotate-val').textContent = Math.round(item.rotate);
+    const el = document.querySelector(`.scene-item[data-id="${item.id}"]`);
+    if (el) el.style.transform = `scale(${item.scale}) rotate(${item.rotate}deg)`;
+  };
+  document.getElementById('prop-rotate').onchange = () => pushHistory();
+
+  if (item.type === 'text') {
+    document.getElementById('prop-font').onchange = e => { item.font = e.target.value; render(); pushHistory(); };
+    const propColor = document.getElementById('prop-color');
+    propColor.oninput = e => { item.color = e.target.value; render(); };
+    propColor.onchange = () => pushHistory();
+    document.getElementById('prop-bold').onclick = () => { item.bold = !item.bold; render(); pushHistory(); };
+  }
+
+  document.querySelectorAll('[data-anim]').forEach(b => {
+    b.onclick = () => { item.animation = b.dataset.anim; render(); pushHistory(); };
+  });
+
+  const clearGoto = document.getElementById('prop-clear-goto');
+  if (clearGoto) clearGoto.onclick = () => { item.gotoPage = null; render(); pushHistory(); toast('Przejście usunięte'); };
+
+  const clearLink = document.getElementById('prop-clear-link');
+  if (clearLink) clearLink.onclick = () => {
+    item.link = null;
+    item.linkMode = 'newtab';
+    render();
+    pushHistory();
+    toast('Link usunięty');
+  };
+
+  const editLink = document.getElementById('prop-edit-link');
+  if (editLink) editLink.onclick = () => promptUrlForItem(item.id);
+}
+
+// ============================================================
+// PASEK POZIOMÓW
+// ============================================================
+function renderPagesBar() {
+  const list = document.getElementById('pages-list');
+  list.innerHTML = '';
+  state.pages.forEach((p, idx) => {
+    const b = document.createElement('button');
+    b.className = 'page-btn' + (idx === state.currentPageIndex ? ' active' : '');
+    b.textContent = String(idx + 1);
+    b.onclick = () => {
+      // Tryb wyboru celu przejścia: klik w numer = przypisz cel
+      if (state.transitionsMode && state.transitionsPickItem !== null) {
+        const item = currentItems().find(i => i.id === state.transitionsPickItem);
+        if (item) {
+          item.gotoPage = idx + 1;
+          toast(`✓ "${(item.content || '').slice(0,20)}" → poziom ${idx + 1}`);
+        }
+        state.transitionsPickItem = null;
+        render();
+        pushHistory();
+        return;
+      }
+      switchToPage(idx);
+    };
+    list.appendChild(b);
+  });
+}
+
+function snapshotCurrentDrawing() {
+  // Zapisz aktualny rysunek z canvasa do bieżącej strony
+  try {
+    if (bgCanvas.width > 0 && bgCanvas.height > 0) {
+      currentPage().drawingDataUrl = bgCanvas.toDataURL('image/png');
+    }
+  } catch(e) {}
+}
+
+function loadDrawingForCurrent() {
+  // Wczytaj rysunek bieżącej strony do canvasa (lub wyczyść)
+  resizeCanvas();
+  bgCtx.clearRect(0, 0, bgCanvas.width, bgCanvas.height);
+  const url = currentPage().drawingDataUrl;
+  if (url) {
+    const img = new Image();
+    img.onload = () => bgCtx.drawImage(img, 0, 0, bgCanvas.width, bgCanvas.height);
+    img.src = url;
+  }
+}
+
+function switchToPage(idx) {
+  if (idx < 0 || idx >= state.pages.length) return;
+  if (idx === state.currentPageIndex) return;
+  snapshotCurrentDrawing();
+  state.currentPageIndex = idx;
+  state.selectedId = null;
+  loadDrawingForCurrent();
+  render();
+}
+
+function addPage() {
+  snapshotCurrentDrawing();
+  state.pages.push(makeEmptyPage());
+  state.currentPageIndex = state.pages.length - 1;
+  state.selectedId = null;
+  loadDrawingForCurrent();
+  render();
+  pushHistory();
+  toast(`+ Dodano poziom ${state.pages.length}`);
+}
+
+async function deletePage() {
+  if (state.pages.length <= 1) {
+    toast('Musi pozostać co najmniej jeden poziom');
+    return;
+  }
+  const ok = await confirmModal('Usuń poziom',
+    `Usunąć poziom ${state.currentPageIndex + 1}? Wszystkie obiekty i rysunek z tego poziomu znikną. (Możesz cofnąć: Ctrl+Z)`);
+  if (!ok) return;
+
+  const removedIdx = state.currentPageIndex;
+  state.pages.splice(removedIdx, 1);
+  // Po usunięciu — przesuń się na sąsiedni poziom
+  state.currentPageIndex = Math.min(removedIdx, state.pages.length - 1);
+  state.selectedId = null;
+
+  // Zaktualizuj wszystkie gotoPage we wszystkich pozostałych stronach:
+  // - jeśli wskazywały na usunięty poziom → wyczyść
+  // - jeśli wskazywały na wyższy → przesuń o 1 w dół (bo numeracja się skurczyła)
+  for (const page of state.pages) {
+    for (const item of page.items) {
+      if (item.gotoPage == null) continue;
+      const target = item.gotoPage; // 1-based
+      if (target === removedIdx + 1) {
+        item.gotoPage = null;
+      } else if (target > removedIdx + 1) {
+        item.gotoPage = target - 1;
+      }
+    }
+  }
+
+  loadDrawingForCurrent();
+  render();
+  pushHistory();
+  toast(`Usunięto poziom`);
+}
+
+document.getElementById('page-add').onclick = addPage;
+document.getElementById('page-del').onclick = deletePage;
+
+// ============================================================
+// TRYB PRZEJŚĆ
+// ============================================================
+const btnTransitions = document.getElementById('btn-transitions');
+btnTransitions.onclick = () => {
+  state.transitionsMode = !state.transitionsMode;
+  state.transitionsPickItem = null;
+  document.body.classList.toggle('transitions-mode', state.transitionsMode);
+  btnTransitions.classList.toggle('active', state.transitionsMode);
+  btnTransitions.textContent = state.transitionsMode ? '✕ Wyjdź z przejść' : '🔗 Przejścia';
+
+  if (state.transitionsMode) {
+    // Wyłącz inne tryby kolidujące
+    setDrawMode(null);
+    if (state.mediaMode) toggleMediaMode(false);
+    if (state.layoutMode) toggleLayoutMode(false);
+    state.selectedId = null;
+    toast('🔗 Tryb przejść — klik w obiekt, potem klik w numer poziomu');
+  }
+  render();
+};
+
+// ============================================================
+// UKŁAD STRONY — wybór formatu sceny (proporcje canvasa)
+// state.canvasFormat to ID formatu (np. 'slide43', 'story')
+// applyCanvasFormat() ustawia CSS variables + odświeża canvas + render
+// ============================================================
+const btnLayout = document.getElementById('btn-layout');
+
+function applyCanvasFormat() {
+  const fmt = getCurrentFormat();
+  // CSS variables na <html> — używane przez #scene i #scene-frame
+  const root = document.documentElement;
+  root.style.setProperty('--canvas-w', fmt.width + 'px');
+  root.style.setProperty('--canvas-h', fmt.height + 'px');
+  root.style.setProperty('--canvas-ar', fmt.width + ' / ' + fmt.height);
+  // Po zmianie wymiarów canvasa trzeba przeskalować rysunek pędzlem.
+  // resizeCanvas() liczy --scene-scale na podstawie clientWidth/Height wrapper'a,
+  // ale zaraz po setProperty() wymiary mogą jeszcze nie być zaktualizowane —
+  // dlatego wywołujemy raz teraz, raz po następnej klatce (rAF) i raz po krótkim opóźnieniu.
+  resizeCanvas();
+  requestAnimationFrame(resizeCanvas);
+  setTimeout(resizeCanvas, 50);
+}
+
+function toggleLayoutMode(force) {
+  const next = (force === undefined) ? !state.layoutMode : force;
+  state.layoutMode = next;
+  document.body.classList.toggle('layout-mode', next);
+  btnLayout.classList.toggle('active', next);
+  btnLayout.textContent = next ? '✕ Wyjdź z układu' : '📐 Układ';
+  if (next) {
+    // Wyłącz inne tryby kolidujące
+    setDrawMode(null);
+    if (state.transitionsMode) {
+      state.transitionsMode = false;
+      state.transitionsPickItem = null;
+      document.body.classList.remove('transitions-mode');
+      btnTransitions.classList.remove('active');
+      btnTransitions.textContent = '🔗 Przejścia';
+    }
+    if (state.mediaMode) toggleMediaMode(false);
+    state.selectedId = null;
+  }
+  renderProps();
+  render();
+}
+
+btnLayout.onclick = () => toggleLayoutMode();
+
+// Renderuje panel po prawej, gdy włączony jest tryb Układ.
+function renderLayoutPanel() {
+  const c = document.getElementById('props-content');
+  const cur = state.canvasFormat;
+
+  // Mini-podgląd proporcji — 64px max, drugi wymiar liczy się proporcjonalnie
+  const previewBox = (fmt) => {
+    const MAX = 64;
+    const ratio = fmt.width / fmt.height;
+    let w, h;
+    if (ratio >= 1) { w = MAX; h = Math.round(MAX / ratio); }
+    else            { h = MAX; w = Math.round(MAX * ratio); }
+    return `<div class="format-preview" style="width:${w}px;height:${h}px;"></div>`;
+  };
+
+  const cards = CANVAS_FORMATS.map(fmt => `
+    <div class="format-card ${fmt.id === cur ? 'active' : ''}" data-fmt="${fmt.id}" title="${fmt.desc}">
+      ${previewBox(fmt)}
+      <div class="format-name">${fmt.name}</div>
+      <div class="format-dims">${fmt.width} × ${fmt.height}</div>
+    </div>
+  `).join('');
+
+  c.innerHTML = `
+    <div class="layout-card">
+      <h4>📐 Format strony</h4>
+      <p>Wybierz proporcje sceny. Dotyczy <strong>wszystkich poziomów</strong> w projekcie. Obiekty zostaną zachowane (jeśli wyjdą poza nowe granice, możesz je przeciągnąć z powrotem).</p>
+      <div class="format-grid">${cards}</div>
+    </div>
+
+    <div class="layout-card">
+      <h4>💡 Wskazówki</h4>
+      <p style="font-size:11px;line-height:1.7;">
+        <strong>Slajd 4:3</strong> — klasyczny prezentacyjny<br>
+        <strong>Slajd 16:9</strong> — szeroki, jak YouTube<br>
+        <strong>HD pion</strong> — Stories, TikTok, Reels<br>
+        <strong>Plakat kwadrat</strong> — Instagram post
+      </p>
+    </div>
+  `;
+
+  c.querySelectorAll('[data-fmt]').forEach(el => {
+    el.onclick = async () => {
+      const fmtId = el.dataset.fmt;
+      if (fmtId === state.canvasFormat) return;
+
+      // Czy są obiekty? Ostrzeż jeśli mogą wyjść poza nowe granice
+      const hasItems = state.pages.some(p => p.items.length > 0);
+      const newFmt = CANVAS_FORMATS.find(f => f.id === fmtId);
+      const oldFmt = getCurrentFormat();
+      const willCrop = hasItems && (newFmt.width < oldFmt.width || newFmt.height < oldFmt.height);
+
+      if (willCrop) {
+        const ok = await confirmModal('Zmienić format?',
+          `Nowy format jest mniejszy. Część obiektów może wyjść poza scenę — będzie trzeba je przeciągnąć z powrotem. Kontynuować? (Możesz cofnąć Ctrl+Z)`);
+        if (!ok) return;
+      }
+
+      state.canvasFormat = fmtId;
+      applyCanvasFormat();
+      render();
+      pushHistory();
+      toast(`📐 Format: ${newFmt.name}`);
+      renderLayoutPanel();   // odśwież podświetlenie aktywnego
+    };
+  });
+}
+
+// ============================================================
+// TRYB MEDIA (linki, miniaturki YT, dołączanie linków do obiektów)
+// ============================================================
+const btnMedia = document.getElementById('btn-media');
+
+function toggleMediaMode(force) {
+  const next = (force === undefined) ? !state.mediaMode : force;
+  state.mediaMode = next;
+  state.mediaPickItem = null;
+  document.body.classList.toggle('media-mode', next);
+  btnMedia.classList.toggle('active', next);
+  btnMedia.textContent = next ? '✕ Wyjdź z mediów' : '📺 Media';
+  if (next) {
+    setDrawMode(null);
+    if (state.transitionsMode) {
+      // wyłącz transitions
+      state.transitionsMode = false;
+      state.transitionsPickItem = null;
+      document.body.classList.remove('transitions-mode');
+      btnTransitions.classList.remove('active');
+      btnTransitions.textContent = '🔗 Przejścia';
+    }
+    if (state.layoutMode) toggleLayoutMode(false);
+    state.selectedId = null;
+  }
+  renderProps();   // odśwież prawy panel — pokaże panel mediów albo właściwości
+  render();
+}
+
+btnMedia.onclick = () => toggleMediaMode();
+
+// Helper: kolor hex (#rrggbb) + alpha (0-100) → "rgba(r,g,b,a)"
+function hexAlphaToRgba(hex, alphaPct) {
+  const m = /^#?([a-f0-9]{6})$/i.exec((hex || '').trim());
+  if (!m) return hex;
+  const n = parseInt(m[1], 16);
+  const r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
+  return `rgba(${r},${g},${b},${(alphaPct/100).toFixed(2)})`;
+}
+
+// Buduje style CSS-vars dla ramki — używane i w edytorze, i przy eksporcie.
+// Zwraca { className, style }
+function frameStyleFor(item) {
+  const f = item.frame || { theme: 'none' };
+  if (!f.theme || f.theme === 'none') return { className: '', style: '' };
+  const themeClass = 'frame-' + f.theme;            // border|filled|neon|ornate
+  const fc = f.color || '#ffffff';
+  const fbg = hexAlphaToRgba(f.bg || '#000000', (f.bgAlpha == null ? 80 : f.bgAlpha));
+  const style = `--fc:${fc};--fbg:${fbg};--fw:${f.width||3}px;--fp:${f.padding||12}px;--fr:${f.radius||10}px;`;
+  return { className: themeClass, style };
+}
+
+// Binduje sekcję "Ramka" w panelu Media do zaznaczonego itema.
+// Wywoływana po renderMediaPanel() — DOM już istnieje.
+function bindFrameControls() {
+  const card = document.getElementById('frame-card');
+  if (!card) return;
+  const hint = document.getElementById('frame-hint');
+  const ctrls = document.getElementById('frame-controls');
+  const details = document.getElementById('frame-details');
+  const colorIn = document.getElementById('frame-color');
+  const bgWrap = document.getElementById('frame-bg-wrap');
+  const bgIn = document.getElementById('frame-bg');
+  const bgAlphaIn = document.getElementById('frame-bg-alpha');
+  const bgAlphaVal = document.getElementById('frame-bg-alpha-val');
+  const widthIn = document.getElementById('frame-width');
+  const widthVal = document.getElementById('frame-width-val');
+  const padIn = document.getElementById('frame-pad');
+  const padVal = document.getElementById('frame-pad-val');
+  const radiusIn = document.getElementById('frame-radius');
+  const radiusVal = document.getElementById('frame-radius-val');
+  const themeBtns = card.querySelectorAll('[data-frame]');
+
+  function syncUIFromItem() {
+    const item = currentItems().find(i => i.id === state.selectedId);
+    if (!item) {
+      // Brak zaznaczonego — ukryj kontrolki, pokaż podpowiedź
+      hint.style.display = 'block';
+      ctrls.style.display = 'none';
+      return;
+    }
+    hint.style.display = 'none';
+    ctrls.style.display = 'block';
+
+    const f = item.frame || { theme: 'none' };
+    themeBtns.forEach(b => b.classList.toggle('active', b.dataset.frame === (f.theme || 'none')));
+
+    if (!f.theme || f.theme === 'none') {
+      details.style.display = 'none';
+    } else {
+      details.style.display = 'block';
+      colorIn.value = f.color || '#ffffff';
+      bgIn.value = f.bg || '#000000';
+      bgAlphaIn.value = (f.bgAlpha == null ? 80 : f.bgAlpha);
+      bgAlphaVal.textContent = bgAlphaIn.value;
+      widthIn.value = f.width || 3;
+      widthVal.textContent = widthIn.value;
+      padIn.value = (f.padding == null ? 12 : f.padding);
+      padVal.textContent = padIn.value;
+      radiusIn.value = (f.radius == null ? 10 : f.radius);
+      radiusVal.textContent = radiusIn.value;
+      // Tło — niewidoczne dla "border" (sama ramka)
+      bgWrap.style.display = (f.theme === 'border') ? 'none' : 'block';
+    }
+  }
+
+  function patch(field, val) {
+    const item = currentItems().find(i => i.id === state.selectedId);
+    if (!item) { toast('Najpierw zaznacz obiekt na scenie'); return; }
+    if (!item.frame) item.frame = { theme: 'none', color: '#ffffff', bg: '#000000', bgAlpha: 80, width: 3, padding: 12, radius: 10 };
+    item.frame[field] = val;
+    render();
+    // Po render() panel media renderuje się od nowa, ale zachowujemy wybrany item
+    // dlatego musimy znów zsynchronizować UI:
+    syncUIFromItem();
+  }
+
+  themeBtns.forEach(b => {
+    b.onclick = () => { patch('theme', b.dataset.frame); pushHistory(); };
+  });
+  // Color picker i suwaki: oninput dla podglądu, change dla snapshotu (po puszczeniu)
+  colorIn.oninput = e => patch('color', e.target.value);
+  colorIn.onchange = () => pushHistory();
+  bgIn.oninput = e => patch('bg', e.target.value);
+  bgIn.onchange = () => pushHistory();
+  bgAlphaIn.oninput = e => { bgAlphaVal.textContent = e.target.value; patch('bgAlpha', +e.target.value); };
+  bgAlphaIn.onchange = () => pushHistory();
+  widthIn.oninput = e => { widthVal.textContent = e.target.value; patch('width', +e.target.value); };
+  widthIn.onchange = () => pushHistory();
+  padIn.oninput = e => { padVal.textContent = e.target.value; patch('padding', +e.target.value); };
+  padIn.onchange = () => pushHistory();
+  radiusIn.oninput = e => { radiusVal.textContent = e.target.value; patch('radius', +e.target.value); };
+  radiusIn.onchange = () => pushHistory();
+
+  syncUIFromItem();
+}
+
+// Wyciąga ID filmu z różnych formatów URL YouTube.
+// Obsługa: youtube.com/watch?v=ID, youtu.be/ID, youtube.com/shorts/ID, youtube.com/embed/ID
+function parseYoutubeId(url) {
+  if (!url) return null;
+  url = String(url).trim();
+  // Czysty ID (11 znaków alfanum + - _)
+  if (/^[a-zA-Z0-9_-]{11}$/.test(url)) return url;
+  try {
+    const u = new URL(url.startsWith('http') ? url : ('https://' + url));
+    const host = u.hostname.replace(/^www\./, '');
+    if (host === 'youtu.be') {
+      const id = u.pathname.slice(1).split('/')[0];
+      return /^[a-zA-Z0-9_-]{11}$/.test(id) ? id : null;
+    }
+    if (host.endsWith('youtube.com') || host.endsWith('youtube-nocookie.com')) {
+      // /watch?v=ID
+      const v = u.searchParams.get('v');
+      if (v && /^[a-zA-Z0-9_-]{11}$/.test(v)) return v;
+      // /shorts/ID lub /embed/ID lub /live/ID
+      const m = u.pathname.match(/\/(?:shorts|embed|live)\/([a-zA-Z0-9_-]{11})/);
+      if (m) return m[1];
+    }
+  } catch(e) {}
+  return null;
+}
+
+// Renderuje panel po prawej, gdy włączony jest tryb przejść.
+// Pokazuje galerię 6 stylów przycisków + instrukcję.
+function renderTransitionsPanel() {
+  const c = document.getElementById('props-content');
+  // Mini-podgląd przycisku w galerii — pokazuje style w pomniejszeniu
+  const galleryItems = BUTTON_STYLES.map(s => {
+    const showText = s.hasInternalText;
+    const labelHTML = showText
+      ? `<span class="item-button-label">${s.defaultText}</span>`
+      : '';
+    return `
+      <div class="button-gallery-item" data-bstyle="${s.id}" title="Dodaj przycisk: ${s.id}">
+        <div class="item-button btn-style-${s.id}">${labelHTML}</div>
+      </div>
+    `;
+  }).join('');
+
+  c.innerHTML = `
+    <div class="transitions-card">
+      <h4>🔗 Jak ustawić przejście</h4>
+      <p style="line-height:1.6;">
+        1️⃣ Kliknij <strong>obiekt</strong> na scenie (tekst, emotka, przycisk poniżej)<br>
+        2️⃣ Kliknij <strong>numer poziomu</strong> na pasku poziomów<br>
+        ✨ Gotowe — w wyeksportowanej stronie klik = przejdzie do tego poziomu.
+      </p>
+    </div>
+
+    <div class="transitions-card">
+      <h4>➕ Dodaj gotowy przycisk</h4>
+      <p>Klik = wstawia przycisk na scenę. Tekst zmienisz <strong>podwójnym klikiem</strong> na przycisku.</p>
+      <div class="button-gallery">${galleryItems}</div>
+    </div>
+  `;
+
+  // Bindowanie galerii — kliknięcie miniaturki = wstaw przycisk na scenę.
+  // Nie włączamy automatycznie trybu "wybierz cel" — niech użytkownik najpierw
+  // ustawi pozycję, potem standardowo: klik w przycisk → klik w numer poziomu.
+  c.querySelectorAll('[data-bstyle]').forEach(el => {
+    el.onclick = () => {
+      const styleId = el.dataset.bstyle;
+      addItem('button', { buttonStyle: styleId });
+      toast('✓ Wstawiono przycisk — kliknij go, potem numer poziomu, żeby ustawić przejście');
+    };
+  });
+}
+
+// Renderuje panel po prawej, gdy włączony jest tryb media.
+function renderMediaPanel() {
+  const c = document.getElementById('props-content');
+  c.innerHTML = `
+    <div class="media-card">
+      <h4>🔗 Dołącz link do obiektu</h4>
+      <p>Zaznacz tekst lub emotkę na scenie, a potem kliknij przycisk poniżej i wpisz adres.</p>
+      <button class="btn-go" id="media-attach-link">Wybierz obiekt + dodaj link</button>
+    </div>
+
+    <div class="media-card" id="frame-card">
+      <h4>🖼 Ramka dla obiektu</h4>
+      <p id="frame-hint" style="display:none;">Najpierw zaznacz obiekt na scenie, a potem wybierz styl ramki.</p>
+      <div id="frame-controls">
+        <div class="prop-label" style="margin-bottom:6px;">Styl</div>
+        <div class="frame-grid">
+          <button class="frame-btn" data-frame="none">⊘ Brak</button>
+          <button class="frame-btn" data-frame="border">▭ Ramka</button>
+          <button class="frame-btn" data-frame="filled">▣ Ramka z tłem</button>
+          <button class="frame-btn" data-frame="neon">✨ Neon</button>
+          <button class="frame-btn" data-frame="ornate">❖ Ozdobna</button>
+        </div>
+
+        <div id="frame-details" style="margin-top:10px;display:none;">
+          <div class="prop-label">Kolor ramki</div>
+          <input type="color" id="frame-color" value="#ffffff" />
+
+          <div id="frame-bg-wrap" style="margin-top:8px;">
+            <div class="prop-label">Kolor tła</div>
+            <input type="color" id="frame-bg" value="#000000" />
+            <div class="prop-label" style="margin-top:6px;">Przezroczystość tła: <span id="frame-bg-alpha-val">80</span>%</div>
+            <input type="range" id="frame-bg-alpha" min="0" max="100" value="80" />
+          </div>
+
+          <div class="prop-label" style="margin-top:8px;">Grubość: <span id="frame-width-val">3</span> px</div>
+          <input type="range" id="frame-width" min="1" max="12" value="3" />
+
+          <div class="prop-label" style="margin-top:8px;">Padding: <span id="frame-pad-val">12</span> px</div>
+          <input type="range" id="frame-pad" min="0" max="40" value="12" />
+
+          <div class="prop-label" style="margin-top:8px;">Zaokrąglenie: <span id="frame-radius-val">10</span> px</div>
+          <input type="range" id="frame-radius" min="0" max="40" value="10" />
+        </div>
+      </div>
+    </div>
+
+    <div class="media-card">
+      <h4>📺 Miniaturka YouTube</h4>
+      <p>Wklej link do filmu (youtube.com/watch?v=... albo youtu.be/...) — pobiorę miniaturkę.</p>
+      <input type="url" id="media-yt-url" placeholder="https://youtube.com/watch?v=..." />
+      <div class="yt-preview" id="media-yt-preview" style="display:none;"></div>
+      <div class="prop-label" style="margin:8px 0 4px;">Po kliknięciu w wyeksportowanej stronie:</div>
+      <div class="radio-row">
+        <label><input type="radio" name="yt-action" value="open" checked /><span>🪟 Otwórz na YouTube</span></label>
+        <label><input type="radio" name="yt-action" value="play" /><span>▶ Odtwarzaj na scenie</span></label>
+      </div>
+      <button class="btn-go" id="media-add-yt" disabled>Dodaj miniaturkę na scenę</button>
+    </div>
+  `;
+
+  // ====== "Dołącz link do obiektu" ======
+  document.getElementById('media-attach-link').onclick = () => {
+    state.mediaPickItem = 'waiting';   // czekamy aż user kliknie obiekt na scenie
+    toast('Kliknij obiekt na scenie, do którego chcesz dołączyć link');
+  };
+
+  // ====== RAMKI ======
+  bindFrameControls();
+
+  // ====== YouTube ======
+  const ytUrlInput = document.getElementById('media-yt-url');
+  const ytPrev = document.getElementById('media-yt-preview');
+  const ytAddBtn = document.getElementById('media-add-yt');
+  let currentYtId = null;
+
+  function refreshYtPreview() {
+    const id = parseYoutubeId(ytUrlInput.value);
+    currentYtId = id;
+    if (id) {
+      ytPrev.style.display = 'block';
+      ytPrev.style.backgroundImage = `url("https://img.youtube.com/vi/${id}/hqdefault.jpg")`;
+      ytAddBtn.disabled = false;
+    } else {
+      ytPrev.style.display = 'none';
+      ytAddBtn.disabled = true;
+    }
+  }
+  ytUrlInput.oninput = refreshYtPreview;
+  ytUrlInput.onpaste = () => setTimeout(refreshYtPreview, 50);
+
+  ytAddBtn.onclick = () => {
+    if (!currentYtId) return;
+    const action = document.querySelector('input[name="yt-action"]:checked').value;
+    addItem('image', {
+      imageUrl: `https://img.youtube.com/vi/${currentYtId}/hqdefault.jpg`,
+      youtubeId: currentYtId,
+      youtubeAction: action,
+      link: action === 'open' ? `https://www.youtube.com/watch?v=${currentYtId}` : null,
+      linkMode: 'newtab'
+    });
+    ytUrlInput.value = '';
+    refreshYtPreview();
+    render();
+    toast(action === 'play' ? '✓ Dodano miniaturkę (klik = odtwarzanie na scenie)' : '✓ Dodano miniaturkę (klik = otwiera YouTube)');
+  };
+}
+
+// Pomocnicza funkcja: poproś użytkownika o URL po wybraniu obiektu w trybie media.
+async function promptUrlForItem(itemId) {
+  const item = currentItems().find(i => i.id === itemId);
+  if (!item) return;
+  // Prosty modal-prompt na bazie istniejącego confirm modalu
+  const url = await urlPrompt(item.link || '');
+  if (url === null) return;  // anulowane
+  if (url === '') {
+    item.link = null;
+    item.linkMode = 'newtab';
+    toast('Link usunięty');
+  } else {
+    let u = url.trim();
+    if (!/^https?:\/\//i.test(u)) u = 'https://' + u;
+    item.link = u;
+    // Pytamy o tryb dopiero teraz
+    const mode = await modeChooser();
+    item.linkMode = mode || 'newtab';
+    toast('✓ Link dołączony do obiektu');
+  }
+  render();
+  pushHistory();
+}
+
+// Mini-modal do wpisania URL
+function urlPrompt(initial) {
+  return new Promise(resolve => {
+    document.getElementById('modal-title').textContent = '🔗 Adres URL';
+    const back = document.getElementById('modal-confirm');
+    const msg = document.getElementById('modal-msg');
+    msg.innerHTML = `
+      <div style="margin-bottom:8px;">Wpisz adres strony (lub zostaw puste, żeby usunąć link):</div>
+      <input type="url" id="url-prompt-input" value="${(initial||'').replace(/"/g,'&quot;')}" placeholder="https://..."
+        style="width:100%;background:#22222c;border:1px solid #2e2e38;border-radius:4px;padding:8px;color:#e8e8ea;font-size:13px;font-family:inherit;" />
+    `;
+    back.classList.add('show');
+    setTimeout(() => document.getElementById('url-prompt-input').focus(), 50);
+    document.getElementById('modal-ok').onclick = () => {
+      const v = document.getElementById('url-prompt-input').value;
+      back.classList.remove('show');
+      // Przywróć domyślny tekst opisu
+      msg.textContent = '';
+      resolve(v);
+    };
+    document.getElementById('modal-cancel').onclick = () => {
+      back.classList.remove('show');
+      msg.textContent = '';
+      resolve(null);
+    };
+  });
+}
+
+// Mini-modal: wybór trybu otwierania (nowa karta / iframe)
+function modeChooser() {
+  return new Promise(resolve => {
+    document.getElementById('modal-title').textContent = 'Jak otworzyć link?';
+    const back = document.getElementById('modal-confirm');
+    const msg = document.getElementById('modal-msg');
+    msg.innerHTML = `
+      <div class="radio-row" style="margin:0;">
+        <label><input type="radio" name="mode-pick" value="newtab" checked /><span>🪟 Nowa karta</span></label>
+        <label><input type="radio" name="mode-pick" value="iframe" /><span>📺 Okno na scenie</span></label>
+      </div>
+      <p style="font-size:11px;color:#888;margin-top:8px;">Niektóre strony (Google, Facebook) blokują wyświetlanie w okienku. YouTube, Wikipedia, większość blogów — działają.</p>
+    `;
+    back.classList.add('show');
+    document.getElementById('modal-ok').onclick = () => {
+      const v = document.querySelector('input[name="mode-pick"]:checked')?.value || 'newtab';
+      back.classList.remove('show');
+      msg.textContent = '';
+      resolve(v);
+    };
+    document.getElementById('modal-cancel').onclick = () => {
+      back.classList.remove('show');
+      msg.textContent = '';
+      resolve(null);
+    };
+  });
+}
+
+// ============================================================
+// EMOTKI SZYBKIE
+// ============================================================
+const ePad = document.getElementById('quick-emoji-pad');
+QUICK_EMOJIS.forEach(em => {
+  const b = document.createElement('button');
+  b.className = 'emoji-btn';
+  b.textContent = em;
+  b.onclick = () => {
+    addItem('emoji');
+    const last = currentItems()[currentItems().length - 1];
+    last.content = em;
+    render();
+  };
+  ePad.appendChild(b);
+});
+
+// ============================================================
+// TŁA
+// ============================================================
+const bgGrid = document.getElementById('bg-grid');
+BG_PRESETS.forEach(bg => {
+  const sw = document.createElement('div');
+  sw.className = 'bg-swatch';
+  sw.style.background = bg.value;
+  sw.title = bg.name;
+  sw.onclick = () => {
+    currentPage().background = { type: 'gradient', value: bg.value };
+    document.querySelectorAll('.bg-swatch').forEach(s => s.classList.remove('active'));
+    sw.classList.add('active');
+    render();
+    pushHistory();
+  };
+  bgGrid.appendChild(sw);
+});
+
+const customBg = document.getElementById('custom-bg');
+customBg.oninput = e => {
+  currentPage().background = { type: 'color', value: e.target.value };
+  document.querySelectorAll('.bg-swatch').forEach(s => s.classList.remove('active'));
+  render();
+};
+customBg.onchange = () => pushHistory();
+
+// ============================================================
+// SIATKA (widoczna + snap przy dragu)
+// Trzymamy cienkie 1px linie + grubsze co 5 oczek (lepsza orientacja).
+// Suwak rozmiaru pojawia się dopiero gdy siatka włączona.
+// Shift przy przeciąganiu = ignoruj snap chwilowo.
+// ============================================================
+const btnGrid = document.getElementById('btn-grid');
+const gridSizeWrap = document.getElementById('grid-size-wrap');
+const gridSizeInput = document.getElementById('grid-size');
+const gridSizeVal = document.getElementById('grid-size-val');
+
+function applyGridSize() {
+  scene.style.setProperty('--grid-size', state.gridSize + 'px');
+  gridSizeVal.textContent = state.gridSize;
+  gridSizeInput.value = state.gridSize;
+}
+
+function applyGridState() {
+  document.body.classList.toggle('grid-on', state.gridOn);
+  btnGrid.classList.toggle('active', state.gridOn);
+  gridSizeWrap.style.display = state.gridOn ? 'block' : 'none';
+  applyGridSize();
+}
+
+btnGrid.onclick = () => {
+  state.gridOn = !state.gridOn;
+  applyGridState();
+  toast(state.gridOn ? '⊞ Siatka włączona — Shift wyłącza snap chwilowo' : 'Siatka wyłączona');
+};
+
+gridSizeInput.oninput = e => {
+  state.gridSize = +e.target.value;
+  applyGridSize();
+};
+
+// Wstępny stan
+applyGridState();
+
+// ============================================================
+// RYSOWANIE
+// ============================================================
+const btnDraw = document.getElementById('btn-draw');
+const btnErase = document.getElementById('btn-erase');
+
+function setDrawMode(mode) {
+  state.drawMode = state.drawMode === mode ? null : mode;
+  btnDraw.classList.toggle('active', state.drawMode === 'draw');
+  btnErase.classList.toggle('active', state.drawMode === 'erase');
+  scene.classList.toggle('draw-mode', !!state.drawMode);
+  if (state.drawMode) {
+    state.selectedId = null;
+    render();
+  }
+}
+btnDraw.onclick = () => setDrawMode('draw');
+btnErase.onclick = () => setDrawMode('erase');
+
+document.getElementById('brush-color').oninput = e => state.brushColor = e.target.value;
+document.getElementById('brush-size').oninput = e => {
+  state.brushSize = +e.target.value;
+  document.getElementById('brush-size-val').textContent = state.brushSize;
+};
+
+let lastPos = null;
+bgCanvas.addEventListener('pointerdown', (e) => {
+  if (!state.drawMode) return;
+  e.preventDefault();
+  bgCanvas.setPointerCapture(e.pointerId);
+  resizeCanvas();
+  state.drawing = true;
+  // Pozycja w logicznych pixelach canvasa (kompensuje CSS scale na małych ekranach)
+  lastPos = clientToScene(e.clientX, e.clientY);
+});
+bgCanvas.addEventListener('pointermove', (e) => {
+  if (!state.drawing) return;
+  e.preventDefault();
+  const p = clientToScene(e.clientX, e.clientY);
+  const x = p.x, y = p.y;
+  bgCtx.lineCap = 'round';
+  bgCtx.lineJoin = 'round';
+  bgCtx.lineWidth = state.brushSize;
+  if (state.drawMode === 'erase') {
+    bgCtx.globalCompositeOperation = 'destination-out';
+    bgCtx.strokeStyle = 'rgba(0,0,0,1)';
+  } else {
+    bgCtx.globalCompositeOperation = 'source-over';
+    bgCtx.strokeStyle = state.brushColor;
+  }
+  bgCtx.beginPath();
+  bgCtx.moveTo(lastPos.x, lastPos.y);
+  bgCtx.lineTo(x, y);
+  bgCtx.stroke();
+  lastPos = { x, y };
+});
+const stopDraw = () => {
+  if (state.drawing) {
+    state.drawing = false;
+    lastPos = null;
+    // Każde pociągnięcie pędzla = osobny krok w historii
+    snapshotCurrentDrawing();   // zapisz rysunek do strony przed snapshotem
+    pushHistory();
+  } else {
+    state.drawing = false;
+    lastPos = null;
+  }
+};
+bgCanvas.addEventListener('pointerup', stopDraw);
+bgCanvas.addEventListener('pointercancel', stopDraw);
+bgCanvas.addEventListener('pointerleave', stopDraw);
+
+// ============================================================
+// EKSPORT — najważniejsza część!
+// Generuje JEDEN plik HTML z wszystkimi poziomami jako <section>.
+// Tylko jedna sekcja jest widoczna naraz; klik w obiekt z data-goto
+// przełącza widoczną sekcję.
+// ============================================================
+function buildExportHTML(title) {
+  // Zapisz aktualny rysunek do bieżącej strony przed eksportem
+  snapshotCurrentDrawing();
+
+  const animCSS = `
+    @keyframes anim-pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.15); } }
+    @keyframes anim-fly   { 0%,100% { transform: translateX(0); } 50% { transform: translateX(40px); } }
+    @keyframes anim-bounce{ 0%,100% { transform: translateY(0); } 50% { transform: translateY(-30px); } }
+    @keyframes anim-spin  { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+    @keyframes anim-fade  { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+    @keyframes anim-shake { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-8px); } 75% { transform: translateX(8px); } }
+    @keyframes anim-rainbow { 0%{filter:hue-rotate(0)} 100%{filter:hue-rotate(360deg)} }
+    .anim-pulse   { animation: anim-pulse 1.5s ease-in-out infinite; }
+    .anim-fly     { animation: anim-fly 2s ease-in-out infinite; }
+    .anim-bounce  { animation: anim-bounce 1s ease-in-out infinite; }
+    .anim-spin    { animation: anim-spin 4s linear infinite; }
+    .anim-fade    { animation: anim-fade 2s ease-in-out infinite; }
+    .anim-shake   { animation: anim-shake 0.5s ease-in-out infinite; }
+    .anim-rainbow { animation: anim-rainbow 3s linear infinite; }
+
+    /* RAMKI */
+    .frame-wrap { display: inline-block; box-sizing: border-box; }
+    .frame-border { border: var(--fw,3px) solid var(--fc,#fff); border-radius: var(--fr,10px); padding: var(--fp,12px); }
+    .frame-filled { border: var(--fw,3px) solid var(--fc,#fff); border-radius: var(--fr,10px); padding: var(--fp,12px); background: var(--fbg,rgba(0,0,0,0.8)); }
+    .frame-neon {
+      border: var(--fw,3px) solid var(--fc,#4dd4ff);
+      border-radius: var(--fr,10px);
+      padding: var(--fp,12px);
+      background: var(--fbg,rgba(0,0,0,0.6));
+      box-shadow: 0 0 calc(var(--fw,3px)*1.5) var(--fc,#4dd4ff), 0 0 calc(var(--fw,3px)*4) var(--fc,#4dd4ff), inset 0 0 calc(var(--fw,3px)*2) var(--fc,#4dd4ff);
+      animation: frame-neon-pulse 2s ease-in-out infinite;
+    }
+    @keyframes frame-neon-pulse { 0%,100%{filter:brightness(1)} 50%{filter:brightness(1.25)} }
+    .frame-ornate {
+      position: relative;
+      border: var(--fw,3px) double var(--fc,#d4a574);
+      border-radius: var(--fr,10px);
+      padding: calc(var(--fp,12px) + 6px);
+      background: var(--fbg,rgba(40,30,20,0.85));
+      box-shadow: inset 0 0 0 calc(var(--fw,3px)*0.7) var(--fbg,rgba(40,30,20,0.85)), inset 0 0 0 calc(var(--fw,3px)*1.4) var(--fc,#d4a574);
+    }
+    .frame-ornate::before, .frame-ornate::after {
+      content: '❖'; position: absolute; color: var(--fc,#d4a574);
+      font-size: calc(var(--fw,3px)*4 + 8px); line-height: 1; pointer-events: none;
+    }
+    .frame-ornate::before { top: -0.4em; left: -0.2em; }
+    .frame-ornate::after  { bottom: -0.4em; right: -0.2em; }
+
+    /* PRZYCISKI SCENICZNE (6 stylów) — identyczne jak w edytorze */
+    .item-button {
+      display: inline-flex; align-items: center; justify-content: center;
+      gap: 8px; user-select: none; white-space: nowrap;
+      font-family: 'Trebuchet MS', system-ui, sans-serif;
+      font-weight: 700; letter-spacing: 0.5px;
+    }
+    .btn-style-classic {
+      padding: 12px 28px; border-radius: 6px;
+      background: #ffffff; border: 2px solid #1a1a1a; color: #1a1a1a;
+      font-size: 17px; box-shadow: 3px 3px 0 #1a1a1a;
+      text-transform: uppercase; letter-spacing: 1px;
+    }
+    .btn-style-round {
+      padding: 14px 36px; border-radius: 999px;
+      background: linear-gradient(180deg, #22c55e, #15803d);
+      border: 2px solid #166534; color: #fff;
+      font-size: 18px; font-weight: 800;
+      text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+      box-shadow: 0 4px 0 #14532d, 0 6px 16px rgba(34,197,94,0.45), inset 0 1px 0 rgba(255,255,255,0.4);
+    }
+    .btn-style-fab {
+      width: 76px; height: 76px; border-radius: 50%;
+      background: radial-gradient(circle at 30% 25%, #60a5fa, #2563eb 60%, #1e3a8a);
+      border: 3px solid #fff; color: #fff;
+      font-size: 38px; font-weight: 900; line-height: 0; padding: 0;
+      box-shadow: 0 8px 22px rgba(37,99,235,0.55), inset 0 -4px 8px rgba(0,0,0,0.25);
+    }
+    .btn-style-fab::after { content: '→'; transform: translateY(2px); }
+    .btn-style-fab .item-button-label { display: none; }
+    .btn-style-play {
+      width: 86px; height: 86px; border-radius: 50%;
+      background: radial-gradient(circle at 30% 30%, #fb923c, #ea580c 60%, #7c2d12);
+      border: 3px solid #fff; color: #fff;
+      font-size: 36px; line-height: 0; padding: 0 0 0 6px;
+      box-shadow: 0 8px 22px rgba(234,88,12,0.55), inset 0 -4px 8px rgba(0,0,0,0.3);
+    }
+    .btn-style-play::after { content: '▶'; }
+    .btn-style-play .item-button-label { display: none; }
+    .btn-style-double {
+      padding: 11px 22px 11px 24px; border-radius: 8px;
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      border: none; color: #fff; font-size: 17px;
+      box-shadow: 0 6px 18px rgba(139,92,246,0.5), inset 0 1px 0 rgba(255,255,255,0.3);
+    }
+    .btn-style-double::after { content: '»'; margin-left: 10px; font-size: 24px; line-height: 1; font-weight: 900; }
+    .btn-style-pixel {
+      padding: 12px 24px; border-radius: 0;
+      background: #ef4444; border: 0; color: #fff;
+      font-family: 'Courier New', monospace; font-size: 18px;
+      font-weight: 900; letter-spacing: 2px; text-transform: uppercase;
+      box-shadow: 4px 0 0 #b91c1c, 0 4px 0 #b91c1c, 4px 4px 0 #7f1d1d, 8px 4px 0 #7f1d1d, 4px 8px 0 #7f1d1d;
+      image-rendering: pixelated;
+    }
+    /* Hover dla wszystkich stylów - lekkie podświetlenie */
+    [data-goto] .item-button:hover,
+    [data-link] .item-button:hover { filter: brightness(1.15); transform: scale(1.02); transition: all 0.15s; }
+  `.trim();
+
+  // Wymiary sceny — z formatu projektu (nie z DOM, żeby uniknąć skalowania na tablecie).
+  // Wszystkie strony mają ten sam rozmiar.
+  const fmt = getCurrentFormat();
+  const w = fmt.width;
+  const h = fmt.height;
+
+  // Generuj sekcję per strona
+  const sectionsHTML = state.pages.map((page, pageIdx) => {
+    const pageNum = pageIdx + 1;
+
+    const itemsHTML = page.items.map(item => {
+      const animClass = item.animation ? 'anim-' + item.animation : '';
+      const transform = `scale(${item.scale}) rotate(${item.rotate}deg)`;
+      const xPct = (item.x / w * 100).toFixed(2);
+      const yPct = (item.y / h * 100).toFixed(2);
+
+      // Atrybuty interaktywne
+      const attrs = [];
+      if (item.gotoPage) attrs.push(`data-goto="${item.gotoPage}"`);
+      if (item.link) {
+        attrs.push(`data-link="${String(item.link).replace(/"/g,'&quot;')}"`);
+        attrs.push(`data-link-mode="${item.linkMode || 'newtab'}"`);
+      }
+      if (item.youtubeId && item.youtubeAction === 'play') {
+        attrs.push(`data-yt="${item.youtubeId}"`);
+      }
+      const attrsStr = attrs.length ? ' ' + attrs.join(' ') : '';
+      const interactive = item.gotoPage || item.link || item.youtubeId;
+      const cursorStyle = interactive ? 'cursor:pointer;' : '';
+
+      // Buduj zawartość (tekst / emotka / obrazek / przycisk)
+      let inner;
+      if (item.type === 'text') {
+        const safe = String(item.content).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        inner = `<span style="font-family:'${item.font}',serif;font-size:${item.size}px;color:${item.color};font-weight:${item.bold?700:400};text-shadow:0 2px 8px rgba(0,0,0,0.4);white-space:nowrap;display:inline-block;">${safe}</span>`;
+      } else if (item.type === 'image') {
+        const imgW = item.size;
+        const imgH = item.size * 9 / 16;
+        const playOverlay = item.youtubeId
+          ? `<div style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:48px;height:48px;border-radius:50%;background:rgba(255,0,0,0.9);color:#fff;display:flex;align-items:center;justify-content:center;font-size:22px;padding-left:4px;box-shadow:0 2px 8px rgba(0,0,0,0.5);pointer-events:none;">▶</div>`
+          : '';
+        inner = `<div style="position:relative;width:${imgW}px;height:${imgH}px;background:#000 url('${item.imageUrl}') center / cover no-repeat;border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,0.5);display:inline-block;">${playOverlay}</div>`;
+      } else if (item.type === 'button') {
+        const styleId = item.buttonStyle || 'classic';
+        const def = BUTTON_STYLES.find(s => s.id === styleId);
+        const safe = String(item.content || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        const labelHTML = (def && def.hasInternalText)
+          ? `<span class="item-button-label">${safe}</span>`
+          : '';
+        inner = `<div class="item-button btn-style-${styleId}">${labelHTML}</div>`;
+      } else {
+        const safe = String(item.content);
+        inner = `<span style="font-size:${item.size}px;line-height:1;display:inline-block;">${safe}</span>`;
+      }
+
+      // Ramka — owinięcie inner w frame-wrap
+      const fs = frameStyleFor(item);
+      if (fs.className) {
+        inner = `<div class="frame-wrap ${fs.className}" style="${fs.style}">${inner}</div>`;
+      }
+
+      return `<div class="item ${animClass}"${attrsStr} style="left:${xPct}%;top:${yPct}%;transform:${transform};${cursorStyle}">${inner}</div>`;
+    }).join('\n');
+
+    const drawing = page.drawingDataUrl
+      ? `<img class="stage-bg" src="${page.drawingDataUrl}" alt="" />`
+      : '';
+
+    return `<section class="page" data-page="${pageNum}" style="background:${page.background.value};">
+${drawing}
+${itemsHTML}
+</section>`;
+  }).join('\n');
+
+  // Skrypt nawigacji w wyeksportowanej stronie
+  const navScript = `
+(function(){
+  const pages = document.querySelectorAll('.page');
+  function showPage(n){
+    pages.forEach(p => {
+      p.style.display = (Number(p.dataset.page) === n) ? 'block' : 'none';
+    });
+    // Restart animacji CSS przez wymuszenie reflow
+    pages.forEach(p => {
+      if (Number(p.dataset.page) === n) {
+        p.querySelectorAll('.item').forEach(i => {
+          const a = i.style.animation;
+          i.style.animation = 'none';
+          void i.offsetWidth;
+          i.style.animation = a;
+        });
+      }
+    });
+    closeOverlay();
+    try { history.replaceState(null, '', '#' + n); } catch(e){}
+  }
+
+  // ===== Overlay z iframem (dla "okno na scenie" oraz "YT na scenie") =====
+  function closeOverlay(){
+    const ov = document.getElementById('media-overlay');
+    if (ov) ov.remove();
+  }
+  function openOverlay(srcUrl, isYt){
+    closeOverlay();
+    const visiblePage = Array.from(pages).find(p => p.style.display === 'block') || pages[0];
+    if (!visiblePage) return;
+    const ov = document.createElement('div');
+    ov.id = 'media-overlay';
+    ov.style.cssText = 'position:absolute;inset:0;background:rgba(0,0,0,0.85);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:1000;';
+    const close = document.createElement('button');
+    close.textContent = '✕ Zamknij';
+    close.style.cssText = 'position:absolute;top:10px;right:10px;background:#ff4d6a;color:#fff;border:none;padding:8px 14px;border-radius:6px;font-weight:700;cursor:pointer;font-family:sans-serif;font-size:13px;z-index:2;';
+    close.onclick = closeOverlay;
+    const wrap = document.createElement('div');
+    wrap.style.cssText = 'width:90%;height:85%;max-width:1200px;background:#000;border-radius:8px;overflow:hidden;position:relative;';
+    const iframe = document.createElement('iframe');
+    iframe.src = srcUrl;
+    iframe.style.cssText = 'width:100%;height:100%;border:0;';
+    iframe.setAttribute('allowfullscreen','');
+    if (isYt) {
+      iframe.setAttribute('allow','accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture');
+    }
+    const fallback = document.createElement('div');
+    fallback.style.cssText = 'position:absolute;left:0;right:0;bottom:0;background:rgba(0,0,0,0.85);color:#fff;padding:8px;font-size:11px;text-align:center;font-family:sans-serif;';
+    fallback.innerHTML = 'Jeśli okno jest puste, ta strona zablokowała wyświetlanie w okienku. <a href="'+srcUrl+'" target="_blank" rel="noopener" style="color:#4dd4ff;">Otwórz w nowej karcie ↗</a>';
+    wrap.appendChild(iframe);
+    wrap.appendChild(fallback);
+    ov.appendChild(close);
+    ov.appendChild(wrap);
+    visiblePage.appendChild(ov);
+  }
+
+  // ===== Globalny click handler =====
+  document.body.addEventListener('click', function(e){
+    // 1) YouTube na scenie (najwyższy priorytet)
+    const yt = e.target.closest('[data-yt]');
+    if (yt) {
+      const id = yt.getAttribute('data-yt');
+      openOverlay('https://www.youtube-nocookie.com/embed/' + id + '?autoplay=1&rel=0', true);
+      return;
+    }
+    // 2) Link zewnętrzny
+    const link = e.target.closest('[data-link]');
+    if (link) {
+      const url = link.getAttribute('data-link');
+      const mode = link.getAttribute('data-link-mode') || 'newtab';
+      if (mode === 'iframe') {
+        openOverlay(url, false);
+      } else {
+        window.open(url, '_blank', 'noopener,noreferrer');
+      }
+      return;
+    }
+    // 3) Przejście do innego poziomu
+    const t = e.target.closest('[data-goto]');
+    if (t) {
+      const target = Number(t.getAttribute('data-goto'));
+      if (target >= 1 && target <= pages.length) showPage(target);
+      return;
+    }
+  });
+
+  // ESC zamyka overlay
+  document.addEventListener('keydown', function(e){
+    if (e.key === 'Escape') closeOverlay();
+  });
+
+  // Start: poziom z hash (#2) lub 1
+  const fromHash = parseInt((location.hash || '').replace('#',''), 10);
+  showPage(fromHash >= 1 && fromHash <= pages.length ? fromHash : 1);
+})();
+`.trim();
+
+  return `<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>${title.replace(/</g,'&lt;')}</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%;overflow:hidden}
+  body{
+    background:#000;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-family:Georgia,serif;
+    /* CSS variable z proporcjami sceny — używana niżej do skalowania */
+    --canvas-w: ${w};
+    --canvas-h: ${h};
+  }
+  /* Strona dopasowuje się do okna w OBU wymiarach (szerokość i wysokość).
+     min(100vw, ...) bierze mniejszy wymiar — żeby pionowe formaty (720x1280)
+     też się mieściły, zamiast wystawać poza ekran. */
+  .page{
+    position:relative;
+    width:  min(100vw, calc(100vh * var(--canvas-w) / var(--canvas-h)));
+    height: min(100vh, calc(100vw * var(--canvas-h) / var(--canvas-w)));
+    max-width:  ${w}px;
+    max-height: ${h}px;
+    overflow:hidden;
+    box-shadow:0 12px 48px rgba(0,0,0,0.6);
+    display:none;
+  }
+  .stage-bg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+  .item{position:absolute;transform-origin:center}
+  [data-goto]:hover{filter:brightness(1.2)}
+  ${animCSS}
+</style>
+</head>
+<body>
+${sectionsHTML}
+<script>${navScript}<\/script>
+</body>
+</html>`;
+}
+
+function downloadFile(name, content, mime = 'text/html') {
+  const blob = new Blob([content], { type: mime + ';charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 100);
+}
+
+// ============================================================
+// PRZYCISKI TOPBAR
+// ============================================================
+document.getElementById('btn-export').onclick = () => {
+  document.getElementById('modal-export').classList.add('show');
+};
+document.getElementById('export-cancel').onclick = () => {
+  document.getElementById('modal-export').classList.remove('show');
+};
+document.getElementById('export-go').onclick = () => {
+  let name = (document.getElementById('export-filename').value || 'moja-strona.html').trim();
+  if (!name.endsWith('.html')) name += '.html';
+  const title = document.getElementById('export-title').value || 'Moja strona';
+  const html = buildExportHTML(title);
+  downloadFile(name, html);
+  document.getElementById('modal-export').classList.remove('show');
+  toast('✓ Pobrano ' + name + ' — wrzuć na app.netlify.com/drop');
+};
+
+document.getElementById('btn-preview').onclick = () => {
+  const html = buildExportHTML('Podgląd');
+  const win = window.open('', '_blank');
+  if (win) {
+    win.document.write(html);
+    win.document.close();
+  } else {
+    toast('⚠ Przeglądarka zablokowała okno — pozwól na popupy');
+  }
+};
+
+document.getElementById('btn-clear').onclick = async () => {
+  const ok = await confirmModal('Wyczyść wszystko',
+    'Usunąć WSZYSTKIE poziomy i zacząć od jednej pustej strony? (Możesz cofnąć: Ctrl+Z)');
+  if (!ok) return;
+  state.pages = [ makeEmptyPage() ];
+  state.currentPageIndex = 0;
+  state.selectedId = null;
+  state.nextId = 1;
+  bgCtx.clearRect(0, 0, bgCanvas.width, bgCanvas.height);
+  render();
+  pushHistory();
+  toast('Projekt wyczyszczony');
+};
+
+// ============================================================
+// HISTORIA / UNDO + REDO
+// Po każdej "skończonej" akcji wołamy pushHistory(), które zapisuje
+// snapshot CAŁEGO projektu na stos (ostatnie 10). Undo/redo cofa
+// wskaźnik na stosie i ładuje wybrany snapshot.
+// Snapshot to JSON.stringify(buildProjectData()) — drogą całość, ale prosto i niezawodnie.
+// ============================================================
+const HISTORY_LIMIT = 10;
+const history = {
+  stack: [],         // tablica stringów (snapshot JSON)
+  index: -1,         // wskaźnik na bieżący snapshot (-1 = pusto)
+  applying: false    // gdy true, pushHistory ignoruje wywołania (chronimy przed pętlą undo→render→push)
+};
+
+function snapshotProjectString() {
+  // Identyczny format co zapisany projekt — odzyskujemy potem przez loadProject().
+  // Rysunek bieżącej strony jest snapshotowany do stanu, więc to kompletny obraz.
+  return JSON.stringify(buildProjectData());
+}
+
+function pushHistory() {
+  if (history.applying) return;        // w trakcie undo/redo nie zapisuj
+  const snap = snapshotProjectString();
+  // Jeśli stan jest identyczny z bieżącym (kliknięcie bez zmiany) — nic nie rób
+  if (history.index >= 0 && history.stack[history.index] === snap) return;
+  // Wycięcie "przyszłości" — gdy po undo robimy nową akcję, redo powinien zniknąć
+  if (history.index < history.stack.length - 1) {
+    history.stack.length = history.index + 1;
+  }
+  history.stack.push(snap);
+  // Limit — zrzucamy najstarsze
+  while (history.stack.length > HISTORY_LIMIT) {
+    history.stack.shift();
+  }
+  history.index = history.stack.length - 1;
+  updateHistoryButtons();
+}
+
+function applySnapshot(json) {
+  history.applying = true;
+  try {
+    const data = JSON.parse(json);
+    loadProject(data);
+  } catch(e) {
+    console.error('Snapshot apply failed:', e);
+  } finally {
+    history.applying = false;
+  }
+  updateHistoryButtons();
+}
+
+function undo() {
+  if (history.index <= 0) { toast('Nic do cofnięcia'); return; }
+  history.index--;
+  applySnapshot(history.stack[history.index]);
+  toast('↶ Cofnięto');
+}
+
+function redo() {
+  if (history.index >= history.stack.length - 1) { toast('Nic do ponowienia'); return; }
+  history.index++;
+  applySnapshot(history.stack[history.index]);
+  toast('↷ Ponowiono');
+}
+
+function updateHistoryButtons() {
+  const u = document.getElementById('btn-undo');
+  const r = document.getElementById('btn-redo');
+  if (u) u.disabled = history.index <= 0;
+  if (r) r.disabled = history.index >= history.stack.length - 1;
+}
+
+document.getElementById('btn-undo').onclick = undo;
+document.getElementById('btn-redo').onclick = redo;
+
+// Skróty klawiszowe
+window.addEventListener('keydown', (e) => {
+  // Ignoruj gdy w polu input/edycji tekstu
+  const t = e.target;
+  if (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable) return;
+  const ctrl = e.ctrlKey || e.metaKey;
+  if (!ctrl) return;
+  if (e.key === 'z' || e.key === 'Z') {
+    e.preventDefault();
+    if (e.shiftKey) redo(); else undo();
+  } else if (e.key === 'y' || e.key === 'Y') {
+    e.preventDefault();
+    redo();
+  }
+}, true);  // capture, żeby zadziałało zanim przeglądarka odpali domyślne undo w jakimś polu
+
+// ============================================================
+// ZAPIS / WCZYTANIE PROJEKTU (do localStorage + plik .json)
+// Format v2: tablica stron z rysunkami w środku.
+// ============================================================
+function buildProjectData() {
+  snapshotCurrentDrawing();
+  return {
+    version: 2,
+    pages: state.pages,
+    currentPageIndex: state.currentPageIndex,
+    nextId: state.nextId,
+    gridOn: state.gridOn,
+    gridSize: state.gridSize,
+    canvasFormat: state.canvasFormat
+  };
+}
+
+document.getElementById('btn-save-project').onclick = () => {
+  const data = buildProjectData();
+  try {
+    localStorage.setItem('studio_project', JSON.stringify(data));
+  } catch(e) {}
+  downloadFile('projekt-studio.json', JSON.stringify(data, null, 2), 'application/json');
+  toast('💾 Zapisano (przeglądarka + plik .json)');
+};
+
+document.getElementById('btn-load-project').onclick = () => {
+  const inp = document.createElement('input');
+  inp.type = 'file';
+  inp.accept = '.json,application/json';
+  inp.onchange = (e) => {
+    const f = e.target.files[0];
+    if (!f) return;
+    const r = new FileReader();
+    r.onload = () => {
+      try {
+        const data = JSON.parse(r.result);
+        loadProject(data);
+        // Reset historii — wczytany projekt to "punkt zerowy"
+        history.stack = [];
+        history.index = -1;
+        pushHistory();
+        toast('📂 Wczytano projekt');
+      } catch(err) {
+        toast('⚠ Błąd wczytywania pliku');
+      }
+    };
+    r.readAsText(f);
+  };
+  inp.click();
+};
+
+function loadProject(data) {
+  // Helper do normalizowania pojedynczego itema - ustawia domyślne wartości dla nowych pól
+  const normItem = (i) => ({
+    type: 'text',
+    link: null,
+    linkMode: 'newtab',
+    imageUrl: null,
+    youtubeId: null,
+    youtubeAction: null,
+    gotoPage: null,
+    buttonStyle: null,
+    frame: { theme: 'none', color: '#ffffff', bg: '#000000', bgAlpha: 80, width: 3, padding: 12, radius: 10 },
+    ...i,
+    gotoPage: i.gotoPage || null,
+    link: i.link || null,
+    linkMode: i.linkMode || 'newtab',
+    buttonStyle: i.buttonStyle || null,
+    frame: i.frame || { theme: 'none', color: '#ffffff', bg: '#000000', bgAlpha: 80, width: 3, padding: 12, radius: 10 }
+  });
+
+  // Wsparcie starego formatu (v1 — pojedyncza scena)
+  if (data && data.version === 1) {
+    const page = makeEmptyPage();
+    page.items = (data.items || []).map(normItem);
+    if (data.background) page.background = data.background;
+    if (data.drawing) page.drawingDataUrl = data.drawing;
+    state.pages = [ page ];
+    state.currentPageIndex = 0;
+    state.nextId = data.nextId || (page.items.length + 1);
+  } else {
+    // v2
+    state.pages = (data.pages && data.pages.length) ? data.pages : [ makeEmptyPage() ];
+    for (const p of state.pages) {
+      p.items = (p.items || []).map(normItem);
+      if (!p.background) p.background = makeEmptyPage().background;
+    }
+    state.currentPageIndex = Math.min(data.currentPageIndex || 0, state.pages.length - 1);
+    state.nextId = data.nextId || (state.pages.reduce((m,p)=>Math.max(m, ...p.items.map(i=>i.id||0)), 0) + 1);
+  }
+  state.selectedId = null;
+  // Przywróć stan siatki (jeśli był zapisany w pliku/localStorage)
+  if (typeof data.gridOn === 'boolean') state.gridOn = data.gridOn;
+  if (typeof data.gridSize === 'number') state.gridSize = Math.max(10, Math.min(80, data.gridSize));
+  applyGridState();
+  // Przywróć format sceny — jeśli zapisany i pasuje do listy
+  if (data.canvasFormat && CANVAS_FORMATS.some(f => f.id === data.canvasFormat)) {
+    state.canvasFormat = data.canvasFormat;
+  } else {
+    state.canvasFormat = 'slide43';   // domyślnie dla starych projektów
+  }
+  applyCanvasFormat();
+  loadDrawingForCurrent();
+  render();
+}
+
+// auto-load z localStorage
+try {
+  const saved = localStorage.getItem('studio_project');
+  if (saved) loadProject(JSON.parse(saved));
+} catch(e) {}
+
+// auto-save do localStorage co 5s
+setInterval(() => {
+  try {
+    localStorage.setItem('studio_project', JSON.stringify(buildProjectData()));
+  } catch(e) {}
+}, 5000);
+
+// keyboard shortcuts
+window.addEventListener('keydown', (e) => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) return;
+  if (e.key === 'Delete' && state.selectedId !== null) {
+    currentPage().items = currentItems().filter(i => i.id !== state.selectedId);
+    state.selectedId = null;
+    render();
+    pushHistory();
+  }
+  if (e.key === 'Escape') {
+    state.selectedId = null;
+    setDrawMode(null);
+    if (state.transitionsMode) {
+      state.transitionsMode = false;
+      state.transitionsPickItem = null;
+      document.body.classList.remove('transitions-mode');
+      btnTransitions.classList.remove('active');
+      btnTransitions.textContent = '🔗 Przejścia';
+    }
+    if (state.mediaMode) {
+      toggleMediaMode(false);
+    }
+    if (state.layoutMode) {
+      toggleLayoutMode(false);
+    }
+    render();
+  }
+});
+
+// pierwsze tło aktywne
+document.querySelector('.bg-swatch:nth-child(2)')?.classList.add('active');
+
+// Zastosuj startowy format sceny — ważne, żeby CSS variables były ustawione
+// zanim render() pokaże scenę.
+applyCanvasFormat();
+
+render();
+
+// Pierwszy snapshot startowy — żeby Cofnij wracał do stanu wyjściowego
+pushHistory();
+</script>
 </body>
 </html>
