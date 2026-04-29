@@ -1168,11 +1168,10 @@ function currentBg()    { return currentPage().background; }
 
 // Definicje formatów sceny — pojedyncze źródło prawdy o wymiarach.
 // W edytorze scena jest skalowana CSS-em, ale logiczne wymiary są zawsze takie jak tu.
+// Tylko 2 formaty (poziome) — najlepiej działają na laptopach i tabletach.
 const CANVAS_FORMATS = [
-  { id: 'slide43',   name: 'Slajd 4:3',     width:  800, height: 600,  desc: 'Klasyczny slajd / poster' },
-  { id: 'slide169',  name: 'Slajd 16:9',    width: 1280, height: 720,  desc: 'Szeroki slajd HD' },
-  { id: 'story',     name: 'HD pion',       width:  720, height: 1280, desc: 'Story / Reels' },
-  { id: 'square',    name: 'Plakat kwadrat',width: 1080, height: 1080, desc: 'Post Instagram' }
+  { id: 'slide43',   name: 'Slajd 4:3',  width:  800, height: 600, desc: 'Klasyczny slajd / poster' },
+  { id: 'slide169',  name: 'Slajd 16:9', width: 1280, height: 720, desc: 'Szeroki slajd HD' }
 ];
 
 function getCurrentFormat() {
@@ -2115,9 +2114,8 @@ function renderLayoutPanel() {
       <h4>💡 Wskazówki</h4>
       <p style="font-size:11px;line-height:1.7;">
         <strong>Slajd 4:3</strong> — klasyczny prezentacyjny<br>
-        <strong>Slajd 16:9</strong> — szeroki, jak YouTube<br>
-        <strong>HD pion</strong> — Stories, TikTok, Reels<br>
-        <strong>Plakat kwadrat</strong> — Instagram post
+        <strong>Slajd 16:9</strong> — szeroki, jak YouTube<br><br>
+        🖥️ W <strong>Podglądzie</strong> i wyeksportowanej stronie znajdziesz przycisk <strong>⛶ Pełny ekran</strong> (lub klawisz <strong>F</strong>).
       </p>
     </div>
   `;
@@ -2974,10 +2972,29 @@ ${itemsHTML}
     }
   });
 
-  // ESC zamyka overlay
+  // ESC zamyka overlay, F lub F11 toggle pełnego ekranu
   document.addEventListener('keydown', function(e){
     if (e.key === 'Escape') closeOverlay();
+    if ((e.key === 'f' || e.key === 'F') && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      // Tylko jeśli user nie jest w polu input (na wszelki wypadek)
+      const t = e.target;
+      if (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA') return;
+      toggleFullscreen();
+    }
   });
+
+  // ===== PEŁNY EKRAN =====
+  function toggleFullscreen(){
+    const el = document.documentElement;
+    const isFs = document.fullscreenElement || document.webkitFullscreenElement;
+    if (isFs) {
+      (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+    } else {
+      (el.requestFullscreen || el.webkitRequestFullscreen).call(el);
+    }
+  }
+  const fsBtn = document.getElementById('fs-btn');
+  if (fsBtn) fsBtn.addEventListener('click', toggleFullscreen);
 
   // Start: poziom z hash (#2) lub 1
   const fromHash = parseInt((location.hash || '').replace('#',''), 10);
@@ -3005,8 +3022,8 @@ ${itemsHTML}
     --canvas-h: ${h};
   }
   /* Strona dopasowuje się do okna w OBU wymiarach (szerokość i wysokość).
-     min(100vw, ...) bierze mniejszy wymiar — żeby pionowe formaty (720x1280)
-     też się mieściły, zamiast wystawać poza ekran. */
+     min(...) bierze mniejszy wymiar — żeby zawsze się mieściła w ekranie.
+     Czarne tło body wypełnia pozostałą przestrzeń (letterbox). */
   .page{
     position:relative;
     width:  min(100vw, calc(100vh * var(--canvas-w) / var(--canvas-h)));
@@ -3021,10 +3038,73 @@ ${itemsHTML}
   .item{position:absolute;transform-origin:center}
   [data-goto]:hover{filter:brightness(1.2)}
   ${animCSS}
+
+  /* ===== Przycisk pełny ekran (prawy górny róg) ===== */
+  #fs-btn{
+    position:fixed;
+    top:14px;
+    right:14px;
+    z-index:1000;
+    background:rgba(0,0,0,0.55);
+    color:#fff;
+    border:1px solid rgba(255,255,255,0.25);
+    padding:8px 14px;
+    border-radius:8px;
+    font:600 13px system-ui,sans-serif;
+    cursor:pointer;
+    backdrop-filter:blur(8px);
+    transition:all 0.2s;
+    opacity:0.5;
+  }
+  #fs-btn:hover{opacity:1;background:rgba(0,0,0,0.85);transform:scale(1.05);}
+  body:fullscreen #fs-btn,
+  body:-webkit-full-screen #fs-btn{opacity:0.3;}
+
+  /* ===== Komunikat dla telefonów ===== */
+  #mobile-warn{
+    display:none;
+    position:fixed;
+    inset:0;
+    background:linear-gradient(135deg,#1a1a2e,#0f0f14);
+    color:#fff;
+    align-items:center;
+    justify-content:center;
+    flex-direction:column;
+    padding:30px;
+    text-align:center;
+    z-index:9999;
+    font-family:system-ui,sans-serif;
+  }
+  #mobile-warn h2{font-size:22px;margin-bottom:14px;color:#fbbf24;}
+  #mobile-warn p{font-size:14px;line-height:1.6;color:#cbd5e1;max-width:340px;margin-bottom:18px;}
+  #mobile-warn .icon{font-size:64px;margin-bottom:20px;}
+  #mobile-warn button{
+    background:#fbbf24;color:#1a1a1a;border:none;
+    padding:12px 24px;border-radius:8px;
+    font-weight:700;font-size:13px;cursor:pointer;
+  }
+  /* Pokaż komunikat na małych ekranach (telefony — typowo <600px szerokości
+     i poziome formaty 4:3 / 16:9 są na nich nieczytelne) */
+  @media (max-width: 600px) {
+    body > .page { display:none !important; }
+    #mobile-warn { display:flex; }
+    #fs-btn { display:none; }
+  }
 </style>
 </head>
 <body>
 ${sectionsHTML}
+
+<button id="fs-btn" title="Pełny ekran (F lub F11)">⛶ Pełny ekran</button>
+
+<div id="mobile-warn">
+  <div class="icon">📱→💻</div>
+  <h2>Otwórz na większym ekranie</h2>
+  <p>Ta strona jest zoptymalizowana pod <strong>laptop, komputer lub tablet</strong>. Na telefonie układ jest zbyt mały do wygodnego oglądania.</p>
+  <p style="font-size:12px;opacity:0.7;">Możesz spróbować obrócić telefon w poziomo i przeładować stronę, ale najlepszy efekt zobaczysz na większym urządzeniu.</p>
+  <button onclick="document.getElementById('mobile-warn').style.display='none'">Pokaż mimo to</button>
+</div>
+
 <script>${navScript}<\/script>
 </body>
 </html>`;
