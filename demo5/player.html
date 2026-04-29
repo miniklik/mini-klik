@@ -410,22 +410,24 @@
   /* RESPONSYWNOŚĆ — hybryda: desktop 800×450 ostro, mobile CSS scale */
   /* ════════════════════════════════════════════════════════════════ */
 
-  /* game-container ZAWSZE max 800px szerokości, ale zwija się elastycznie */
+  /* ════════════════════════════════════════════════════════════════ */
+  /* LETTERBOX — gra zawsze 16:9, czarne pasy po bokach lub górze/dole */
+  /* ════════════════════════════════════════════════════════════════ */
+
+  /* game-container ZAWSZE 16:9, JS może go skalować */
   #game-container {
     width: 100%;
     max-width: 800px;
-    /* aspect-ratio gwarantuje 800:450 (16:9) niezależnie od szerokości */
     aspect-ratio: 800 / 450;
+    background: #000;
+    position: relative;
   }
 
-  /* Canvas wstrzyknięty przez PIXI — zostaje 800×450 wewnętrznie,
-     ale CSS skaluje go do szerokości kontenera. PIXI antialias=false
-     więc skalowanie nie psuje wyglądu (pixel-art friendly). */
+  /* Canvas wstrzyknięty przez PIXI — wypełnia kontener */
   #game-container canvas {
     width: 100% !important;
     height: 100% !important;
     display: block;
-    /* Ostry pixel-art przy skalowaniu na mobile — nie rozmazuj */
     image-rendering: pixelated;
     image-rendering: -moz-crisp-edges;
     image-rendering: crisp-edges;
@@ -721,9 +723,316 @@
   .results-btn { font-size: 12px; padding: 9px 12px; min-width: 130px; }
   #resultsTable { max-width: 320px; padding: 8px 10px; }
 }
+
+/* ═══════════════════════════════════════════════════════════════════ */
+/* ════════ RESPONSYWNE POPRAWKI MOBILE / TABLET (PATCH v2) ═════════ */
+/* ═══════════════════════════════════════════════════════════════════ */
+
+/* --- 1. EKRAN "OBRÓĆ TELEFON" (pojawia się na pionowym telefonie) --- */
+#rotateScreen {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #0a3550 0%, #061830 100%);
+  color: #adf;
+  text-align: center;
+  padding: 30px;
+  font-family: Arial, sans-serif;
+}
+#rotateScreen .rotate-icon {
+  font-size: 80px;
+  animation: rotateHint 2s ease-in-out infinite;
+  margin-bottom: 20px;
+}
+#rotateScreen .rotate-title {
+  font-size: 24px;
+  font-weight: bold;
+  color: #00f7ff;
+  text-shadow: 0 0 15px #00f7ff;
+  margin-bottom: 12px;
+  letter-spacing: 1px;
+}
+#rotateScreen .rotate-text {
+  font-size: 16px;
+  color: #88ddff;
+  max-width: 320px;
+  line-height: 1.5;
+}
+@keyframes rotateHint {
+  0%, 100% { transform: rotate(-90deg); }
+  50% { transform: rotate(0deg); }
+}
+/* Pokaż ekran tylko gdy telefon w pionie (mała szerokość + większa wysokość niż szerokość) */
+@media (max-width: 768px) and (orientation: portrait) {
+  #rotateScreen { display: flex; }
+  /* Schowaj resztę gry pod spodem żeby nie migotała */
+  body > #playerFrame { visibility: hidden; }
+}
+
+/* --- 2. NAPRAW overflow który blokował scroll --- */
+html, body {
+  overflow-x: hidden;
+}
+@media (max-width: 860px), (hover: none) and (pointer: coarse) {
+  html, body {
+    overflow-y: auto !important;
+    height: auto !important;
+    min-height: 100vh;
+  }
+  body {
+    padding: 4px !important;
+    gap: 4px !important;
+  }
+}
+
+/* --- 3. PLAYER FRAME — pełna szerokość na małych ekranach --- */
+@media (max-width: 860px), (hover: none) and (pointer: coarse) {
+  #playerFrame {
+    padding: 6px !important;
+    border-radius: 8px;
+    border-width: 2px;
+    max-width: 100% !important;
+    width: 100% !important;
+    gap: 4px !important;
+    /* Czarne tło wokół canvasa = czarne pasy letterbox */
+    background: #000 !important;
+    /* Niebieska ramka jednak zostaje wokół całej apki gry */
+  }
+  #titleBar {
+    padding: 0 !important;
+    gap: 4px !important;
+  }
+  #gameTitle {
+    font-size: 13px !important;
+    text-align: center;
+    width: 100%;
+  }
+  .button-bar {
+    gap: 4px !important;
+    margin: 0 !important;
+    width: 100%;
+    justify-content: center;
+  }
+  .ctrl-btn {
+    padding: 6px 10px !important;
+    font-size: 10px !important;
+    letter-spacing: 0 !important;
+    border-width: 1px;
+    flex: 1 1 auto;
+    min-width: 0;
+    max-width: 110px;
+  }
+  #statusBar {
+    font-size: 10px;
+    padding: 0;
+  }
+}
+
+/* --- 4. PRZYCISKI NAWIGACJI — NA CANVASIE w rogach (półprzezroczyste) --- */
+@media (max-width: 860px), (hover: none) and (pointer: coarse) {
+  /* TRYB LETTERBOX MOBILNY:
+     game-container zachowuje aspect-ratio 16:9, ale skaluje się aby
+     ZMIEŚCIĆ SIĘ W EKRANIE — szerokość lub wysokość, co mniejsze.
+     Czarne pasy zapewnia tło #playerFrame i body (które są niebieskie),
+     ale my chcemy pasy CZARNE wokół canvasa - dlatego sam container
+     ma background #000 i jest centrowany w playerFrame. */
+  #game-container {
+    width: 100% !important;
+    max-width: 100% !important;
+    /* CSS magic: zmieść 16:9 w dostępnej przestrzeni */
+    /* min(100% szerokości, dostępna wysokość * 16/9) */
+    height: min(calc(100vh - 80px), calc((100vw - 12px) * 9 / 16)) !important;
+    width: min(calc(100vw - 12px), calc((100vh - 80px) * 16 / 9)) !important;
+    aspect-ratio: 16 / 9;
+    margin: 0 auto;
+    overflow: hidden;
+    position: relative;
+  }
+  /* Lewa grupa — lewy dolny róg, w pionie. Pozycjonowane WZGLĘDEM game-container czyli na canvasie. */
+  .canvas-nav-group {
+    position: absolute !important;
+    bottom: 8px !important;
+    flex-direction: column !important;
+    gap: 6px !important;
+    background: transparent !important;
+    padding: 0 !important;
+    border-radius: 0 !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    z-index: 50;
+  }
+  .canvas-nav-group.left-group { left: 8px !important; right: auto !important; }
+  .canvas-nav-group.right-group { right: 8px !important; left: auto !important; }
+  /* Mniejsze + bardziej przezroczyste, żeby gra była widoczna */
+  .nav-arrow {
+    width: 50px !important;
+    height: 50px !important;
+    font-size: 22px !important;
+    border-radius: 10px;
+    background: linear-gradient(180deg, rgba(60, 80, 120, 0.35) 0%, rgba(30, 40, 70, 0.35) 100%) !important;
+    border: 1px solid rgba(120, 180, 255, 0.4) !important;
+    opacity: 0.75;
+  }
+  .nav-arrow:active {
+    opacity: 1;
+    background: linear-gradient(180deg, rgba(100, 140, 200, 0.7) 0%, rgba(60, 80, 130, 0.7) 100%) !important;
+  }
+  .nav-arrow.nav-shoot-arrow {
+    font-size: 24px !important;
+    background: linear-gradient(180deg, rgba(200, 60, 60, 0.4) 0%, rgba(140, 30, 30, 0.4) 100%) !important;
+    border-color: rgba(255, 100, 100, 0.5) !important;
+  }
+  .nav-arrow.nav-shoot-arrow:active {
+    opacity: 1;
+    background: linear-gradient(180deg, rgba(240, 100, 100, 0.85) 0%, rgba(180, 50, 50, 0.85) 100%) !important;
+  }
+}
+
+/* --- 5. BARDZO MAŁE EKRANY (poziome telefony, np. iPhone SE) --- */
+@media (max-width: 600px) and (orientation: landscape) {
+  body {
+    padding: 2px !important;
+  }
+  #playerFrame {
+    padding: 3px !important;
+    gap: 2px !important;
+  }
+  #gameTitle { font-size: 11px !important; }
+  .ctrl-btn {
+    padding: 4px 6px !important;
+    font-size: 9px !important;
+    max-width: 90px;
+  }
+  .nav-arrow {
+    width: 44px !important;
+    height: 44px !important;
+    font-size: 18px !important;
+  }
+  .canvas-nav-group {
+    bottom: 6px !important;
+    gap: 4px !important;
+  }
+  /* Mniejsze HUD-y w grze żeby nie zjadały przestrzeni */
+  #fps-counter { font-size: 10px !important; padding: 2px 5px !important; }
+  #levelBadge { font-size: 9px !important; padding: 3px 7px !important; left: 90px !important; }
+  #stats-panel { font-size: 8px !important; padding: 2px 5px !important; }
+  #hud { font-size: 10px !important; }
+}
+
+/* --- 6. EKRAN MENU STARTOWEGO — mniejszy na mobile --- */
+@media (max-width: 860px), (hover: none) and (pointer: coarse) {
+  #menu-overlay {
+    padding: 10px !important;
+  }
+  #menu-title {
+    font-size: 22px !important;
+    margin-bottom: 6px;
+    letter-spacing: 1px;
+  }
+  #menu-author {
+    font-size: 11px !important;
+    margin-bottom: 10px;
+  }
+  #menu-description {
+    font-size: 11px !important;
+    padding: 6px 10px !important;
+    margin-bottom: 12px;
+    line-height: 1.4;
+  }
+  #menu-controls {
+    font-size: 10px !important;
+    margin-bottom: 16px;
+    line-height: 1.5;
+  }
+  #menu-start-btn {
+    padding: 10px 30px !important;
+    font-size: 14px !important;
+    letter-spacing: 1px;
+  }
+}
+
+/* --- 7. EKRAN WYNIKÓW — kompaktowy na mobile --- */
+@media (max-width: 600px) and (orientation: landscape),
+       (max-height: 500px) {
+  #resultsContent { padding: 8px !important; }
+  #resultsBall { font-size: 36px !important; margin-bottom: 4px; }
+  #resultsTitle { font-size: 20px !important; margin: 2px 0 !important; }
+  #resultsGameName { font-size: 10px !important; margin-bottom: 6px; }
+  #resultsTable { padding: 6px 10px !important; margin-bottom: 6px !important; }
+  #resultsTableHeader { font-size: 9px !important; }
+  .results-row { padding: 3px 0 !important; font-size: 11px !important; }
+  #resultsButtons { margin-bottom: 6px !important; }
+  .results-btn {
+    padding: 7px 12px !important;
+    font-size: 11px !important;
+    min-width: 110px !important;
+  }
+  #resultsEnemyStrip { height: 36px !important; font-size: 18px !important; }
+}
+
+/* --- 8. WYŁĄCZAMY backdrop-filter na słabszych urządzeniach (lag) --- */
+@media (max-width: 600px) {
+  #menu-overlay {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+  .canvas-nav-group {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+}
+
+/* --- 9. UKRYJ animowane bąbelki na małych ekranach (oszczędność CPU) --- */
+@media (max-width: 600px) {
+  body::after {
+    display: none;
+  }
+}
+
+/* --- 10. POKAŻ przyciski nawigacji ZAWSZE na touch (nadpisuje hidden-nav) --- */
+@media (hover: none) and (pointer: coarse) {
+  .canvas-nav-group.hidden-nav {
+    display: flex !important;
+  }
+  /* Ukryj przycisk "🕹 NAWIGACJA" — niepotrzebny, bo nav widoczny zawsze */
+  #navToggleBtn {
+    display: none !important;
+  }
+}
+
+/* --- 11. STOPKA Z LINKIEM mini-klik.pl --- */
+#statusBar a {
+  color: #6a9dc0;
+  text-decoration: none;
+  font-weight: bold;
+  letter-spacing: 0.5px;
+  transition: all 0.2s;
+  padding: 4px 12px;
+  border-radius: 6px;
+}
+#statusBar a:hover {
+  color: #adf;
+  text-shadow: 0 0 8px rgba(120, 200, 255, 0.6);
+  background: rgba(120, 200, 255, 0.08);
+}
+#statusBar a:active {
+  transform: translateY(1px);
+}
+
 </style>
 </head>
 <body>
+
+<!-- EKRAN "OBRÓĆ TELEFON" (pojawia się tylko na pionowym telefonie) -->
+<div id="rotateScreen">
+  <div class="rotate-icon">📱</div>
+  <div class="rotate-title">OBRÓĆ TELEFON</div>
+  <div class="rotate-text">Ta gra jest zaprojektowana w trybie poziomym.<br><br>Obróć urządzenie na bok, aby grać. 🎮</div>
+</div>
 
 <div id="playerFrame">
 
@@ -829,7 +1138,7 @@
   </div>
 </div>
 
-  <div id="statusBar">🎮 Mini-Klik PIXI Player — Renderowanie WebGL (GPU)</div>
+  <div id="statusBar"><a href="https://mini-klik.pl/" target="_blank" rel="noopener">🎮 mini-klik.pl</a></div>
 
 </div>
 <!-- /playerFrame -->
@@ -858,13 +1167,10 @@ const app = new PIXI.Application({
 })
 document.getElementById('game-container').appendChild(app.view)
 
-// Sprawdź który renderer jest aktywny
+// Sprawdź który renderer jest aktywny (tylko log do konsoli, statusBar zostaje stopką)
 const rendererType = app.renderer.type === PIXI.RENDERER_TYPE.WEBGL ? 'WebGL (GPU) ✅' : 'Canvas 2D (CPU) ❌'
 console.log('🎮 Renderer:', rendererType)
-const statusEl = document.getElementById('statusBar')
-if (statusEl) {
-  statusEl.innerHTML = `✨ Renderowanie: <strong style="color:#0f0">${rendererType}</strong> — porównaj z Canvas 2D!`
-}
+// (statusBar już ma link do mini-klik.pl - nie nadpisujemy)
 
 // === KONTENERY (warstwy renderowania na GPU) ===
 const stage = app.stage
