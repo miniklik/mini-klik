@@ -1121,7 +1121,7 @@
     <span class="pages-label">POZIOMY →</span>
     <div id="pages-list" style="display:flex;gap:6px;flex-wrap:nowrap;"></div>
     <button class="page-btn add" id="page-add" title="Dodaj nowy poziom">+</button>
-    <button class="page-btn del" id="page-del" title="Usuń aktualny poziom">−</button>
+    <button class="page-btn del" id="page-del" title="Usuń poziom (wybierzesz który)">−</button>
   </div>
 </div>
 
@@ -1142,6 +1142,18 @@
     <div class="modal-row">
       <button class="topbar-btn" id="modal-cancel">Anuluj</button>
       <button class="topbar-btn primary" id="modal-ok">OK</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODAL WYBORU POZIOMU DO USUNIĘCIA ===== -->
+<div class="modal-backdrop" id="modal-pick-page">
+  <div class="modal">
+    <h2>🗑 Usuń poziom</h2>
+    <p>Wybierz numer poziomu który chcesz usunąć. Wszystkie obiekty i rysunek z tego poziomu znikną. (Możesz cofnąć: Ctrl+Z)</p>
+    <div id="pick-page-list" style="display:flex;flex-wrap:wrap;gap:6px;margin:14px 0;justify-content:center;"></div>
+    <div class="modal-row">
+      <button class="topbar-btn" id="pick-page-cancel">Anuluj</button>
     </div>
   </div>
 </div>
@@ -2091,19 +2103,71 @@ function addPage() {
   toast(`+ Dodano poziom ${state.pages.length}`);
 }
 
+// Pokaż modal z listą poziomów. Zwraca 0-based index wybranego, albo null jeśli anulowano.
+function pickPageToDelete() {
+  return new Promise(resolve => {
+    const back = document.getElementById('modal-pick-page');
+    const list = document.getElementById('pick-page-list');
+    list.innerHTML = '';
+
+    // Generuj przyciski dla każdego poziomu — pokazujemy też ile obiektów jest na nim
+    state.pages.forEach((p, idx) => {
+      const btn = document.createElement('button');
+      btn.className = 'page-btn';
+      // Aktywny poziom — zielony (jak w pasku poziomów)
+      if (idx === state.currentPageIndex) btn.classList.add('active');
+      btn.style.minWidth = '54px';
+      btn.style.minHeight = '54px';
+      btn.style.fontSize = '18px';
+      btn.style.position = 'relative';
+      btn.textContent = String(idx + 1);
+      // Mały badge z liczbą obiektów (pomaga zorientować się który jest pusty)
+      const count = (p.items || []).length;
+      if (count > 0) {
+        const badge = document.createElement('span');
+        badge.textContent = String(count);
+        badge.style.cssText = 'position:absolute;top:-6px;right:-6px;background:#fbbf24;color:#1a1a1a;font-size:10px;font-weight:700;border-radius:10px;padding:1px 5px;min-width:16px;text-align:center;line-height:1.4;';
+        btn.appendChild(badge);
+      }
+      btn.title = (idx === state.currentPageIndex ? '(aktualny) ' : '') + `${count} obiekt${count===1?'':(count>=2&&count<=4?'y':'ów')}`;
+      btn.onclick = () => {
+        back.classList.remove('show');
+        resolve(idx);
+      };
+      list.appendChild(btn);
+    });
+
+    document.getElementById('pick-page-cancel').onclick = () => {
+      back.classList.remove('show');
+      resolve(null);
+    };
+    back.classList.add('show');
+  });
+}
+
 async function deletePage() {
   if (state.pages.length <= 1) {
     toast('Musi pozostać co najmniej jeden poziom');
     return;
   }
-  const ok = await confirmModal('Usuń poziom',
-    `Usunąć poziom ${state.currentPageIndex + 1}? Wszystkie obiekty i rysunek z tego poziomu znikną. (Możesz cofnąć: Ctrl+Z)`);
-  if (!ok) return;
+  // Pokaż modal z wyborem — który poziom usunąć
+  const removedIdx = await pickPageToDelete();
+  if (removedIdx === null) return;   // anulowano
 
-  const removedIdx = state.currentPageIndex;
+  // Zachowaj rysunek bieżącego poziomu zanim go ewentualnie usuniemy
+  snapshotCurrentDrawing();
+
   state.pages.splice(removedIdx, 1);
-  // Po usunięciu — przesuń się na sąsiedni poziom
-  state.currentPageIndex = Math.min(removedIdx, state.pages.length - 1);
+
+  // Po usunięciu — przesuń wskaźnik bieżącego poziomu jeśli trzeba
+  if (state.currentPageIndex === removedIdx) {
+    // Usunęliśmy aktualny — przeskocz na sąsiedni
+    state.currentPageIndex = Math.min(removedIdx, state.pages.length - 1);
+  } else if (state.currentPageIndex > removedIdx) {
+    // Usunęliśmy poziom PRZED aktualnym — numeracja się skurczyła, przesuń wskaźnik
+    state.currentPageIndex--;
+  }
+  // Jeśli usunięty był PO aktualnym — wskaźnik zostaje gdzie był
   state.selectedId = null;
 
   // Zaktualizuj wszystkie gotoPage we wszystkich pozostałych stronach:
@@ -2124,7 +2188,7 @@ async function deletePage() {
   loadDrawingForCurrent();
   render();
   pushHistory();
-  toast(`Usunięto poziom`);
+  toast(`Usunięto poziom ${removedIdx + 1}`);
 }
 
 document.getElementById('page-add').onclick = addPage;
