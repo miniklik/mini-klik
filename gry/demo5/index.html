@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<title>demo • mini-klik</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+    :root {
+        --cyan: #00f7ff;
+        --pink: #ff00c8;
+    }
+
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body {
+        font-family: 'Segoe UI', Arial, sans-serif;
+        background: #0a0a0a;
+        color: #eee;
+        min-height: 100vh;
+    }
+
+    body::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        background: radial-gradient(circle at 30% 20%, rgba(0,247,255,0.12), transparent 50%),
+                    radial-gradient(circle at 70% 80%, rgba(255,0,200,0.12), transparent 50%);
+        z-index: -2;
+    }
+
+    /* GÓRNY PASEK */
+    nav {
+        background: rgba(10,10,10,0.96);
+        backdrop-filter: blur(12px);
+        border-bottom: 1px solid var(--cyan);
+        padding: 16px 20px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+    .logo {
+        font-size: 24px;
+        font-weight: bold;
+        color: var(--cyan);
+        text-shadow: 0 0 15px var(--cyan);
+        text-decoration: none;
+    }
+    .back-link {
+        color: #ccc;
+        text-decoration: none;
+        font-size: 0.95rem;
+        transition: color 0.3s;
+    }
+    .back-link:hover { color: var(--cyan); }
+
+    /* KONTENER GRY */
+    .game-page {
+        max-width: 900px;
+        margin: 40px auto;
+        padding: 0 20px;
+    }
+
+    /* HEADER GRY */
+    .game-header {
+        text-align: center;
+        margin-bottom: 40px;
+    }
+    .game-header h1 {
+        font-size: 3.2rem;
+        background: linear-gradient(90deg, var(--cyan), var(--pink));
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        text-shadow: 0 0 40px rgba(0,247,255,0.6);
+        margin-bottom: 12px;
+        line-height: 1.1;
+    }
+    .game-header .tag {
+        color: #888;
+        font-size: 0.85rem;
+        letter-spacing: 2px;
+    }
+
+    /* OKŁADKA — kwadrat 1:1, z animacją pływania */
+    .cover {
+        width: 100%;
+        max-width: 300px;
+        margin: 0 auto 28px;
+        aspect-ratio: 1 / 1;
+        background: #111;
+        border: 1px solid #222;
+        border-radius: 14px;
+        overflow: hidden;
+        box-shadow: 0 0 40px rgba(0,247,255,0.15);
+        animation: coverFloat 5s ease-in-out infinite;
+    }
+    .cover img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+    @keyframes coverFloat {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-6px); }
+    }
+
+    /* STATYSTYKI — zagrania i polubienia */
+    .stats-row {
+        display: flex;
+        justify-content: center;
+        gap: 14px;
+        margin: 0 auto 30px;
+        flex-wrap: wrap;
+    }
+    .stat-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        background: #111;
+        border: 1px solid #222;
+        border-radius: 50px;
+        padding: 10px 18px;
+        transition: all 0.3s;
+    }
+    .stat-icon { font-size: 1.3rem; line-height: 1; }
+    .stat-content { display: flex; flex-direction: column; line-height: 1.1; }
+    .stat-number { font-weight: 700; font-size: 1rem; color: #eee; }
+    .stat-label { font-size: 0.72rem; color: #666; letter-spacing: 1px; }
+
+    .like-btn { cursor: pointer; user-select: none; }
+    .like-btn:hover {
+        border-color: #ff4e7e;
+        transform: scale(1.05);
+        box-shadow: 0 0 20px rgba(255,78,126,0.3);
+    }
+    .like-btn.liked {
+        background: rgba(255,78,126,0.15);
+        border-color: #ff4e7e;
+        box-shadow: 0 0 20px rgba(255,78,126,0.4);
+    }
+    .like-btn.liked .stat-icon { animation: heartPop 0.4s; }
+    @keyframes heartPop {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.4); }
+        100% { transform: scale(1); }
+    }
+
+    /* INFO GRID */
+    .info-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 16px;
+        margin-bottom: 35px;
+    }
+    .info-card {
+        background: #111;
+        border: 1px solid #222;
+        border-radius: 12px;
+        padding: 18px 20px;
+        text-align: center;
+    }
+    .info-card .label {
+        font-size: 0.72rem;
+        color: #666;
+        letter-spacing: 1.5px;
+        margin-bottom: 6px;
+    }
+    .info-card .value {
+        color: #eee;
+        font-size: 1rem;
+        font-weight: 500;
+    }
+    .info-card .value.accent { color: var(--cyan); }
+    .info-card .value.pink   { color: var(--pink); }
+
+    /* SZEROKA KARTA: POZIOMY + STEROWANIE */
+    .info-card-wide {
+        grid-column: span 2;
+    }
+    .level-controls-row {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 14px;
+        flex-wrap: wrap;
+    }
+    .level-sep {
+        color: #444;
+        font-size: 1.2rem;
+    }
+    .mini-controls {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+    }
+    .mini-key {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 32px;
+        height: 32px;
+        padding: 0 8px;
+        background: #1f1f1f;
+        border: 1px solid #333;
+        border-bottom: 2px solid #444;
+        border-radius: 6px;
+        font-family: monospace;
+        font-size: 0.9rem;
+        color: var(--cyan);
+        font-weight: 600;
+    }
+
+    @media (max-width: 700px) {
+        .info-card-wide { grid-column: span 1; }
+    }
+
+    /* OPIS */
+    .description {
+        background: #111;
+        border: 1px solid #222;
+        border-radius: 14px;
+        padding: 28px 30px;
+        margin-bottom: 35px;
+        line-height: 1.8;
+        color: #bbb;
+    }
+    .description h3 {
+        color: var(--cyan);
+        margin-bottom: 14px;
+        font-size: 1.25rem;
+    }
+
+    /* INSTRUKCJA OBSŁUGI */
+    .howto {
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+        color: #bbb;
+    }
+    .howto-block {
+        background: rgba(0,0,0,0.35);
+        border: 1px solid #222;
+        border-left: 3px solid var(--cyan);
+        border-radius: 10px;
+        padding: 14px 18px;
+    }
+    .howto-block:nth-child(2) {
+        border-left-color: var(--pink);
+    }
+    .howto-title {
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: #eee;
+        margin-bottom: 10px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    .howto-ico {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        background: rgba(255,255,255,0.05);
+        border: 1px solid #333;
+        font-size: 1rem;
+        font-weight: bold;
+    }
+    .howto ul {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+    .howto ul li {
+        padding: 4px 0 4px 18px;
+        position: relative;
+        line-height: 1.6;
+        font-size: 0.97rem;
+    }
+    .howto ul li::before {
+        content: "•";
+        position: absolute;
+        left: 4px;
+        color: var(--cyan);
+        font-weight: bold;
+    }
+    .howto-block:nth-child(2) ul li::before {
+        color: var(--pink);
+    }
+    .howto b {
+        color: #fff;
+        background: rgba(0, 247, 255, 0.1);
+        padding: 1px 6px;
+        border-radius: 4px;
+        font-weight: 600;
+        border: 1px solid rgba(0, 247, 255, 0.25);
+    }
+    .howto-footer {
+        margin-top: 4px;
+        padding: 16px 18px;
+        background: linear-gradient(90deg, rgba(0,247,255,0.08), rgba(255,0,200,0.08));
+        border: 1px dashed rgba(255, 0, 200, 0.4);
+        border-radius: 10px;
+        font-size: 0.98rem;
+        line-height: 1.7;
+        text-align: center;
+        color: #ddd;
+    }
+    .howto-footer b {
+        background: rgba(255, 0, 200, 0.15);
+        border-color: rgba(255, 0, 200, 0.35);
+    }
+
+    /* PRZYCISKI NEONOWE — dwa wiersze */
+    .actions {
+        display: flex;
+        gap: 16px;
+        margin-bottom: 30px;
+        flex-wrap: wrap;
+    }
+    .btn {
+        flex: 1;
+        min-width: 200px;
+        padding: 22px 28px;
+        border-radius: 16px;
+        cursor: pointer;
+        text-decoration: none;
+        text-align: center;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 2px;
+        transition: all 0.3s;
+        letter-spacing: 0.5px;
+        position: relative;
+    }
+    .btn-sub {
+        font-size: 0.85rem;
+        font-weight: 500;
+        letter-spacing: 2px;
+        opacity: 0.8;
+        margin-bottom: 6px;
+    }
+    .btn-main {
+        font-size: 1.4rem;
+        font-weight: 700;
+        line-height: 1.1;
+    }
+
+    .btn-play {
+        background: rgba(0,247,255,0.08);
+        color: var(--cyan);
+        border: 2px solid var(--cyan);
+        box-shadow: 0 0 25px rgba(0,247,255,0.3), inset 0 0 20px rgba(0,247,255,0.1);
+        text-shadow: 0 0 10px var(--cyan);
+    }
+    .btn-play:hover {
+        background: var(--cyan);
+        color: #000;
+        transform: scale(1.04);
+        box-shadow: 0 0 50px rgba(0,247,255,0.7);
+        text-shadow: none;
+    }
+
+    .btn-edit {
+        background: rgba(255,0,200,0.08);
+        color: var(--pink);
+        border: 2px solid var(--pink);
+        box-shadow: 0 0 25px rgba(255,0,200,0.3), inset 0 0 20px rgba(255,0,200,0.1);
+        text-shadow: 0 0 10px var(--pink);
+    }
+    .btn-edit:hover {
+        background: var(--pink);
+        color: #000;
+        transform: scale(1.04);
+        box-shadow: 0 0 50px rgba(255,0,200,0.7);
+        text-shadow: none;
+    }
+
+    @media (max-width: 600px) {
+        .game-header h1 { font-size: 2.2rem; }
+        .btn { min-width: 100%; }
+        .btn-main { font-size: 1.2rem; }
+        .description, .controls { padding: 22px 20px; }
+    }
+</style>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+</head>
+
+<body>
+
+<nav>
+    <a href="../" class="logo">🎮 mini-klik</a>
+    <a href="../" class="back-link">← powrót</a>
+</nav>
+
+<div class="game-page">
+
+    <!-- HEADER -->
+    <div class="game-header">
+        <h1 id="gameTitle">demo</h1>
+        <div class="tag" id="gameTag">PLATFORMÓWKA • DEMO 5</div>
+    </div>
+
+    <!-- OKŁADKA -->
+    <div class="cover">
+        <img src="../images/demo5.png" alt="okładka gry"
+             onerror="this.style.display='none'; this.parentElement.style.display='flex'; this.parentElement.style.alignItems='center'; this.parentElement.style.justifyContent='center'; this.parentElement.innerHTML='<span style=&quot;color:#333;font-size:0.9rem;&quot;>[ okładka gry ]</span>';">
+    </div>
+
+    <!-- PRZYCISKI NEONOWE -->
+    <div class="actions">
+        <a href="player.html" class="btn btn-play">
+            <span class="btn-sub">▶ PRESS START</span>
+            <span class="btn-main">GRAJ TERAZ</span>
+        </a>
+        <a href="app.html" class="btn btn-edit">
+            <span class="btn-sub">✎ CREATE ★</span>
+            <span class="btn-main">OTWÓRZ EDYTOR</span>
+        </a>
+    </div>
+
+    <!-- STATYSTYKI: ZAGRANIA + POLUBIENIA -->
+    <div class="stats-row">
+        <div class="stat-item">
+            <div class="stat-icon" style="color:#ffd166;">🎮</div>
+            <div class="stat-content">
+                <span class="stat-number" id="playCount">0</span>
+                <span class="stat-label">zagrań</span>
+            </div>
+        </div>
+        <div class="stat-item like-btn" id="likeBtn" onclick="toggleLike()">
+            <div class="stat-icon" style="color:#ff4e7e;">❤️</div>
+            <div class="stat-content">
+                <span class="stat-number" id="likeCount">0</span>
+                <span class="stat-label">polubień</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- INFO: TWÓRCA / POZIOMY·STEROWANIE / GATUNEK -->
+    <div class="info-grid">
+        <div class="info-card">
+            <div class="label">TWÓRCA</div>
+            <div class="value pink" id="gameAuthor">mini-klik.pl</div>
+        </div>
+        <div class="info-card info-card-wide">
+            <div class="label">POZIOMY · STEROWANIE</div>
+            <div class="level-controls-row">
+                <span class="value accent" id="gameLevels">6</span>
+                <span class="level-sep">•</span>
+                <div class="mini-controls" id="controlsGrid">
+                    <span class="mini-key">←</span>
+                    <span class="mini-key">→</span>
+                    <span class="mini-key">↑</span>
+                </div>
+            </div>
+        </div>
+        <div class="info-card">
+            <div class="label">GATUNEK</div>
+            <div class="value">Platformówka 2D</div>
+        </div>
+    </div>
+
+    <!-- INSTRUKCJA OBSŁUGI -->
+    <div class="description">
+        <h3>📖 Jak to działa</h3>
+        <div id="gameDescription" class="howto">
+            <div class="howto-block">
+                <div class="howto-title"><span class="howto-ico" style="color:var(--cyan);">▶</span> Game Player</div>
+                <ul>
+                    <li>Kliknij <b>„Graj"</b>, aby otworzyć Game Player</li>
+                    <li>Kliknij <b>„Moja gra"</b> i od razu zacznij grać</li>
+                    <li>Przyciskiem <b>„Load"</b> wczytasz gry zrobione na własnym komputerze</li>
+                </ul>
+            </div>
+
+            <div class="howto-block">
+                <div class="howto-title"><span class="howto-ico" style="color:var(--pink);">✎</span> Edytor</div>
+                <ul>
+                    <li>Kliknij <b>„Edytor"</b>, aby wejść w świat tworzenia gier</li>
+                    <li>Możesz tworzyć grę od początku</li>
+                    <li>Kliknij <b>„Demo"</b>, aby wczytać i edytować zapisaną grę</li>
+                    <li>Kliknij <b>„Save"</b>, aby zapisać swój projekt (jest on już gotową grą)</li>
+                    <li>Kliknij <b>„Load"</b>, aby wczytać własny projekt z komputera</li>
+                </ul>
+            </div>
+
+            <div class="howto-footer">
+                📤 Prześlij nam swoją grę w postaci pliku <b>.json</b>, aby ukazała się na naszym portalu — i napisz kilka słów o sobie. <b>Powodzenia!</b> 🎮
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<footer style="text-align:center; padding:30px 20px 50px; color:#555; font-size:0.85rem; border-top: 1px solid #1a1a1a; margin-top: 40px;">
+    © 2026 mini-klik • <a href="../" style="color:var(--cyan); text-decoration:none;">mini-klik.pl</a>
+</footer>
+
+<script>
+// === IDENTYFIKATOR GRY — nazwa folderu jako unikalny ID ===
+const gameId = (() => {
+    const parts = window.location.pathname.split('/').filter(Boolean);
+    return parts[parts.length - 2] || 'demo';
+})();
+
+// Tylko dla polubień — pamiętamy w localStorage czy TEN użytkownik już polubił
+const STORAGE_LIKED_BY_ME = `mk_liked_${gameId}`;
+
+// === FIREBASE ===
+const firebaseConfig = {
+    apiKey: "AIzaSyDRR3vSfgpEmbpZz_-VldMTnTHoXRfuGKg",
+    authDomain: "ksiega-ramzi.firebaseapp.com",
+    projectId: "ksiega-ramzi",
+    storageBucket: "ksiega-ramzi.firebasestorage.app",
+    messagingSenderId: "400735142662",
+    appId: "1:400735142662:web:0b52a57f4fedf367839487"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+const gameRef = db.collection("games").doc(gameId);
+
+// === WCZYTAJ METADANE Z DEMO.JSON ===
+fetch('demo.json')
+    .then(r => r.ok ? r.json() : null)
+    .then(data => {
+        if (!data) return;
+        const s = data.settings || {};
+
+        if (s.nazwaGry)  document.getElementById('gameTitle').textContent  = s.nazwaGry;
+        if (s.autorGry)  document.getElementById('gameAuthor').textContent = s.autorGry;
+        // Opis z demo.json NIE nadpisuje instrukcji obsługi — instrukcja zostaje stała
+        // if (s.opisGry)   document.getElementById('gameDescription').textContent = s.opisGry;
+
+        if (Array.isArray(data.levels)) {
+            document.getElementById('gameLevels').textContent = data.levels.length;
+        }
+
+        // Sterowanie (mini klawisze w karcie POZIOMY · STEROWANIE)
+        if (s.sterowanie) {
+            const keyMap = {
+                'ArrowLeft':'←', 'ArrowRight':'→', 'ArrowUp':'↑', 'ArrowDown':'↓',
+                'Space':'Spacja', ' ':'Spacja'
+            };
+            const labels = {
+                lewo: 'w lewo', prawo: 'w prawo', skok: 'skok',
+                dol: 'w dół', strzal: 'strzał'
+            };
+            const grid = document.getElementById('controlsGrid');
+            grid.innerHTML = '';
+            for (const [k, v] of Object.entries(s.sterowanie)) {
+                if (!v) continue;
+                const key = keyMap[v] || v;
+                const lab = labels[k] || k;
+                grid.insertAdjacentHTML('beforeend',
+                    `<span class="mini-key" title="${lab}">${key}</span>`);
+            }
+        }
+    })
+    .catch(() => {});
+
+// === POMOCNICZE ===
+function formatNumber(n) {
+    if (n >= 1000) return (n / 1000).toFixed(1) + 'k';
+    return n;
+}
+
+// === WCZYTAJ GLOBALNE LICZNIKI Z FIREBASE ===
+// Używamy onSnapshot — licznik aktualizuje się automatycznie live gdy inni grają/lubią
+gameRef.onSnapshot(doc => {
+    const data = doc.data() || {};
+    const plays = data.plays || 0;
+    const likes = data.likes || 0;
+
+    document.getElementById('playCount').textContent = formatNumber(plays);
+    document.getElementById('likeCount').textContent = formatNumber(likes);
+}, err => {
+    console.error("Błąd liczników:", err);
+});
+
+// Zaznacz serduszko jeśli TEN użytkownik już polubił
+if (localStorage.getItem(STORAGE_LIKED_BY_ME) === '1') {
+    document.getElementById('likeBtn').classList.add('liked');
+}
+
+// === POLUBIENIA (toggle, +1 / -1) ===
+let likeInFlight = false;
+async function toggleLike() {
+    if (likeInFlight) return;
+    likeInFlight = true;
+
+    const btn = document.getElementById('likeBtn');
+    const wasLiked = btn.classList.contains('liked');
+
+    // Optymistyczna zmiana UI
+    if (wasLiked) {
+        btn.classList.remove('liked');
+        localStorage.setItem(STORAGE_LIKED_BY_ME, '0');
+    } else {
+        btn.classList.add('liked');
+        localStorage.setItem(STORAGE_LIKED_BY_ME, '1');
+    }
+
+    try {
+        await gameRef.set({
+            likes: firebase.firestore.FieldValue.increment(wasLiked ? -1 : 1)
+        }, { merge: true });
+    } catch (err) {
+        console.error("Błąd polubienia:", err);
+        // Rollback UI
+        if (wasLiked) {
+            btn.classList.add('liked');
+            localStorage.setItem(STORAGE_LIKED_BY_ME, '1');
+        } else {
+            btn.classList.remove('liked');
+            localStorage.setItem(STORAGE_LIKED_BY_ME, '0');
+        }
+    } finally {
+        likeInFlight = false;
+    }
+}
+
+// UWAGA: countPlay() NIE jest już wywoływane z kliknięcia GRAJ
+// Zamiast tego zagranie jest liczone w player.html (gdy gra faktycznie się załaduje)
+</script>
+
+</body>
+</html>
