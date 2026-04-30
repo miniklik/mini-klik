@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Siedliszcze — mapa rodzinnej miejscowości</title>
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;700&family=Cormorant+Garamond:wght@500;700&display=swap" rel="stylesheet">
+
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{min-height:100%;overflow-x:hidden}
+  body{
+    font-family:'Space Grotesk',system-ui,sans-serif;
+    background:radial-gradient(ellipse at 20% 0%,#1a0f2e 0%,#0a0a14 50%,#000 100%);
+    color:#e8e8ea;
+    min-height:100vh;
+    padding:24px;
+  }
+
+  body::before{
+    content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
+    background-image:
+      radial-gradient(1px 1px at 23% 14%,#fff,transparent),
+      radial-gradient(1px 1px at 67% 28%,#fff,transparent),
+      radial-gradient(1px 1px at 41% 52%,#fff,transparent),
+      radial-gradient(2px 2px at 89% 71%,#ffd9a3,transparent),
+      radial-gradient(1px 1px at 12% 84%,#fff,transparent),
+      radial-gradient(1px 1px at 76% 91%,#fff,transparent),
+      radial-gradient(1px 1px at 55% 8%,#a3d9ff,transparent),
+      radial-gradient(1px 1px at 33% 39%,#fff,transparent),
+      radial-gradient(2px 2px at 8% 47%,#ff9a3d,transparent);
+    opacity:0.7;
+    animation:twinkle 4s ease-in-out infinite;
+  }
+  @keyframes twinkle{0%,100%{opacity:0.7}50%{opacity:0.35}}
+
+  .wrapper{position:relative;z-index:2;max-width:1400px;margin:0 auto}
+
+  .topnav{margin-bottom:24px}
+  .back{
+    color:#888;text-decoration:none;font-size:14px;letter-spacing:1px;
+    font-family:'JetBrains Mono',monospace;transition:color 0.2s;
+  }
+  .back:hover{color:#ff9a3d}
+
+  header{text-align:center;margin-bottom:32px}
+  h1{
+    font-family:'Cormorant Garamond',serif;
+    font-size:64px;font-weight:700;letter-spacing:-1px;line-height:1;
+    background:linear-gradient(180deg,#ff9a3d 0%,#e87a1d 70%,#a04510 100%);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+    text-shadow:0 0 80px rgba(255,154,61,0.3);
+  }
+  .meta{
+    margin-top:12px;color:#888;font-size:13px;letter-spacing:4px;
+    text-transform:uppercase;
+  }
+  .meta-line{width:60px;height:2px;background:#ff9a3d;margin:16px auto}
+
+  .layout{
+    display:grid;
+    grid-template-columns:1fr 380px;
+    gap:24px;
+    margin-top:32px;
+  }
+
+  #mapa{
+    width:100%;
+    height:600px;
+    border-radius:16px;
+    border:2px solid rgba(255,154,61,0.3);
+    box-shadow:0 10px 40px rgba(0,0,0,0.6);
+  }
+
+  .sidebar{
+    background:linear-gradient(180deg,rgba(40,40,55,0.6) 0%,rgba(20,20,30,0.8) 100%);
+    border:1px solid rgba(255,154,61,0.2);
+    border-radius:16px;
+    padding:20px;
+    backdrop-filter:blur(10px);
+    max-height:600px;
+    overflow-y:auto;
+  }
+  .sidebar h2{
+    color:#ff9a3d;font-size:14px;letter-spacing:2px;text-transform:uppercase;
+    margin-bottom:16px;font-weight:700;
+    padding-bottom:12px;border-bottom:1px solid rgba(255,154,61,0.2);
+  }
+  .miejsce-card{
+    background:rgba(255,154,61,0.05);
+    border:1px solid rgba(255,154,61,0.15);
+    border-radius:10px;
+    padding:14px;
+    margin-bottom:10px;
+    cursor:pointer;
+    transition:all 0.2s;
+  }
+  .miejsce-card:hover{
+    background:rgba(255,154,61,0.12);
+    border-color:rgba(255,154,61,0.4);
+    transform:translateX(-4px);
+  }
+  .miejsce-card .ikona{font-size:24px;float:left;margin-right:12px}
+  .miejsce-card .nazwa{
+    color:#ff9a3d;font-weight:700;font-size:15px;margin-bottom:2px;
+  }
+  .miejsce-card .opis{color:#aaa;font-size:12px;line-height:1.4}
+  .miejsce-card::after{content:'';display:block;clear:both}
+
+  .info-panel{
+    margin-top:24px;
+    background:linear-gradient(180deg,rgba(40,40,55,0.6) 0%,rgba(20,20,30,0.8) 100%);
+    border:1px solid rgba(255,154,61,0.2);
+    border-radius:16px;
+    padding:32px;
+    backdrop-filter:blur(10px);
+  }
+  .info-panel h2{
+    color:#ff9a3d;font-size:16px;letter-spacing:2px;text-transform:uppercase;
+    margin-bottom:16px;
+  }
+  .info-panel p{color:#bbb;line-height:1.7;font-size:14px;margin-bottom:12px}
+  .info-panel b{color:#ff9a3d}
+
+  .stats{
+    display:grid;grid-template-columns:repeat(4,1fr);gap:16px;
+    margin-top:24px;
+  }
+  .stat{
+    background:rgba(255,154,61,0.05);
+    border:1px solid rgba(255,154,61,0.15);
+    border-radius:12px;
+    padding:20px;
+    text-align:center;
+  }
+  .stat .liczba{
+    font-family:'Cormorant Garamond',serif;
+    font-size:36px;font-weight:700;color:#ff9a3d;
+    line-height:1;margin-bottom:6px;
+  }
+  .stat .label{
+    font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#888;
+  }
+
+  .controls{
+    display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;
+    padding:12px;
+    background:rgba(20,20,30,0.6);
+    border-radius:10px;
+    border:1px solid rgba(255,154,61,0.15);
+  }
+  .controls button{
+    background:rgba(255,154,61,0.1);
+    color:#ff9a3d;
+    border:1px solid rgba(255,154,61,0.3);
+    padding:8px 14px;
+    border-radius:6px;
+    cursor:pointer;
+    font-family:inherit;font-weight:700;font-size:12px;letter-spacing:1px;
+    transition:all 0.2s;text-transform:uppercase;
+  }
+  .controls button:hover{background:rgba(255,154,61,0.25);transform:translateY(-1px)}
+  .controls button.active{background:#ff9a3d;color:#000}
+
+  .leaflet-popup-content-wrapper{
+    background:#1a1a2e !important;
+    color:#e8e8ea !important;
+    border:1px solid rgba(255,154,61,0.4) !important;
+    border-radius:12px !important;
+    box-shadow:0 8px 24px rgba(0,0,0,0.6) !important;
+  }
+  .leaflet-popup-tip{background:#1a1a2e !important;border:1px solid rgba(255,154,61,0.4) !important}
+  .leaflet-popup-content{margin:14px 18px !important;font-family:'Space Grotesk',sans-serif !important;font-size:13px;line-height:1.5}
+  .leaflet-popup-content b{color:#ff9a3d;font-size:15px;display:block;margin-bottom:6px;font-family:'Cormorant Garamond',serif}
+  .leaflet-popup-content em{color:#aaa;font-style:italic;font-size:11px;display:block;margin-top:6px;letter-spacing:1px}
+  .leaflet-popup-close-button{color:#ff9a3d !important;font-size:20px !important;padding:8px !important}
+
+  footer{
+    text-align:center;margin-top:40px;padding:24px 0;
+    color:#555;font-size:12px;font-family:'JetBrains Mono',monospace;letter-spacing:2px;
+  }
+
+  @media (max-width:900px){
+    .layout{grid-template-columns:1fr}
+    .sidebar{max-height:300px}
+    h1{font-size:48px}
+    .stats{grid-template-columns:repeat(2,1fr)}
+  }
+</style>
+</head>
+<body>
+
+<div class="wrapper">
+
+  <div class="topnav">
+    <a href="../" class="back">← powrót do mini-klik</a>
+  </div>
+
+  <header>
+    <h1>Siedliszcze</h1>
+    <div class="meta-line"></div>
+    <p class="meta">moja rodzinna miejscowość · gmina chełmska · lubelskie</p>
+  </header>
+
+  <div class="controls">
+    <button onclick="filtruj('wszystkie')" class="active" id="btn-wszystkie">⭐ Wszystko</button>
+    <button onclick="filtruj('zabytek')">🏰 Zabytki</button>
+    <button onclick="filtruj('sakral')">⛪ Sakralne</button>
+    <button onclick="filtruj('przyroda')">🌳 Przyroda</button>
+    <button onclick="filtruj('urząd')">🏛️ Instytucje</button>
+    <button onclick="trybSatelita()" id="btn-satelita">🛰️ Satelita</button>
+    <button onclick="trybMapa()" id="btn-mapa">🗺️ Mapa</button>
+  </div>
+
+  <div class="layout">
+    <div id="mapa"></div>
+    <aside class="sidebar">
+      <h2>📍 Lista miejsc</h2>
+      <div id="lista-miejsc"></div>
+    </aside>
+  </div>
+
+  <div class="info-panel">
+    <h2>📜 O Siedliszczu</h2>
+    <p>Siedliszcze leży na <b>Polesiu Wołyńskim</b>, w obrębie Pagórów Chełmskich i Obniżenia Dorohuckiego. To gmina miejsko-wiejska w powiecie chełmskim, województwie lubelskim.</p>
+    <p>W latach <b>1760–1821 było miasteczkiem</b> — dlatego do dziś zachował się charakterystyczny <b>promienisty układ ulic</b> rozchodzących się z centrum, jak w średniowiecznych miastach. Sama nazwa „Siedliszcze" pochodzi od starosłowiańskiego „osiedlać się".</p>
+    <p>Od końca XVII wieku Siedliszcze należało do potężnej magnackiej rodziny <b>Rzewuskich</b>, którzy utrzymywali tu chorągiew husarską. Hetmanami koronnymi byli kolejno Stanisław Mateusz Rzewuski i jego syn Wacław (znany też jako poeta i dramatopisarz). W 1758 r. dobra przeszły w ręce <b>Wojciecha Węglińskiego</b>, ostatniego kasztelana chełmskiego — to po nim pozostał zespół pałacowo-parkowy.</p>
+
+    <div class="stats">
+      <div class="stat"><div class="liczba">~6,7k</div><div class="label">mieszkańców</div></div>
+      <div class="stat"><div class="liczba">154</div><div class="label">km² powierzchni</div></div>
+      <div class="stat"><div class="liczba">34</div><div class="label">miejscowości</div></div>
+      <div class="stat"><div class="liczba">XVIII</div><div class="label">wiek pałacu</div></div>
+    </div>
+  </div>
+
+  <footer>// mapa-siedliszcze · mini-klik.pl · 2026</footer>
+
+</div>
+
+<script>
+const miejsca = [
+  {
+    nazwa: 'Kościół Matki Bożej Częstochowskiej',
+    pozycja: [51.1943, 23.1628],
+    ikona: '⛪',
+    kategoria: 'sakral',
+    krotki: 'Parafia rzymskokatolicka',
+    opis: 'Kościół parafialny w centrum Siedliszcza. Msze święte w niedziele 9:00, 10:30 i 17:00.',
+    historia: 'Pierwsza cerkiew w Siedliszczu istniała przed rokiem 1510. W XVI wieku miejsce ścierania się różnych tendencji religijnych — Siedliszcze było ośrodkiem protestanckim.'
+  },
+  {
+    nazwa: 'Zespół Pałacowo-Parkowy Węglińskich',
+    pozycja: [51.1976, 23.1729],
+    ikona: '🏰',
+    kategoria: 'zabytek',
+    krotki: 'Zabytek z XVIII w.',
+    opis: 'Dawna rezydencja Wojciecha Węglińskiego, ostatniego kasztelana chełmskiego. Obecnie funkcjonuje tu Dom Pomocy Społecznej, ale architektura pozostała.',
+    historia: 'W 1758 r. Wacław Rzewuski sprzedał Siedliszcze pułkownikowi husarii Wojciechowi Węglińskiemu. Pałac wpisany jest do rejestru zabytków.'
+  },
+  {
+    nazwa: 'Urząd Miejski',
+    pozycja: [51.1963, 23.1603],
+    ikona: '🏛️',
+    kategoria: 'urząd',
+    krotki: 'ul. Szpitalna 15a',
+    opis: 'Siedziba władz gminy Siedliszcze. Burmistrz: Hieronim Zonik. Czynne pn-pt 7:00-15:00.',
+    historia: 'Siedliszcze odzyskało prawa miejskie w 2016 roku — po ponad 200 latach przerwy (od 1821 r.).'
+  },
+  {
+    nazwa: 'Zalew Majdan Zahorodyński',
+    pozycja: [51.2278, 23.1418],
+    ikona: '🏖️',
+    kategoria: 'przyroda',
+    krotki: 'Plaża, kąpielisko, kemping',
+    opis: 'Spokojne kąpielisko z piaszczystą plażą, ratownikiem (w sezonie) i miejscami do wędkowania. Można rozbić namiot lub przyjechać kamperem. Czysta i ciepła woda.',
+    historia: 'Sztuczny zbiornik utworzony na potrzeby rolnicze i rekreacyjne. Średnia ocena gości: 4.5⭐'
+  },
+  {
+    nazwa: 'Centrum Siedliszcza (rynek)',
+    pozycja: [51.1955, 23.1615],
+    ikona: '⭐',
+    kategoria: 'zabytek',
+    krotki: 'Promienisty układ ulic',
+    opis: 'Charakterystyczny układ ulic rozchodzących się promieniście od centrum — pamiątka po czasach kiedy Siedliszcze było miasteczkiem (1760-1821).',
+    historia: 'Taki układ urbanistyczny stosowano w czasach baroku — wyznaczał on dawną wagę miejscowości jako ośrodka handlowego i administracyjnego.'
+  },
+  {
+    nazwa: 'Bezek',
+    pozycja: [51.1750, 23.1300],
+    ikona: '🏘️',
+    kategoria: 'urząd',
+    krotki: 'Druga co do wielkości wieś',
+    opis: 'Jedna z najludniejszych miejscowości gminy — typowy układ liniowy zabudowy wzdłuż drogi.',
+    historia: 'Bezek wraz z Mogielnicą i Majdanem Zahorodyńskim mają charakterystyczny dla regionu układ "ulicówki".'
+  },
+  {
+    nazwa: 'Wola Korybutowa',
+    pozycja: [51.2100, 23.0900],
+    ikona: '🌾',
+    kategoria: 'urząd',
+    krotki: 'Historyczna wieś szlachecka',
+    opis: 'Zachodnia część gminy. W XVI w. wieś Siedliszcze Korybutowe wraz z Janowicą tworzyły osobne dobra szlacheckie.',
+    historia: 'Nazwa od rodu Korybutów. Pierwsze wzmianki z 1564 roku — wsie Siedliszcze Korybutowe i Siedliszcze Episkopales.'
+  }
+];
+
+const mapa = L.map('mapa', { zoomControl: true, scrollWheelZoom: true })
+  .setView([51.1980, 23.1600], 13);
+
+// KLASYCZNA MAPA OpenStreetMap
+const warstwaKlasyczna = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '© OpenStreetMap',
+  maxZoom: 19
+}).addTo(mapa);
+
+const warstwaSatelita = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+  attribution: '© Esri',
+  maxZoom: 19
+});
+
+function ikonaMarkera(emoji) {
+  return L.divIcon({
+    className: 'custom-marker-wrapper',
+    html: `<div style="
+      background:#ff9a3d;
+      width:36px;height:36px;
+      border-radius:50%;
+      border:3px solid #1a0f2e;
+      box-shadow:0 0 16px rgba(255,154,61,0.8),0 0 4px rgba(0,0,0,0.8);
+      display:flex;align-items:center;justify-content:center;
+      font-size:18px;
+      cursor:pointer;
+      transition:transform 0.2s;
+    " onmouseover="this.style.transform='scale(1.2)'" onmouseout="this.style.transform='scale(1)'">${emoji}</div>`,
+    iconSize: [36, 36],
+    iconAnchor: [18, 18],
+    popupAnchor: [0, -18]
+  });
+}
+
+const markery = [];
+const listaEl = document.getElementById('lista-miejsc');
+
+miejsca.forEach((miejsce) => {
+  const marker = L.marker(miejsce.pozycja, { icon: ikonaMarkera(miejsce.ikona) })
+    .addTo(mapa)
+    .bindPopup(`
+      <b>${miejsce.nazwa}</b>
+      ${miejsce.opis}
+      <em>📜 ${miejsce.historia}</em>
+    `);
+  marker.kategoria = miejsce.kategoria;
+  markery.push(marker);
+
+  const card = document.createElement('div');
+  card.className = 'miejsce-card';
+  card.dataset.kategoria = miejsce.kategoria;
+  card.innerHTML = `
+    <span class="ikona">${miejsce.ikona}</span>
+    <div class="nazwa">${miejsce.nazwa}</div>
+    <div class="opis">${miejsce.krotki}</div>
+  `;
+  card.onclick = () => {
+    mapa.flyTo(miejsce.pozycja, 16, { duration: 1.2 });
+    setTimeout(() => marker.openPopup(), 1300);
+  };
+  listaEl.appendChild(card);
+});
+
+function filtruj(kat) {
+  document.querySelectorAll('.controls button').forEach(b => b.classList.remove('active'));
+  document.getElementById('btn-' + kat.replace('ą','a').replace('ł','l')).classList.add('active');
+
+  markery.forEach(m => {
+    if (kat === 'wszystkie' || m.kategoria === kat) {
+      m.addTo(mapa);
+    } else {
+      mapa.removeLayer(m);
+    }
+  });
+
+  document.querySelectorAll('.miejsce-card').forEach(c => {
+    if (kat === 'wszystkie' || c.dataset.kategoria === kat) {
+      c.style.display = 'block';
+    } else {
+      c.style.display = 'none';
+    }
+  });
+}
+
+function trybSatelita() {
+  mapa.removeLayer(warstwaKlasyczna);
+  warstwaSatelita.addTo(mapa);
+}
+
+function trybMapa() {
+  mapa.removeLayer(warstwaSatelita);
+  warstwaKlasyczna.addTo(mapa);
+}
+
+mapa.on('click', function(e) {
+  const lat = e.latlng.lat.toFixed(4);
+  const lng = e.latlng.lng.toFixed(4);
+  L.popup({ className: 'custom-popup' })
+    .setLatLng(e.latlng)
+    .setContent(`<b>Współrzędne</b>${lat}, ${lng}<em>kliknij na pinezki, żeby zobaczyć opisy</em>`)
+    .openOn(mapa);
+});
+</script>
+
+</body>
+</html>
