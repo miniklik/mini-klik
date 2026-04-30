@@ -1161,7 +1161,12 @@ const state = {
   gridSize: 20,
   // === Tryb układu strony ===
   layoutMode: false,
-  canvasFormat: 'slide43'     // domyślnie 4:3 — pasuje do dotychczasowych projektów
+  canvasFormat: 'slide43',    // domyślnie 4:3 — pasuje do dotychczasowych projektów
+  // === Auto-zmiana poziomów (pokaz slajdów) ===
+  autoplayOn: false,          // czy włączona automatyczna zmiana poziomów
+  autoplaySeconds: 3,         // co ile sekund zmieniać
+  autoplayLoop: true,         // czy po ostatnim wracać na 1 (pętla)
+  smoothTransition: true      // płynne fade-in/fade-out między poziomami w eksporcie
 };
 
 // Skróty do bieżącej strony — używane wszędzie
@@ -2417,6 +2422,36 @@ function renderTransitionsPanel() {
       <p>Klik = wstawia przycisk na scenę. Tekst zmienisz <strong>podwójnym klikiem</strong> na przycisku.</p>
       <div class="button-gallery">${galleryItems}</div>
     </div>
+
+    <div class="transitions-card">
+      <h4>⏱️ Auto-zmiana poziomów</h4>
+      <p>Po starcie strona sama będzie przewijać poziomy — jak pokaz slajdów.</p>
+      <label style="display:flex;align-items:center;gap:8px;padding:8px;background:#1e2a4a;border-radius:6px;cursor:pointer;margin-bottom:8px;">
+        <input type="checkbox" id="ap-on" ${state.autoplayOn ? 'checked' : ''} style="width:18px;height:18px;accent-color:#4dd4ff;cursor:pointer;" />
+        <span style="font-size:13px;color:#cfe9ff;">Zmieniaj poziomy automatycznie</span>
+      </label>
+      <div id="ap-options" style="${state.autoplayOn ? '' : 'opacity:0.4;pointer-events:none;'}transition:opacity 0.2s;">
+        <div class="prop-label" style="margin-bottom:4px;">Co ile sekund</div>
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px;">
+          <input type="number" id="ap-seconds" min="1" max="60" step="1" value="${state.autoplaySeconds}"
+                 style="width:70px;background:#22222c;border:1px solid #2e2e38;border-radius:4px;padding:6px 8px;color:#e8e8ea;font-size:13px;text-align:center;" />
+          <span style="font-size:12px;color:#888;">sekund</span>
+        </div>
+        <label style="display:flex;align-items:center;gap:8px;padding:8px;background:#1e2a4a;border-radius:6px;cursor:pointer;">
+          <input type="checkbox" id="ap-loop" ${state.autoplayLoop ? 'checked' : ''} style="width:18px;height:18px;accent-color:#4dd4ff;cursor:pointer;" />
+          <span style="font-size:13px;color:#cfe9ff;">Powtórz w pętli (po ostatnim wraca na 1)</span>
+        </label>
+        <p style="font-size:10px;color:#666;line-height:1.5;margin-top:8px;">
+          💡 Klik w obiekt z przejściem (np. klucz → poziom 3) zatrzyma auto-zmianę.
+        </p>
+      </div>
+
+      <!-- Płynne przejście — niezależne od autoplay, dotyczy też kliknięć w przyciski/przejścia -->
+      <label style="display:flex;align-items:center;gap:8px;padding:8px;background:#1e2a4a;border-radius:6px;cursor:pointer;margin-top:10px;">
+        <input type="checkbox" id="smooth-transition" ${state.smoothTransition ? 'checked' : ''} style="width:18px;height:18px;accent-color:#4dd4ff;cursor:pointer;" />
+        <span style="font-size:13px;color:#cfe9ff;">Płynne przejście między poziomami (fade)</span>
+      </label>
+    </div>
   `;
 
   // Bindowanie galerii — kliknięcie miniaturki = wstaw przycisk na scenę.
@@ -2429,6 +2464,45 @@ function renderTransitionsPanel() {
       toast('✓ Wstawiono przycisk — kliknij go, potem numer poziomu, żeby ustawić przejście');
     };
   });
+
+  // ===== Auto-zmiana poziomów =====
+  const apOn = document.getElementById('ap-on');
+  const apSec = document.getElementById('ap-seconds');
+  const apLoop = document.getElementById('ap-loop');
+  const apOptions = document.getElementById('ap-options');
+
+  apOn.onchange = () => {
+    state.autoplayOn = apOn.checked;
+    // Opcje wygaszają się gdy wyłączone — UX żeby było jasne że są nieaktywne
+    apOptions.style.opacity = state.autoplayOn ? '1' : '0.4';
+    apOptions.style.pointerEvents = state.autoplayOn ? 'auto' : 'none';
+    pushHistory();
+    toast(state.autoplayOn
+      ? `⏱️ Auto-zmiana włączona (co ${state.autoplaySeconds}s)`
+      : '⏸ Auto-zmiana wyłączona');
+  };
+  apSec.oninput = () => {
+    let v = parseInt(apSec.value, 10);
+    if (isNaN(v) || v < 1) v = 1;
+    if (v > 60) v = 60;
+    state.autoplaySeconds = v;
+  };
+  apSec.onchange = () => {
+    apSec.value = state.autoplaySeconds;   // poprawione w razie czego
+    pushHistory();
+  };
+  apLoop.onchange = () => {
+    state.autoplayLoop = apLoop.checked;
+    pushHistory();
+  };
+
+  // Płynne przejście — niezależne od autoplay
+  const smoothCb = document.getElementById('smooth-transition');
+  smoothCb.onchange = () => {
+    state.smoothTransition = smoothCb.checked;
+    pushHistory();
+    toast(state.smoothTransition ? '✨ Włączono płynne przejście' : 'Wyłączono płynne przejście');
+  };
 }
 
 // Renderuje panel po prawej, gdy włączony jest tryb media.
@@ -2827,7 +2901,7 @@ bgCanvas.addEventListener('pointerleave', stopDraw);
 // Tylko jedna sekcja jest widoczna naraz; klik w obiekt z data-goto
 // przełącza widoczną sekcję.
 // ============================================================
-function buildExportHTML(title) {
+function buildExportHTML(title, useEmbeddedImages = false) {
   // Zapisz aktualny rysunek do bieżącej strony przed eksportem
   snapshotCurrentDrawing();
 
@@ -2975,11 +3049,21 @@ function buildExportHTML(title) {
         const playOverlay = item.youtubeId
           ? `<div style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:48px;height:48px;border-radius:50%;background:rgba(255,0,0,0.9);color:#fff;display:flex;align-items:center;justify-content:center;font-size:22px;padding-left:4px;box-shadow:0 2px 8px rgba(0,0,0,0.5);pointer-events:none;">▶</div>`
           : '';
-        // Dla zdjęć z dysku — używamy nazwy pliku (lekki HTML, plik musi być obok index.html).
-        // Dla miniaturek YT i innych — pełnego URL/Base64.
-        const src = item.localPath || item.imageUrl;
+        // Wybór źródła obrazka:
+        // - PODGLĄD (useEmbeddedImages=true): używamy Base64 (item.imageUrl), bo plik na dysku
+        //   nie jest dostępny dla okna about:blank
+        // - EKSPORT (useEmbeddedImages=false): używamy nazwy pliku (item.localPath) — plik
+        //   musi być obok index.html. Daje lekki HTML.
+        let src;
+        if (useEmbeddedImages) {
+          // Preferuj Base64 (działa w podglądzie); fallback do localPath gdy Base64 nie ma
+          src = item.imageUrl || item.localPath;
+        } else {
+          // Eksport: nazwa pliku obok index.html, fallback do imageUrl (np. miniaturka YT)
+          src = item.localPath || item.imageUrl;
+        }
         // Escape dla wartości w atrybucie URL: tylko ' i \ (reszta robi przeglądarka)
-        const safeSrc = String(src).replace(/'/g, "%27");
+        const safeSrc = String(src || '').replace(/'/g, "%27");
         inner = `<div style="position:relative;width:${imgW}px;height:${imgH}px;background:#000 url('${safeSrc}') center / cover no-repeat;border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,0.5);display:inline-block;">${playOverlay}</div>`;
       } else if (item.type === 'button') {
         const styleId = item.buttonStyle || 'classic';
@@ -3013,27 +3097,98 @@ ${itemsHTML}
 </section>`;
   }).join('\n');
 
-  // Skrypt nawigacji w wyeksportowanej stronie
+  // Skrypt nawigacji w wyeksportowanej stronie.
+  // Konfiguracja AUTOPLAY (on/seconds/loop) jest wstrzykiwana w środku przez JSON.stringify.
   const navScript = `
 (function(){
   const pages = document.querySelectorAll('.page');
-  function showPage(n){
-    pages.forEach(p => {
-      p.style.display = (Number(p.dataset.page) === n) ? 'block' : 'none';
-    });
-    // Restart animacji CSS przez wymuszenie reflow
-    pages.forEach(p => {
-      if (Number(p.dataset.page) === n) {
-        p.querySelectorAll('.item').forEach(i => {
-          const a = i.style.animation;
-          i.style.animation = 'none';
-          void i.offsetWidth;
-          i.style.animation = a;
-        });
+  const AUTOPLAY = ${JSON.stringify({
+    on: !!state.autoplayOn,
+    seconds: Math.max(1, Math.min(60, state.autoplaySeconds || 3)),
+    loop: !!state.autoplayLoop
+  })};
+  const SMOOTH = ${state.smoothTransition ? 'true' : 'false'};
+  const FADE_MS = 400;   // długość przejścia w obie strony
+
+  // Włącz/wyłącz klasę body.fade-enabled — CSS reaguje na nią
+  if (SMOOTH) document.body.classList.add('fade-enabled');
+
+  let autoplayTimer = null;
+  let autoplayActive = AUTOPLAY.on;
+  let isTransitioning = false;   // chroni przed nakładaniem przejść
+
+  function clearAutoplay(){
+    if (autoplayTimer) { clearTimeout(autoplayTimer); autoplayTimer = null; }
+  }
+  function scheduleAutoplay(currentN){
+    clearAutoplay();
+    if (!autoplayActive || pages.length < 2) return;
+    autoplayTimer = setTimeout(() => {
+      let next = currentN + 1;
+      if (next > pages.length) {
+        if (AUTOPLAY.loop) next = 1;
+        else { autoplayActive = false; return; }
       }
+      showPage(next);
+    }, AUTOPLAY.seconds * 1000);
+  }
+  function stopAutoplayByUser(){
+    autoplayActive = false;
+    clearAutoplay();
+  }
+
+  function restartAnimations(page){
+    // Restart animacji CSS na nowo wyświetlanej stronie (przez wymuszenie reflow)
+    page.querySelectorAll('.item').forEach(i => {
+      const a = i.style.animation;
+      i.style.animation = 'none';
+      void i.offsetWidth;
+      i.style.animation = a;
     });
+  }
+
+  function showPage(n){
+    if (isTransitioning) return;   // ignoruj klikanie podczas trwającego przejścia
     closeOverlay();
     try { history.replaceState(null, '', '#' + n); } catch(e){}
+
+    const target = Array.from(pages).find(p => Number(p.dataset.page) === n);
+    if (!target) return;
+
+    if (!SMOOTH) {
+      // Tryb bez fade — natychmiastowy skok (jak wcześniej)
+      pages.forEach(p => p.style.display = (p === target) ? 'block' : 'none');
+      restartAnimations(target);
+      scheduleAutoplay(n);
+      return;
+    }
+
+    // Tryb fade — wygaś bieżącą, potem pokaż nową
+    isTransitioning = true;
+    const visible = Array.from(pages).find(p => p.classList.contains('is-visible') && p !== target);
+
+    const showNew = () => {
+      // Pokaz target z fade-in
+      target.classList.add('is-visible', 'fading-in');
+      void target.offsetWidth;     // reflow przed zdjęciem klasy
+      target.classList.remove('fading-in');
+      restartAnimations(target);
+      setTimeout(() => {
+        isTransitioning = false;
+        scheduleAutoplay(n);
+      }, FADE_MS);
+    };
+
+    if (visible) {
+      visible.classList.add('fading-out');
+      setTimeout(() => {
+        visible.classList.remove('is-visible', 'fading-out');
+        showNew();
+      }, FADE_MS);
+    } else {
+      // Pierwszy poziom — bez fade-out, tylko fade-in
+      showNew();
+    }
   }
 
   // ===== Overlay z iframem (dla "okno na scenie" oraz "YT na scenie") =====
@@ -3076,6 +3231,7 @@ ${itemsHTML}
     // 1) YouTube na scenie (najwyższy priorytet)
     const yt = e.target.closest('[data-yt]');
     if (yt) {
+      stopAutoplayByUser();   // klik = pokaz slajdów wstrzymany ręcznie
       const id = yt.getAttribute('data-yt');
       openOverlay('https://www.youtube-nocookie.com/embed/' + id + '?autoplay=1&rel=0', true);
       return;
@@ -3083,6 +3239,7 @@ ${itemsHTML}
     // 2) Link zewnętrzny
     const link = e.target.closest('[data-link]');
     if (link) {
+      stopAutoplayByUser();
       const url = link.getAttribute('data-link');
       const mode = link.getAttribute('data-link-mode') || 'newtab';
       if (mode === 'iframe') {
@@ -3092,9 +3249,10 @@ ${itemsHTML}
       }
       return;
     }
-    // 3) Przejście do innego poziomu
+    // 3) Przejście do innego poziomu — zatrzymaj autoplay i skocz tam
     const t = e.target.closest('[data-goto]');
     if (t) {
+      stopAutoplayByUser();
       const target = Number(t.getAttribute('data-goto'));
       if (target >= 1 && target <= pages.length) showPage(target);
       return;
@@ -3162,6 +3320,19 @@ ${itemsHTML}
     overflow:hidden;
     box-shadow:0 12px 48px rgba(0,0,0,0.6);
     display:none;
+  }
+  /* Płynne przejście (fade) — aktywuje się klasą .fade-enabled na body.
+     Strona wyświetlana ma display:block z opacity zarządzanym przez JS. */
+  body.fade-enabled .page.is-visible {
+    display:block;
+    opacity:1;
+    transition:opacity 0.4s ease;
+  }
+  body.fade-enabled .page.is-visible.fading-out {
+    opacity:0;
+  }
+  body.fade-enabled .page.is-visible.fading-in {
+    opacity:0;
   }
   .stage-bg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
   .item{position:absolute;transform-origin:center}
@@ -3371,7 +3542,9 @@ document.getElementById('export-go').onclick = async () => {
 };
 
 document.getElementById('btn-preview').onclick = () => {
-  const html = buildExportHTML('Podgląd');
+  // useEmbeddedImages=true — w podglądzie używamy Base64 zamiast ścieżek do plików,
+  // bo okno podglądu nie ma żadnego "folderu" obok którego mógłby leżeć plik kot.jpg.
+  const html = buildExportHTML('Podgląd', true);
   const win = window.open('', '_blank');
   if (win) {
     win.document.write(html);
@@ -3573,7 +3746,11 @@ function buildProjectData() {
     nextId: state.nextId,
     gridOn: state.gridOn,
     gridSize: state.gridSize,
-    canvasFormat: state.canvasFormat
+    canvasFormat: state.canvasFormat,
+    autoplayOn: state.autoplayOn,
+    autoplaySeconds: state.autoplaySeconds,
+    autoplayLoop: state.autoplayLoop,
+    smoothTransition: state.smoothTransition
   };
 }
 
@@ -3715,6 +3892,11 @@ function loadProject(data) {
     state.canvasFormat = 'slide43';   // domyślnie dla starych projektów
   }
   applyCanvasFormat();
+  // Przywróć ustawienia auto-zmiany poziomów (tylko jeśli były zapisane)
+  if (typeof data.autoplayOn === 'boolean')      state.autoplayOn = data.autoplayOn;
+  if (typeof data.autoplaySeconds === 'number')  state.autoplaySeconds = Math.max(1, Math.min(60, data.autoplaySeconds));
+  if (typeof data.autoplayLoop === 'boolean')    state.autoplayLoop = data.autoplayLoop;
+  if (typeof data.smoothTransition === 'boolean') state.smoothTransition = data.smoothTransition;
   loadDrawingForCurrent();
   render();
 }
