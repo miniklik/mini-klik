@@ -746,6 +746,46 @@
     margin-top: 2px;
   }
 
+  /* ========== BIBLIOTEKA ŻYCZEŃ — kafelki ========== */
+  .library-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .library-card {
+    background: #1f1a14;
+    border: 2px solid #3a2a18;
+    border-radius: 8px;
+    padding: 12px 6px 10px;
+    cursor: pointer;
+    transition: all 0.15s;
+    text-align: center;
+    position: relative;
+    min-height: 80px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 4px;
+  }
+  .library-card:hover {
+    border-color: var(--lib-color, #fbbf24);
+    background: #2a1f12;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+  }
+  .library-card .library-icon {
+    font-size: 30px;
+    line-height: 1;
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));
+  }
+  .library-card .library-name {
+    font-size: 11px;
+    color: #e8d4a0;
+    font-weight: 600;
+    line-height: 1.2;
+    word-wrap: break-word;
+  }
+
   /* ========== SIATKA ========== */
   /* Rozmiar oczka czytany ze zmiennej CSS — JS ją ustawia. */
   #scene { --grid-size: 20px; }
@@ -2198,6 +2238,13 @@ function renderLayoutPanel() {
         🖥️ W <strong>Podglądzie</strong> i wyeksportowanej stronie znajdziesz przycisk <strong>⛶ Pełny ekran</strong> (lub klawisz <strong>F</strong>).
       </p>
     </div>
+
+    <div class="layout-card">
+      <h4>📚 Biblioteka życzeń</h4>
+      <div id="library-content">
+        <p style="font-size:11px;color:#888;text-align:center;padding:12px;">⏳ Wczytuję bibliotekę…</p>
+      </div>
+    </div>
   `;
 
   c.querySelectorAll('[data-fmt]').forEach(el => {
@@ -2225,6 +2272,89 @@ function renderLayoutPanel() {
       renderLayoutPanel();   // odśwież podświetlenie aktywnego
     };
   });
+
+  // Wczytaj bibliotekę z folderu obok edytora (asynchronicznie, nie blokuje panelu)
+  loadLibraryIntoPanel();
+}
+
+// ============================================================
+// BIBLIOTEKA ŻYCZEŃ — wczytywanie z folderu ./biblioteka/
+// Próbujemy pobrać manifest biblioteka/index.json. Jeśli się uda — pokazujemy
+// kafelki, jeśli nie — komunikat dla usera.
+// ============================================================
+
+async function loadLibraryIntoPanel() {
+  const container = document.getElementById('library-content');
+  if (!container) return;
+
+  try {
+    // Pobranie manifestu — działa zarówno z dysku (file://), z GitHub Pages, z Netlify
+    const resp = await fetch('./biblioteka/index.json', { cache: 'no-store' });
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const manifest = await resp.json();
+    const items = Array.isArray(manifest.items) ? manifest.items : [];
+
+    if (items.length === 0) {
+      container.innerHTML = `<p style="font-size:11px;color:#888;text-align:center;padding:12px;">📭 Manifest jest pusty. Dodaj pozycje do <code>biblioteka/index.json</code>.</p>`;
+      return;
+    }
+
+    // Generuj kafelki — kolorowy emoji + nazwa
+    container.innerHTML = `
+      <p style="font-size:11px;color:#cbd5e1;margin-bottom:8px;">Klik = wczytaj gotowy projekt (zastąpi obecny — możesz cofnąć Ctrl+Z).</p>
+      <div class="library-grid">
+        ${items.map((it, idx) => `
+          <div class="library-card" data-lib-file="${it.file.replace(/"/g,'&quot;')}" title="${(it.name || it.file).replace(/"/g,'&quot;')}" style="--lib-color:${it.color || '#fbbf24'};">
+            <div class="library-icon">${it.icon || '📄'}</div>
+            <div class="library-name">${(it.name || it.file).replace(/&/g,'&amp;').replace(/</g,'&lt;')}</div>
+          </div>
+        `).join('')}
+      </div>
+    `;
+
+    // Bind kafelków — klik wczytuje konkretny JSON
+    container.querySelectorAll('[data-lib-file]').forEach(card => {
+      card.onclick = async () => {
+        const file = card.dataset.libFile;
+        try {
+          const r = await fetch('./biblioteka/' + encodeURIComponent(file), { cache: 'no-store' });
+          if (!r.ok) throw new Error('HTTP ' + r.status);
+          const data = await r.json();
+          // Ostrzeż przed nadpisaniem jeśli user ma już coś
+          const hasItems = state.pages.some(p => p.items.length > 0);
+          if (hasItems) {
+            const ok = await confirmModal('Wczytać szablon?',
+              'Bieżący projekt zostanie zastąpiony. Czy zapisałeś go wcześniej? (Możesz cofnąć Ctrl+Z po wczytaniu).');
+            if (!ok) return;
+          }
+          loadProject(data);
+          // Reset historii — wczytany szablon to "punkt zerowy"
+          history.stack = [];
+          history.index = -1;
+          pushHistory();
+          toast('📚 Wczytano: ' + (file.replace(/\.json$/, '')));
+        } catch(err) {
+          console.error('Library load failed:', err);
+          toast('⚠ Nie udało się wczytać ' + file);
+        }
+      };
+    });
+
+  } catch(err) {
+    // Folder biblioteka/ nie istnieje albo brak index.json — pokaż komunikat instruktażowy
+    container.innerHTML = `
+      <div style="font-size:11px;line-height:1.6;color:#888;background:rgba(251,191,36,0.06);padding:10px;border-radius:6px;border-left:3px solid #fbbf24;">
+        <strong style="color:#fbbf24;">Brak biblioteki</strong><br><br>
+        Stwórz folder <code style="background:#0f0a18;padding:1px 5px;border-radius:3px;color:#c084fc;">biblioteka</code> obok pliku <code style="background:#0f0a18;padding:1px 5px;border-radius:3px;color:#c084fc;">index.html</code> i wrzuć tam:
+        <ul style="margin:6px 0 0 16px;padding:0;">
+          <li><code>index.json</code> — manifest</li>
+          <li>pliki <code>.json</code> z gotowcami</li>
+        </ul>
+        <br>
+        Możesz pobrać gotową bibliotekę 12 życzeń.
+      </div>
+    `;
+  }
 }
 
 // ============================================================
