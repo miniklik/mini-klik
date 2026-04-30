@@ -1018,9 +1018,9 @@
   <button class="topbar-btn transitions" id="btn-transitions">🔗 Przejścia</button>
   <button class="topbar-btn media" id="btn-media">📺 Media</button>
   <button class="topbar-btn" id="btn-preview">▶ Podgląd</button>
-  <button class="topbar-btn" id="btn-save-project">💾 Zapisz projekt</button>
-  <button class="topbar-btn" id="btn-load-project">📂 Wczytaj</button>
-  <button class="topbar-btn primary" id="btn-export">⬇ Eksportuj HTML</button>
+  <button class="topbar-btn" id="btn-save-project" title="Zapisz projekt (Ctrl+S)">💾 Zapisz projekt</button>
+  <button class="topbar-btn" id="btn-load-project" title="Wczytaj projekt z pliku .json">📂 Wczytaj</button>
+  <button class="topbar-btn primary" id="btn-export" title="Eksportuj HTML (Ctrl+E)">⬇ Eksportuj HTML</button>
   <button class="topbar-btn danger" id="btn-clear">🗑 Wyczyść</button>
 </div>
 
@@ -1859,6 +1859,18 @@ function renderProps() {
            </div>`
       }
     </div>
+
+    <div class="prop-group" style="border-top:1px solid #2a2a35;padding-top:10px;margin-top:10px;">
+      <div class="prop-label">⚡ Akcje na obiekcie</div>
+      <div style="display:flex;gap:4px;">
+        <button class="anim-btn" id="prop-copy" title="Skopiuj do schowka (Ctrl+C)" style="flex:1;">📋 Kopiuj</button>
+        <button class="anim-btn" id="prop-duplicate" title="Duplikuj (Ctrl+D)" style="flex:1;">⎘ Duplikuj</button>
+      </div>
+      <button class="anim-btn" id="prop-delete-item" title="Usuń (Del)" style="width:100%;margin-top:4px;background:#3a2025;border-color:#6a3035;color:#ff8090;">🗑 Usuń obiekt</button>
+      <div style="font-size:10px;color:#666;margin-top:6px;line-height:1.4;">
+        💡 Wklej skrótem <strong>Ctrl+V</strong> (też między poziomami)
+      </div>
+    </div>
   `;
 
   c.innerHTML = html;
@@ -1948,6 +1960,19 @@ function renderProps() {
 
   const editLink = document.getElementById('prop-edit-link');
   if (editLink) editLink.onclick = () => promptUrlForItem(item.id);
+
+  // Akcje na obiekcie — kopiuj / duplikuj / usuń
+  const btnCopy = document.getElementById('prop-copy');
+  if (btnCopy) btnCopy.onclick = copySelectedItem;
+  const btnDup = document.getElementById('prop-duplicate');
+  if (btnDup) btnDup.onclick = duplicateSelectedItem;
+  const btnDel = document.getElementById('prop-delete-item');
+  if (btnDel) btnDel.onclick = () => {
+    currentPage().items = currentItems().filter(i => i.id !== item.id);
+    state.selectedId = null;
+    render();
+    pushHistory();
+  };
 }
 
 // ============================================================
@@ -3228,7 +3253,7 @@ function downloadFile(name, content, mime = 'text/html') {
 // Zapisz plik z prawdziwym dialogiem "Zapisz jako..." (Chrome/Edge — File System Access API).
 // Fallback: gdy przeglądarka nie wspiera lub user anuluje, używa klasycznego pobrania do "Pobrane".
 // Zwraca:
-//   { method: 'picker', folderName: '...' }  — zapisano przez dialog (znamy nazwę folderu)
+//   { method: 'picker', fileName: '...', handle: FileSystemFileHandle }  — zapisano przez dialog
 //   { method: 'download' }                    — fallback (poszło do Pobrane)
 //   null                                      — user anulował dialog (nic się nie dzieje)
 async function saveFileWithPicker(suggestedName, content, mime = 'text/html', acceptDesc = 'Strona HTML', acceptExt = '.html') {
@@ -3242,10 +3267,8 @@ async function saveFileWithPicker(suggestedName, content, mime = 'text/html', ac
           accept: { [mime]: [acceptExt] }
         }]
       });
-      const writable = await handle.createWritable();
-      await writable.write(new Blob([content], { type: mime + ';charset=utf-8' }));
-      await writable.close();
-      return { method: 'picker', fileName: handle.name };
+      await writeToHandle(handle, content, mime);
+      return { method: 'picker', fileName: handle.name, handle };
     } catch(err) {
       // AbortError = user kliknął anuluj → nic nie rób
       if (err && err.name === 'AbortError') return null;
@@ -3258,17 +3281,63 @@ async function saveFileWithPicker(suggestedName, content, mime = 'text/html', ac
   return { method: 'download' };
 }
 
+// Zapisz BEZ dialogu — bezpośrednio do uchwytu zapamiętanego wcześniej.
+// Działa tylko gdy mamy uchwyt z File System Access API.
+async function writeToHandle(handle, content, mime) {
+  // Sprawdź / odśwież uprawnienia (Chrome czasem wymaga ponownego potwierdzenia po dłuższym czasie)
+  if (handle.queryPermission) {
+    let perm = await handle.queryPermission({ mode: 'readwrite' });
+    if (perm !== 'granted' && handle.requestPermission) {
+      perm = await handle.requestPermission({ mode: 'readwrite' });
+      if (perm !== 'granted') throw new Error('Brak uprawnień do pliku');
+    }
+  }
+  const writable = await handle.createWritable();
+  await writable.write(new Blob([content], { type: mime + ';charset=utf-8' }));
+  await writable.close();
+}
+
+// Pamięć uchwytów do plików (per-zakładka — uchwyty znikają po zamknięciu).
+// Pozwala na szybki zapis "do tego samego pliku" bez dialogu za każdym razem.
+const fileHandles = {
+  project: null,   // uchwyt do projekt-studio.json
+  exportH: null    // uchwyt do index.html (eksport)
+};
+
 // ============================================================
-// PRZYCISKI TOPBAR
 // ============================================================
-document.getElementById('btn-export').onclick = () => {
+// PRZYCISKI TOPBAR — eksport HTML
+// "⬇ Eksportuj HTML" działa "smart":
+//   - jeśli wcześniej zapisałeś plik (mamy uchwyt) → zapisuje cicho do tego samego (jak Ctrl+S)
+//   - jeśli nie → otwiera modal z polami nazwa/tytuł i pełnym dialogiem "Zapisz jako…"
+// W modalu jest też zawsze opcja "Zapisz jako…" (do innego pliku).
+// ============================================================
+document.getElementById('btn-export').onclick = async () => {
+  // Mamy uchwyt + przeglądarka go obsługuje → szybki zapis
+  if (fileHandles.exportH) {
+    try {
+      const title = (state.lastExportTitle || 'Moja strona');
+      const html = buildExportHTML(title);
+      await writeToHandle(fileHandles.exportH, html, 'text/html');
+      toast('✓ Zaktualizowano ' + fileHandles.exportH.name + '  (Ctrl+E = szybki zapis)');
+      return;
+    } catch(err) {
+      // Coś poszło nie tak (plik usunięty, brak uprawnień itp.) — pokaż modal
+      console.warn('Quick save failed, opening dialog:', err);
+      fileHandles.exportH = null;
+      toast('⚠ Plik niedostępny — wybierz nowy');
+    }
+  }
+  // Brak uchwytu lub błąd → pokaż modal "Zapisz jako…"
   document.getElementById('modal-export').classList.add('show');
 };
+
 document.getElementById('export-cancel').onclick = () => {
   document.getElementById('modal-export').classList.remove('show');
 };
+
 document.getElementById('export-go').onclick = async () => {
-  let name = (document.getElementById('export-filename').value || 'moja-strona.html').trim();
+  let name = (document.getElementById('export-filename').value || 'index.html').trim();
   if (!name.endsWith('.html')) name += '.html';
   const title = document.getElementById('export-title').value || 'Moja strona';
   const html = buildExportHTML(title);
@@ -3279,16 +3348,20 @@ document.getElementById('export-go').onclick = async () => {
   const result = await saveFileWithPicker(name, html, 'text/html', 'Strona HTML', '.html');
   if (!result) return;   // user anulował
 
+  // Zapamiętaj uchwyt i tytuł — następne kliknięcie eksportu zapisze cicho do tego pliku
+  if (result.handle) fileHandles.exportH = result.handle;
+  state.lastExportTitle = title;
+
   // Sukces — pokaż przyjazny komunikat zależnie od metody
   const hasImages = state.pages.some(p => p.items.some(i => i.localPath));
   if (result.method === 'picker') {
     if (hasImages) {
-      toast('✓ Zapisano! Wrzuć zdjęcia do tego samego folderu', 4000);
+      toast('✓ Zapisano! Wrzuć zdjęcia do tego samego folderu  (Ctrl+E = szybki zapis)', 4500);
     } else {
-      toast('✓ Zapisano ' + result.fileName);
+      toast('✓ Zapisano ' + result.fileName + '  (Ctrl+E = szybki zapis)', 3500);
     }
   } else {
-    // Fallback (Pobrane) — przypomnij że można zmienić w ustawieniach
+    // Fallback (Pobrane) — w tej przeglądarce nie ma szybkiego zapisu
     if (hasImages) {
       toast('✓ Pobrano do folderu Pobrane. Zdjęcia muszą być obok pliku', 4000);
     } else {
@@ -3321,6 +3394,56 @@ document.getElementById('btn-clear').onclick = async () => {
   pushHistory();
   toast('Projekt wyczyszczony');
 };
+
+// ============================================================
+// KOPIUJ / WKLEJ / DUPLIKUJ
+// Schowek wewnętrzny edytora — przechowuje GŁĘBOKĄ KOPIĘ jednego itemu.
+// Skróty: Ctrl+C, Ctrl+V, Ctrl+D + przyciski w panelu właściwości.
+// Wklejony item dostaje nowe ID i jest delikatnie przesunięty (żeby było widać kopię).
+// Wklejanie nie kopiuje akcji nawigacyjnych (gotoPage, link) — to często byłoby błędem.
+// ============================================================
+const clipboard = {
+  item: null   // głęboka kopia ostatnio skopiowanego itemu (lub null)
+};
+
+function copySelectedItem() {
+  if (state.selectedId == null) {
+    toast('Najpierw zaznacz obiekt');
+    return;
+  }
+  const item = currentItems().find(i => i.id === state.selectedId);
+  if (!item) return;
+  // Głęboka kopia przez JSON — bezpieczne, bo nasze itemy są zwykłymi danymi
+  clipboard.item = JSON.parse(JSON.stringify(item));
+  toast('📋 Skopiowano  (Ctrl+V = wklej)');
+}
+
+function pasteFromClipboard() {
+  if (!clipboard.item) {
+    toast('Schowek jest pusty');
+    return;
+  }
+  // Stwórz nowy item z świeżym ID, lekko przesunięty żeby było widać że to kopia
+  const fresh = JSON.parse(JSON.stringify(clipboard.item));
+  fresh.id = state.nextId++;
+  fresh.x = (fresh.x || 0) + 20;
+  fresh.y = (fresh.y || 0) + 20;
+  // Wyczyść akcje nawigacyjne — kopiowanie linku/przejścia byłoby często błędem
+  fresh.gotoPage = null;
+  fresh.link = null;
+  fresh.linkMode = 'newtab';
+  // Dodaj do bieżącej strony i zaznacz
+  currentItems().push(fresh);
+  state.selectedId = fresh.id;
+  render();
+  pushHistory();
+  toast('📋 Wklejono');
+}
+
+function duplicateSelectedItem() {
+  copySelectedItem();
+  if (clipboard.item) pasteFromClipboard();
+}
 
 // ============================================================
 // HISTORIA / UNDO + REDO
@@ -3399,17 +3522,41 @@ document.getElementById('btn-redo').onclick = redo;
 
 // Skróty klawiszowe
 window.addEventListener('keydown', (e) => {
-  // Ignoruj gdy w polu input/edycji tekstu
   const t = e.target;
-  if (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable) return;
+  const inField = (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable);
   const ctrl = e.ctrlKey || e.metaKey;
   if (!ctrl) return;
+
+  // Ctrl+S = zapisz projekt (działa wszędzie, też w polach — nadpisuje domyślny "zapisz stronę")
+  if (e.key === 's' || e.key === 'S') {
+    e.preventDefault();
+    document.getElementById('btn-save-project').click();
+    return;
+  }
+  // Ctrl+E = eksportuj HTML (szybki zapis lub dialog)
+  if (e.key === 'e' || e.key === 'E') {
+    e.preventDefault();
+    document.getElementById('btn-export').click();
+    return;
+  }
+
+  // Reszta — Ctrl+Z / Ctrl+Y / Ctrl+C / Ctrl+V / Ctrl+D — pomijaj jeśli user pisze w polu
+  if (inField) return;
   if (e.key === 'z' || e.key === 'Z') {
     e.preventDefault();
     if (e.shiftKey) redo(); else undo();
   } else if (e.key === 'y' || e.key === 'Y') {
     e.preventDefault();
     redo();
+  } else if (e.key === 'c' || e.key === 'C') {
+    e.preventDefault();
+    copySelectedItem();
+  } else if (e.key === 'v' || e.key === 'V') {
+    e.preventDefault();
+    pasteFromClipboard();
+  } else if (e.key === 'd' || e.key === 'D') {
+    e.preventDefault();
+    duplicateSelectedItem();
   }
 }, true);  // capture, żeby zadziałało zanim przeglądarka odpali domyślne undo w jakimś polu
 
@@ -3437,13 +3584,60 @@ document.getElementById('btn-save-project').onclick = async () => {
   try {
     localStorage.setItem('studio_project', json);
   } catch(e) {}
-  // Plus pobierz / zapisz przez dialog
+
+  // Mamy uchwyt do projektu? → szybki zapis bez dialogu
+  if (fileHandles.project) {
+    try {
+      await writeToHandle(fileHandles.project, json, 'application/json');
+      toast('💾 Zapisano ' + fileHandles.project.name + '  (Ctrl+S)');
+      return;
+    } catch(err) {
+      console.warn('Quick project save failed, opening dialog:', err);
+      fileHandles.project = null;
+      toast('⚠ Plik niedostępny — wybierz nowy');
+    }
+  }
+
+  // Brak uchwytu — pełny dialog "Zapisz jako…"
   const result = await saveFileWithPicker('projekt-studio.json', json, 'application/json', 'Projekt Studio (JSON)', '.json');
   if (!result) return;
-  toast(result.method === 'picker' ? '💾 Zapisano projekt' : '💾 Zapisano (przeglądarka + Pobrane)');
+  if (result.handle) fileHandles.project = result.handle;
+  if (result.method === 'picker') {
+    toast('💾 Zapisano projekt  (Ctrl+S = szybki zapis)', 3500);
+  } else {
+    toast('💾 Zapisano (przeglądarka + Pobrane)');
+  }
 };
 
-document.getElementById('btn-load-project').onclick = () => {
+document.getElementById('btn-load-project').onclick = async () => {
+  // Próbuj nowoczesne API (Chrome/Edge) — daje uchwyt do późniejszego szybkiego zapisu
+  if (typeof window.showOpenFilePicker === 'function') {
+    try {
+      const [handle] = await window.showOpenFilePicker({
+        types: [{
+          description: 'Projekt Studio (JSON)',
+          accept: { 'application/json': ['.json'] }
+        }]
+      });
+      const file = await handle.getFile();
+      const text = await file.text();
+      const data = JSON.parse(text);
+      loadProject(data);
+      // Zapamiętaj uchwyt — przyciski "Zapisz" będą zapisywać do tego pliku
+      fileHandles.project = handle;
+      // Reset historii
+      history.stack = [];
+      history.index = -1;
+      pushHistory();
+      toast('📂 Wczytano ' + handle.name + '  (Ctrl+S = szybki zapis)', 3500);
+      return;
+    } catch(err) {
+      if (err && err.name === 'AbortError') return;  // user anulował
+      console.warn('Open picker failed, falling back:', err);
+    }
+  }
+
+  // Fallback — klasyczny input type="file" (bez uchwytu, brak szybkiego zapisu)
   const inp = document.createElement('input');
   inp.type = 'file';
   inp.accept = '.json,application/json';
@@ -3455,7 +3649,6 @@ document.getElementById('btn-load-project').onclick = () => {
       try {
         const data = JSON.parse(r.result);
         loadProject(data);
-        // Reset historii — wczytany projekt to "punkt zerowy"
         history.stack = [];
         history.index = -1;
         pushHistory();
