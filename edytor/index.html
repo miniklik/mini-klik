@@ -1110,14 +1110,17 @@
 <div class="modal-backdrop" id="modal-export">
   <div class="modal">
     <h2>⬇ Eksportuj jako HTML</h2>
-    <p>Twoja scena zostanie zapisana jako <strong>jeden plik HTML</strong> z wszystkimi animacjami w środku. Wrzuć go potem na <strong>app.netlify.com/drop</strong> i będziesz miał publiczny link.</p>
-    <div class="prop-label">Nazwa pliku</div>
-    <input type="text" id="export-filename" value="moja-strona.html" />
+    <p>Po kliknięciu zobaczysz dialog <strong>"Zapisz jako"</strong> — wybierz folder gdzie ma trafić plik (Chrome / Edge). W innych przeglądarkach plik trafi do <strong>Pobrane</strong>.</p>
+    <p style="font-size:12px;color:#fbbf24;margin-top:8px;background:rgba(251,191,36,0.08);padding:8px;border-radius:6px;border-left:3px solid #fbbf24;">
+      💡 <strong>Jeśli używasz zdjęć z dysku</strong> — zapisz <code style="background:#0f0a18;padding:1px 4px;border-radius:3px;">index.html</code> w tym samym folderze co zdjęcia. Wrzuć potem cały folder na <strong>app.netlify.com/drop</strong>.
+    </p>
+    <div class="prop-label" style="margin-top:10px;">Nazwa pliku</div>
+    <input type="text" id="export-filename" value="index.html" />
     <div class="prop-label" style="margin-top:10px;">Tytuł strony (widoczny w karcie przeglądarki)</div>
     <input type="text" id="export-title" value="Moja strona" />
     <div class="modal-row">
       <button class="topbar-btn" id="export-cancel">Anuluj</button>
-      <button class="topbar-btn primary" id="export-go">⬇ Pobierz HTML</button>
+      <button class="topbar-btn primary" id="export-go">⬇ Zapisz jako…</button>
     </div>
   </div>
 </div>
@@ -1311,6 +1314,7 @@ function addItem(type, opts = {}) {
     link: opts.link || null,
     linkMode: opts.linkMode || 'newtab',
     imageUrl: opts.imageUrl || null,
+    localPath: opts.localPath || null,    // dla zdjęć z dysku — sama nazwa pliku używana w eksporcie (np. "kot.jpg")
     youtubeId: opts.youtubeId || null,
     youtubeAction: opts.youtubeAction || null,
     // === Ramka ===
@@ -1757,16 +1761,33 @@ function renderProps() {
     <button class="anim-btn ${item.animation === a.id ? 'active' : ''}" data-anim="${a.id}">${a.name}</button>
   `).join('');
 
+  // Etykieta typu — różna dla każdego rodzaju
+  const typeLabel = (() => {
+    if (item.type === 'text')   return 'Tekst';
+    if (item.type === 'button') return 'Przycisk';
+    if (item.type === 'image') {
+      if (item.youtubeId)  return 'Miniaturka YouTube';
+      if (item.localPath)  return 'Zdjęcie z folderu (' + item.localPath + ')';
+      return 'Obraz';
+    }
+    return 'Emotka';
+  })();
+
   let html = `
     <div class="prop-group">
-      <div class="prop-label">Typ: ${item.type === 'text' ? 'Tekst' : 'Emotka'}</div>
-    </div>
-
-    <div class="prop-group">
-      <div class="prop-label">Treść ${item.type === 'text' ? '(podwójny klik na scenie też edytuje)' : ''}</div>
-      <input type="text" id="prop-content" value="${item.content.replace(/"/g, '&quot;')}" />
+      <div class="prop-label">Typ: ${typeLabel}</div>
     </div>
   `;
+
+  // Treść — pokazujemy dla wszystkich oprócz obrazka (zdjęcie/YT nie mają edytowalnej treści)
+  if (item.type !== 'image') {
+    html += `
+      <div class="prop-group">
+        <div class="prop-label">Treść ${item.type === 'text' ? '(podwójny klik na scenie też edytuje)' : ''}</div>
+        <input type="text" id="prop-content" value="${(item.content || '').replace(/"/g, '&quot;')}" />
+      </div>
+    `;
+  }
 
   if (item.type === 'text') {
     html += `
@@ -1842,44 +1863,73 @@ function renderProps() {
 
   c.innerHTML = html;
 
+  // ===== LIVE UPDATE (bez utraty focusu w polach) =====
+  // Wpisywanie w input wywołuje oninput. Gdybyśmy wołali render() po każdej literce,
+  // panel właściwości byłby przebudowywany i input traciłby focus po każdym znaku.
+  // Zamiast tego: aktualizujemy SAM element na scenie (treść/kolor/styl) bez przebudowy.
+  // Pełny render() robimy tylko gdy konieczny (zmiana animacji, ramki, dodanie/usunięcie itp.).
+  function liveUpdateItem() {
+    const el = scene.querySelector(`.scene-item[data-id="${item.id}"]`);
+    if (!el) return;
+    const inner = el.firstElementChild;
+    if (!inner) return;
+    if (item.type === 'text') {
+      inner.textContent = item.content;
+      inner.style.fontFamily = item.font;
+      inner.style.fontSize = item.size + 'px';
+      inner.style.color = item.color;
+      inner.style.fontWeight = item.bold ? '700' : '400';
+    } else if (item.type === 'emoji') {
+      inner.textContent = item.content;
+      inner.style.fontSize = item.size + 'px';
+    } else if (item.type === 'button') {
+      // Przycisk ma zazwyczaj label w środku — szukamy go
+      const lbl = inner.querySelector('.item-button-label');
+      if (lbl) lbl.textContent = item.content;
+    }
+    el.style.transform = `scale(${item.scale}) rotate(${item.rotate}deg)`;
+  }
+
   // bindowanie
-  // Dla suwaków: oninput aktualizuje na żywo, onchange (po puszczeniu) zapisuje do historii.
-  // Dla pól tekstowych/color pickerów: pushHistory na blur/change.
+  // Dla suwaków: oninput aktualizuje na żywo (lekko), onchange (po puszczeniu) zapisuje do historii.
+  // Dla pól tekstowych/color pickerów: oninput = lekka aktualizacja, change = pushHistory.
   const propContent = document.getElementById('prop-content');
-  propContent.oninput = e => { item.content = e.target.value; render(); };
-  propContent.onchange = () => pushHistory();
+  if (propContent) {
+    propContent.oninput = e => { item.content = e.target.value; liveUpdateItem(); };
+    propContent.onchange = () => pushHistory();
+  }
 
   document.getElementById('prop-size').oninput = e => {
     item.size = +e.target.value;
     document.getElementById('prop-size-val').textContent = item.size;
-    render();
+    liveUpdateItem();
   };
   document.getElementById('prop-size').onchange = () => pushHistory();
 
   document.getElementById('prop-scale').oninput = e => {
     item.scale = +e.target.value;
     document.getElementById('prop-scale-val').textContent = item.scale.toFixed(2);
-    const el = document.querySelector(`.scene-item[data-id="${item.id}"]`);
-    if (el) el.style.transform = `scale(${item.scale}) rotate(${item.rotate}deg)`;
+    liveUpdateItem();
   };
   document.getElementById('prop-scale').onchange = () => pushHistory();
 
   document.getElementById('prop-rotate').oninput = e => {
     item.rotate = +e.target.value;
     document.getElementById('prop-rotate-val').textContent = Math.round(item.rotate);
-    const el = document.querySelector(`.scene-item[data-id="${item.id}"]`);
-    if (el) el.style.transform = `scale(${item.scale}) rotate(${item.rotate}deg)`;
+    liveUpdateItem();
   };
   document.getElementById('prop-rotate').onchange = () => pushHistory();
 
   if (item.type === 'text') {
-    document.getElementById('prop-font').onchange = e => { item.font = e.target.value; render(); pushHistory(); };
+    document.getElementById('prop-font').onchange = e => { item.font = e.target.value; liveUpdateItem(); pushHistory(); };
     const propColor = document.getElementById('prop-color');
-    propColor.oninput = e => { item.color = e.target.value; render(); };
+    propColor.oninput = e => { item.color = e.target.value; liveUpdateItem(); };
     propColor.onchange = () => pushHistory();
+    // Pogrubienie zmienia stan przycisku — wymaga przebudowy panelu (klasa .active)
     document.getElementById('prop-bold').onclick = () => { item.bold = !item.bold; render(); pushHistory(); };
   }
 
+  // Animacja zmienia klasę CSS na elemencie scenicznym + przycisk active w panelu — wymaga render()
   document.querySelectorAll('[data-anim]').forEach(b => {
     b.onclick = () => { item.animation = b.dataset.anim; render(); pushHistory(); };
   });
@@ -2414,6 +2464,18 @@ function renderMediaPanel() {
       </div>
       <button class="btn-go" id="media-add-yt" disabled>Dodaj miniaturkę na scenę</button>
     </div>
+
+    <div class="media-card">
+      <h4>🖼️ Wgraj zdjęcie z dysku</h4>
+      <p style="margin-bottom:8px;">
+        Klikasz przycisk → wybierasz zdjęcie z dowolnego folderu (jpg, png, webp, gif). Edytor zapamięta <strong>tylko nazwę pliku</strong>.
+      </p>
+      <p style="font-size:11px;color:#fbbf24;line-height:1.5;margin-bottom:8px;background:rgba(251,191,36,0.08);padding:8px;border-radius:6px;border-left:3px solid #fbbf24;">
+        ⚠️ <strong>Ważne:</strong> żeby zdjęcie pojawiło się na opublikowanej stronie, <strong>plik <code style="background:#0f0a18;padding:1px 4px;border-radius:3px;">index.html</code> i zdjęcia muszą być w tym samym folderze</strong>. Wrzuć je razem na Netlify (cały folder drag&drop).
+      </p>
+      <button class="btn-go" id="media-add-image">📂 Wybierz zdjęcia</button>
+      <input type="file" id="media-image-file" accept="image/*" multiple style="display:none;" />
+    </div>
   `;
 
   // ====== "Dołącz link do obiektu" ======
@@ -2460,6 +2522,43 @@ function renderMediaPanel() {
     refreshYtPreview();
     render();
     toast(action === 'play' ? '✓ Dodano miniaturkę (klik = odtwarzanie na scenie)' : '✓ Dodano miniaturkę (klik = otwiera YouTube)');
+  };
+
+  // ====== WGRAJ ZDJĘCIA Z DYSKU ======
+  // Klasyczny <input type="file"> + odczyt FileReader → DataURL (do podglądu w edytorze).
+  // W projekcie zapisujemy `localPath: "nazwa.jpg"` — eksport używa tej nazwy.
+  // Edytor pokazuje DataURL żebyś widział co dodajesz.
+  const imgBtn = document.getElementById('media-add-image');
+  const imgFile = document.getElementById('media-image-file');
+  imgBtn.onclick = () => imgFile.click();
+  imgFile.onchange = async (e) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+    let added = 0;
+    for (const f of files) {
+      if (!f.type.startsWith('image/')) continue;
+      try {
+        const dataUrl = await new Promise((res, rej) => {
+          const r = new FileReader();
+          r.onload = () => res(r.result);
+          r.onerror = rej;
+          r.readAsDataURL(f);
+        });
+        // localPath = nazwa pliku która znajdzie się w eksporcie (bez prefiksu folderu).
+        // Plik index.html i zdjęcia muszą być w tym samym katalogu (informacja w UI).
+        const safeName = f.name.replace(/[^\w.\-]/g, '_');   // sanitize do bezpiecznej nazwy
+        addItem('image', {
+          imageUrl: dataUrl,            // do podglądu w edytorze (wbudowany Base64)
+          localPath: safeName           // do eksportu — sama nazwa, np. "kot.jpg"
+        });
+        added++;
+      } catch(err) { console.error(err); }
+    }
+    imgFile.value = '';   // reset, żeby ten sam plik dał się ponownie wybrać
+    if (added > 0) {
+      render();
+      toast(added === 1 ? '✓ Dodano zdjęcie' : `✓ Dodano ${added} zdjęć`);
+    }
   };
 }
 
@@ -2851,7 +2950,12 @@ function buildExportHTML(title) {
         const playOverlay = item.youtubeId
           ? `<div style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:48px;height:48px;border-radius:50%;background:rgba(255,0,0,0.9);color:#fff;display:flex;align-items:center;justify-content:center;font-size:22px;padding-left:4px;box-shadow:0 2px 8px rgba(0,0,0,0.5);pointer-events:none;">▶</div>`
           : '';
-        inner = `<div style="position:relative;width:${imgW}px;height:${imgH}px;background:#000 url('${item.imageUrl}') center / cover no-repeat;border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,0.5);display:inline-block;">${playOverlay}</div>`;
+        // Dla zdjęć z dysku — używamy nazwy pliku (lekki HTML, plik musi być obok index.html).
+        // Dla miniaturek YT i innych — pełnego URL/Base64.
+        const src = item.localPath || item.imageUrl;
+        // Escape dla wartości w atrybucie URL: tylko ' i \ (reszta robi przeglądarka)
+        const safeSrc = String(src).replace(/'/g, "%27");
+        inner = `<div style="position:relative;width:${imgW}px;height:${imgH}px;background:#000 url('${safeSrc}') center / cover no-repeat;border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,0.5);display:inline-block;">${playOverlay}</div>`;
       } else if (item.type === 'button') {
         const styleId = item.buttonStyle || 'classic';
         const def = BUTTON_STYLES.find(s => s.id === styleId);
@@ -3121,6 +3225,39 @@ function downloadFile(name, content, mime = 'text/html') {
   setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 100);
 }
 
+// Zapisz plik z prawdziwym dialogiem "Zapisz jako..." (Chrome/Edge — File System Access API).
+// Fallback: gdy przeglądarka nie wspiera lub user anuluje, używa klasycznego pobrania do "Pobrane".
+// Zwraca:
+//   { method: 'picker', folderName: '...' }  — zapisano przez dialog (znamy nazwę folderu)
+//   { method: 'download' }                    — fallback (poszło do Pobrane)
+//   null                                      — user anulował dialog (nic się nie dzieje)
+async function saveFileWithPicker(suggestedName, content, mime = 'text/html', acceptDesc = 'Strona HTML', acceptExt = '.html') {
+  // Sprawdź czy API jest dostępne (Chrome 86+, Edge 86+)
+  if (typeof window.showSaveFilePicker === 'function') {
+    try {
+      const handle = await window.showSaveFilePicker({
+        suggestedName,
+        types: [{
+          description: acceptDesc,
+          accept: { [mime]: [acceptExt] }
+        }]
+      });
+      const writable = await handle.createWritable();
+      await writable.write(new Blob([content], { type: mime + ';charset=utf-8' }));
+      await writable.close();
+      return { method: 'picker', fileName: handle.name };
+    } catch(err) {
+      // AbortError = user kliknął anuluj → nic nie rób
+      if (err && err.name === 'AbortError') return null;
+      // Inny błąd — fallback do download
+      console.warn('Save picker failed, falling back:', err);
+    }
+  }
+  // Fallback: pobierz do folderu "Pobrane"
+  downloadFile(suggestedName, content, mime);
+  return { method: 'download' };
+}
+
 // ============================================================
 // PRZYCISKI TOPBAR
 // ============================================================
@@ -3130,14 +3267,34 @@ document.getElementById('btn-export').onclick = () => {
 document.getElementById('export-cancel').onclick = () => {
   document.getElementById('modal-export').classList.remove('show');
 };
-document.getElementById('export-go').onclick = () => {
+document.getElementById('export-go').onclick = async () => {
   let name = (document.getElementById('export-filename').value || 'moja-strona.html').trim();
   if (!name.endsWith('.html')) name += '.html';
   const title = document.getElementById('export-title').value || 'Moja strona';
   const html = buildExportHTML(title);
-  downloadFile(name, html);
+
+  // Schowaj modal PRZED otwarciem dialogu zapisu (żeby nie nakładał się)
   document.getElementById('modal-export').classList.remove('show');
-  toast('✓ Pobrano ' + name + ' — wrzuć na app.netlify.com/drop');
+
+  const result = await saveFileWithPicker(name, html, 'text/html', 'Strona HTML', '.html');
+  if (!result) return;   // user anulował
+
+  // Sukces — pokaż przyjazny komunikat zależnie od metody
+  const hasImages = state.pages.some(p => p.items.some(i => i.localPath));
+  if (result.method === 'picker') {
+    if (hasImages) {
+      toast('✓ Zapisano! Wrzuć zdjęcia do tego samego folderu', 4000);
+    } else {
+      toast('✓ Zapisano ' + result.fileName);
+    }
+  } else {
+    // Fallback (Pobrane) — przypomnij że można zmienić w ustawieniach
+    if (hasImages) {
+      toast('✓ Pobrano do folderu Pobrane. Zdjęcia muszą być obok pliku', 4000);
+    } else {
+      toast('✓ Pobrano ' + name);
+    }
+  }
 };
 
 document.getElementById('btn-preview').onclick = () => {
@@ -3273,13 +3430,17 @@ function buildProjectData() {
   };
 }
 
-document.getElementById('btn-save-project').onclick = () => {
+document.getElementById('btn-save-project').onclick = async () => {
   const data = buildProjectData();
+  const json = JSON.stringify(data, null, 2);
+  // Zawsze zapisz w localStorage (auto-restore przy następnym starcie)
   try {
-    localStorage.setItem('studio_project', JSON.stringify(data));
+    localStorage.setItem('studio_project', json);
   } catch(e) {}
-  downloadFile('projekt-studio.json', JSON.stringify(data, null, 2), 'application/json');
-  toast('💾 Zapisano (przeglądarka + plik .json)');
+  // Plus pobierz / zapisz przez dialog
+  const result = await saveFileWithPicker('projekt-studio.json', json, 'application/json', 'Projekt Studio (JSON)', '.json');
+  if (!result) return;
+  toast(result.method === 'picker' ? '💾 Zapisano projekt' : '💾 Zapisano (przeglądarka + Pobrane)');
 };
 
 document.getElementById('btn-load-project').onclick = () => {
@@ -3315,6 +3476,7 @@ function loadProject(data) {
     link: null,
     linkMode: 'newtab',
     imageUrl: null,
+    localPath: null,
     youtubeId: null,
     youtubeAction: null,
     gotoPage: null,
@@ -3325,6 +3487,7 @@ function loadProject(data) {
     link: i.link || null,
     linkMode: i.linkMode || 'newtab',
     buttonStyle: i.buttonStyle || null,
+    localPath: i.localPath || null,
     frame: i.frame || { theme: 'none', color: '#ffffff', bg: '#000000', bgAlpha: 80, width: 3, padding: 12, radius: 10 }
   });
 
