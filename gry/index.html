@@ -8,548 +8,801 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 
 <style>
-    :root {
-        --cyan: #00f7ff;
-        --pink: #ff00c8;
-    }
+:root {
+    --cyan: #00f7ff;
+    --pink: #ff00c8;
+    --sidebar-w: 220px;
+    --guestbook-w: 340px;
+    --topbar-h: 60px;
+}
 
-    * { margin:0; padding:0; box-sizing:border-box; }
-    body {
-        font-family: 'Segoe UI', Arial, sans-serif;
-        background:
-            linear-gradient(180deg,
-                #1a0d3a 0%,
-                #3d1a5a 12%,
-                #7a2a6e 22%,
-                #c94a6e 35%,
-                #ff7a3d 50%,
-                #8a2e5e 70%,
-                #2a1550 85%,
-                #0a0520 100%);
-        background-attachment: fixed;
-        color: #f5e8dc;
-        overflow-x: hidden;
-    }
+* { margin:0; padding:0; box-sizing:border-box; }
 
-    /* Gwiazdy na niebie (u góry) */
-    body::before {
-        content: "";
+body {
+    font-family: 'Segoe UI', Arial, sans-serif;
+    background:
+        linear-gradient(180deg,
+            #1a0d3a 0%,
+            #3d1a5a 12%,
+            #7a2a6e 22%,
+            #c94a6e 35%,
+            #ff7a3d 50%,
+            #8a2e5e 70%,
+            #2a1550 85%,
+            #0a0520 100%);
+    background-attachment: fixed;
+    color: #f5e8dc;
+    overflow-x: hidden;
+}
+
+/* Gwiazdy */
+body::before {
+    content: "";
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    height: 40vh;
+    background-image:
+        radial-gradient(circle 1.5px at 10% 15%, #fff, transparent 2px),
+        radial-gradient(circle 1px at 25% 25%, #fff, transparent 2px),
+        radial-gradient(circle 2px at 40% 10%, #fff5d0, transparent 3px),
+        radial-gradient(circle 1.5px at 55% 30%, #fff, transparent 2px),
+        radial-gradient(circle 1px at 70% 12%, #fff, transparent 2px),
+        radial-gradient(circle 2px at 85% 28%, #ffe6a0, transparent 3px),
+        radial-gradient(circle 1px at 95% 18%, #fff, transparent 2px),
+        radial-gradient(circle 1.5px at 15% 35%, #fff, transparent 2px),
+        radial-gradient(circle 1px at 50% 8%, #fff, transparent 2px);
+    opacity: 0.85;
+    animation: twinkle 4s ease-in-out infinite;
+    pointer-events: none;
+    z-index: -2;
+}
+@keyframes twinkle {
+    0%, 100% { opacity: 0.85; }
+    50% { opacity: 0.4; }
+}
+
+#spaceCanvas {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100vw;
+    height: 100vh;
+    pointer-events: none;
+    z-index: -1;
+}
+
+/* === GÓRNY PASEK === */
+.topbar {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    height: var(--topbar-h);
+    background: rgba(10,10,10,0.96);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--cyan);
+    padding: 0 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+.logo {
+    font-size: 24px;
+    font-weight: bold;
+    color: var(--cyan);
+    text-shadow: 0 0 15px var(--cyan);
+}
+.topbar-right {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+.topbar-tagline {
+    color: #aaa;
+    font-size: 0.9rem;
+    letter-spacing: 1px;
+}
+.mobile-btn {
+    display: none;
+    background: transparent;
+    border: 1px solid #333;
+    color: #ccc;
+    padding: 7px 12px;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.mobile-btn:hover {
+    border-color: var(--cyan);
+    color: var(--cyan);
+}
+.hamburger { font-size: 22px; line-height: 1; }
+
+/* === LAYOUT TRZYKOLUMNOWY === */
+.layout {
+    display: grid;
+    grid-template-columns: var(--sidebar-w) 1fr var(--guestbook-w);
+    gap: 0;
+    align-items: start;
+    min-height: calc(100vh - var(--topbar-h));
+}
+
+/* === LEWY PASEK NAWIGACJI === */
+.sidebar {
+    position: sticky;
+    top: var(--topbar-h);
+    height: calc(100vh - var(--topbar-h));
+    overflow-y: auto;
+    background: rgba(10,10,10,0.85);
+    backdrop-filter: blur(10px);
+    border-right: 1px solid #1f1f1f;
+    padding: 24px 14px;
+}
+.sidebar-section-title {
+    font-size: 0.7rem;
+    color: #555;
+    letter-spacing: 2px;
+    margin: 18px 10px 10px;
+    text-transform: uppercase;
+}
+.sidebar-section-title:first-child { margin-top: 0; }
+.sidebar a {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 11px 14px;
+    color: #ccc;
+    text-decoration: none;
+    border-radius: 10px;
+    font-weight: 500;
+    font-size: 0.97rem;
+    transition: all 0.2s;
+    margin-bottom: 4px;
+}
+.sidebar a:hover {
+    background: rgba(0, 247, 255, 0.08);
+    color: var(--cyan);
+    transform: translateX(3px);
+}
+.sidebar a.active {
+    background: linear-gradient(90deg, rgba(0,247,255,0.15), transparent);
+    color: var(--cyan);
+    border-left: 3px solid var(--cyan);
+    padding-left: 11px;
+}
+.sidebar-icon {
+    font-size: 1.2rem;
+    width: 22px;
+    text-align: center;
+}
+
+/* === ŚRODEK === */
+.main {
+    padding: 30px 32px 40px;
+    min-width: 0; /* żeby nie rozpychało gridu */
+}
+
+/* HERO */
+.hero {
+    position: relative;
+    overflow: hidden;
+    border-radius: 16px;
+    border: 1px solid rgba(0,247,255,0.25);
+    background: rgba(10,10,10,0.45);
+    padding: 50px 30px;
+    margin-bottom: 32px;
+    text-align: center;
+}
+#heroCanvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1;
+    border-radius: 16px;
+}
+.hero-content {
+    position: relative;
+    z-index: 2;
+}
+.hero h1 {
+    font-size: 3rem;
+    background: linear-gradient(90deg, var(--cyan), var(--pink));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    text-shadow: 0 0 40px rgba(0,247,255,0.6);
+    margin-bottom: 14px;
+    line-height: 1.05;
+}
+.hero p {
+    font-size: 1.15rem;
+    margin-bottom: 22px;
+    text-shadow: 0 2px 8px rgba(0,0,0,0.7);
+    line-height: 1.5;
+    max-width: 620px;
+    margin-left: auto;
+    margin-right: auto;
+}
+.btn {
+    padding: 13px 36px;
+    font-size: 1.05rem;
+    border: none;
+    border-radius: 50px;
+    background: var(--cyan);
+    color: black;
+    font-weight: bold;
+    cursor: pointer;
+    box-shadow: 0 0 20px var(--cyan);
+    transition: all 0.3s;
+}
+.btn:hover {
+    transform: scale(1.06);
+    box-shadow: 0 0 35px var(--cyan);
+}
+
+/* SEKCJE w środku */
+.section {
+    margin-bottom: 32px;
+    background: rgba(10,10,10,0.55);
+    border: 1px solid #1f1f1f;
+    border-radius: 14px;
+    padding: 28px 26px;
+    backdrop-filter: blur(8px);
+}
+.section h2 {
+    color: var(--cyan);
+    font-size: 1.5rem;
+    margin-bottom: 18px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+/* SIATKA GIER */
+.games-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, 124px);
+    gap: 18px;
+    justify-content: center;
+}
+.game-card {
+    background: #111;
+    border-radius: 12px;
+    overflow: hidden;
+    transition: all 0.3s ease;
+    border: 1px solid #222;
+    text-align: center;
+    cursor: pointer;
+    aspect-ratio: 1 / 1;
+    width: 124px;
+    height: 124px;
+    padding: 1px;
+    background: transparent;
+    border: 1px solid #000;
+}
+.game-card:hover {
+    transform: translateY(-8px) scale(1.06);
+    box-shadow: 0 0 30px rgba(0, 247, 255, 0.5);
+    border-color: var(--cyan);
+}
+.game-card img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 10px;
+}
+.game-card .play-btn {
+    margin-top: 12px;
+    width: 100%;
+    padding: 11px;
+    background: var(--cyan);
+    color: black;
+    border: none;
+    border-radius: 8px;
+    font-weight: bold;
+    cursor: pointer;
+    font-size: 0.92rem;
+}
+
+/* OPIS / accordion */
+.section details {
+    background: #111;
+    border-radius: 10px;
+    border: 1px solid #222;
+    overflow: hidden;
+}
+.section details summary {
+    padding: 18px 22px;
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: var(--cyan);
+    cursor: pointer;
+    list-style: none;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.section details > div {
+    padding: 22px 26px;
+    line-height: 1.85;
+    color: #ccc;
+    border-top: 1px solid #222;
+}
+
+/* === PRAWA KOLUMNA: KSIĘGA GOŚCI === */
+.guestbook-col {
+    position: sticky;
+    top: var(--topbar-h);
+    height: calc(100vh - var(--topbar-h));
+    background: rgba(10,10,10,0.85);
+    backdrop-filter: blur(10px);
+    border-left: 1px solid #1f1f1f;
+    padding: 24px 20px;
+    display: flex;
+    flex-direction: column;
+}
+.guestbook-col h2 {
+    color: var(--cyan);
+    font-size: 1.25rem;
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.guestbook-count {
+    color: #555;
+    font-size: 0.78rem;
+    margin-bottom: 16px;
+}
+.comments {
+    flex: 1;
+    overflow-y: auto;
+    margin-bottom: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding-right: 4px;
+    scrollbar-width: thin;
+    scrollbar-color: #333 transparent;
+}
+.comments::-webkit-scrollbar { width: 6px; }
+.comments::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+.comment {
+    background: #1a1a1a;
+    padding: 12px 14px;
+    border-radius: 10px;
+    border-left: 3px solid var(--cyan);
+    font-size: 0.88rem;
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    animation: fadeIn .4s ease;
+}
+.comment-avatar {
+    flex-shrink: 0;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: .5px;
+}
+.comment-body { flex: 1; min-width: 0; }
+.comment-meta {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 4px;
+}
+.comment-author {
+    font-weight: 600;
+    font-size: 0.85rem;
+}
+.comment-time { font-size: 0.68rem; color: #444; }
+.comment-text {
+    color: #ccc;
+    line-height: 1.5;
+    word-break: break-word;
+    font-size: 0.85rem;
+}
+
+/* Formularz w guestbook */
+.guestbook-form {
+    background: #161616;
+    border: 1px solid #2a2a2a;
+    border-radius: 10px;
+    padding: 14px;
+}
+.guestbook-form label {
+    display: block;
+    color: #777;
+    font-size: 0.7rem;
+    letter-spacing: .5px;
+    margin-bottom: 8px;
+}
+.guestbook-form input,
+.guestbook-form textarea {
+    width: 100%;
+    background: #1f1f1f;
+    border: 1px solid #333;
+    color: #eee;
+    padding: 10px 12px;
+    border-radius: 8px;
+    font-size: 0.88rem;
+    margin-bottom: 8px;
+    font-family: inherit;
+}
+.guestbook-form textarea {
+    resize: vertical;
+    min-height: 70px;
+}
+.guestbook-form button {
+    width: 100%;
+    padding: 10px;
+    background: var(--cyan);
+    color: black;
+    border: none;
+    border-radius: 8px;
+    font-weight: bold;
+    cursor: pointer;
+    font-size: 0.88rem;
+    transition: all 0.2s;
+}
+.guestbook-form button:hover {
+    box-shadow: 0 0 18px rgba(0,247,255,0.5);
+}
+.char-count {
+    font-size: 0.7rem;
+    color: #555;
+    text-align: right;
+    margin-top: -4px;
+    margin-bottom: 6px;
+}
+
+/* === STOPKA === */
+.footer {
+    border-top: 1px solid #1a1a1a;
+    background: rgba(10,10,10,0.85);
+    backdrop-filter: blur(10px);
+    padding: 30px 20px;
+    text-align: center;
+}
+.footer-links {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+}
+.footer-link {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    background: #111;
+    border: 1px solid #222;
+    border-radius: 50px;
+    color: #eee;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 0.9rem;
+    transition: all .3s;
+}
+.footer-link.youtube:hover {
+    border-color: #ff0000;
+    color: #ff4444;
+    box-shadow: 0 0 18px rgba(255,0,0,0.25);
+}
+.footer-link.coffee:hover {
+    border-color: var(--cyan);
+    color: var(--cyan);
+    box-shadow: 0 0 18px rgba(0,247,255,0.2);
+}
+.footer-copy {
+    color: #555;
+    font-size: 0.82rem;
+}
+
+@keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+
+/* === RESPONSIVE === */
+/* Średnie ekrany: zwijamy guestbook do schowka */
+@media (max-width: 1100px) {
+    :root { --guestbook-w: 0px; }
+    .layout { grid-template-columns: var(--sidebar-w) 1fr; }
+    .guestbook-col {
         position: fixed;
-        top: 0; left: 0; right: 0;
-        height: 40vh;
-        background-image:
-            radial-gradient(circle 1.5px at 10% 15%, #fff, transparent 2px),
-            radial-gradient(circle 1px at 25% 25%, #fff, transparent 2px),
-            radial-gradient(circle 2px at 40% 10%, #fff5d0, transparent 3px),
-            radial-gradient(circle 1.5px at 55% 30%, #fff, transparent 2px),
-            radial-gradient(circle 1px at 70% 12%, #fff, transparent 2px),
-            radial-gradient(circle 2px at 85% 28%, #ffe6a0, transparent 3px),
-            radial-gradient(circle 1px at 95% 18%, #fff, transparent 2px),
-            radial-gradient(circle 1.5px at 15% 35%, #fff, transparent 2px),
-            radial-gradient(circle 1px at 50% 8%, #fff, transparent 2px);
-        opacity: 0.85;
-        animation: twinkle 4s ease-in-out infinite;
-        pointer-events: none;
-        z-index: -1;
+        top: 0;
+        right: 0;
+        width: 360px;
+        max-width: 90vw;
+        height: 100vh;
+        z-index: 200;
+        border-left: 1px solid #333;
+        transform: translateX(100%);
+        transition: transform 0.3s ease;
+        padding-top: 60px;
     }
-    @keyframes twinkle {
-        0%, 100% { opacity: 0.85; }
-        50% { opacity: 0.4; }
+    .guestbook-col.open { transform: translateX(0); }
+    .guestbook-close {
+        position: absolute;
+        top: 14px;
+        right: 14px;
+        background: transparent;
+        border: 1px solid #333;
+        color: #ccc;
+        width: 34px;
+        height: 34px;
+        border-radius: 50%;
+        cursor: pointer;
+        font-size: 1.2rem;
     }
+    .mobile-btn.guestbook-toggle { display: inline-flex; align-items: center; gap: 6px; }
+}
 
-    /* Unoszące się świetliki */
-    body::after {
-        content: "";
+/* Wąskie ekrany: zwijamy też lewy sidebar */
+@media (max-width: 768px) {
+    :root { --sidebar-w: 0px; }
+    .layout { grid-template-columns: 1fr; }
+    .sidebar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 260px;
+        max-width: 80vw;
+        height: 100vh;
+        z-index: 200;
+        border-right: 1px solid #333;
+        transform: translateX(-100%);
+        transition: transform 0.3s ease;
+        padding-top: 60px;
+    }
+    .sidebar.open { transform: translateX(0); }
+    .sidebar-close {
+        position: absolute;
+        top: 14px;
+        right: 14px;
+        background: transparent;
+        border: 1px solid #333;
+        color: #ccc;
+        width: 34px;
+        height: 34px;
+        border-radius: 50%;
+        cursor: pointer;
+        font-size: 1.2rem;
+    }
+    .mobile-btn.hamburger-toggle { display: inline-flex; }
+    .topbar-tagline { display: none; }
+    .main { padding: 20px 16px 30px; }
+    .hero { padding: 36px 18px; }
+    .hero h1 { font-size: 2.2rem; }
+    .hero p { font-size: 1rem; }
+
+    /* Backdrop pod menu */
+    .backdrop {
         position: fixed;
         inset: 0;
-        background-image:
-            radial-gradient(circle 2px at 12% 60%, rgba(255, 220, 100, 0.9), transparent 4px),
-            radial-gradient(circle 2px at 88% 65%, rgba(255, 220, 100, 0.8), transparent 4px),
-            radial-gradient(circle 2px at 28% 80%, rgba(255, 220, 100, 0.7), transparent 4px),
-            radial-gradient(circle 2px at 70% 85%, rgba(255, 220, 100, 0.8), transparent 4px),
-            radial-gradient(circle 2px at 45% 72%, rgba(255, 220, 100, 0.6), transparent 4px);
-        filter: blur(0.5px);
-        animation: fireflies 7s ease-in-out infinite;
+        background: rgba(0,0,0,0.6);
+        z-index: 150;
+        opacity: 0;
         pointer-events: none;
-        z-index: -1;
+        transition: opacity 0.3s;
     }
-    @keyframes fireflies {
-        0%, 100% { opacity: 0.6; transform: translateY(0); }
-        50% { opacity: 1; transform: translateY(-25px); }
+    .backdrop.show {
+        opacity: 1;
+        pointer-events: auto;
     }
+}
 
-    /* ===== EPICKA SCENA KOSMICZNA ===== */
-    #spaceCanvas {
+/* Backdrop też dla średnich ekranów (guestbook drawer) */
+@media (max-width: 1100px) {
+    .backdrop {
         position: fixed;
-        top: 0; left: 0;
-        width: 100vw;
-        height: 100vh;
+        inset: 0;
+        background: rgba(0,0,0,0.6);
+        z-index: 150;
+        opacity: 0;
         pointer-events: none;
-        z-index: -1;
+        transition: opacity 0.3s;
     }
-
-    nav {
-        position: sticky;
-        top: 0;
-        z-index: 100;
-        background: rgba(10,10,10,0.96);
-        backdrop-filter: blur(12px);
-        border-bottom: 1px solid var(--cyan);
-        padding: 16px 20px;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
+    .backdrop.show {
+        opacity: 1;
+        pointer-events: auto;
     }
-
-    .logo {
-        font-size: 28px;
-        font-weight: bold;
-        color: var(--cyan);
-        text-shadow: 0 0 15px var(--cyan);
-    }
-
-    .menu { display: flex; gap: 28px; }
-    .menu a { 
-        color: #ccc; 
-        text-decoration: none; 
-        font-weight: 500; 
-        transition: color 0.3s;
-    }
-    .menu a:hover { color: var(--cyan); }
-
-    .hamburger { display: none; font-size: 30px; cursor: pointer; }
-
-    /* HERO */
-    .hero {
-        height: 88vh;
-        min-height: 580px;
-        position: relative;
-        overflow: hidden;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        text-align: center;
-    }
-
-    #heroCanvas {
-        position: absolute;
-        top: 0; left: 0;
-        width: 100%;
-        height: 100%;
-        z-index: 1;
-    }
-
-    .hero-content {
-        position: relative;
-        z-index: 2;
-    }
-
-    .hero h1 {
-        font-size: 4.5rem;
-        background: linear-gradient(90deg, var(--cyan), var(--pink));
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        text-shadow: 0 0 40px rgba(0,247,255,0.6);
-        margin-bottom: 20px;
-        line-height: 1.05;
-    }
-
-    .hero p {
-        font-size: 1.7rem;
-        margin-bottom: 12px;
-        text-shadow: 0 2px 8px rgba(0,0,0,0.7), 0 0 20px rgba(0,0,0,0.5);
-        line-height: 1.5;
-    }
-    .hero-subline {
-        font-size: 1.15rem !important;
-        margin-bottom: 35px !important;
-        color: #e8f4ff;
-        opacity: 0.92;
-    }
-    .hero-subline strong {
-        color: var(--cyan);
-        text-shadow: 0 0 12px var(--cyan);
-    }
-
-    .btn {
-        padding: 16px 42px;
-        font-size: 1.2rem;
-        border: none;
-        border-radius: 50px;
-        background: var(--cyan);
-        color: black;
-        font-weight: bold;
-        cursor: pointer;
-        box-shadow: 0 0 20px var(--cyan);
-        transition: all 0.3s;
-    }
-    .btn:hover {
-        transform: scale(1.08);
-        box-shadow: 0 0 35px var(--cyan);
-    }
-
-    /* MAŁA SIATKA */
-    .games-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(138px, 1fr));
-        gap: 18px;
-        padding: 20px;
-        max-width: 1550px;
-        margin: 0 auto;
-    }
-
-    .game-card {
-        background: #111;
-        border-radius: 12px;
-        overflow: hidden;
-        transition: all 0.35s ease;
-        border: 1px solid #222;
-        text-align: center;
-    }
-
-    .game-card:hover {
-        transform: translateY(-10px) scale(1.06);
-        box-shadow: 0 0 30px rgba(0, 247, 255, 0.5);
-        border-color: var(--cyan);
-    }
-
-    .game-card img {
-        width: 100%;
-        height: 98px;
-        object-fit: cover;
-    }
-
-    .game-card h3 {
-        font-size: 1.02rem;
-        margin: 9px 6px 4px;
-        line-height: 1.2;
-    }
-
-    .game-card .genre {
-        font-size: 0.76rem;
-        color: #888;
-        margin-bottom: 10px;
-    }
-
-    /* KSIĘGA GOŚCI */
-    .guestbook {
-        max-width: 900px;
-        margin: 60px auto;
-        background: #111;
-        border-radius: 16px;
-        padding: 35px;
-        border: 1px solid #222;
-    }
-
-    .guestbook h2 {
-        text-align: center;
-        color: var(--cyan);
-        margin-bottom: 30px;
-        font-size: 2.4rem;
-    }
-
-    .comments {
-        max-height: 520px;
-        overflow-y: auto;
-        margin-bottom: 30px;
-        display: flex;
-        flex-direction: column;
-        gap: 16px;
-        padding-right: 8px;
-    }
-
-    .comment {
-        background: #1a1a1a;
-        padding: 16px 20px;
-        border-radius: 12px;
-        border-left: 5px solid var(--cyan);
-    }
-
-    .comment-author {
-        color: var(--pink);
-        font-weight: 600;
-        margin-bottom: 6px;
-    }
-
-    form {
-        display: flex;
-        flex-direction: column;
-        gap: 14px;
-    }
-
-    input, textarea {
-        background: #1f1f1f;
-        border: 1px solid #333;
-        color: #eee;
-        padding: 14px 16px;
-        border-radius: 10px;
-        font-size: 1rem;
-    }
-
-    textarea { resize: vertical; min-height: 110px; }
-
-    section { padding: 40px 20px; }
-
-    @keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
-
-    @media (max-width: 768px) {
-        .games-grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
-        .game-card img { height: 88px; }
-        .hero h1 { font-size: 3.1rem; }
-        .menu { 
-            display: none; 
-            position: absolute; 
-            top: 75px; left:0; right:0; 
-            background:#0a0a0a; 
-            flex-direction:column; 
-            padding:20px; 
-            border-top:1px solid #333; 
-            gap: 15px;
-        }
-        .menu.active { display: flex; }
-        .hamburger { display: block; }
-    }
+}
 </style>
 </head>
 
 <body>
 
-<!-- EPICKA SCENA KOSMICZNA W TLE -->
+<!-- TŁO KOSMICZNE -->
 <canvas id="spaceCanvas"></canvas>
 
-<nav>
-    <div class="logo">🎮 mini-klik</div>
-    <div class="menu" id="menu">
-        <a href="#home">Dom</a>
-        <a href="#nowe">Dema</a>
-        <a href="#wasze-gry">Nasze gry</a>
-        <a href="#opis">Opis</a>
-        <a href="#ksiega-gosci">Księga Gości</a>
-    </div>
-    <div style="display:flex; align-items:center;">
-        <span class="hamburger" id="hamburger">☰</span>
-    </div>
-</nav>
+<!-- BACKDROP do drawerów -->
+<div class="backdrop" id="backdrop"></div>
 
-<div class="hero" id="home">
-    <canvas id="heroCanvas"></canvas>
-    <div class="hero-content">
-        <h1>Twórz.<br>Graj.<br>Udostępniaj.</h1>
-        <p>Portal dla miłośników i twórców małych, kreatywnych gier bez potrzeby kodowania. U nas wystarczy sama wyobraźnia.</p>
-        <p class="hero-subline">mini-klik.pl — używa własnego silnika gry <strong>mini-klik Classic</strong>, edytor + Game Player.</p>
-        <button class="btn" onclick="document.getElementById('nowe').scrollIntoView({behavior:'smooth'})">
-            Zaczynamy!
+<!-- TOP BAR -->
+<header class="topbar">
+    <div style="display:flex; align-items:center; gap:12px;">
+        <button class="mobile-btn hamburger-toggle" id="hamburgerBtn" aria-label="Menu">
+            <span class="hamburger">☰</span>
+        </button>
+        <div class="logo">🎮 mini-klik</div>
+    </div>
+    <div class="topbar-right">
+        <span class="topbar-tagline">portal z grami</span>
+        <button class="mobile-btn guestbook-toggle" id="guestbookBtn">
+            💬 Księga
         </button>
     </div>
-</div>
+</header>
 
-<!-- NOWE GRY / DEMO -->
-<section id="nowe">
-    <h2 style="text-align:center; color:var(--cyan); margin:60px 0 6px; font-size:2.7rem;">
-        Przykłady gier
-    </h2>
-    <h3 style="text-align:center; color:var(--cyan); margin:0 0 14px; font-size:1.8rem; font-weight:700;">
-        wybierz demo — twórz i graj
-    </h3>
-    <p style="text-align:center; color:#d0d0d0; font-size:1.25rem; max-width:700px; margin:0 auto 35px; line-height:1.7;">
-        Zero instalacji. Nasz edytor działa online — dodawaj obiekty, zapisz swój projekt — testuj grę natychmiast.
-    </p>
-   
-    <div class="games-grid" style="grid-template-columns: repeat(auto-fill, minmax(124px, 1fr)); 
-                                    gap: 20px; 
-                                    max-width: 620px; 
-                                    margin: 0 auto;">
-            
-            <!-- Demo 1 -->
-            <div class="game-card" onclick="window.location.href='demo1/'" style="cursor:pointer; aspect-ratio: 1 / 1; width:124px; height:124px; padding: 1px; background: transparent; border: 1px solid #000; border-radius:12px;">
-                <img src="images/demo1.png" alt="Demo 1" style="width: 100%; height: 100%; object-fit: cover; border-radius: 10px;">
-                <button style="margin-top: 12px; width:100%; padding:11px; background:var(--cyan); color:black; 
-                            border:none; border-radius:8px; font-weight:bold; cursor:pointer; font-size:0.92rem;">
-                    ▶ DEMO 1
+<!-- LAYOUT 3-KOLUMNOWY -->
+<div class="layout">
+
+    <!-- ===== LEWY SIDEBAR ===== -->
+    <aside class="sidebar" id="sidebar">
+        <button class="sidebar-close" id="sidebarClose" aria-label="Zamknij">×</button>
+
+        <div class="sidebar-section-title">Nawigacja</div>
+        <a href="#home" class="active" data-section="home">
+            <span class="sidebar-icon">🏠</span> Dom
+        </a>
+        <a href="#nowe" data-section="nowe">
+            <span class="sidebar-icon">🎮</span> Dema
+        </a>
+        <a href="#wasze-gry" data-section="wasze-gry">
+            <span class="sidebar-icon">⭐</span> Nasze gry
+        </a>
+        <a href="#opis" data-section="opis">
+            <span class="sidebar-icon">📖</span> Opis
+        </a>
+
+        <div class="sidebar-section-title">Społeczność</div>
+        <a href="https://www.youtube.com/@mini-klik" target="_blank">
+            <span class="sidebar-icon" style="color:#ff4444;">▶</span> YouTube
+        </a>
+        <a href="https://buycoffee.to/ramzi-studio" target="_blank">
+            <span class="sidebar-icon">☕</span> Postaw kawę
+        </a>
+    </aside>
+
+    <!-- ===== ŚRODEK ===== -->
+    <main class="main">
+
+        <!-- HERO -->
+        <section class="hero" id="home">
+            <canvas id="heroCanvas"></canvas>
+            <div class="hero-content">
+                <h1>Twórz.<br>Graj.<br>Udostępniaj.</h1>
+                <p>Portal dla miłośników i twórców małych, kreatywnych gier bez potrzeby kodowania.</p>
+                <button class="btn" onclick="document.getElementById('nowe').scrollIntoView({behavior:'smooth'})">
+                    Zaczynamy!
                 </button>
             </div>
+        </section>
 
-            <!-- Demo 2 -->
-            <div class="game-card" onclick="window.location.href='demo2/'" style="cursor:pointer; aspect-ratio: 1 / 1; width:124px; height:124px; padding: 1px; background: transparent; border: 1px solid #000; border-radius:12px;">
-                <img src="images/demo2.png" alt="Demo 2" style="width: 100%; height: 100%; object-fit: cover; border-radius: 10px;">
-                <button style="margin-top: 12px; width:100%; padding:11px; background:var(--cyan); color:black; 
-                            border:none; border-radius:8px; font-weight:bold; cursor:pointer; font-size:0.92rem;">
-                    ▶ DEMO 2
-                </button>
-            </div>
+        <!-- DEMA -->
+        <section class="section" id="nowe">
+            <h2>🎮 wybierz demo — twórz i graj</h2>
+            <div class="games-grid">
 
-            <!-- Demo 3 -->
-            <div class="game-card" onclick="window.location.href='demo3/'" style="cursor:pointer; aspect-ratio: 1 / 1; width:124px; height:124px; padding: 1px; background: transparent; border: 1px solid #000; border-radius:12px;">
-                <img src="images/demo3.png" alt="Demo 3" style="width: 100%; height: 100%; object-fit: cover; border-radius: 10px;">
-                <button style="margin-top: 12px; width:100%; padding:11px; background:var(--cyan); color:black; 
-                            border:none; border-radius:8px; font-weight:bold; cursor:pointer; font-size:0.92rem;">
-                    ▶ DEMO 3
-                </button>
-            </div>
-
-            <!-- Demo 4 -->
-            <div class="game-card" onclick="window.location.href='demo4/'" style="cursor:pointer; aspect-ratio: 1 / 1; width:124px; height:124px; padding: 1px; background: transparent; border: 1px solid #000; border-radius:12px;">
-                <img src="images/demo4.png" alt="Demo 4" style="width: 100%; height: 100%; object-fit: cover; border-radius: 10px;">
-                <button style="margin-top: 12px; width:100%; padding:11px; background:var(--cyan); color:black; 
-                            border:none; border-radius:8px; font-weight:bold; cursor:pointer; font-size:0.92rem;">
-                    ▶ DEMO 4
-                </button>
-            </div>
-        </div>
-</section>
-
-<!-- ═══════════════════════════════════════════
-     SEKCJA: WASZE GRY
-════════════════════════════════════════════ -->
-<section id="wasze-gry" style="padding: 90px 20px 80px;">
-    <div style="text-align:center; max-width: 900px; margin: 0 auto;">
-        <h2 style="color:var(--cyan); font-size:2.7rem; margin-bottom: 12px;">
-            Zagrajmy w nasze gry
-        </h2>
-        <p style="color:#d0d0d0; font-size:1.25rem; margin-bottom: 55px; max-width:820px; margin-left:auto; margin-right:auto; line-height:1.7;">
-            To jest nasze miejsce — setki małych gier stworzonych przez społeczność. Każda gra posiada swój Game Player oraz swój unikatowy edytor, dzięki któremu możesz dalej tworzyć coś od siebie :)
-        </p>
-        
-        <!-- Grid z ikonami – identyczny jak demo -->
-        <div class="games-grid" style="grid-template-columns: repeat(auto-fill, minmax(124px, 1fr));
-                                       gap: 20px;
-                                       max-width: 460px;
-                                       margin: 0 auto;">
-            
-            <!-- Demo 5 -->
-            <div class="game-card" onclick="window.location.href='demo5/'" style="cursor:pointer; aspect-ratio: 1 / 1; width:124px; height:124px; padding: 1px; background: transparent; border: 1px solid #000; border-radius:12px;">
-                <img src="images/demo5.png" alt="Demo 5" style="width: 100%; height: 100%; object-fit: cover; border-radius: 10px;">
-                <button style="margin-top: 12px; width:100%; padding:11px; background:var(--cyan); color:black;
-                            border:none; border-radius:8px; font-weight:bold; cursor:pointer; font-size:0.92rem;">
-                    ▶ DEMO 5
-                </button>
-            </div>
-            
-        </div>
-    </div>
-</section>
-
-<!-- ═══════════════ O MINI-KLIK ═══════════════ -->
-<section id="opis" style="padding: 70px 20px 60px;">
-    <h2 style="text-align:center; color:var(--cyan); margin-bottom:40px; font-size:2.5rem;">O mini-klik</h2>
-
-    <!-- Accordion szczegóły -->
-    <div style="max-width:900px; margin:0 auto; background:#111; border-radius:14px; border:1px solid #222; overflow:hidden;">
-        <details>
-            <summary style="padding:22px 26px; font-size:1.2rem; font-weight:600; color:var(--cyan); cursor:pointer; list-style:none; display:flex; align-items:center; gap:12px;">
-                ✨ Szczegóły — jak działa edytor mini-klik?
-            </summary>
-            <div style="padding:26px 30px; line-height:1.85; color:#ccc; border-top:1px solid #222;">
-
-                <!-- Info o Chrome - wyróżniona ramka -->
-                <div style="background:linear-gradient(90deg, rgba(255,184,77,0.08), rgba(255,120,70,0.08)); border-left:3px solid #ffb84d; padding:14px 18px; border-radius:8px; margin-bottom:22px; font-size:0.95rem;">
-                    <strong style="color:#ffb84d;">⚡ Wymagania techniczne:</strong>
-                    <span style="color:#e8d4c0;">Cały projekt <b>mini-klik.pl</b> został zoptymalizowany pod przeglądarkę <b>Google Chrome</b> na komputerze stacjonarnym. Na tabletach i telefonach funkcjonalność jest ograniczona ze względu na niższą wydajność silnika renderującego w mobilnych wersjach przeglądarek. Dla najlepszego doświadczenia zalecamy Chrome na PC.</span>
+                <div class="game-card" onclick="window.location.href='demo3/'">
+                    <img src="images/demo3.png" alt="Demo 3">
+                    <button class="play-btn">▶ DEMO 3</button>
                 </div>
 
-                <h3 style="color:var(--cyan); margin-bottom:12px; font-size:1.4rem;">Witaj w świecie gier — mini-klik.pl 🎮</h3>
+                <div class="game-card" onclick="window.location.href='demo4/'">
+                    <img src="images/demo4.png" alt="Demo 4">
+                    <button class="play-btn">▶ DEMO 4</button>
+                </div>
 
-                <p style="margin-bottom:14px;">
-                    Silnik mini-klik powstał z myślą o miłośnikach <b style="color:var(--pink);">starych, prostych gier z lat 90.</b> — tych, w których liczyła się pomysłowość, a nie grafika 4K.
-                </p>
-
-                <p style="margin-bottom:14px;">
-                    Stworzony został, by być <b>najprostszą formą rozrywki</b> — bez reklam, bez pobierania, bez instalowania. Wchodzisz na stronę, klikasz dowolną grę i grasz. Tak po prostu.
-                </p>
-
-                <p style="margin-bottom:14px;">
-                    <b style="color:var(--cyan);">Co nas wyróżnia od innych portali?</b>
-                    To, że <b>każdą grę możesz dowolnie przerabiać</b> — dodawać własne pomysły, zmieniać wrogów, tworzyć nowe poziomy. A wszystko w prosty sposób zapisać na własnym komputerze w pliku <b>.json</b>, gotowym do ponownej edycji.
-                </p>
-
-                <p style="margin-bottom:22px;">
-                    Każdy zapisany plik <b>.json</b> możesz później otworzyć w dowolnym edytorze tekstowym lub ponownie wczytać do edytora mini-klik — i bawić się dalej. 🔄
-                </p>
-
-                <hr style="border:none; border-top:1px dashed #333; margin:22px 0;">
-
-                <h3 style="color:var(--cyan); margin-bottom:12px; font-size:1.3rem;">⚙️ Jak działa edytor?</h3>
-
-                <p style="margin-bottom:14px;"><strong style="color:#eee;">mini-klik</strong> to środowisko do tworzenia gier 2D, które działa w całości w przeglądarce — bez żadnego programu do pobrania.</p>
-                <p style="margin-bottom:18px;">Edytor łączy dwa tryby pracy: wizualny <em>drag&amp;drop</em> do układania poziomów oraz prosty edytor kodu dla tych, którzy chcą więcej kontroli. Możesz mieszać oba tryby w dowolnym momencie.</p>
-                <ul style="margin-left:22px; line-height:2; color:#aaa;">
-                    <li>✅ Platformówki, endless runnery, RPG, gry logiczne i więcej</li>
-                    <li>✅ Natychmiastowe testowanie — kliknij Graj i sprawdź</li>
-                    <li>✅ Gotowa gra = jeden link do udostępnienia</li>
-                    <li>✅ Neonowy, przyjemny interfejs zaprojektowany dla twórców</li>
-                    <li>✅ Całkowicie darmowy — teraz i zawsze</li>
-                </ul>
-                <p style="margin-top:20px; color:#777; font-size:0.9rem;">Pierwszą grę możesz stworzyć w mniej niż 10 minut. Sprawdź demo powyżej i zacznij już dziś!</p>
             </div>
-        </details>
-    </div>
-</section>
+        </section>
 
-<!-- KSIĘGA GOŚCI -->
-<section id="ksiega-gosci" style="padding: 20px 20px 80px;">
-    <div class="guestbook">
-        <h2 style="display:flex; align-items:center; justify-content:center; gap:12px;">
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#00f7ff" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+        <!-- NASZE GRY -->
+        <section class="section" id="wasze-gry">
+            <h2>⭐ Zagrajmy w nasze gry</h2>
+            <div class="games-grid">
+
+                <div class="game-card" onclick="window.location.href='demo5/'">
+                    <img src="images/demo5.png" alt="Demo 5">
+                    <button class="play-btn">▶ DEMO 5</button>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- OPIS -->
+        <section class="section" id="opis">
+            <h2>📖 O mini-klik</h2>
+
+            <details>
+                <summary>✨ Szczegóły — jak działa edytor mini-klik?</summary>
+                <div>
+                    <div style="background:linear-gradient(90deg, rgba(255,184,77,0.08), rgba(255,120,70,0.08)); border-left:3px solid #ffb84d; padding:14px 18px; border-radius:8px; margin-bottom:22px; font-size:0.95rem;">
+                        <strong style="color:#ffb84d;">⚡ Wymagania techniczne:</strong>
+                        <span style="color:#e8d4c0;">Cały projekt <b>mini-klik.pl</b> został zoptymalizowany pod przeglądarkę <b>Google Chrome</b> na komputerze stacjonarnym. Na tabletach i telefonach funkcjonalność jest ograniczona ze względu na niższą wydajność silnika renderującego w mobilnych wersjach przeglądarek. Dla najlepszego doświadczenia zalecamy Chrome na PC.</span>
+                    </div>
+
+                    <h3 style="color:var(--cyan); margin-bottom:12px; font-size:1.3rem;">Witaj w świecie gier — mini-klik.pl 🎮</h3>
+
+                    <p style="margin-bottom:14px;">
+                        Silnik mini-klik powstał z myślą o miłośnikach <b style="color:var(--pink);">starych, prostych gier z lat 90.</b> — tych, w których liczyła się pomysłowość, a nie grafika 4K.
+                    </p>
+
+                    <p style="margin-bottom:14px;">
+                        Stworzony został, by być <b>najprostszą formą rozrywki</b> — bez reklam, bez pobierania, bez instalowania. Wchodzisz na stronę, klikasz dowolną grę i grasz. Tak po prostu.
+                    </p>
+
+                    <p style="margin-bottom:14px;">
+                        <b style="color:var(--cyan);">Co nas wyróżnia od innych portali?</b>
+                        To, że <b>każdą grę możesz dowolnie przerabiać</b> — dodawać własne pomysły, zmieniać wrogów, tworzyć nowe poziomy. A wszystko w prosty sposób zapisać na własnym komputerze w pliku <b>.json</b>, gotowym do ponownej edycji.
+                    </p>
+
+                    <p style="margin-bottom:22px;">
+                        Każdy zapisany plik <b>.json</b> możesz później otworzyć w dowolnym edytorze tekstowym lub ponownie wczytać do edytora mini-klik — i bawić się dalej. 🔄
+                    </p>
+
+                    <hr style="border:none; border-top:1px dashed #333; margin:22px 0;">
+
+                    <h3 style="color:var(--cyan); margin-bottom:12px; font-size:1.2rem;">⚙️ Jak działa edytor?</h3>
+
+                    <p style="margin-bottom:14px;"><strong style="color:#eee;">mini-klik</strong> to środowisko do tworzenia gier 2D, które działa w całości w przeglądarce — bez żadnego programu do pobrania.</p>
+                    <p style="margin-bottom:18px;">Edytor łączy dwa tryby pracy: wizualny <em>drag&amp;drop</em> do układania poziomów oraz prosty edytor kodu dla tych, którzy chcą więcej kontroli. Możesz mieszać oba tryby w dowolnym momencie.</p>
+                    <ul style="margin-left:22px; line-height:2; color:#aaa;">
+                        <li>✅ Platformówki, endless runnery, RPG, gry logiczne i więcej</li>
+                        <li>✅ Natychmiastowe testowanie — kliknij Graj i sprawdź</li>
+                        <li>✅ Gotowa gra = jeden link do udostępnienia</li>
+                        <li>✅ Neonowy, przyjemny interfejs zaprojektowany dla twórców</li>
+                        <li>✅ Całkowicie darmowy — teraz i zawsze</li>
+                    </ul>
+                    <p style="margin-top:20px; color:#777; font-size:0.9rem;">Pierwszą grę możesz stworzyć w mniej niż 10 minut. Sprawdź demo powyżej i zacznij już dziś!</p>
+                </div>
+            </details>
+        </section>
+
+    </main>
+
+    <!-- ===== PRAWA KOLUMNA: KSIĘGA GOŚCI ===== -->
+    <aside class="guestbook-col" id="guestbookCol">
+        <button class="guestbook-close" id="guestbookClose" aria-label="Zamknij">×</button>
+
+        <h2>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#00f7ff" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
             Księga Gości
         </h2>
+        <p class="guestbook-count" id="commentCount">ładowanie wpisów…</p>
 
-        <!-- licznik wpisów -->
-        <p id="commentCount" style="text-align:center; color:#555; font-size:0.85rem; margin:-16px 0 24px;">ładowanie wpisów…</p>
+        <div class="comments" id="comments"></div>
 
-        <div class="comments" id="comments" style="scrollbar-width:thin; scrollbar-color:#222 transparent;"></div>
+        <form id="guestbookForm" class="guestbook-form">
+            <label>ZOSTAW SWÓJ ŚLAD</label>
+            <input type="text" id="name" placeholder="Twój nick / imię" required>
+            <textarea id="message" placeholder="Napisz coś o mini-klik… 🎮" required maxlength="280"
+                      oninput="document.getElementById('charCount').textContent=this.value.length+'/280'"></textarea>
+            <div class="char-count"><span id="charCount">0/280</span></div>
+            <button type="submit">📨 ZOSTAW WPIS</button>
+        </form>
+    </aside>
 
-        <!-- formularz -->
-        <div style="background:#161616; border:1px solid #2a2a2a; border-radius:14px; padding:24px; margin-top:10px;">
-            <p style="color:#888; font-size:0.85rem; margin-bottom:16px; letter-spacing:.5px;">ZOSTAW SWÓJ ŚLAD</p>
-            <form id="guestbookForm">
-                <div style="display:flex; gap:12px; flex-wrap:wrap;">
-                    <input type="text" id="name" placeholder="Twój nick / imię" required
-                           style="flex:1; min-width:160px;">
-                </div>
-                <div style="position:relative; margin-top:14px;">
-                    <textarea id="message" placeholder="Napisz coś o mini-klik… 🎮" required
-                              maxlength="280"
-                              oninput="document.getElementById('charCount').textContent=this.value.length+'/280'"
-                              style="width:100%; padding-bottom:32px;"></textarea>
-                    <span id="charCount" style="position:absolute; bottom:10px; right:14px; font-size:0.75rem; color:#555;">0/280</span>
-                </div>
-                <button type="submit" class="btn" style="margin-top:4px; width:100%; display:flex; align-items:center; justify-content:center; gap:10px;">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-                    ZOSTAW WPIS
-                </button>
-            </form>
-        </div>
-    </div>
-</section>
+</div>
 
-<!-- SOCIAL / WSPARCIE -->
-<section style="padding: 60px 20px; text-align:center; border-top: 1px solid #1a1a1a;">
-    <p style="color:#555; font-size:0.85rem; letter-spacing:1px; margin-bottom:28px;">ZNAJDŹ NAS / WESPRZYJ</p>
-    <div style="display:flex; align-items:center; justify-content:center; gap:20px; flex-wrap:wrap;">
-
-        <!-- YouTube -->
-        <a href="https://www.youtube.com/@mini-klik" target="_blank"
-           style="display:flex; align-items:center; gap:10px; padding:13px 24px;
-                  background:#111; border:1px solid #222; border-radius:50px;
-                  color:#eee; text-decoration:none; font-weight:600; font-size:0.95rem;
-                  transition:all .3s;"
-           onmouseover="this.style.borderColor='#ff0000'; this.style.color='#ff4444'; this.style.boxShadow='0 0 20px rgba(255,0,0,0.25)'"
-           onmouseout="this.style.borderColor='#222'; this.style.color='#eee'; this.style.boxShadow='none'">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="#ff0000">
+<!-- STOPKA -->
+<footer class="footer">
+    <div class="footer-links">
+        <a href="https://www.youtube.com/@mini-klik" target="_blank" class="footer-link youtube">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="#ff0000">
                 <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
             </svg>
             YouTube
         </a>
-
-        <!-- Postaw kawę -->
-        <a href="https://buycoffee.to/ramzi-studio" target="_blank"
-           style="display:flex; align-items:center; gap:10px; padding:13px 24px;
-                  background:#111; border:1px solid #222; border-radius:50px;
-                  color:#eee; text-decoration:none; font-weight:600; font-size:0.95rem;
-                  transition:all .3s;"
-           onmouseover="this.style.borderColor='var(--cyan)'; this.style.color='var(--cyan)'; this.style.boxShadow='0 0 20px rgba(0,247,255,0.2)'"
-           onmouseout="this.style.borderColor='#222'; this.style.color='#eee'; this.style.boxShadow='none'">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#00f7ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <a href="https://buycoffee.to/ramzi-studio" target="_blank" class="footer-link coffee">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#00f7ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M18 8h1a4 4 0 0 1 0 8h-1"/>
                 <path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/>
                 <line x1="6" y1="1" x2="6" y2="4"/>
@@ -558,86 +811,114 @@
             </svg>
             Postaw kawę
         </a>
-
     </div>
-</section>
-
-<footer style="text-align:center; padding:40px 20px 60px; color:#555; font-size:0.9rem;">
-    © 2026 mini-klik • zrobione z ❤️ i neonu
+    <p class="footer-copy">© 2026 mini-klik • zrobione z ❤️ i neonu</p>
 </footer>
 
 <script>
-// ================= ANIMACJA HERO =================
-const canvas = document.getElementById('heroCanvas');
-const ctx = canvas.getContext('2d');
+// ============== DRAWERS (mobile) ==============
+const sidebar = document.getElementById('sidebar');
+const guestbookCol = document.getElementById('guestbookCol');
+const backdrop = document.getElementById('backdrop');
 
-function resize() {
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight * 0.88;
+function openSidebar()    { sidebar.classList.add('open'); backdrop.classList.add('show'); }
+function closeSidebar()   { sidebar.classList.remove('open'); backdrop.classList.remove('show'); }
+function openGuestbook()  { guestbookCol.classList.add('open'); backdrop.classList.add('show'); }
+function closeGuestbook() { guestbookCol.classList.remove('open'); backdrop.classList.remove('show'); }
+function closeAll()       { closeSidebar(); closeGuestbook(); }
+
+document.getElementById('hamburgerBtn').addEventListener('click', openSidebar);
+document.getElementById('sidebarClose').addEventListener('click', closeSidebar);
+document.getElementById('guestbookBtn').addEventListener('click', openGuestbook);
+document.getElementById('guestbookClose').addEventListener('click', closeGuestbook);
+backdrop.addEventListener('click', closeAll);
+
+// Klik w link sidebara -> zamknij drawer (mobile)
+document.querySelectorAll('.sidebar a[data-section]').forEach(a => {
+    a.addEventListener('click', () => {
+        if (window.innerWidth <= 768) closeSidebar();
+    });
+});
+
+// Aktywna sekcja w sidebar (scroll spy)
+const sections = ['home', 'nowe', 'wasze-gry', 'opis'].map(id => document.getElementById(id));
+const sidebarLinks = document.querySelectorAll('.sidebar a[data-section]');
+window.addEventListener('scroll', () => {
+    const scrollY = window.scrollY + 100;
+    let current = 'home';
+    for (const s of sections) {
+        if (s && s.offsetTop <= scrollY) current = s.id;
+    }
+    sidebarLinks.forEach(l => {
+        l.classList.toggle('active', l.dataset.section === current);
+    });
+});
+
+// ============== HERO CANVAS ==============
+const heroCanvas = document.getElementById('heroCanvas');
+const hctx = heroCanvas.getContext('2d');
+
+function resizeHero() {
+    const rect = heroCanvas.getBoundingClientRect();
+    heroCanvas.width = rect.width;
+    heroCanvas.height = rect.height;
 }
-resize();
-window.addEventListener('resize', resize);
+resizeHero();
+window.addEventListener('resize', resizeHero);
 
-let particles = [];
-let platforms = [];
-let player = { x: 320, y: 420, vy: 0, size: 30 };
+let hParticles = [];
+let hPlatforms = [];
+let hPlayer = { x: 320, y: 220, floatT: 0 };
 
-for (let i = 0; i < 70; i++) {
-    particles.push({ x: Math.random()*canvas.width, y: Math.random()*canvas.height, size: Math.random()*2.2 + 0.8, speed: Math.random()*0.8 + 0.3 });
+for (let i = 0; i < 50; i++) {
+    hParticles.push({ x: Math.random()*800, y: Math.random()*400, size: Math.random()*2.2 + 0.8, speed: Math.random()*0.8 + 0.3 });
 }
-for (let i = 0; i < 12; i++) {
-    platforms.push({ x: Math.random() * canvas.width * 1.6, y: 220 + Math.random() * 320, w: 130 + Math.random() * 90, speed: 1 + Math.random() * 0.7 });
+for (let i = 0; i < 8; i++) {
+    hPlatforms.push({ x: Math.random() * 1200, y: 80 + Math.random() * 280, w: 100 + Math.random() * 80, speed: 0.8 + Math.random() * 0.6 });
 }
 
-function animate() {
-    // Czyścimy canvas — bez wypełniania czarnym, żeby widać było kosmos z tyłu
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+function heroAnimate() {
+    hctx.clearRect(0, 0, heroCanvas.width, heroCanvas.height);
 
-    ctx.fillStyle = '#99ffff';
-    particles.forEach(p => {
+    hctx.fillStyle = '#99ffff';
+    hParticles.forEach(p => {
         p.y += p.speed;
-        if (p.y > canvas.height) p.y = 0;
-        ctx.fillRect(p.x, p.y, p.size, p.size);
+        if (p.y > heroCanvas.height) p.y = 0;
+        if (p.x > heroCanvas.width) p.x = 0;
+        hctx.fillRect(p.x, p.y, p.size, p.size);
     });
 
-    ctx.strokeStyle = '#00dddd';
-    ctx.lineWidth = 4;
-    platforms.forEach(pl => {
+    hctx.strokeStyle = '#00dddd';
+    hctx.lineWidth = 3;
+    hPlatforms.forEach(pl => {
         pl.x -= pl.speed;
-        if (pl.x < -300) pl.x = canvas.width + 300;
-        ctx.shadowBlur = 12;
-        ctx.shadowColor = '#00ffff';
-        ctx.beginPath();
-        ctx.moveTo(pl.x, pl.y);
-        ctx.lineTo(pl.x + pl.w, pl.y);
-        ctx.stroke();
+        if (pl.x < -300) pl.x = heroCanvas.width + 300;
+        hctx.shadowBlur = 10;
+        hctx.shadowColor = '#00ffff';
+        hctx.beginPath();
+        hctx.moveTo(pl.x, pl.y);
+        hctx.lineTo(pl.x + pl.w, pl.y);
+        hctx.stroke();
     });
-    ctx.shadowBlur = 0;
+    hctx.shadowBlur = 0;
 
-    // === STATEK KOSMICZNY — lewituje bezwładnie po ekranie ===
-    player.floatT = (player.floatT || 0) + 0.02;
-    // Powolne dryfowanie po torze Lissajous
-    player.x = canvas.width * 0.25 + Math.sin(player.floatT) * 200;
-    player.y = canvas.height * 0.55 + Math.sin(player.floatT * 0.7) * 120;
+    // Statek lewituje
+    hPlayer.floatT += 0.02;
+    hPlayer.x = heroCanvas.width * 0.25 + Math.sin(hPlayer.floatT) * (heroCanvas.width * 0.25);
+    hPlayer.y = heroCanvas.height * 0.55 + Math.sin(hPlayer.floatT * 0.7) * (heroCanvas.height * 0.2);
+    const tilt = Math.max(-0.25, Math.min(0.25, Math.cos(hPlayer.floatT) * 200 * 0.02 * 0.08));
+    drawSpaceshipIntro(hctx, hPlayer.x, hPlayer.y, 22, tilt, Date.now());
 
-    // Kierunek lotu — lekki tilt zgodnie z kierunkiem ruchu
-    const vx = Math.cos(player.floatT) * 200 * 0.02;
-    const tilt = Math.max(-0.25, Math.min(0.25, vx * 0.08));
-
-    drawSpaceshipIntro(ctx, player.x, player.y, 28, tilt, Date.now());
-
-    requestAnimationFrame(animate);
+    requestAnimationFrame(heroAnimate);
 }
 
-// === RYSOWANIE STATKU KOSMICZNEGO (uproszczona wersja z edytora) ===
 function drawSpaceshipIntro(c, x, y, r, tilt, time) {
     const t = time * 0.001;
-    const hover = Math.sin(t * 2.2) * 2.5;
+    const hover = Math.sin(t * 2.2) * 2;
     c.save();
     c.translate(x, y + hover);
     c.rotate(tilt);
 
-    // Płomień silnika (z tyłu)
     const flameLen = r * 0.9 + Math.sin(t * 20) * 3;
     const flameGrad = c.createLinearGradient(-r * 0.7, 0, -r * 0.7 - flameLen, 0);
     flameGrad.addColorStop(0, 'rgba(255, 230, 100, 0.95)');
@@ -652,40 +933,35 @@ function drawSpaceshipIntro(c, x, y, r, tilt, time) {
     c.closePath();
     c.fill();
 
-    // Dysza silnika
     c.fillStyle = '#2a2a3a';
     c.fillRect(-r * 0.85, -r * 0.28, r * 0.2, r * 0.56);
 
-    // Kadłub — srebrzyste ciało
     const hullGrad = c.createLinearGradient(0, -r * 0.5, 0, r * 0.5);
     hullGrad.addColorStop(0, '#f0f0f5');
     hullGrad.addColorStop(0.5, '#b8b8c8');
     hullGrad.addColorStop(1, '#606070');
     c.fillStyle = hullGrad;
     c.beginPath();
-    c.moveTo(r * 1.0, 0);            // dziób
-    c.lineTo(r * 0.3, -r * 0.45);    // górna przednia
-    c.lineTo(-r * 0.7, -r * 0.35);   // górna tylna
-    c.lineTo(-r * 0.7, r * 0.35);    // dolna tylna
-    c.lineTo(r * 0.3, r * 0.45);     // dolna przednia
+    c.moveTo(r * 1.0, 0);
+    c.lineTo(r * 0.3, -r * 0.45);
+    c.lineTo(-r * 0.7, -r * 0.35);
+    c.lineTo(-r * 0.7, r * 0.35);
+    c.lineTo(r * 0.3, r * 0.45);
     c.closePath();
     c.fill();
     c.strokeStyle = '#2a2a3a';
     c.lineWidth = 1.3;
     c.stroke();
 
-    // Skrzydła
     c.fillStyle = '#e04a4a';
     c.strokeStyle = '#2a2a3a';
     c.lineWidth = 1;
-    // Górne skrzydło
     c.beginPath();
     c.moveTo(-r * 0.3, -r * 0.35);
     c.lineTo(-r * 0.6, -r * 0.85);
     c.lineTo(-r * 0.1, -r * 0.4);
     c.closePath();
     c.fill(); c.stroke();
-    // Dolne skrzydło
     c.beginPath();
     c.moveTo(-r * 0.3, r * 0.35);
     c.lineTo(-r * 0.6, r * 0.85);
@@ -693,7 +969,6 @@ function drawSpaceshipIntro(c, x, y, r, tilt, time) {
     c.closePath();
     c.fill(); c.stroke();
 
-    // Kokpit (szyba)
     const cockpitGrad = c.createRadialGradient(r * 0.3, -r * 0.1, 1, r * 0.3, 0, r * 0.3);
     cockpitGrad.addColorStop(0, '#a0e8ff');
     cockpitGrad.addColorStop(0.6, '#4080c0');
@@ -705,13 +980,11 @@ function drawSpaceshipIntro(c, x, y, r, tilt, time) {
     c.strokeStyle = '#2a2a3a';
     c.lineWidth = 1;
     c.stroke();
-    // Blik na szybie
     c.fillStyle = 'rgba(255, 255, 255, 0.6)';
     c.beginPath();
     c.ellipse(r * 0.3, -r * 0.08, r * 0.08, r * 0.04, 0, 0, Math.PI * 2);
     c.fill();
 
-    // Dziób — czerwony czubek
     c.fillStyle = '#c83030';
     c.beginPath();
     c.moveTo(r * 1.0, 0);
@@ -724,35 +997,216 @@ function drawSpaceshipIntro(c, x, y, r, tilt, time) {
 
     c.restore();
 }
-animate();
+heroAnimate();
 
-// Hamburger
-document.getElementById('hamburger').addEventListener('click', () => {
-    document.getElementById('menu').classList.toggle('active');
-});
+// ============== TŁO KOSMICZNE ==============
+;(function() {
+    const canvas = document.getElementById('spaceCanvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
 
-// ================= KSIĘGA GOŚCI =================
+    function resize() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+    }
+    resize();
+    window.addEventListener('resize', resize);
+
+    const moon = {
+        cx: () => canvas.width * 0.18,
+        cy: () => canvas.height * 0.25,
+        r: () => Math.min(canvas.width, canvas.height) * 0.05
+    };
+
+    const asteroids = [];
+    for (let i = 0; i < 14; i++) {
+        asteroids.push({
+            x: Math.random() * canvas.width,
+            y: Math.random() * canvas.height * 0.7,
+            vx: (Math.random() - 0.5) * 0.3,
+            vy: (Math.random() - 0.5) * 0.15,
+            size: 4 + Math.random() * 14,
+            rotation: Math.random() * Math.PI * 2,
+            rotSpeed: (Math.random() - 0.5) * 0.015,
+            points: 6 + Math.floor(Math.random() * 4)
+        });
+    }
+
+    const ships = [];
+    function spawnShip() {
+        const fromLeft = Math.random() > 0.5;
+        const y = canvas.height * (0.1 + Math.random() * 0.6);
+        ships.push({
+            x: fromLeft ? -80 : canvas.width + 80,
+            y,
+            targetY: y + (Math.random() - 0.5) * 60,
+            vx: (fromLeft ? 1 : -1) * (0.3 + Math.random() * 0.4),
+            size: 0.6 + Math.random() * 1.2,
+            type: Math.floor(Math.random() * 3),
+            flame: 0,
+            fromLeft
+        });
+    }
+    for (let i = 0; i < 3; i++) {
+        spawnShip();
+        ships[ships.length - 1].x = Math.random() * canvas.width;
+    }
+    setInterval(() => { if (ships.length < 6) spawnShip(); }, 4000);
+
+    function drawMoon() {
+        const cx = moon.cx(), cy = moon.cy(), r = moon.r();
+        const glowGrad = ctx.createRadialGradient(cx, cy, r, cx, cy, r * 2.5);
+        glowGrad.addColorStop(0, 'rgba(255, 220, 160, 0.35)');
+        glowGrad.addColorStop(0.5, 'rgba(255, 180, 120, 0.1)');
+        glowGrad.addColorStop(1, 'rgba(255, 180, 120, 0)');
+        ctx.fillStyle = glowGrad;
+        ctx.beginPath(); ctx.arc(cx, cy, r * 2.5, 0, Math.PI * 2); ctx.fill();
+
+        const moonGrad = ctx.createRadialGradient(cx - r * 0.3, cy - r * 0.3, r * 0.1, cx, cy, r);
+        moonGrad.addColorStop(0, '#3a2a3a');
+        moonGrad.addColorStop(0.7, '#1a0a1a');
+        moonGrad.addColorStop(1, '#0a0510');
+        ctx.fillStyle = moonGrad;
+        ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill();
+
+        const rimGrad = ctx.createRadialGradient(cx - r * 0.4, cy - r * 0.4, r * 0.75, cx - r * 0.4, cy - r * 0.4, r * 1.05);
+        rimGrad.addColorStop(0, 'rgba(255, 120, 60, 0)');
+        rimGrad.addColorStop(0.9, 'rgba(255, 160, 80, 0.6)');
+        rimGrad.addColorStop(1, 'rgba(255, 200, 100, 0.95)');
+        ctx.fillStyle = rimGrad;
+        ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill();
+
+        ctx.fillStyle = 'rgba(10, 5, 15, 0.6)';
+        const craters = [[-0.3, 0.1, 0.15], [0.2, -0.25, 0.1], [0.05, 0.35, 0.12], [-0.15, -0.15, 0.08]];
+        for (const [dx, dy, dr] of craters) {
+            ctx.beginPath();
+            ctx.arc(cx + dx * r, cy + dy * r, dr * r, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    }
+
+    function drawAsteroid(a) {
+        ctx.save(); ctx.translate(a.x, a.y); ctx.rotate(a.rotation);
+        ctx.beginPath();
+        for (let i = 0; i < a.points; i++) {
+            const angle = (i / a.points) * Math.PI * 2;
+            const variation = 0.7 + ((i * 37) % 7) * 0.05;
+            const px = Math.cos(angle) * a.size * variation;
+            const py = Math.sin(angle) * a.size * variation;
+            if (i === 0) ctx.moveTo(px, py);
+            else ctx.lineTo(px, py);
+        }
+        ctx.closePath();
+        ctx.fillStyle = '#1a0a1a'; ctx.fill();
+        ctx.strokeStyle = 'rgba(255, 140, 70, 0.7)'; ctx.lineWidth = 1.2; ctx.stroke();
+        ctx.restore();
+    }
+
+    function drawShip(s) {
+        ctx.save(); ctx.translate(s.x, s.y);
+        s.y += (s.targetY - s.y) * 0.02;
+        const sc = s.size, flip = s.fromLeft ? 1 : -1;
+        ctx.scale(sc * flip, sc);
+
+        if (s.type === 0) {
+            ctx.fillStyle = '#0a0515';
+            ctx.strokeStyle = 'rgba(255, 150, 80, 0.85)';
+            ctx.lineWidth = 0.8;
+            ctx.beginPath();
+            ctx.moveTo(12, 0); ctx.lineTo(-6, -5); ctx.lineTo(-10, 0); ctx.lineTo(-6, 5);
+            ctx.closePath(); ctx.fill(); ctx.stroke();
+            ctx.fillStyle = 'rgba(255, 100, 50, 0.8)'; ctx.fillRect(-10, -1.5, 3, 3);
+            ctx.fillStyle = 'rgba(255, 200, 100, 0.8)';
+            ctx.beginPath(); ctx.arc(4, 0, 2, 0, Math.PI * 2); ctx.fill();
+        } else if (s.type === 1) {
+            ctx.fillStyle = '#0a0515';
+            ctx.strokeStyle = 'rgba(255, 140, 70, 0.8)'; ctx.lineWidth = 0.8;
+            ctx.beginPath();
+            ctx.moveTo(18, 0); ctx.lineTo(14, -4); ctx.lineTo(-12, -4);
+            ctx.lineTo(-14, 0); ctx.lineTo(-12, 4); ctx.lineTo(14, 4);
+            ctx.closePath(); ctx.fill(); ctx.stroke();
+            ctx.fillStyle = 'rgba(255, 200, 120, 0.7)';
+            ctx.fillRect(-4, -1, 2, 2); ctx.fillRect(2, -1, 2, 2); ctx.fillRect(8, -1, 2, 2);
+            ctx.fillStyle = 'rgba(255, 80, 40, 0.9)'; ctx.fillRect(-14, -2.5, 3, 5);
+        } else {
+            ctx.fillStyle = '#0a0515';
+            ctx.strokeStyle = 'rgba(255, 160, 90, 0.9)'; ctx.lineWidth = 0.8;
+            ctx.beginPath();
+            ctx.moveTo(14, 0); ctx.lineTo(2, -3); ctx.lineTo(-8, -4);
+            ctx.lineTo(-8, 4); ctx.lineTo(2, 3);
+            ctx.closePath(); ctx.fill(); ctx.stroke();
+            ctx.fillStyle = 'rgba(255, 140, 70, 0.5)';
+            ctx.beginPath(); ctx.moveTo(-5, -4); ctx.lineTo(-2, -9); ctx.lineTo(2, -4); ctx.closePath(); ctx.fill();
+            ctx.beginPath(); ctx.moveTo(-5, 4); ctx.lineTo(-2, 9); ctx.lineTo(2, 4); ctx.closePath(); ctx.fill();
+            ctx.fillStyle = 'rgba(255, 220, 150, 0.9)';
+            ctx.beginPath(); ctx.arc(6, 0, 1.5, 0, Math.PI * 2); ctx.fill();
+        }
+
+        s.flame = (s.flame + 1) % 6;
+        const flameLen = 8 + s.flame * 0.5;
+        const flameGrad = ctx.createLinearGradient(-10, 0, -10 - flameLen, 0);
+        flameGrad.addColorStop(0, 'rgba(255, 180, 80, 0.8)');
+        flameGrad.addColorStop(0.5, 'rgba(255, 100, 50, 0.4)');
+        flameGrad.addColorStop(1, 'rgba(255, 50, 30, 0)');
+        ctx.fillStyle = flameGrad;
+        ctx.beginPath();
+        ctx.moveTo(-10, -1.5); ctx.lineTo(-10 - flameLen, 0); ctx.lineTo(-10, 1.5);
+        ctx.closePath(); ctx.fill();
+        ctx.restore();
+    }
+
+    function animate() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        drawMoon();
+        for (const a of asteroids) {
+            a.x += a.vx; a.y += a.vy; a.rotation += a.rotSpeed;
+            if (a.x < -50) a.x = canvas.width + 50;
+            if (a.x > canvas.width + 50) a.x = -50;
+            if (a.y < -50) a.y = canvas.height + 50;
+            if (a.y > canvas.height + 50) a.y = -50;
+            drawAsteroid(a);
+        }
+        for (let i = ships.length - 1; i >= 0; i--) {
+            const s = ships[i];
+            s.x += s.vx;
+            drawShip(s);
+            if ((s.fromLeft && s.x > canvas.width + 100) || (!s.fromLeft && s.x < -100)) {
+                ships.splice(i, 1);
+            }
+        }
+        requestAnimationFrame(animate);
+    }
+    animate();
+})();
+
+// ============== KSIĘGA GOŚCI (Firebase) ==============
+const firebaseConfig = {
+  apiKey: "AIzaSyDRR3vSfgpEmbpZz_-VldMTnTHoXRfuGKg",
+  authDomain: "ksiega-ramzi.firebaseapp.com",
+  projectId: "ksiega-ramzi",
+  storageBucket: "ksiega-ramzi.firebasestorage.app",
+  messagingSenderId: "400735142662",
+  appId: "1:400735142662:web:0b52a57f4fedf367839487"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
 const form = document.getElementById('guestbookForm');
-const commentsDiv = document.getElementById('comments');
-
-
 
 form.addEventListener('submit', async function(e) {
     e.preventDefault();
-
     const name = document.getElementById('name').value.trim();
     const message = document.getElementById('message').value.trim();
-
     if (!name || !message) return;
 
     const btn = form.querySelector('button[type=submit]');
     btn.disabled = true;
+    const oldHtml = btn.innerHTML;
     btn.textContent = 'Wysyłanie…';
 
     try {
         await db.collection("wpisy").add({
-            name,
-            message,
+            name, message,
             created: firebase.firestore.FieldValue.serverTimestamp()
         });
         form.reset();
@@ -762,7 +1216,7 @@ form.addEventListener('submit', async function(e) {
         console.error("Błąd zapisu:", err);
     } finally {
         btn.disabled = false;
-        btn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg> ZOSTAW WPIS';
+        btn.innerHTML = oldHtml;
     }
 });
 
@@ -784,19 +1238,16 @@ function timeAgo(ts) {
 
 async function loadComments() {
     const commentsDiv = document.getElementById('comments');
-    commentsDiv.innerHTML = '<p style="text-align:center;color:#444;padding:20px;">ładowanie…</p>';
+    commentsDiv.innerHTML = '<p style="text-align:center;color:#444;padding:20px;font-size:0.85rem;">ładowanie…</p>';
 
     try {
-        const snapshot = await db.collection("wpisy")
-            .orderBy("created", "desc")
-            .get();
-
+        const snapshot = await db.collection("wpisy").orderBy("created", "desc").get();
         const count = snapshot.size;
         document.getElementById('commentCount').textContent =
             count === 0 ? 'Bądź pierwszy!' : `${count} ${count === 1 ? 'wpis' : count < 5 ? 'wpisy' : 'wpisów'}`;
 
         if (count === 0) {
-            commentsDiv.innerHTML = '<p style="text-align:center;color:#444;padding:30px;">Brak wpisów — bądź pierwszy! 👇</p>';
+            commentsDiv.innerHTML = '<p style="text-align:center;color:#444;padding:30px;font-size:0.85rem;">Brak wpisów — bądź pierwszy! 👇</p>';
             return;
         }
 
@@ -811,419 +1262,28 @@ async function loadComments() {
 
             const div = document.createElement('div');
             div.className = 'comment';
-            div.style.cssText = 'display:flex; gap:14px; align-items:flex-start; animation: fadeIn .4s ease;';
             div.innerHTML = `
-                <div style="flex-shrink:0; width:38px; height:38px; border-radius:50%;
-                            background:${color}22; border:2px solid ${color};
-                            display:flex; align-items:center; justify-content:center;
-                            font-size:0.75rem; font-weight:700; color:${color}; letter-spacing:.5px;">
+                <div class="comment-avatar"
+                     style="background:${color}22; border:2px solid ${color}; color:${color};">
                     ${initials}
                 </div>
-                <div style="flex:1; min-width:0;">
-                    <div style="display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; margin-bottom:5px;">
+                <div class="comment-body">
+                    <div class="comment-meta">
                         <span class="comment-author" style="color:${color};">@${name}</span>
-                        <span style="font-size:0.72rem; color:#444;">${ago}</span>
+                        <span class="comment-time">${ago}</span>
                     </div>
-                    <p style="color:#ccc; line-height:1.6; word-break:break-word;">${message}</p>
+                    <p class="comment-text">${message}</p>
                 </div>
             `;
             commentsDiv.appendChild(div);
         });
-
     } catch (err) {
         console.error("Błąd ładowania:", err);
-        commentsDiv.innerHTML = '<p style="text-align:center;color:#f55;padding:20px;">Błąd ładowania wpisów.</p>';
+        commentsDiv.innerHTML = '<p style="text-align:center;color:#f55;padding:20px;font-size:0.85rem;">Błąd ładowania wpisów.</p>';
     }
 }
 
-// FIREBASE
-const firebaseConfig = {
-  apiKey: "AIzaSyDRR3vSfgpEmbpZz_-VldMTnTHoXRfuGKg",
-  authDomain: "ksiega-ramzi.firebaseapp.com",
-  projectId: "ksiega-ramzi",
-  storageBucket: "ksiega-ramzi.firebasestorage.app",
-  messagingSenderId: "400735142662",
-  appId: "1:400735142662:web:0b52a57f4fedf367839487"
-};
-
-firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
-
-// 🔥 TERAZ dopiero
 loadComments();
-
-// ========================================
-// EPICKA SCENA KOSMICZNA W TLE
-// ========================================
-;(function() {
-  const canvas = document.getElementById('spaceCanvas');
-  if (!canvas) return;
-  const ctx = canvas.getContext('2d');
-
-  function resize() {
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-  }
-  resize();
-  window.addEventListener('resize', resize);
-
-  // === WIELKA PLANETA (zajmuje 1/3 ekranu, w prawym dolnym rogu) ===
-  const bigPlanet = {
-    cx: () => canvas.width * 0.75,
-    cy: () => canvas.height * 0.8,
-    r: () => Math.min(canvas.width, canvas.height) * 0.4,
-    rotation: 0
-  };
-
-  // === KSIĘŻYC (lewy górny obszar) ===
-  const moon = {
-    cx: () => canvas.width * 0.18,
-    cy: () => canvas.height * 0.25,
-    r: () => Math.min(canvas.width, canvas.height) * 0.06,
-    rotation: 0
-  };
-
-  // === ASTEROIDY (wiele, różne rozmiary, poruszają się) ===
-  const asteroids = [];
-  for (let i = 0; i < 18; i++) {
-    asteroids.push({
-      x: Math.random() * canvas.width,
-      y: Math.random() * canvas.height * 0.7,
-      vx: (Math.random() - 0.5) * 0.3,
-      vy: (Math.random() - 0.5) * 0.15,
-      size: 4 + Math.random() * 18,
-      rotation: Math.random() * Math.PI * 2,
-      rotSpeed: (Math.random() - 0.5) * 0.015,
-      points: 6 + Math.floor(Math.random() * 4)
-    });
-  }
-
-  // === FLOTA STATKÓW (lecą przez ekran) ===
-  const ships = [];
-  function spawnShip() {
-    const fromLeft = Math.random() > 0.5;
-    const y = canvas.height * (0.1 + Math.random() * 0.6);
-    ships.push({
-      x: fromLeft ? -80 : canvas.width + 80,
-      y,
-      targetY: y + (Math.random() - 0.5) * 60,
-      vx: (fromLeft ? 1 : -1) * (0.3 + Math.random() * 0.4),
-      size: 0.6 + Math.random() * 1.2,
-      type: Math.floor(Math.random() * 3), // 3 typy statków
-      flame: 0,
-      fromLeft
-    });
-  }
-  // Kilka statków na start
-  for (let i = 0; i < 4; i++) {
-    spawnShip();
-    ships[ships.length - 1].x = Math.random() * canvas.width;
-  }
-  setInterval(() => {
-    if (ships.length < 8) spawnShip();
-  }, 4000);
-
-  // === FUNKCJA RYSUJĄCA WIELKĄ PLANETĘ ===
-  function drawBigPlanet(t) {
-    const cx = bigPlanet.cx();
-    const cy = bigPlanet.cy();
-    const r = bigPlanet.r();
-
-    // Ogromna poświata wokół planety (light leak od strony słońca)
-    const glowGrad = ctx.createRadialGradient(cx - r*0.3, cy - r*0.3, r*0.3, cx, cy, r * 1.8);
-    glowGrad.addColorStop(0, 'rgba(255, 140, 70, 0.5)');
-    glowGrad.addColorStop(0.3, 'rgba(255, 100, 50, 0.25)');
-    glowGrad.addColorStop(0.7, 'rgba(200, 50, 80, 0.08)');
-    glowGrad.addColorStop(1, 'rgba(100, 30, 60, 0)');
-    ctx.fillStyle = glowGrad;
-    ctx.beginPath();
-    ctx.arc(cx, cy, r * 1.8, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Sama planeta — ciemna sylwetka z pomarańczową krawędzią
-    const planetGrad = ctx.createRadialGradient(
-      cx - r * 0.4, cy - r * 0.4, r * 0.2,
-      cx, cy, r
-    );
-    planetGrad.addColorStop(0, '#2a1a3a');
-    planetGrad.addColorStop(0.7, '#1a0a20');
-    planetGrad.addColorStop(1, '#0a0515');
-    ctx.fillStyle = planetGrad;
-    ctx.beginPath();
-    ctx.arc(cx, cy, r, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Pierścień pomarańczowego konturu (rim light)
-    const rimGrad = ctx.createRadialGradient(
-      cx - r * 0.5, cy - r * 0.5, r * 0.75,
-      cx - r * 0.5, cy - r * 0.5, r * 1.05
-    );
-    rimGrad.addColorStop(0, 'rgba(255, 100, 50, 0)');
-    rimGrad.addColorStop(0.9, 'rgba(255, 140, 60, 0.5)');
-    rimGrad.addColorStop(1, 'rgba(255, 180, 80, 0.9)');
-    ctx.fillStyle = rimGrad;
-    ctx.beginPath();
-    ctx.arc(cx, cy, r, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Subtelna atmosfera (jasna obwódka)
-    ctx.strokeStyle = 'rgba(255, 180, 100, 0.3)';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.arc(cx, cy, r + 4, 0, Math.PI * 2);
-    ctx.stroke();
-
-    // Pierścień wokół planety (jak Saturn) — obraca się lekko
-    ctx.save();
-    ctx.translate(cx, cy);
-    ctx.rotate(-0.4 + Math.sin(t * 0.1) * 0.02);
-    ctx.scale(1, 0.25); // perspektywiczne spłaszczenie
-    ctx.strokeStyle = 'rgba(255, 140, 80, 0.4)';
-    ctx.lineWidth = 8;
-    ctx.beginPath();
-    ctx.arc(0, 0, r * 1.35, 0, Math.PI, false); // tylko połowa (przód pierścienia)
-    ctx.stroke();
-    ctx.strokeStyle = 'rgba(255, 120, 70, 0.25)';
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.arc(0, 0, r * 1.5, 0, Math.PI, false);
-    ctx.stroke();
-    ctx.restore();
-  }
-
-  // === FUNKCJA RYSUJĄCA KSIĘŻYC ===
-  function drawMoon() {
-    const cx = moon.cx();
-    const cy = moon.cy();
-    const r = moon.r();
-
-    // Poświata
-    const glowGrad = ctx.createRadialGradient(cx, cy, r, cx, cy, r * 2.5);
-    glowGrad.addColorStop(0, 'rgba(255, 220, 160, 0.35)');
-    glowGrad.addColorStop(0.5, 'rgba(255, 180, 120, 0.1)');
-    glowGrad.addColorStop(1, 'rgba(255, 180, 120, 0)');
-    ctx.fillStyle = glowGrad;
-    ctx.beginPath();
-    ctx.arc(cx, cy, r * 2.5, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Księżyc — ciemna sylwetka z pomarańczowym rimem
-    const moonGrad = ctx.createRadialGradient(
-      cx - r * 0.3, cy - r * 0.3, r * 0.1,
-      cx, cy, r
-    );
-    moonGrad.addColorStop(0, '#3a2a3a');
-    moonGrad.addColorStop(0.7, '#1a0a1a');
-    moonGrad.addColorStop(1, '#0a0510');
-    ctx.fillStyle = moonGrad;
-    ctx.beginPath();
-    ctx.arc(cx, cy, r, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Rim light pomarańczowy
-    const rimGrad = ctx.createRadialGradient(
-      cx - r * 0.4, cy - r * 0.4, r * 0.75,
-      cx - r * 0.4, cy - r * 0.4, r * 1.05
-    );
-    rimGrad.addColorStop(0, 'rgba(255, 120, 60, 0)');
-    rimGrad.addColorStop(0.9, 'rgba(255, 160, 80, 0.6)');
-    rimGrad.addColorStop(1, 'rgba(255, 200, 100, 0.95)');
-    ctx.fillStyle = rimGrad;
-    ctx.beginPath();
-    ctx.arc(cx, cy, r, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Kratery - małe plamki
-    ctx.fillStyle = 'rgba(10, 5, 15, 0.6)';
-    const craters = [[-0.3, 0.1, 0.15], [0.2, -0.25, 0.1], [0.05, 0.35, 0.12], [-0.15, -0.15, 0.08]];
-    for (const [dx, dy, dr] of craters) {
-      ctx.beginPath();
-      ctx.arc(cx + dx * r, cy + dy * r, dr * r, 0, Math.PI * 2);
-      ctx.fill();
-    }
-  }
-
-  // === FUNKCJA RYSUJĄCA ASTEROIDĘ (nieregularny kształt) ===
-  function drawAsteroid(a) {
-    ctx.save();
-    ctx.translate(a.x, a.y);
-    ctx.rotate(a.rotation);
-
-    // Ciemna sylwetka z pomarańczowym rimem
-    ctx.beginPath();
-    for (let i = 0; i < a.points; i++) {
-      const angle = (i / a.points) * Math.PI * 2;
-      const variation = 0.7 + ((i * 37) % 7) * 0.05;
-      const px = Math.cos(angle) * a.size * variation;
-      const py = Math.sin(angle) * a.size * variation;
-      if (i === 0) ctx.moveTo(px, py);
-      else ctx.lineTo(px, py);
-    }
-    ctx.closePath();
-    ctx.fillStyle = '#1a0a1a';
-    ctx.fill();
-
-    // Pomarańczowa krawędź od strony "światła"
-    ctx.strokeStyle = 'rgba(255, 140, 70, 0.7)';
-    ctx.lineWidth = 1.2;
-    ctx.stroke();
-
-    ctx.restore();
-  }
-
-  // === FUNKCJA RYSUJĄCA STATEK ===
-  function drawShip(s) {
-    ctx.save();
-    ctx.translate(s.x, s.y);
-
-    // Interpolacja Y płynnie
-    s.y += (s.targetY - s.y) * 0.02;
-
-    const sc = s.size;
-    const flip = s.fromLeft ? 1 : -1;
-    ctx.scale(sc * flip, sc);
-
-    // Różne typy statków
-    if (s.type === 0) {
-      // Typ 1: klasyczny fighter — trójkątny
-      ctx.fillStyle = '#0a0515';
-      ctx.strokeStyle = 'rgba(255, 150, 80, 0.85)';
-      ctx.lineWidth = 0.8;
-      ctx.beginPath();
-      ctx.moveTo(12, 0);
-      ctx.lineTo(-6, -5);
-      ctx.lineTo(-10, 0);
-      ctx.lineTo(-6, 5);
-      ctx.closePath();
-      ctx.fill();
-      ctx.stroke();
-      // Silniki
-      ctx.fillStyle = 'rgba(255, 100, 50, 0.8)';
-      ctx.fillRect(-10, -1.5, 3, 3);
-      // Kokpit
-      ctx.fillStyle = 'rgba(255, 200, 100, 0.8)';
-      ctx.beginPath();
-      ctx.arc(4, 0, 2, 0, Math.PI * 2);
-      ctx.fill();
-
-    } else if (s.type === 1) {
-      // Typ 2: frachtowiec - długi prostokąt
-      ctx.fillStyle = '#0a0515';
-      ctx.strokeStyle = 'rgba(255, 140, 70, 0.8)';
-      ctx.lineWidth = 0.8;
-      ctx.beginPath();
-      ctx.moveTo(18, 0);
-      ctx.lineTo(14, -4);
-      ctx.lineTo(-12, -4);
-      ctx.lineTo(-14, 0);
-      ctx.lineTo(-12, 4);
-      ctx.lineTo(14, 4);
-      ctx.closePath();
-      ctx.fill();
-      ctx.stroke();
-      // 3 okna
-      ctx.fillStyle = 'rgba(255, 200, 120, 0.7)';
-      ctx.fillRect(-4, -1, 2, 2);
-      ctx.fillRect(2, -1, 2, 2);
-      ctx.fillRect(8, -1, 2, 2);
-      // Silniki
-      ctx.fillStyle = 'rgba(255, 80, 40, 0.9)';
-      ctx.fillRect(-14, -2.5, 3, 5);
-
-    } else {
-      // Typ 3: szybki scout - delikatny ostrokątny
-      ctx.fillStyle = '#0a0515';
-      ctx.strokeStyle = 'rgba(255, 160, 90, 0.9)';
-      ctx.lineWidth = 0.8;
-      ctx.beginPath();
-      ctx.moveTo(14, 0);
-      ctx.lineTo(2, -3);
-      ctx.lineTo(-8, -4);
-      ctx.lineTo(-8, 4);
-      ctx.lineTo(2, 3);
-      ctx.closePath();
-      ctx.fill();
-      ctx.stroke();
-      // Skrzydła
-      ctx.fillStyle = 'rgba(255, 140, 70, 0.5)';
-      ctx.beginPath();
-      ctx.moveTo(-5, -4);
-      ctx.lineTo(-2, -9);
-      ctx.lineTo(2, -4);
-      ctx.closePath();
-      ctx.fill();
-      ctx.beginPath();
-      ctx.moveTo(-5, 4);
-      ctx.lineTo(-2, 9);
-      ctx.lineTo(2, 4);
-      ctx.closePath();
-      ctx.fill();
-      // Kokpit
-      ctx.fillStyle = 'rgba(255, 220, 150, 0.9)';
-      ctx.beginPath();
-      ctx.arc(6, 0, 1.5, 0, Math.PI * 2);
-      ctx.fill();
-    }
-
-    // Ogon silnika (trail)
-    s.flame = (s.flame + 1) % 6;
-    const flameLen = 8 + s.flame * 0.5;
-    const flameGrad = ctx.createLinearGradient(-10, 0, -10 - flameLen, 0);
-    flameGrad.addColorStop(0, 'rgba(255, 180, 80, 0.8)');
-    flameGrad.addColorStop(0.5, 'rgba(255, 100, 50, 0.4)');
-    flameGrad.addColorStop(1, 'rgba(255, 50, 30, 0)');
-    ctx.fillStyle = flameGrad;
-    ctx.beginPath();
-    ctx.moveTo(-10, -1.5);
-    ctx.lineTo(-10 - flameLen, 0);
-    ctx.lineTo(-10, 1.5);
-    ctx.closePath();
-    ctx.fill();
-
-    ctx.restore();
-  }
-
-  // === PĘTLA ANIMACJI ===
-  function animate() {
-    const t = Date.now() * 0.001;
-
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    // 1. Najdalszy plan: wielka planeta
-    drawBigPlanet(t);
-
-    // 2. Księżyc
-    drawMoon();
-
-    // 3. Asteroidy (środkowy plan)
-    for (const a of asteroids) {
-      a.x += a.vx;
-      a.y += a.vy;
-      a.rotation += a.rotSpeed;
-      // Zawijanie
-      if (a.x < -50) a.x = canvas.width + 50;
-      if (a.x > canvas.width + 50) a.x = -50;
-      if (a.y < -50) a.y = canvas.height + 50;
-      if (a.y > canvas.height + 50) a.y = -50;
-      drawAsteroid(a);
-    }
-
-    // 4. Statki (najbliższy plan)
-    for (let i = ships.length - 1; i >= 0; i--) {
-      const s = ships[i];
-      s.x += s.vx;
-      drawShip(s);
-      // Usuń jeśli wyleciał za ekran
-      if ((s.fromLeft && s.x > canvas.width + 100) ||
-          (!s.fromLeft && s.x < -100)) {
-        ships.splice(i, 1);
-      }
-    }
-
-    requestAnimationFrame(animate);
-  }
-  animate();
-})();
 </script>
 
 </body>
