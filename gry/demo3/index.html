@@ -4,877 +4,1246 @@
 <meta charset="UTF-8">
 <title>Mini Przygoda Eda • mini-klik</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+
 <style>
-  :root {
-    --orange: #ff7a3d;
-    --pink: #ff4e7e;
-    --purple: #8a2be8;
-    --gold: #ffb84d;
-    --deep: #1a0d3a;
+:root {
     --cyan: #00f7ff;
-  }
+    --pink: #ff00c8;
+    --gold: #ffb84d;
+    --sidebar-w: 220px;
+    --guestbook-w: 340px;
+    --topbar-h: 60px;
+}
 
-  * { margin:0; padding:0; box-sizing:border-box; }
+* { margin:0; padding:0; box-sizing:border-box; }
 
-  body {
+body {
     font-family: 'Segoe UI', Arial, sans-serif;
-    color: #f5e8dc;
-    min-height: 100vh;
-    background: linear-gradient(180deg,
-      #1a0d3a 0%,
-      #3d1a5a 15%,
-      #8a2e5e 35%,
-      #ff6b4a 55%,
-      #ffb066 75%,
-      #5a2a5a 90%,
-      #1a0d3a 100%);
+    background:
+        linear-gradient(180deg,
+            #1a0d3a 0%,
+            #3d1a5a 12%,
+            #7a2a6e 22%,
+            #c94a6e 35%,
+            #ff7a3d 50%,
+            #8a2e5e 70%,
+            #2a1550 85%,
+            #0a0520 100%);
     background-attachment: fixed;
-    position: relative;
+    color: #f5e8dc;
     overflow-x: hidden;
-  }
+}
 
-  /* === GWIAZDY MIGOTAJĄCE === */
-  body::before {
-    content: '';
+/* Gwiazdy */
+body::before {
+    content: "";
     position: fixed;
-    top: 0; left: 0; right: 0; bottom: 0;
+    top: 0; left: 0; right: 0;
+    height: 40vh;
     background-image:
-      radial-gradient(circle 1px at 10% 10%, white, transparent 2px),
-      radial-gradient(circle 1.5px at 25% 5%, white, transparent 3px),
-      radial-gradient(circle 1px at 40% 15%, white, transparent 2px),
-      radial-gradient(circle 1px at 60% 8%, white, transparent 2px),
-      radial-gradient(circle 2px at 75% 12%, #fff5d0, transparent 3px),
-      radial-gradient(circle 1px at 85% 6%, white, transparent 2px),
-      radial-gradient(circle 1px at 15% 20%, white, transparent 2px),
-      radial-gradient(circle 1.5px at 50% 18%, white, transparent 3px);
-    opacity: 0.8;
+        radial-gradient(circle 1.5px at 10% 15%, #fff, transparent 2px),
+        radial-gradient(circle 1px at 25% 25%, #fff, transparent 2px),
+        radial-gradient(circle 2px at 40% 10%, #fff5d0, transparent 3px),
+        radial-gradient(circle 1.5px at 55% 30%, #fff, transparent 2px),
+        radial-gradient(circle 1px at 70% 12%, #fff, transparent 2px),
+        radial-gradient(circle 2px at 85% 28%, #ffe6a0, transparent 3px),
+        radial-gradient(circle 1px at 95% 18%, #fff, transparent 2px),
+        radial-gradient(circle 1.5px at 15% 35%, #fff, transparent 2px),
+        radial-gradient(circle 1px at 50% 8%, #fff, transparent 2px);
+    opacity: 0.85;
     animation: twinkle 4s ease-in-out infinite;
     pointer-events: none;
-    z-index: 0;
-  }
-  @keyframes twinkle {
-    0%, 100% { opacity: 0.8; }
+    z-index: -2;
+}
+@keyframes twinkle {
+    0%, 100% { opacity: 0.85; }
     50% { opacity: 0.4; }
-  }
+}
 
-  /* === ŚWIETLIKI === */
-  body::after {
-    content: '';
+#spaceCanvas {
     position: fixed;
-    top: 0; left: 0; right: 0; bottom: 0;
-    background-image:
-      radial-gradient(circle 2px at 15% 60%, rgba(255, 220, 100, 0.9), transparent 4px),
-      radial-gradient(circle 2px at 85% 70%, rgba(255, 220, 100, 0.8), transparent 4px),
-      radial-gradient(circle 2px at 30% 85%, rgba(255, 220, 100, 0.7), transparent 4px),
-      radial-gradient(circle 2px at 70% 90%, rgba(255, 220, 100, 0.8), transparent 4px);
-    filter: blur(0.5px);
-    animation: fireflies 6s ease-in-out infinite;
+    top: 0; left: 0;
+    width: 100vw;
+    height: 100vh;
     pointer-events: none;
-    z-index: 0;
-  }
-  @keyframes fireflies {
-    0%, 100% { opacity: 0.6; transform: translateY(0); }
-    50% { opacity: 1; transform: translateY(-20px); }
-  }
+    z-index: -1;
+}
 
-  /* Wszystko nad dekoracjami */
-  nav, .game-page, footer { position: relative; z-index: 1; }
-
-  /* GÓRNY PASEK */
-  nav {
-    background: rgba(26, 13, 58, 0.85);
+/* === GÓRNY PASEK === */
+.topbar {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    height: var(--topbar-h);
+    background: rgba(10,10,10,0.96);
     backdrop-filter: blur(12px);
-    border-bottom: 1px solid rgba(255, 184, 77, 0.4);
-    padding: 16px 20px;
+    border-bottom: 1px solid var(--cyan);
+    padding: 0 20px;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
-  }
-  .logo {
-    font-size: 28px;
+}
+.logo {
+    font-size: 24px;
     font-weight: bold;
     color: var(--cyan);
     text-shadow: 0 0 15px var(--cyan);
     text-decoration: none;
-  }
-  .back-link {
-    color: #f5d6b0;
+    transition: text-shadow 0.2s;
+}
+.logo:hover {
+    text-shadow: 0 0 25px var(--cyan), 0 0 40px var(--cyan);
+}
+.topbar-right {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+.back-link {
+    color: #ccc;
     text-decoration: none;
-    font-size: 0.95rem;
-    transition: color 0.3s, text-shadow 0.3s;
-  }
-  .back-link:hover {
-    color: var(--gold);
-    text-shadow: 0 0 10px rgba(255, 184, 77, 0.6);
-  }
+    font-size: 0.9rem;
+    padding: 7px 14px;
+    border: 1px solid #333;
+    border-radius: 50px;
+    transition: all 0.2s;
+}
+.back-link:hover {
+    border-color: var(--cyan);
+    color: var(--cyan);
+    box-shadow: 0 0 15px rgba(0,247,255,0.2);
+}
+.mobile-btn {
+    display: none;
+    background: transparent;
+    border: 1px solid #333;
+    color: #ccc;
+    padding: 7px 12px;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.mobile-btn:hover {
+    border-color: var(--cyan);
+    color: var(--cyan);
+}
+.hamburger { font-size: 22px; line-height: 1; }
 
-  /* KONTENER GRY */
-  .game-page {
-    max-width: 900px;
-    margin: 40px auto;
-    padding: 0 20px;
-  }
+/* === LAYOUT TRZYKOLUMNOWY === */
+.layout {
+    display: grid;
+    grid-template-columns: var(--sidebar-w) 1fr var(--guestbook-w);
+    gap: 0;
+    align-items: start;
+    min-height: calc(100vh - var(--topbar-h));
+}
 
-  /* HEADER GRY */
-  .game-header {
+/* === LEWY PASEK NAWIGACJI === */
+.sidebar {
+    position: sticky;
+    top: var(--topbar-h);
+    height: calc(100vh - var(--topbar-h));
+    overflow-y: auto;
+    background: rgba(10,10,10,0.85);
+    backdrop-filter: blur(10px);
+    border-right: 1px solid #1f1f1f;
+    padding: 24px 14px;
+}
+.sidebar-section-title {
+    font-size: 0.7rem;
+    color: var(--cyan);
+    letter-spacing: 2px;
+    margin: 18px 10px 10px;
+    text-transform: uppercase;
+    text-shadow: 0 0 8px var(--cyan), 0 0 14px rgba(0,247,255,0.6);
+    font-weight: 700;
+}
+.sidebar-section-title:first-child { margin-top: 0; }
+.sidebar a {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 11px 14px;
+    color: #ccc;
+    text-decoration: none;
+    border-radius: 10px;
+    font-weight: 500;
+    font-size: 0.97rem;
+    transition: all 0.2s;
+    margin-bottom: 4px;
+}
+.sidebar a:hover {
+    background: rgba(0, 247, 255, 0.08);
+    color: var(--cyan);
+    transform: translateX(3px);
+}
+.sidebar a.copied {
+    background: rgba(0, 247, 255, 0.18);
+    color: var(--cyan);
+    box-shadow: inset 0 0 12px rgba(0, 247, 255, 0.25);
+}
+.sidebar-icon {
+    font-size: 1.2rem;
+    width: 22px;
     text-align: center;
-    margin-bottom: 35px;
-  }
-  .game-header h1 {
-    font-size: 3.4rem;
-    background: linear-gradient(90deg, #ffd4a0 0%, var(--gold) 30%, var(--orange) 60%, var(--pink) 100%);
+}
+
+/* === ŚRODEK === */
+.main {
+    padding: 30px 32px 40px;
+    min-width: 0;
+}
+
+/* === HEADER GRY === */
+.game-header {
+    text-align: center;
+    margin-bottom: 28px;
+    padding: 36px 20px;
+    background: rgba(10,10,10,0.45);
+    border: 1px solid rgba(0,247,255,0.25);
+    border-radius: 16px;
+    backdrop-filter: blur(8px);
+}
+.game-header h1 {
+    font-size: 3.6rem;
+    background: linear-gradient(90deg, #ffd4a0 0%, var(--gold) 30%, #ff7a3d 60%, var(--pink) 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
     filter: drop-shadow(0 4px 30px rgba(255, 120, 70, 0.6));
-    margin-bottom: 12px;
     line-height: 1.1;
     font-weight: 900;
     letter-spacing: -0.5px;
-  }
-  .game-header .tag {
-    color: #f5d6b0;
-    font-size: 0.85rem;
-    letter-spacing: 3px;
-    opacity: 0.85;
-  }
+}
 
-  /* ======================================
-     OKŁADKA LEWITUJĄCA + NEONY POD SPODEM
-     ====================================== */
-  .cover {
-    width: 100%;
-    max-width: 280px;
-    aspect-ratio: 1 / 1;
-    background: linear-gradient(180deg, #2a1550, #5a2a5a);
-    border: 2px solid rgba(255, 184, 77, 0.5);
-    border-radius: 20px;
+/* === STATYSTYKI === */
+.stats-row {
+    display: flex;
+    gap: 14px;
+    margin-top: 14px;
+    flex-wrap: wrap;
+}
+.stat-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: #111;
+    border: 1px solid #222;
+    border-radius: 50px;
+    padding: 9px 16px;
+    transition: all 0.3s;
+}
+.stat-icon { font-size: 1.2rem; line-height: 1; }
+.stat-content { display: flex; flex-direction: column; line-height: 1.1; }
+.stat-number { font-weight: 700; font-size: 0.95rem; color: #eee; }
+.stat-label { font-size: 0.68rem; color: #666; letter-spacing: 1px; }
+
+.like-btn { cursor: pointer; user-select: none; }
+.like-btn:hover {
+    border-color: #ff4e7e;
+    transform: scale(1.05);
+    box-shadow: 0 0 20px rgba(255,78,126,0.3);
+}
+.like-btn.liked {
+    background: rgba(255,78,126,0.15);
+    border-color: #ff4e7e;
+    box-shadow: 0 0 20px rgba(255,78,126,0.4);
+}
+.like-btn.liked .stat-icon { animation: heartPop 0.4s; }
+@keyframes heartPop {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.4); }
+    100% { transform: scale(1); }
+}
+
+/* === SEKCJE — Game Player i Edytor === */
+.section {
+    margin-bottom: 28px;
+    background: rgba(10,10,10,0.55);
+    border: 1px solid #1f1f1f;
+    border-radius: 14px;
+    padding: 24px;
+    backdrop-filter: blur(8px);
+}
+.section h2 {
+    font-size: 1.3rem;
+    margin-bottom: 18px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.section.player h2 { color: var(--cyan); }
+.section.editor h2 { color: var(--pink); }
+
+/* PLAYER ROW: mała okładka + opis obok */
+.player-row {
+    display: flex;
+    gap: 22px;
+    align-items: flex-start;
+    flex-wrap: wrap;
+}
+
+/* MAŁA OKŁADKA-PRZYCISK */
+.cover-action {
+    flex-shrink: 0;
+    display: block;
+    width: 160px;
+    height: 160px;
+    border-radius: 14px;
     overflow: hidden;
-    box-shadow:
-      0 0 40px rgba(255, 120, 70, 0.4),
-      0 20px 60px rgba(0, 0, 0, 0.6),
-      inset 0 1px 0 rgba(255, 255, 255, 0.15);
     position: relative;
-    margin: 0 auto 20px;
+    background: linear-gradient(180deg, #2a1550, #5a2a5a);
+    border: 2px solid var(--cyan);
+    box-shadow: 0 0 25px rgba(0,247,255,0.3), inset 0 1px 0 rgba(255,255,255,0.1);
+    text-decoration: none;
+    cursor: pointer;
+    transition: all 0.3s;
     animation: coverFloat 5s ease-in-out infinite;
-  }
-  .cover::before {
-    content: '';
-    position: absolute;
-    top: 0; left: 0; right: 0;
-    height: 2px;
-    background: linear-gradient(90deg, transparent, var(--gold), transparent);
-    z-index: 2;
-  }
-  .cover::after {
-    content: '';
-    position: absolute;
-    bottom: -25px;
-    left: 10%;
-    right: 10%;
-    height: 20px;
-    background: radial-gradient(ellipse, rgba(255, 150, 80, 0.5), transparent 70%);
-    filter: blur(8px);
-    z-index: -1;
-    animation: shadowPulse 5s ease-in-out infinite;
-  }
-  .cover img {
+}
+.cover-action.edit {
+    border-color: var(--pink);
+    box-shadow: 0 0 25px rgba(255,0,200,0.3), inset 0 1px 0 rgba(255,255,255,0.1);
+}
+.cover-action.cover-broken {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+}
+.cover-action img {
     width: 100%;
     height: 100%;
     object-fit: cover;
-  }
-  @keyframes coverFloat {
-    0%, 100% { transform: translateY(0) rotate(0deg); }
-    25% { transform: translateY(-8px) rotate(-1deg); }
-    75% { transform: translateY(-4px) rotate(1deg); }
-  }
-  @keyframes shadowPulse {
-    0%, 100% { transform: scaleX(1); opacity: 0.6; }
-    50% { transform: scaleX(0.7); opacity: 0.3; }
-  }
-
-  /* Neony obok siebie pod okładką */
-  .neon-row {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 60px;
-    margin: 30px auto 40px;
-    flex-wrap: wrap;
-  }
-
-  .neon-side {
-    text-decoration: none;
-    display: flex;
-    align-items: center;
-    transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
-    cursor: pointer;
-    user-select: none;
-  }
-  .neon-side:hover {
+    transition: transform 0.4s;
+}
+.cover-action:hover {
+    transform: scale(1.05);
+    box-shadow: 0 0 45px rgba(0,247,255,0.6);
+}
+.cover-action.edit:hover {
+    box-shadow: 0 0 45px rgba(255,0,200,0.6);
+}
+.cover-action:hover img {
     transform: scale(1.08);
-  }
+}
 
-  .neon-text {
+/* OVERLAY ▶ NA OKŁADCE */
+.cover-play-overlay {
+    position: absolute;
+    inset: 0;
     display: flex;
-    flex-direction: column;
     align-items: center;
-    font-family: 'Courier New', monospace;
-    font-weight: 900;
-    line-height: 0.95;
-    letter-spacing: 3px;
-  }
-
-  .neon-main {
-    font-size: 3.6rem;
+    justify-content: center;
+    font-size: 3rem;
     color: #fff;
-    letter-spacing: 4px;
-  }
+    background: rgba(0,0,0,0.0);
+    opacity: 0;
+    transition: all 0.3s;
+    text-shadow: 0 0 20px var(--cyan), 0 0 40px var(--cyan);
+    pointer-events: none;
+}
+.cover-action.edit .cover-play-overlay {
+    text-shadow: 0 0 20px var(--pink), 0 0 40px var(--pink);
+}
+.cover-action:hover .cover-play-overlay {
+    opacity: 1;
+    background: rgba(0,0,0,0.45);
+}
 
-  .neon-sub {
-    font-size: 0.85rem;
-    letter-spacing: 4px;
-    margin-bottom: 8px;
-    opacity: 0.9;
-  }
+@keyframes coverFloat {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-4px); }
+}
 
-  /* Cyjan (GRAJ) — statyczny, minimalny neon */
-  .neon-cyan .neon-main {
-    text-shadow:
-      0 0 4px #fff,
-      0 0 10px #00f7ff,
-      0 0 20px #00f7ff;
-  }
-  .neon-cyan .neon-sub {
-    color: #00f7ff;
-    text-shadow: 0 0 4px #00f7ff;
-  }
-
-  /* Pink (EDYTOR) — statyczny, minimalny neon */
-  .neon-pink .neon-main {
-    text-shadow:
-      0 0 4px #fff,
-      0 0 10px #ff00c8,
-      0 0 20px #ff00c8;
-  }
-  .neon-pink .neon-sub {
-    color: #ff4ae0;
-    text-shadow: 0 0 4px #ff4ae0;
-  }
-
-  /* Hint pod neonami */
-  .neon-hint {
-    text-align: center;
-    margin: 0 auto 35px;
-    color: #c4a4d8;
-    font-size: 0.85rem;
-    letter-spacing: 2px;
-    opacity: 0.7;
-    font-style: italic;
-  }
-  .neon-hint span {
-    color: var(--gold);
+/* OPIS OBOK OKŁADKI */
+.game-desc {
+    flex: 1;
+    min-width: 240px;
+    color: #cfcfcf;
+    line-height: 1.65;
+    font-size: 0.97rem;
+    padding-top: 4px;
+}
+.game-desc p {
+    margin-bottom: 10px;
+}
+.game-desc p:last-child { margin-bottom: 0; }
+.game-desc b {
+    color: #fff;
+    background: rgba(0, 247, 255, 0.1);
+    padding: 1px 6px;
+    border-radius: 4px;
+    border: 1px solid rgba(0, 247, 255, 0.25);
     font-weight: 600;
-  }
+}
+.section.editor .game-desc b {
+    background: rgba(255, 0, 200, 0.1);
+    border-color: rgba(255, 0, 200, 0.3);
+}
 
-  /* Responsywność */
-  @media (max-width: 700px) {
-    .neon-row { gap: 30px; }
-    .neon-main { font-size: 2.4rem; letter-spacing: 3px; }
-    .neon-sub { font-size: 0.72rem; letter-spacing: 2px; }
-  }
-  @media (max-width: 500px) {
-    .neon-row { flex-direction: column; gap: 25px; }
-    .neon-main { font-size: 2.6rem; }
-  }
-
-  /* STATYSTYKI GRAŃ/POLUBIEŃ — PRZED INFO GRID */
-  .stats-row {
+/* INFO POD GRACZEM */
+.info-row {
     display: flex;
-    gap: 16px;
-    justify-content: center;
-    margin-bottom: 30px;
-    flex-wrap: wrap;
-  }
-  .stat-item {
-    background: rgba(26, 13, 58, 0.7);
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 184, 77, 0.35);
-    border-radius: 14px;
-    padding: 14px 24px;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    min-width: 160px;
-    transition: all 0.3s;
-  }
-  .stat-item:hover {
-    border-color: var(--gold);
-    box-shadow: 0 0 20px rgba(255, 184, 77, 0.3);
-  }
-  .stat-icon {
-    font-size: 24px;
-    filter: drop-shadow(0 0 8px currentColor);
-  }
-  .stat-content { display: flex; flex-direction: column; }
-  .stat-number {
-    font-size: 1.4rem;
-    font-weight: bold;
-    color: #fff;
-    line-height: 1;
-  }
-  .stat-label {
-    font-size: 0.72rem;
-    color: #c4a4d8;
-    letter-spacing: 1.2px;
-    text-transform: uppercase;
-    margin-top: 2px;
-  }
-  .like-btn {
-    cursor: pointer;
-    user-select: none;
-  }
-  .like-btn.liked .stat-icon {
-    animation: heartBeat 0.6s;
-    color: #ff4e7e;
-  }
-  @keyframes heartBeat {
-    0%, 100% { transform: scale(1); }
-    30% { transform: scale(1.4); }
-    60% { transform: scale(0.95); }
-  }
-
-  /* INFO GRID */
-  .info-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 16px;
-    margin-bottom: 30px;
-  }
-  .info-card {
-    background: rgba(26, 13, 58, 0.7);
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 120, 70, 0.3);
-    border-radius: 14px;
-    padding: 18px 22px;
-    transition: all 0.3s;
-    text-align: center;
-  }
-  .info-card:hover {
-    border-color: var(--orange);
-    transform: translateY(-3px);
-    box-shadow: 0 8px 25px rgba(255, 120, 70, 0.25);
-  }
-  .info-card .label {
-    font-size: 0.72rem;
-    color: #c4a4d8;
-    letter-spacing: 1.5px;
-    margin-bottom: 6px;
-    text-transform: uppercase;
-  }
-  .info-card .value {
-    color: #fff;
-    font-size: 1.05rem;
-    font-weight: 500;
-  }
-  .info-card .value.accent { color: var(--gold); }
-  .info-card .value.pink   {
-    color: var(--pink);
-    text-shadow: 0 0 10px rgba(255, 78, 126, 0.4);
-  }
-
-  /* Karta POZIOMY + STEROWANIE — zajmuje 2 kolumny, żeby pomieściło klawisze */
-  .info-card-wide {
-    grid-column: span 1;
-    text-align: center;
-  }
-  .level-controls-row {
-    display: flex;
-    align-items: center;
-    justify-content: center;
     gap: 10px;
+    margin-top: 22px;
+    padding-top: 18px;
+    border-top: 1px solid #1f1f1f;
     flex-wrap: wrap;
-  }
-  .level-sep {
-    color: #c4a4d8;
-    opacity: 0.5;
-    font-size: 1.2rem;
-  }
-  .mini-controls {
-    display: flex;
-    gap: 6px;
-    flex-wrap: wrap;
-  }
-  .mini-ctrl {
+}
+.info-pill {
     display: inline-flex;
     align-items: center;
+    gap: 8px;
+    padding: 7px 14px;
+    background: rgba(0,0,0,0.3);
+    border: 1px solid #222;
+    border-radius: 50px;
+    font-size: 0.82rem;
+}
+.info-pill .pill-label {
+    color: #888;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-size: 0.65rem;
+}
+.info-pill .pill-value { color: #eee; font-weight: 600; }
+.info-pill .pill-value.cyan { color: var(--cyan); }
+.info-pill .pill-value.pink { color: var(--pink); }
+
+.mini-controls {
+    display: inline-flex;
     gap: 4px;
-  }
-  .mini-key {
+    align-items: center;
+}
+.mini-key {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    min-width: 28px;
-    height: 28px;
-    padding: 0 7px;
-    background: linear-gradient(145deg, #2a1a4a, #1a0d3a);
-    border: 1px solid rgba(255, 184, 77, 0.5);
-    border-bottom: 2px solid rgba(255, 120, 70, 0.7);
+    min-width: 26px;
+    height: 26px;
+    padding: 0 6px;
+    background: #1f1f1f;
+    border: 1px solid #333;
+    border-bottom: 2px solid #444;
     border-radius: 5px;
     font-family: monospace;
-    font-size: 0.85rem;
-    color: var(--gold);
+    font-size: 0.78rem;
+    color: var(--cyan);
     font-weight: 600;
-    box-shadow: 0 0 6px rgba(255, 184, 77, 0.15);
-  }
-  .mini-label {
-    font-size: 0.75rem;
-    color: #c4a4d8;
-  }
+}
 
-  /* OPIS */
-  .description, .controls {
-    background: rgba(26, 13, 58, 0.7);
+/* === PRAWA KOLUMNA: KSIĘGA GOŚCI === */
+.guestbook-col {
+    position: sticky;
+    top: var(--topbar-h);
+    height: calc(100vh - var(--topbar-h));
+    background: rgba(10,10,10,0.85);
     backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 120, 70, 0.3);
-    border-radius: 16px;
-    padding: 28px 32px;
-    margin-bottom: 30px;
-    line-height: 1.8;
-    color: #e8d4c0;
-  }
-  .description h3 {
-    background: linear-gradient(90deg, var(--gold), var(--orange));
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-    margin-bottom: 14px;
-    font-size: 1.3rem;
-  }
-
-  /* INSTRUKCJA OBSŁUGI */
-  .howto {
+    border-left: 1px solid #1f1f1f;
+    padding: 24px 20px;
     display: flex;
     flex-direction: column;
-    gap: 18px;
-    color: #e8d4c0;
-  }
-  .howto-block {
-    background: rgba(0,0,0,0.2);
-    border-left: 3px solid var(--gold);
-    border-radius: 10px;
-    padding: 14px 18px;
-  }
-  .howto-title {
-    font-size: 1.1rem;
-    font-weight: 700;
-    color: var(--gold);
-    margin-bottom: 10px;
+}
+.guestbook-col h2 {
+    color: var(--cyan);
+    font-size: 1.25rem;
+    margin-bottom: 6px;
     display: flex;
     align-items: center;
     gap: 10px;
-  }
-  .howto-ico {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
+}
+.guestbook-count {
+    color: #555;
+    font-size: 0.78rem;
+    margin-bottom: 16px;
+}
+.comments {
+    flex: 1;
+    overflow-y: auto;
+    margin-bottom: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding-right: 4px;
+    scrollbar-width: thin;
+    scrollbar-color: #333 transparent;
+}
+.comments::-webkit-scrollbar { width: 6px; }
+.comments::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+.comment {
+    background: #1a1a1a;
+    padding: 12px 14px;
+    border-radius: 10px;
+    border-left: 3px solid var(--cyan);
+    font-size: 0.88rem;
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    animation: fadeIn .4s ease;
+}
+.comment-avatar {
+    flex-shrink: 0;
     width: 32px;
     height: 32px;
     border-radius: 50%;
-    background: rgba(255,255,255,0.08);
-    font-size: 1rem;
-    font-weight: bold;
-  }
-  .howto ul {
-    list-style: none;
-    padding: 0;
-    margin: 0;
     display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
-  .howto ul li {
-    padding: 4px 0 4px 18px;
-    position: relative;
-    line-height: 1.6;
-    font-size: 0.97rem;
-  }
-  .howto ul li::before {
-    content: "•";
-    position: absolute;
-    left: 4px;
-    color: var(--orange);
-    font-weight: bold;
-  }
-  .howto b {
-    color: #fff;
-    background: rgba(255, 184, 77, 0.15);
-    padding: 1px 6px;
-    border-radius: 4px;
-    font-weight: 600;
-  }
-  .howto-footer {
-    margin-top: 4px;
-    padding: 16px 18px;
-    background: linear-gradient(90deg, rgba(255,78,126,0.12), rgba(138,43,232,0.12));
-    border: 1px dashed rgba(255,78,126,0.4);
-    border-radius: 10px;
-    font-size: 0.98rem;
-    line-height: 1.7;
-    text-align: center;
-    color: #f0e0d0;
-  }
-
-  /* STEROWANIE */
-  .controls h3 {
-    background: linear-gradient(90deg, var(--pink), var(--purple));
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-    margin-bottom: 18px;
-    font-size: 1.3rem;
-  }
-  .controls-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-    gap: 14px;
-  }
-  .ctrl-item {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-  }
-  .ctrl-key {
-    display: inline-flex;
     align-items: center;
     justify-content: center;
-    min-width: 44px;
-    height: 44px;
-    padding: 0 12px;
-    background: linear-gradient(145deg, #2a1a4a, #1a0d3a);
-    border: 1px solid rgba(255, 184, 77, 0.5);
-    border-bottom: 3px solid rgba(255, 120, 70, 0.7);
-    border-radius: 8px;
-    font-family: monospace;
-    font-size: 1rem;
-    color: var(--gold);
-    font-weight: 600;
-    box-shadow: 0 0 10px rgba(255, 184, 77, 0.2);
-  }
-  .ctrl-label {
-    color: #e8d4c0;
-    font-size: 0.95rem;
-  }
-
-  /* PRZYCISKI */
-  .actions {
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: .5px;
+}
+.comment-body { flex: 1; min-width: 0; }
+.comment-meta {
     display: flex;
-    gap: 16px;
-    margin-bottom: 40px;
+    align-items: baseline;
+    gap: 8px;
     flex-wrap: wrap;
-  }
-  .btn {
-    flex: 1;
-    min-width: 200px;
-    padding: 18px 28px;
-    font-size: 1.15rem;
-    font-weight: bold;
+    margin-bottom: 4px;
+}
+.comment-author { font-weight: 600; font-size: 0.85rem; }
+.comment-time { font-size: 0.68rem; color: #444; }
+.comment-text {
+    color: #ccc;
+    line-height: 1.5;
+    word-break: break-word;
+    font-size: 0.85rem;
+}
+
+.guestbook-form {
+    background: #161616;
+    border: 1px solid #2a2a2a;
+    border-radius: 10px;
+    padding: 14px;
+}
+.guestbook-form label {
+    display: block;
+    color: #777;
+    font-size: 0.7rem;
+    letter-spacing: .5px;
+    margin-bottom: 8px;
+}
+.guestbook-form input,
+.guestbook-form textarea {
+    width: 100%;
+    background: #1f1f1f;
+    border: 1px solid #333;
+    color: #eee;
+    padding: 10px 12px;
+    border-radius: 8px;
+    font-size: 0.88rem;
+    margin-bottom: 8px;
+    font-family: inherit;
+}
+.guestbook-form textarea { resize: vertical; min-height: 70px; }
+.guestbook-form button {
+    width: 100%;
+    padding: 10px;
+    background: var(--cyan);
+    color: black;
     border: none;
-    border-radius: 50px;
+    border-radius: 8px;
+    font-weight: bold;
     cursor: pointer;
-    text-decoration: none;
+    font-size: 0.88rem;
+    transition: all 0.2s;
+}
+.guestbook-form button:hover { box-shadow: 0 0 18px rgba(0,247,255,0.5); }
+.char-count {
+    font-size: 0.7rem;
+    color: #555;
+    text-align: right;
+    margin-top: -4px;
+    margin-bottom: 6px;
+}
+
+/* === STOPKA === */
+.footer {
+    border-top: 1px solid #1a1a1a;
+    background: rgba(10,10,10,0.85);
+    backdrop-filter: blur(10px);
+    padding: 30px 20px;
     text-align: center;
-    display: inline-flex;
+}
+.footer-links {
+    display: flex;
     align-items: center;
     justify-content: center;
-    gap: 10px;
-    transition: all 0.3s;
-    letter-spacing: 0.5px;
-    position: relative;
-    overflow: hidden;
-  }
-  .btn-play {
-    background: linear-gradient(135deg, var(--orange), var(--pink));
-    color: #fff;
-    box-shadow:
-      0 0 30px rgba(255, 120, 70, 0.5),
-      0 8px 25px rgba(0, 0, 0, 0.3);
-    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
-  }
-  .btn-play:hover {
-    transform: scale(1.04) translateY(-2px);
-    box-shadow:
-      0 0 50px rgba(255, 120, 70, 0.8),
-      0 12px 35px rgba(0, 0, 0, 0.4);
-  }
-  .btn-edit {
-    background: transparent;
-    color: var(--gold);
-    border: 2px solid var(--gold);
-  }
-  .btn-edit:hover {
-    background: var(--gold);
-    color: var(--deep);
-    transform: scale(1.04) translateY(-2px);
-    box-shadow: 0 0 30px rgba(255, 184, 77, 0.6);
-  }
-
-  /* FOOTER */
-  footer {
-    text-align: center;
-    padding: 30px 20px 50px;
-    color: #c4a4d8;
-    font-size: 0.85rem;
-    border-top: 1px solid rgba(255, 120, 70, 0.2);
-    margin-top: 40px;
-    background: rgba(26, 13, 58, 0.4);
-  }
-  footer a {
-    color: var(--gold);
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+}
+.footer-link {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    background: #111;
+    border: 1px solid #222;
+    border-radius: 50px;
+    color: #eee;
     text-decoration: none;
-    transition: text-shadow 0.3s;
-  }
-  footer a:hover { text-shadow: 0 0 10px var(--gold); }
+    font-weight: 600;
+    font-size: 0.9rem;
+    transition: all .3s;
+}
+.footer-link.contact:hover {
+    border-color: var(--cyan);
+    color: var(--cyan);
+    box-shadow: 0 0 18px rgba(0,247,255,0.2);
+}
+.footer-link.contact.copied {
+    border-color: var(--cyan);
+    color: var(--cyan);
+    background: rgba(0, 247, 255, 0.12);
+    box-shadow: 0 0 18px rgba(0,247,255,0.35);
+}
+.footer-link.youtube:hover {
+    border-color: #ff0000;
+    color: #ff4444;
+    box-shadow: 0 0 18px rgba(255,0,0,0.25);
+}
+.footer-link.coffee:hover {
+    border-color: var(--cyan);
+    color: var(--cyan);
+    box-shadow: 0 0 18px rgba(0,247,255,0.2);
+}
+.footer-copy {
+    color: #555;
+    font-size: 0.82rem;
+}
 
-  @media (max-width: 600px) {
-    .game-header h1 { font-size: 2.3rem; }
-    .btn { min-width: 100%; }
-    .description, .controls { padding: 22px 20px; }
-    .stat-item { min-width: 140px; padding: 12px 18px; }
-  }
+@keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+
+/* === RESPONSIVE === */
+@media (max-width: 1100px) {
+    :root { --guestbook-w: 0px; }
+    .layout { grid-template-columns: var(--sidebar-w) 1fr; }
+    .guestbook-col {
+        position: fixed;
+        top: 0;
+        right: 0;
+        width: 360px;
+        max-width: 90vw;
+        height: 100vh;
+        z-index: 200;
+        border-left: 1px solid #333;
+        transform: translateX(100%);
+        transition: transform 0.3s ease;
+        padding-top: 60px;
+    }
+    .guestbook-col.open { transform: translateX(0); }
+    .guestbook-close {
+        position: absolute;
+        top: 14px;
+        right: 14px;
+        background: transparent;
+        border: 1px solid #333;
+        color: #ccc;
+        width: 34px;
+        height: 34px;
+        border-radius: 50%;
+        cursor: pointer;
+        font-size: 1.2rem;
+    }
+    .mobile-btn.guestbook-toggle { display: inline-flex; align-items: center; gap: 6px; }
+    .backdrop {
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.6);
+        z-index: 150;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.3s;
+    }
+    .backdrop.show { opacity: 1; pointer-events: auto; }
+}
+
+@media (max-width: 768px) {
+    :root { --sidebar-w: 0px; }
+    .layout { grid-template-columns: 1fr; }
+    .sidebar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 260px;
+        max-width: 80vw;
+        height: 100vh;
+        z-index: 200;
+        border-right: 1px solid #333;
+        transform: translateX(-100%);
+        transition: transform 0.3s ease;
+        padding-top: 60px;
+    }
+    .sidebar.open { transform: translateX(0); }
+    .sidebar-close {
+        position: absolute;
+        top: 14px;
+        right: 14px;
+        background: transparent;
+        border: 1px solid #333;
+        color: #ccc;
+        width: 34px;
+        height: 34px;
+        border-radius: 50%;
+        cursor: pointer;
+        font-size: 1.2rem;
+    }
+    .mobile-btn.hamburger-toggle { display: inline-flex; }
+    .back-link { display: none; }
+    .main { padding: 20px 16px 30px; }
+    .game-header { padding: 24px 16px; }
+    .game-header h1 { font-size: 2.2rem; }
+    .player-row { gap: 16px; }
+    .cover-action { width: 130px; height: 130px; }
+    .game-desc { font-size: 0.92rem; }
+}
 </style>
 </head>
 
 <body>
 
-<nav>
-  <a href="../" class="logo">🎮 mini-klik</a>
-  <a href="../" class="back-link">← powrót do galerii</a>
-</nav>
+<canvas id="spaceCanvas"></canvas>
+<div class="backdrop" id="backdrop"></div>
 
-<div class="game-page">
-
-  <!-- HEADER -->
-  <div class="game-header">
-    <h1 id="gameTitle">Mini Przygoda Eda</h1>
-    <div class="tag" id="gameTag">• DEMO 3 •</div>
-  </div>
-
-  <!-- OKŁADKA -->
-  <div class="cover">
-    <img src="../images/demo3.png" alt="okładka gry"
-         onerror="this.style.display='none'; this.parentElement.style.display='flex'; this.parentElement.style.alignItems='center'; this.parentElement.style.justifyContent='center'; this.parentElement.innerHTML='<span style=&quot;color:#8a6a90;font-size:0.95rem;letter-spacing:2px;&quot;>[ okładka gry ]</span>';">
-  </div>
-
-  <!-- NEONY OBOK SIEBIE -->
-  <div class="neon-row">
-    <a href="player.html" class="neon-side" onclick="countPlay()">
-      <div class="neon-text neon-cyan">
-        <span class="neon-sub">▶ PRESS START</span>
-        <span class="neon-main">GRAJ</span>
-      </div>
-    </a>
-    <a href="app.html" class="neon-side">
-      <div class="neon-text neon-pink">
-        <span class="neon-sub">✎ CREATE ★</span>
-        <span class="neon-main">EDYTOR</span>
-      </div>
-    </a>
-  </div>
-
-  <!-- STATYSTYKI GRAŃ I POLUBIEŃ -->
-  <div class="stats-row">
-    <div class="stat-item">
-      <div class="stat-icon" style="color:#ffd166;">🎮</div>
-      <div class="stat-content">
-        <span class="stat-number" id="playCount">0</span>
-        <span class="stat-label">zagrań</span>
-      </div>
+<!-- TOP BAR -->
+<header class="topbar">
+    <div style="display:flex; align-items:center; gap:12px;">
+        <button class="mobile-btn hamburger-toggle" id="hamburgerBtn" aria-label="Menu">
+            <span class="hamburger">☰</span>
+        </button>
+        <a href="https://mini-klik.pl" class="logo">🎮 mini-klik</a>
     </div>
-    <div class="stat-item like-btn" id="likeBtn" onclick="toggleLike()">
-      <div class="stat-icon" style="color:#ff4e7e;">❤️</div>
-      <div class="stat-content">
-        <span class="stat-number" id="likeCount">0</span>
-        <span class="stat-label">polubień</span>
-      </div>
+    <div class="topbar-right">
+        <a href="../" class="back-link">← powrót do galerii</a>
+        <button class="mobile-btn guestbook-toggle" id="guestbookBtn">
+            💬 Księga
+        </button>
     </div>
-  </div>
+</header>
 
-  <!-- INFO -->
-  <div class="info-grid">
-    <div class="info-card">
-      <div class="label">TWÓRCA</div>
-      <div class="value pink" id="gameAuthor">mini-klik.pl</div>
-    </div>
-    <div class="info-card info-card-wide">
-      <div class="label">POZIOMY · STEROWANIE</div>
-      <div class="level-controls-row">
-        <span class="value accent" id="gameLevels">6</span>
-        <span class="level-sep">•</span>
-        <div class="mini-controls" id="controlsGrid">
-          <div class="mini-ctrl"><span class="mini-key">←</span></div>
-          <div class="mini-ctrl"><span class="mini-key">→</span></div>
-          <div class="mini-ctrl"><span class="mini-key">↑</span></div>
+<div class="layout">
+
+    <!-- ===== LEWY SIDEBAR ===== -->
+    <aside class="sidebar" id="sidebar">
+        <button class="sidebar-close" id="sidebarClose" aria-label="Zamknij">×</button>
+
+        <div class="sidebar-section-title">Nawigacja</div>
+        <a href="../#home">
+            <span class="sidebar-icon">🏠</span> Dom
+        </a>
+        <a href="../#nowe">
+            <span class="sidebar-icon">🎮</span> Dema
+        </a>
+        <a href="../#wasze-gry">
+            <span class="sidebar-icon">⭐</span> Nasze gry
+        </a>
+        <a href="../#opis">
+            <span class="sidebar-icon">📖</span> Opis
+        </a>
+
+        <div class="sidebar-section-title">Społeczność</div>
+        <a href="#" data-email="mini-klik@wp.pl">
+            <span class="sidebar-icon">📧</span>
+            <span class="copy-email-text">Kontakt</span>
+        </a>
+        <a href="https://www.youtube.com/@mini-klik" target="_blank">
+            <span class="sidebar-icon" style="color:#ff4444;">▶</span> YouTube
+        </a>
+        <a href="https://buycoffee.to/ramzi-studio" target="_blank">
+            <span class="sidebar-icon">☕</span> Postaw kawę
+        </a>
+    </aside>
+
+    <!-- ===== ŚRODEK ===== -->
+    <main class="main">
+
+        <!-- HEADER GRY -->
+        <div class="game-header">
+            <h1 id="gameTitle">Mini Przygoda Eda</h1>
         </div>
-      </div>
-    </div>
-    <div class="info-card">
-      <div class="label">GATUNEK</div>
-      <div class="value">Platformówka 2D</div>
-    </div>
-  </div>
 
-  <!-- INSTRUKCJA OBSŁUGI -->
-  <div class="description">
-    <h3>📖 Jak to działa</h3>
-    <div id="gameDescription" class="howto">
-      <div class="howto-block">
-        <div class="howto-title"><span class="howto-ico" style="color:#00f7ff;">▶</span> Game Player</div>
-        <ul>
-          <li>Kliknij <b>„Graj"</b>, aby otworzyć Game Player</li>
-          <li>Kliknij <b>„Moja gra"</b> i od razu zacznij grać</li>
-          <li>Przyciskiem <b>„Load"</b> wczytasz gry zrobione na własnym komputerze</li>
-        </ul>
-      </div>
+        <!-- GAME PLAYER -->
+        <section class="section player">
+            <h2>▶ Game Player</h2>
 
-      <div class="howto-block">
-        <div class="howto-title"><span class="howto-ico" style="color:#ff4e7e;">✎</span> Edytor — pierwsze kroki</div>
-        <ul>
-          <li>Kliknij <b>„Edytor"</b>, aby wejść w świat tworzenia gier</li>
-          <li>Możesz tworzyć grę od początku</li>
-          <li>Kliknij <b>„Demo"</b>, aby wczytać i edytować zapisaną grę</li>
-          <li>Kliknij <b>„Save"</b>, aby zapisać swój projekt (jest on już gotową grą)</li>
-          <li>Kliknij <b>„Load"</b>, aby wczytać własny projekt z komputera</li>
-        </ul>
-      </div>
+            <div class="player-row">
+                <a href="player.html" class="cover-action" target="_blank" title="Kliknij, aby grać">
+                    <img id="coverImg" src="../images/demo3.png" alt="okładka gry"
+                         onerror="this.style.display='none'; this.parentElement.classList.add('cover-broken'); this.parentElement.innerHTML='<span style=&quot;color:#8a6a90;font-size:0.9rem;letter-spacing:2px;&quot;>[ okładka gry ]</span><span class=&quot;cover-play-overlay&quot;>▶</span>';">
+                    <span class="cover-play-overlay">▶</span>
+                </a>
 
-      <div class="howto-block">
-        <div class="howto-title"><span class="howto-ico" style="color:var(--gold);">🎨</span> Budowanie gry w edytorze</div>
-        <ul>
-          <li>Po lewej stronie znajdziesz <b>drzewo obiektów</b> — stąd dodajesz wszystko do swojej gry</li>
-          <li>W <b>demo3</b> gracz steruje <b>piłeczką</b> ⚽ — skacząca, odbijająca się, zwinna bohaterka tej przygody!</li>
-          <li>Dodaj <b>platformy</b> — stawiaj je, układaj, twórz trasę, po której będzie skakać piłeczka</li>
-          <li>Dodaj <b>wrogów</b> — od prostych przeszkód po ruszające się potwory</li>
-          <li>Każdy obiekt ma <b>swoje ustawienia i liczniki</b> — rozejrzyj się po przyciskach i parametrach, aby zobaczyć możliwości</li>
-          <li>Nadaj <b>efekty FX</b> wybranym przedmiotom i wrogom — ożywisz swoją grę i uczynisz ją bardziej kreatywną</li>
-        </ul>
-      </div>
+                <div class="game-desc">
+                    <p id="gameDescription">Wczytywanie opisu gry…</p>
+                </div>
+            </div>
 
-      <div class="howto-block">
-        <div class="howto-title"><span class="howto-ico" style="color:var(--purple);">📂</span> Poziomy i zakończenie gry</div>
-        <ul>
-          <li>Dodawaj <b>kolejne poziomy</b> i twórz między nimi <b>przejścia</b></li>
-          <li>Ustaw <b>ekran zakończenia gry</b> — to co gracz zobaczy po przejściu całej przygody</li>
-        </ul>
-      </div>
+            <!-- INFO POD GRACZEM -->
+            <div class="info-row">
+                <div class="info-pill">
+                    <span class="pill-label">Twórca</span>
+                    <span class="pill-value pink" id="gameAuthor">mini-klik.pl</span>
+                </div>
+                <div class="info-pill">
+                    <span class="pill-label">Poziomy</span>
+                    <span class="pill-value cyan" id="gameLevels">6</span>
+                </div>
+                <div class="info-pill">
+                    <span class="pill-label">Sterowanie</span>
+                    <span class="mini-controls" id="controlsGrid">
+                        <span class="mini-key">←</span>
+                        <span class="mini-key">→</span>
+                        <span class="mini-key">↑</span>
+                    </span>
+                </div>
+            </div>
+        </section>
 
-      <div class="howto-block">
-        <div class="howto-title"><span class="howto-ico" style="color:#ff4e7e;">📺</span> Zobacz więcej</div>
-        <ul>
-          <li>Zobacz nasz <b>kanał YT</b>, aby zobaczyć możliwości silnika i instrukcje krok po kroku — jak zbudować grę i w pełni z niej korzystać</li>
-        </ul>
-      </div>
+        <!-- EDYTOR -->
+        <section class="section editor">
+            <h2>✎ Edytor gry</h2>
 
-      <div class="howto-footer">
-        📤 Prześlij nam swoją grę w postaci pliku <b>.json</b>, aby ukazała się na naszym portalu — i napisz kilka słów o sobie. <b>Powodzenia!</b> 🎮
-      </div>
-    </div>
-  </div>
+            <div class="player-row">
+                <a href="app.html" class="cover-action edit" target="_blank" title="Kliknij, aby otworzyć edytor">
+                    <img src="../images/demo3.png" alt="edytor gry"
+                         onerror="this.style.display='none'; this.parentElement.classList.add('cover-broken'); this.parentElement.innerHTML='<span style=&quot;color:#8a6a90;font-size:0.9rem;letter-spacing:2px;&quot;>[ edytor ]</span><span class=&quot;cover-play-overlay&quot;>✎</span>';">
+                    <span class="cover-play-overlay">✎</span>
+                </a>
+
+                <div class="game-desc">
+                    <p>W edytorze możesz <b>tworzyć własne gry od zera</b> lub modyfikować demo. Dodawaj platformy, wrogów, ustawiaj sterowanie, twórz nowe poziomy.</p>
+                    <p>Zapisz projekt do pliku <b>.json</b> i prześlij nam swoją grę — najlepsze publikujemy na portalu.</p>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- ===== PRAWA KOLUMNA: KSIĘGA GOŚCI ===== -->
+    <aside class="guestbook-col" id="guestbookCol">
+        <button class="guestbook-close" id="guestbookClose" aria-label="Zamknij">×</button>
+
+        <h2>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#00f7ff" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+            Księga Gości
+        </h2>
+        <p class="guestbook-count" id="commentCount">ładowanie wpisów…</p>
+
+        <div class="comments" id="comments"></div>
+
+        <form id="guestbookForm" class="guestbook-form">
+            <label>ZOSTAW SWÓJ ŚLAD</label>
+            <input type="text" id="name" placeholder="Twój nick / imię" required>
+            <textarea id="message" placeholder="Napisz coś o mini-klik… 🎮" required maxlength="280"
+                      oninput="document.getElementById('charCount').textContent=this.value.length+'/280'"></textarea>
+            <div class="char-count"><span id="charCount">0/280</span></div>
+            <button type="submit">📨 ZOSTAW WPIS</button>
+        </form>
+    </aside>
 
 </div>
 
-<footer>
-  © 2026 mini-klik • <a href="../">mini-klik.pl</a>
+<!-- STOPKA -->
+<footer class="footer">
+    <div class="footer-links">
+        <a href="#" class="footer-link contact" data-email="mini-klik@wp.pl">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#00f7ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                <polyline points="22,6 12,13 2,6"/>
+            </svg>
+            <span class="footer-link-text">Kontakt</span>
+        </a>
+        <a href="https://www.youtube.com/@mini-klik" target="_blank" class="footer-link youtube">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="#ff0000">
+                <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+            </svg>
+            YouTube
+        </a>
+        <a href="https://buycoffee.to/ramzi-studio" target="_blank" class="footer-link coffee">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#00f7ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M18 8h1a4 4 0 0 1 0 8h-1"/>
+                <path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/>
+                <line x1="6" y1="1" x2="6" y2="4"/>
+                <line x1="10" y1="1" x2="10" y2="4"/>
+                <line x1="14" y1="1" x2="14" y2="4"/>
+            </svg>
+            Postaw kawę
+        </a>
+    </div>
+    <p class="footer-copy">© 2026 mini-klik • <a href="../" style="color:var(--cyan); text-decoration:none;">mini-klik.pl</a></p>
 </footer>
 
 <script>
-// === IDENTYFIKATOR GRY — używamy nazwy folderu jako unikalnego ID ===
-const gameId = (() => {
-  const parts = window.location.pathname.split('/').filter(Boolean);
-  return parts[parts.length - 2] || 'demo';
+// ============== DRAWERS ==============
+const sidebar = document.getElementById('sidebar');
+const guestbookCol = document.getElementById('guestbookCol');
+const backdrop = document.getElementById('backdrop');
+
+function openSidebar()    { sidebar.classList.add('open'); backdrop.classList.add('show'); }
+function closeSidebar()   { sidebar.classList.remove('open'); backdrop.classList.remove('show'); }
+function openGuestbook()  { guestbookCol.classList.add('open'); backdrop.classList.add('show'); }
+function closeGuestbook() { guestbookCol.classList.remove('open'); backdrop.classList.remove('show'); }
+function closeAll()       { closeSidebar(); closeGuestbook(); }
+
+document.getElementById('hamburgerBtn').addEventListener('click', openSidebar);
+document.getElementById('sidebarClose').addEventListener('click', closeSidebar);
+document.getElementById('guestbookBtn').addEventListener('click', openGuestbook);
+document.getElementById('guestbookClose').addEventListener('click', closeGuestbook);
+backdrop.addEventListener('click', closeAll);
+
+// ============== KOPIOWANIE EMAILA ==============
+async function copyEmail(link) {
+    const email = link.dataset.email;
+    const textEl = link.querySelector('.copy-email-text, .footer-link-text');
+    if (!textEl) return;
+    const original = textEl.textContent;
+
+    try {
+        await navigator.clipboard.writeText(email);
+        textEl.textContent = '✓ Skopiowano!';
+        link.classList.add('copied');
+    } catch (err) {
+        const ta = document.createElement('textarea');
+        ta.value = email;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        try { document.execCommand('copy'); textEl.textContent = '✓ Skopiowano!'; link.classList.add('copied'); }
+        catch (e2) { textEl.textContent = email; }
+        document.body.removeChild(ta);
+    }
+
+    setTimeout(() => {
+        textEl.textContent = original;
+        link.classList.remove('copied');
+    }, 1800);
+}
+
+document.querySelectorAll('[data-email]').forEach(link => {
+    link.addEventListener('click', (e) => {
+        e.preventDefault();
+        copyEmail(e.currentTarget);
+    });
+});
+
+// ============== TŁO KOSMICZNE ==============
+;(function() {
+    const canvas = document.getElementById('spaceCanvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+
+    function resize() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+    }
+    resize();
+    window.addEventListener('resize', resize);
+
+    const moon = {
+        cx: () => canvas.width * 0.18,
+        cy: () => canvas.height * 0.25,
+        r: () => Math.min(canvas.width, canvas.height) * 0.05
+    };
+
+    const asteroids = [];
+    for (let i = 0; i < 14; i++) {
+        asteroids.push({
+            x: Math.random() * canvas.width,
+            y: Math.random() * canvas.height * 0.7,
+            vx: (Math.random() - 0.5) * 0.3,
+            vy: (Math.random() - 0.5) * 0.15,
+            size: 4 + Math.random() * 14,
+            rotation: Math.random() * Math.PI * 2,
+            rotSpeed: (Math.random() - 0.5) * 0.015,
+            points: 6 + Math.floor(Math.random() * 4)
+        });
+    }
+
+    const ships = [];
+    function spawnShip() {
+        const fromLeft = Math.random() > 0.5;
+        const y = canvas.height * (0.1 + Math.random() * 0.6);
+        ships.push({
+            x: fromLeft ? -80 : canvas.width + 80,
+            y, targetY: y + (Math.random() - 0.5) * 60,
+            vx: (fromLeft ? 1 : -1) * (0.3 + Math.random() * 0.4),
+            size: 0.6 + Math.random() * 1.2,
+            type: Math.floor(Math.random() * 3),
+            flame: 0, fromLeft
+        });
+    }
+    for (let i = 0; i < 3; i++) {
+        spawnShip();
+        ships[ships.length - 1].x = Math.random() * canvas.width;
+    }
+    setInterval(() => { if (ships.length < 6) spawnShip(); }, 4000);
+
+    function drawMoon() {
+        const cx = moon.cx(), cy = moon.cy(), r = moon.r();
+        const glowGrad = ctx.createRadialGradient(cx, cy, r, cx, cy, r * 2.5);
+        glowGrad.addColorStop(0, 'rgba(255, 220, 160, 0.35)');
+        glowGrad.addColorStop(0.5, 'rgba(255, 180, 120, 0.1)');
+        glowGrad.addColorStop(1, 'rgba(255, 180, 120, 0)');
+        ctx.fillStyle = glowGrad;
+        ctx.beginPath(); ctx.arc(cx, cy, r * 2.5, 0, Math.PI * 2); ctx.fill();
+
+        const moonGrad = ctx.createRadialGradient(cx - r * 0.3, cy - r * 0.3, r * 0.1, cx, cy, r);
+        moonGrad.addColorStop(0, '#3a2a3a');
+        moonGrad.addColorStop(0.7, '#1a0a1a');
+        moonGrad.addColorStop(1, '#0a0510');
+        ctx.fillStyle = moonGrad;
+        ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill();
+
+        const rimGrad = ctx.createRadialGradient(cx - r * 0.4, cy - r * 0.4, r * 0.75, cx - r * 0.4, cy - r * 0.4, r * 1.05);
+        rimGrad.addColorStop(0, 'rgba(255, 120, 60, 0)');
+        rimGrad.addColorStop(0.9, 'rgba(255, 160, 80, 0.6)');
+        rimGrad.addColorStop(1, 'rgba(255, 200, 100, 0.95)');
+        ctx.fillStyle = rimGrad;
+        ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill();
+
+        ctx.fillStyle = 'rgba(10, 5, 15, 0.6)';
+        const craters = [[-0.3, 0.1, 0.15], [0.2, -0.25, 0.1], [0.05, 0.35, 0.12], [-0.15, -0.15, 0.08]];
+        for (const [dx, dy, dr] of craters) {
+            ctx.beginPath();
+            ctx.arc(cx + dx * r, cy + dy * r, dr * r, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    }
+
+    function drawAsteroid(a) {
+        ctx.save(); ctx.translate(a.x, a.y); ctx.rotate(a.rotation);
+        ctx.beginPath();
+        for (let i = 0; i < a.points; i++) {
+            const angle = (i / a.points) * Math.PI * 2;
+            const variation = 0.7 + ((i * 37) % 7) * 0.05;
+            const px = Math.cos(angle) * a.size * variation;
+            const py = Math.sin(angle) * a.size * variation;
+            if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+        }
+        ctx.closePath();
+        ctx.fillStyle = '#1a0a1a'; ctx.fill();
+        ctx.strokeStyle = 'rgba(255, 140, 70, 0.7)'; ctx.lineWidth = 1.2; ctx.stroke();
+        ctx.restore();
+    }
+
+    function drawShip(s) {
+        ctx.save(); ctx.translate(s.x, s.y);
+        s.y += (s.targetY - s.y) * 0.02;
+        const sc = s.size, flip = s.fromLeft ? 1 : -1;
+        ctx.scale(sc * flip, sc);
+
+        if (s.type === 0) {
+            ctx.fillStyle = '#0a0515';
+            ctx.strokeStyle = 'rgba(255, 150, 80, 0.85)'; ctx.lineWidth = 0.8;
+            ctx.beginPath();
+            ctx.moveTo(12, 0); ctx.lineTo(-6, -5); ctx.lineTo(-10, 0); ctx.lineTo(-6, 5);
+            ctx.closePath(); ctx.fill(); ctx.stroke();
+            ctx.fillStyle = 'rgba(255, 100, 50, 0.8)'; ctx.fillRect(-10, -1.5, 3, 3);
+            ctx.fillStyle = 'rgba(255, 200, 100, 0.8)';
+            ctx.beginPath(); ctx.arc(4, 0, 2, 0, Math.PI * 2); ctx.fill();
+        } else if (s.type === 1) {
+            ctx.fillStyle = '#0a0515';
+            ctx.strokeStyle = 'rgba(255, 140, 70, 0.8)'; ctx.lineWidth = 0.8;
+            ctx.beginPath();
+            ctx.moveTo(18, 0); ctx.lineTo(14, -4); ctx.lineTo(-12, -4);
+            ctx.lineTo(-14, 0); ctx.lineTo(-12, 4); ctx.lineTo(14, 4);
+            ctx.closePath(); ctx.fill(); ctx.stroke();
+            ctx.fillStyle = 'rgba(255, 200, 120, 0.7)';
+            ctx.fillRect(-4, -1, 2, 2); ctx.fillRect(2, -1, 2, 2); ctx.fillRect(8, -1, 2, 2);
+            ctx.fillStyle = 'rgba(255, 80, 40, 0.9)'; ctx.fillRect(-14, -2.5, 3, 5);
+        } else {
+            ctx.fillStyle = '#0a0515';
+            ctx.strokeStyle = 'rgba(255, 160, 90, 0.9)'; ctx.lineWidth = 0.8;
+            ctx.beginPath();
+            ctx.moveTo(14, 0); ctx.lineTo(2, -3); ctx.lineTo(-8, -4);
+            ctx.lineTo(-8, 4); ctx.lineTo(2, 3);
+            ctx.closePath(); ctx.fill(); ctx.stroke();
+            ctx.fillStyle = 'rgba(255, 140, 70, 0.5)';
+            ctx.beginPath(); ctx.moveTo(-5, -4); ctx.lineTo(-2, -9); ctx.lineTo(2, -4); ctx.closePath(); ctx.fill();
+            ctx.beginPath(); ctx.moveTo(-5, 4); ctx.lineTo(-2, 9); ctx.lineTo(2, 4); ctx.closePath(); ctx.fill();
+            ctx.fillStyle = 'rgba(255, 220, 150, 0.9)';
+            ctx.beginPath(); ctx.arc(6, 0, 1.5, 0, Math.PI * 2); ctx.fill();
+        }
+
+        s.flame = (s.flame + 1) % 6;
+        const flameLen = 8 + s.flame * 0.5;
+        const flameGrad = ctx.createLinearGradient(-10, 0, -10 - flameLen, 0);
+        flameGrad.addColorStop(0, 'rgba(255, 180, 80, 0.8)');
+        flameGrad.addColorStop(0.5, 'rgba(255, 100, 50, 0.4)');
+        flameGrad.addColorStop(1, 'rgba(255, 50, 30, 0)');
+        ctx.fillStyle = flameGrad;
+        ctx.beginPath();
+        ctx.moveTo(-10, -1.5); ctx.lineTo(-10 - flameLen, 0); ctx.lineTo(-10, 1.5);
+        ctx.closePath(); ctx.fill();
+        ctx.restore();
+    }
+
+    function animate() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        drawMoon();
+        for (const a of asteroids) {
+            a.x += a.vx; a.y += a.vy; a.rotation += a.rotSpeed;
+            if (a.x < -50) a.x = canvas.width + 50;
+            if (a.x > canvas.width + 50) a.x = -50;
+            if (a.y < -50) a.y = canvas.height + 50;
+            if (a.y > canvas.height + 50) a.y = -50;
+            drawAsteroid(a);
+        }
+        for (let i = ships.length - 1; i >= 0; i--) {
+            const s = ships[i];
+            s.x += s.vx;
+            drawShip(s);
+            if ((s.fromLeft && s.x > canvas.width + 100) || (!s.fromLeft && s.x < -100)) {
+                ships.splice(i, 1);
+            }
+        }
+        requestAnimationFrame(animate);
+    }
+    animate();
 })();
-const STORAGE_PLAY = `mk_plays_${gameId}`;
-const STORAGE_LIKE = `mk_liked_${gameId}`;
-const STORAGE_LIKE_COUNT = `mk_likecount_${gameId}`;
 
-// === WCZYTAJ METADANE Z DEMO.JSON ===
+// ============== METADANE Z DEMO.JSON ==============
+const gameId = (() => {
+    const parts = window.location.pathname.split('/').filter(Boolean);
+    return parts[parts.length - 2] || 'demo';
+})();
+
 fetch('demo.json')
-  .then(r => r.ok ? r.json() : null)
-  .then(data => {
-    if (!data) return;
-    const s = data.settings || {};
+    .then(r => r.ok ? r.json() : null)
+    .then(data => {
+        if (!data) {
+            document.getElementById('gameDescription').textContent = 'Brak opisu gry. Kliknij okładkę po lewej, aby zacząć grać.';
+            return;
+        }
+        const s = data.settings || {};
+        if (s.nazwaGry)  document.getElementById('gameTitle').textContent  = s.nazwaGry;
+        if (s.autorGry)  document.getElementById('gameAuthor').textContent = s.autorGry;
+        if (s.opisGry) {
+            document.getElementById('gameDescription').textContent = s.opisGry;
+        } else {
+            document.getElementById('gameDescription').textContent = 'Brak opisu gry. Kliknij okładkę po lewej, aby zacząć grać.';
+        }
+        if (Array.isArray(data.levels)) {
+            document.getElementById('gameLevels').textContent = data.levels.length;
+        }
+        if (s.sterowanie) {
+            const keyMap = {
+                'ArrowLeft':'←', 'ArrowRight':'→', 'ArrowUp':'↑', 'ArrowDown':'↓',
+                'Space':'Spacja', ' ':'Spacja'
+            };
+            const grid = document.getElementById('controlsGrid');
+            grid.innerHTML = '';
+            for (const [k, v] of Object.entries(s.sterowanie)) {
+                if (!v) continue;
+                const key = keyMap[v] || v;
+                grid.insertAdjacentHTML('beforeend',
+                    `<span class="mini-key" title="${k}">${key}</span>`);
+            }
+        }
+    })
+    .catch(() => {
+        document.getElementById('gameDescription').textContent = 'Brak opisu gry. Kliknij okładkę po lewej, aby zacząć grać.';
+    });
 
-    if (s.nazwaGry)  document.getElementById('gameTitle').textContent  = s.nazwaGry;
-    if (s.autorGry)  document.getElementById('gameAuthor').textContent = s.autorGry;
-    // Opis z demo.json NIE nadpisuje instrukcji obsługi — instrukcja zostaje stała
-    // if (s.opisGry)   document.getElementById('gameDescription').textContent = s.opisGry;
+// ============== KSIĘGA GOŚCI (Firebase) ==============
+const firebaseConfig = {
+    apiKey: "AIzaSyDRR3vSfgpEmbpZz_-VldMTnTHoXRfuGKg",
+    authDomain: "ksiega-ramzi.firebaseapp.com",
+    projectId: "ksiega-ramzi",
+    storageBucket: "ksiega-ramzi.firebasestorage.app",
+    messagingSenderId: "400735142662",
+    appId: "1:400735142662:web:0b52a57f4fedf367839487"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
 
-    if (Array.isArray(data.levels)) {
-      document.getElementById('gameLevels').textContent = data.levels.length;
+const form = document.getElementById('guestbookForm');
+form.addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const name = document.getElementById('name').value.trim();
+    const message = document.getElementById('message').value.trim();
+    if (!name || !message) return;
+
+    const btn = form.querySelector('button[type=submit]');
+    btn.disabled = true;
+    const oldHtml = btn.innerHTML;
+    btn.textContent = 'Wysyłanie…';
+
+    try {
+        await db.collection("wpisy").add({
+            name, message,
+            created: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        form.reset();
+        document.getElementById('charCount').textContent = '0/280';
+        loadComments();
+    } catch (err) {
+        console.error("Błąd zapisu:", err);
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = oldHtml;
     }
+});
 
-    // Sterowanie (mini klawisze w karcie)
-    if (s.sterowanie) {
-      const keyMap = {
-        'ArrowLeft':'←', 'ArrowRight':'→', 'ArrowUp':'↑', 'ArrowDown':'↓',
-        'Space':'Spacja', ' ':'Spacja'
-      };
-      const grid = document.getElementById('controlsGrid');
-      grid.innerHTML = '';
-      for (const [k, v] of Object.entries(s.sterowanie)) {
-        if (!v) continue;
-        const key = keyMap[v] || v;
-        grid.insertAdjacentHTML('beforeend',
-          `<div class="mini-ctrl"><span class="mini-key" title="${k}">${key}</span></div>`);
-      }
+function avatarColor(name) {
+    const colors = ['#00f7ff','#ff00c8','#a855f7','#22d3ee','#f472b6','#34d399','#fb923c'];
+    let h = 0;
+    for (let c of name) h = (h * 31 + c.charCodeAt(0)) % colors.length;
+    return colors[h];
+}
+function timeAgo(ts) {
+    if (!ts) return '';
+    const diff = Math.floor((Date.now() - ts.toMillis()) / 1000);
+    if (diff < 60) return 'przed chwilą';
+    if (diff < 3600) return `${Math.floor(diff/60)} min temu`;
+    if (diff < 86400) return `${Math.floor(diff/3600)} godz. temu`;
+    return `${Math.floor(diff/86400)} dni temu`;
+}
+async function loadComments() {
+    const commentsDiv = document.getElementById('comments');
+    commentsDiv.innerHTML = '<p style="text-align:center;color:#444;padding:20px;font-size:0.85rem;">ładowanie…</p>';
+    try {
+        const snapshot = await db.collection("wpisy").orderBy("created", "desc").get();
+        const count = snapshot.size;
+        document.getElementById('commentCount').textContent =
+            count === 0 ? 'Bądź pierwszy!' : `${count} ${count === 1 ? 'wpis' : count < 5 ? 'wpisy' : 'wpisów'}`;
+        if (count === 0) {
+            commentsDiv.innerHTML = '<p style="text-align:center;color:#444;padding:30px;font-size:0.85rem;">Brak wpisów — bądź pierwszy! 👇</p>';
+            return;
+        }
+        commentsDiv.innerHTML = '';
+        snapshot.forEach(doc => {
+            const data = doc.data();
+            const name = data.name || 'anon';
+            const message = data.message || data.text || '';
+            const initials = name.slice(0,2).toUpperCase();
+            const color = avatarColor(name);
+            const ago = timeAgo(data.created);
+            const div = document.createElement('div');
+            div.className = 'comment';
+            div.innerHTML = `
+                <div class="comment-avatar" style="background:${color}22; border:2px solid ${color}; color:${color};">${initials}</div>
+                <div class="comment-body">
+                    <div class="comment-meta">
+                        <span class="comment-author" style="color:${color};">@${name}</span>
+                        <span class="comment-time">${ago}</span>
+                    </div>
+                    <p class="comment-text">${message}</p>
+                </div>
+            `;
+            commentsDiv.appendChild(div);
+        });
+    } catch (err) {
+        console.error("Błąd ładowania:", err);
+        commentsDiv.innerHTML = '<p style="text-align:center;color:#f55;padding:20px;font-size:0.85rem;">Błąd ładowania wpisów.</p>';
     }
-  })
-  .catch(() => {});
-
-// === LICZNIK ZAGRAŃ (localStorage) ===
-function loadPlayCount() {
-  const count = parseInt(localStorage.getItem(STORAGE_PLAY) || '0', 10);
-  document.getElementById('playCount').textContent = formatNumber(count);
 }
-function countPlay() {
-  const count = parseInt(localStorage.getItem(STORAGE_PLAY) || '0', 10) + 1;
-  localStorage.setItem(STORAGE_PLAY, count);
-  // nie aktualizujemy widoku, bo zaraz przejdzie do player.html
-}
-function formatNumber(n) {
-  if (n >= 1000) return (n / 1000).toFixed(1) + 'k';
-  return n;
-}
-
-// === POLUBIENIA ===
-function loadLikes() {
-  const liked = localStorage.getItem(STORAGE_LIKE) === '1';
-  const count = parseInt(localStorage.getItem(STORAGE_LIKE_COUNT) || '0', 10);
-  document.getElementById('likeCount').textContent = formatNumber(count);
-  if (liked) document.getElementById('likeBtn').classList.add('liked');
-}
-function toggleLike() {
-  const btn = document.getElementById('likeBtn');
-  const isLiked = btn.classList.contains('liked');
-  let count = parseInt(localStorage.getItem(STORAGE_LIKE_COUNT) || '0', 10);
-
-  if (isLiked) {
-    btn.classList.remove('liked');
-    count = Math.max(0, count - 1);
-    localStorage.setItem(STORAGE_LIKE, '0');
-  } else {
-    btn.classList.add('liked');
-    count++;
-    localStorage.setItem(STORAGE_LIKE, '1');
-  }
-  localStorage.setItem(STORAGE_LIKE_COUNT, count);
-  document.getElementById('likeCount').textContent = formatNumber(count);
-}
-
-// Init
-loadPlayCount();
-loadLikes();
+loadComments();
 </script>
 
 </body>
