@@ -323,6 +323,11 @@
     font-size: 64px;
     line-height: 1;
   }
+  .item-shape {
+    display: block;
+    line-height: 0;
+  }
+  .item-shape svg { display: block; width: 100%; height: 100%; }
 
   /* ========== ANIMACJE ========== */
   @keyframes anim-pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.15); } }
@@ -433,6 +438,71 @@
   .modal h2 { margin-bottom: 12px; font-size: 18px; color: #ff9a3d; }
   .modal p { font-size: 13px; line-height: 1.6; color: #b0b0b8; margin-bottom: 14px; }
   .modal-row { display: flex; gap: 8px; margin-top: 16px; justify-content: flex-end; }
+
+  /* ========== MODAL EMOJI ========== */
+  .modal-emoji {
+    max-width: 720px;
+    width: 92%;
+    max-height: 85vh;
+    display: flex;
+    flex-direction: column;
+    padding: 20px;
+  }
+  .emoji-modal-search {
+    width: 100%;
+    background: #22222c;
+    border: 1px solid #3a3a48;
+    border-radius: 6px;
+    padding: 10px 12px;
+    color: #e8e8ea;
+    font-size: 14px;
+    margin-bottom: 12px;
+  }
+  .emoji-modal-search:focus { outline: none; border-color: #fbbf24; }
+  .emoji-modal-tabs {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+    margin-bottom: 10px;
+    border-bottom: 1px solid #2a2a35;
+    padding-bottom: 8px;
+  }
+  .emoji-tab {
+    background: #22222c;
+    border: 1px solid #2e2e38;
+    color: #b0b0b8;
+    padding: 6px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: all 0.12s;
+  }
+  .emoji-tab:hover { background: #2e2e38; color: #e8e8ea; }
+  .emoji-tab.active {
+    background: #ff9a3d;
+    border-color: #ff9a3d;
+    color: #1a1a1a;
+    font-weight: 600;
+  }
+  .emoji-modal-grid {
+    flex: 1;
+    overflow-y: auto;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(44px, 1fr));
+    gap: 4px;
+    padding: 4px;
+    max-height: 60vh;
+  }
+  .emoji-modal-grid .emoji-btn {
+    height: 44px;
+    font-size: 22px;
+  }
+  .emoji-modal-empty {
+    text-align: center;
+    color: #707080;
+    padding: 40px 20px;
+    font-size: 13px;
+  }
 
   /* ========== TOAST ========== */
   #toast {
@@ -1180,6 +1250,7 @@
   <div class="section">
     <div class="section-title">Szybkie emotki</div>
     <div class="emoji-pad" id="quick-emoji-pad"></div>
+    <button class="tool-btn tool-btn-wide" id="btn-emoji-library" style="margin-top:8px;"><span class="icon">🎨</span>Wszystkie emotki…</button>
   </div>
 
   <div class="section" id="section-tla">
@@ -1261,6 +1332,19 @@
   </div>
 </div>
 
+<!-- Modal: pełna biblioteka emotek -->
+<div class="modal-backdrop" id="modal-emoji-lib">
+  <div class="modal modal-emoji">
+    <h2>😀 Biblioteka emotek</h2>
+    <input type="text" class="emoji-modal-search" id="emoji-search" placeholder="🔍 Szukaj... (np. serce, pies, ogień, samolot)" />
+    <div class="emoji-modal-tabs" id="emoji-tabs"></div>
+    <div class="emoji-modal-grid" id="emoji-modal-grid"></div>
+    <div class="modal-row">
+      <button class="topbar-btn" id="emoji-modal-close">Zamknij</button>
+    </div>
+  </div>
+</div>
+
 <div id="toast"></div>
 
 <script>
@@ -1286,6 +1370,11 @@ const state = {
   brushColor: '#ffffff',
   brushSize: 6,
   drawing: false,
+  // === Tryb rysowania kształtów (aktywny tylko gdy drawMode='draw') ===
+  shapeTool: null,        // null | 'square' | 'rect' | 'circle' | 'star'
+  shapeDrawing: false,    // czy aktualnie ciągniemy myszką żeby narysować kształt
+  shapeStart: null,       // { x, y } pozycja startowa
+  shapePreview: null,     // referencja do tymczasowego SVG na scenie
   // === Tryb przejść ===
   transitionsMode: false,
   transitionsPickItem: null,
@@ -1341,6 +1430,28 @@ const ANIMATIONS = [
   { id: 'rainbow',   name: '🌈 Tęcza' }
 ];
 const QUICK_EMOJIS = ['😀','😍','🥳','🔥','⭐','💖','🎉','🎵','☀','🌙','⚡','🌈','🦄','🌸','🍕','🚀','👻','💀','🎮','🎨'];
+
+// ============================================================
+// WIELKA BIBLIOTEKA EMOTEK
+// Format: { e: emotka, n: nazwa-do-wyszukiwania (po polsku, lowercase, bez ogonków).
+// Emotki to znaki Unicode - ZERO wagi pliku w sensie obrazków.
+// Pogrupowane w kategorie do nawigacji w modalu.
+// ============================================================
+const EMOJI_LIBRARY = {
+  'Twarze': '😀 😃 😄 😁 😆 😅 🤣 😂 🙂 🙃 😉 😊 😇 🥰 😍 🤩 😘 😗 ☺️ 😚 😙 🥲 😋 😛 😜 🤪 😝 🤑 🤗 🤭 🤫 🤔 🤐 🤨 😐 😑 😶 😏 😒 🙄 😬 🤥 😌 😔 😪 🤤 😴 😷 🤒 🤕 🤢 🤮 🤧 🥵 🥶 🥴 😵 🤯 🤠 🥳 🥸 😎 🤓 🧐 😕 😟 🙁 ☹️ 😮 😯 😲 😳 🥺 😦 😧 😨 😰 😥 😢 😭 😱 😖 😣 😞 😓 😩 😫 🥱 😤 😡 😠 🤬 😈 👿 💀 ☠️ 💩 🤡 👹 👺 👻 👽 👾 🤖'.split(' '),
+  'Gesty': '👋 🤚 🖐 ✋ 🖖 👌 🤌 🤏 ✌️ 🤞 🤟 🤘 🤙 👈 👉 👆 🖕 👇 ☝️ 👍 👎 ✊ 👊 🤛 🤜 👏 🙌 👐 🤲 🤝 🙏 ✍️ 💅 🤳 💪 🦾 🦿 🦵 🦶 👂 🦻 👃 🧠 🫀 🫁 🦷 🦴 👀 👁 👅 👄 💋'.split(' '),
+  'Ludzie': '👶 🧒 👦 👧 🧑 👱 👨 🧔 👩 🧓 👴 👵 🙍 🙎 🙅 🙆 💁 🙋 🧏 🙇 🤦 🤷 👮 🕵 💂 🥷 👷 🤴 👸 👳 👲 🧕 🤵 👰 🤰 🤱 👼 🎅 🤶 🦸 🦹 🧙 🧚 🧛 🧜 🧝 🧞 🧟'.split(' '),
+  'Zwierzeta': '🐶 🐱 🐭 🐹 🐰 🦊 🐻 🐼 🐻‍❄️ 🐨 🐯 🦁 🐮 🐷 🐽 🐸 🐵 🙈 🙉 🙊 🐒 🐔 🐧 🐦 🐤 🐣 🐥 🦆 🦅 🦉 🦇 🐺 🐗 🐴 🦄 🐝 🪱 🐛 🦋 🐌 🐞 🐜 🪰 🪲 🪳 🦟 🦗 🕷 🕸 🦂 🐢 🐍 🦎 🦖 🦕 🐙 🦑 🦐 🦞 🦀 🐡 🐠 🐟 🐬 🐳 🐋 🦈 🐊 🐅 🐆 🦓 🦍 🦧 🦣 🐘 🦛 🦏 🐪 🐫 🦒 🦘 🦬 🐃 🐂 🐄 🐎 🐖 🐏 🐑 🦙 🐐 🦌 🐕 🐩 🦮 🐕‍🦺 🐈 🐈‍⬛ 🪶 🐓 🦃 🦤 🦚 🦜 🦢 🦩 🕊 🐇 🦝 🦨 🦡 🦫 🦦 🦥 🐁 🐀 🐿 🦔'.split(' '),
+  'Natura': '🌵 🎄 🌲 🌳 🌴 🪵 🌱 🌿 ☘️ 🍀 🎍 🪴 🎋 🍃 🍂 🍁 🍄 🐚 🪨 🌾 💐 🌷 🌹 🥀 🌺 🌸 🌼 🌻 🌞 🌝 🌛 🌜 🌚 🌕 🌖 🌗 🌘 🌑 🌒 🌓 🌔 🌙 🌎 🌍 🌏 🪐 💫 ⭐ 🌟 ✨ ⚡ ☄️ 💥 🔥 🌪 🌈 ☀️ 🌤 ⛅ 🌥 ☁️ 🌦 🌧 ⛈ 🌩 🌨 ❄️ ☃️ ⛄ 🌬 💨 💧 💦 ☔ ☂️ 🌊 🌫'.split(' '),
+  'Jedzenie': '🍏 🍎 🍐 🍊 🍋 🍌 🍉 🍇 🍓 🫐 🍈 🍒 🍑 🥭 🍍 🥥 🥝 🍅 🍆 🥑 🥦 🥬 🥒 🌶 🫑 🌽 🥕 🫒 🧄 🧅 🥔 🍠 🥐 🥯 🍞 🥖 🥨 🧀 🥚 🍳 🧈 🥞 🧇 🥓 🥩 🍗 🍖 🦴 🌭 🍔 🍟 🍕 🥪 🥙 🧆 🌮 🌯 🫔 🥗 🥘 🫕 🥫 🍝 🍜 🍲 🍛 🍣 🍱 🥟 🦪 🍤 🍙 🍚 🍘 🍥 🥠 🥮 🍢 🍡 🍧 🍨 🍦 🥧 🧁 🍰 🎂 🍮 🍭 🍬 🍫 🍿 🍩 🍪 🌰 🥜 🍯 🥛 🍼 🫖 ☕ 🍵 🧃 🥤 🧋 🍶 🍺 🍻 🥂 🍷 🥃 🍸 🍹 🧉 🍾 🧊 🥄 🍴 🍽 🥣 🥡 🥢 🧂'.split(' '),
+  'Aktywnosci': '⚽ 🏀 🏈 ⚾ 🥎 🎾 🏐 🏉 🥏 🎱 🪀 🏓 🏸 🏒 🏑 🥍 🏏 🪃 🥅 ⛳ 🪁 🏹 🎣 🤿 🥊 🥋 🎽 🛹 🛼 🛷 ⛸ 🥌 🎿 ⛷ 🏂 🪂 🏋 🤼 🤸 ⛹ 🤺 🤾 🏌 🏇 🧘 🏄 🏊 🤽 🚣 🧗 🚵 🚴 🏆 🥇 🥈 🥉 🏅 🎖 🏵 🎗 🎫 🎟 🎪 🤹 🎭 🩰 🎨 🎬 🎤 🎧 🎼 🎹 🥁 🪘 🎷 🎺 🪗 🎸 🪕 🎻 🎲 ♟ 🎯 🎳 🎮 🎰 🧩'.split(' '),
+  'Podroze': '🚗 🚕 🚙 🚌 🚎 🏎 🚓 🚑 🚒 🚐 🛻 🚚 🚛 🚜 🦯 🦽 🦼 🛴 🚲 🛵 🏍 🛺 🚨 🚔 🚍 🚘 🚖 🚡 🚠 🚟 🚃 🚋 🚞 🚝 🚄 🚅 🚈 🚂 🚆 🚇 🚊 🚉 ✈️ 🛫 🛬 🛩 💺 🛰 🚀 🛸 🚁 🛶 ⛵ 🚤 🛥 🛳 ⛴ 🚢 ⚓ ⛽ 🚧 🚦 🚥 🚏 🗺 🗿 🗽 🗼 🏰 🏯 🏟 🎡 🎢 🎠 ⛲ ⛱ 🏖 🏝 🏜 🌋 ⛰ 🏔 🗻 🏕 ⛺ 🛖 🏠 🏡 🏘 🏚 🏗 🏭 🏢 🏬 🏣 🏤 🏥 🏦 🏨 🏪 🏫 🏩 💒 🏛 ⛪ 🕌 🕍 🛕 🕋 ⛩'.split(' '),
+  'Symbole': '❤️ 🧡 💛 💚 💙 💜 🖤 🤍 🤎 💔 ❣️ 💕 💞 💓 💗 💖 💘 💝 💟 ☮️ ✝️ ☪️ 🕉 ☸️ ✡️ 🔯 🕎 ☯️ ☦️ 🛐 ⛎ ♈ ♉ ♊ ♋ ♌ ♍ ♎ ♏ ♐ ♑ ♒ ♓ 🆔 ⚛️ 🉑 ☢️ ☣️ 📴 📳 🈶 🈚 🈸 🈺 🈷️ ✴️ 🆚 💮 🉐 ㊙️ ㊗️ 🈴 🈵 🈹 🈲 🅰️ 🅱️ 🆎 🆑 🅾️ 🆘 ❌ ⭕ 🛑 ⛔ 📛 🚫 💯 💢 ♨️ 🚷 🚯 🚳 🚱 🔞 📵 🚭 ❗ ❕ ❓ ❔ ‼️ ⁉️ 🔅 🔆 〽️ ⚠️ 🚸 🔱 ⚜️ 🔰 ♻️ ✅ 🈯 💹 ❇️ ✳️ ❎ 🌐 💠 Ⓜ️ 🌀 💤 🏧 🚾 ♿ 🅿️ 🛗 🈳 🈂️ 🛂 🛃 🛄 🛅 🚹 🚺 🚼 ⚧ 🚻 🚮 🎦 📶 🈁 🔣 ℹ️ 🔤 🔡 🔠 🆖 🆗 🆙 🆒 🆕 🆓 0️⃣ 1️⃣ 2️⃣ 3️⃣ 4️⃣ 5️⃣ 6️⃣ 7️⃣ 8️⃣ 9️⃣ 🔟 🔢 #️⃣ *️⃣ ⏏️ ▶️ ⏸ ⏯ ⏹ ⏺ ⏭ ⏮ ⏩ ⏪ ⏫ ⏬ ◀️ 🔼 🔽 ➡️ ⬅️ ⬆️ ⬇️ ↗️ ↘️ ↙️ ↖️ ↕️ ↔️ ↪️ ↩️ ⤴️ ⤵️ 🔀 🔁 🔂 🔄 🔃 🎵 🎶 ➕ ➖ ➗ ✖️ 🟰 ♾ 💲 💱 ™️ ©️ ®️ 〰️ ➰ ➿ 🔚 🔙 🔛 🔝 🔜 ✔️ ☑️ 🔘 🔴 🟠 🟡 🟢 🔵 🟣 ⚫ ⚪ 🟤 🔺 🔻 🔸 🔹 🔶 🔷 🔳 🔲 ▪️ ▫️ ◾ ◽ ◼️ ◻️ 🟥 🟧 🟨 🟩 🟦 🟪 🟫 ⬛ ⬜ 🔈 🔇 🔉 🔊 🔔 🔕 📣 📢 👁‍🗨 💬 💭 🗯 ♠️ ♣️ ♥️ ♦️ 🃏 🎴 🀄'.split(' '),
+  'Obiekty': '⌚ 📱 📲 💻 ⌨️ 🖥 🖨 🖱 🖲 🕹 🗜 💽 💾 💿 📀 📼 📷 📸 📹 🎥 📽 🎞 📞 ☎️ 📟 📠 📺 📻 🎙 🎚 🎛 🧭 ⏱ ⏲ ⏰ 🕰 ⌛ ⏳ 📡 🔋 🔌 💡 🔦 🕯 🪔 🧯 🛢 💸 💵 💴 💶 💷 🪙 💰 💳 💎 ⚖️ 🪜 🧰 🪛 🔧 🔨 ⚒ 🛠 ⛏ 🪚 🔩 ⚙️ 🪤 🧱 ⛓ 🧲 🔫 💣 🧨 🪓 🔪 🗡 ⚔️ 🛡 🚬 ⚰️ 🪦 ⚱️ 🏺 🔮 📿 🧿 💈 ⚗️ 🔭 🔬 🕳 🩹 🩺 💊 💉 🩸 🧬 🦠 🧫 🧪 🌡 🧹 🪠 🧺 🧻 🚽 🚰 🚿 🛁 🛀 🧼 🪥 🪒 🧽 🪣 🧴 🛎 🔑 🗝 🚪 🪑 🛋 🛏 🛌 🧸 🪆 🖼 🪞 🪟 🛍 🛒 🎁 🎈 🎏 🎀 🪄 🪅 🎊 🎉 🎎 🏮 🎐 🧧 ✉️ 📩 📨 📧 💌 📥 📤 📦 🏷 🪧 📪 📫 📬 📭 📮 📯 📜 📃 📄 📑 🧾 📊 📈 📉 🗒 🗓 📆 📅 🗑 📇 🗃 🗳 🗄 📋 📁 📂 🗂 🗞 📰 📓 📔 📒 📕 📗 📘 📙 📚 📖 🔖 🧷 🔗 📎 🖇 📐 📏 🧮 📌 📍 ✂️ 🖊 🖋 ✒️ 🖌 🖍 📝 ✏️ 🔍 🔎 🔏 🔐 🔒 🔓'.split(' ')
+};
+
+// Spłaszczona lista wszystkich emotek (do przeglądania "wszystkie")
+const ALL_EMOJIS = Object.values(EMOJI_LIBRARY).flat();
 const BG_PRESETS = [
   { name:'Sunset',  value:'linear-gradient(135deg, #ff6e7f, #bfe9ff)' },
   { name:'Ocean',   value:'linear-gradient(135deg, #667eea, #764ba2)' },
@@ -1450,6 +1561,52 @@ function confirmModal(title, msg) {
 // ============================================================
 // DODAWANIE ELEMENTÓW
 // ============================================================
+// ============================================================
+// KSZTAŁTY - SVG generator
+// ============================================================
+// Buduje SVG dla danego kształtu. Używane i w edytorze (render) i w eksporcie HTML.
+// Wszystkie kształty rysowane w viewBox 0 0 100 100, skalowane przez width/height SVG.
+function buildShapeSVG(item) {
+  const w = Math.max(1, item.shapeWidth || 100);
+  const h = Math.max(1, item.shapeHeight || 100);
+  const fill = item.fillColor || '#ffffff';
+  const stroke = item.strokeColor || '#000000';
+  const sw = +item.strokeWidth || 0;     // grubość obramowania w px (w viewBox)
+  // Zaokrąglone obramowanie: linia kreślona JEST W ŚRODKU kształtu (stroke-alignment niewspierany w SVG),
+  // więc trochę zmniejszamy kształt żeby się zmieścić.
+  const inset = sw / 2;
+  let body;
+  switch (item.shapeKind) {
+    case 'square':
+    case 'rect':
+      body = `<rect x="${inset}" y="${inset}" width="${100 - sw}" height="${100 - sw}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}" rx="2" />`;
+      break;
+    case 'circle':
+      body = `<ellipse cx="50" cy="50" rx="${50 - inset}" ry="${50 - inset}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}" />`;
+      break;
+    case 'star': {
+      // Gwiazda 5-ramienna: 10 punktów, naprzemiennie zewnętrzne (50px od środka) i wewnętrzne (~20px).
+      const cx = 50, cy = 50;
+      const rOut = 48 - inset;
+      const rIn = rOut * 0.4;
+      const points = [];
+      for (let i = 0; i < 10; i++) {
+        const r = (i % 2 === 0) ? rOut : rIn;
+        // -90deg żeby pierwszy punkt był na górze
+        const ang = (-90 + i * 36) * Math.PI / 180;
+        const x = cx + r * Math.cos(ang);
+        const y = cy + r * Math.sin(ang);
+        points.push(x.toFixed(1) + ',' + y.toFixed(1));
+      }
+      body = `<polygon points="${points.join(' ')}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}" stroke-linejoin="round" />`;
+      break;
+    }
+    default:
+      body = `<rect x="0" y="0" width="100" height="100" fill="${fill}" />`;
+  }
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" preserveAspectRatio="none" width="${w}" height="${h}" style="display:block;pointer-events:none;">${body}</svg>`;
+}
+
 function addItem(type, opts = {}) {
   const item = {
     id: state.nextId++,
@@ -1480,13 +1637,23 @@ function addItem(type, opts = {}) {
     // === Ramka ===
     frame: opts.frame || { theme: 'none', color: '#ffffff', bg: '#000000', bgAlpha: 80, width: 3, padding: 12, radius: 10 },
     // === Przycisk sceniczny ===
-    buttonStyle: opts.buttonStyle || null       // 'classic'|'round'|'fab'|'play'|'double'|'pixel'
+    buttonStyle: opts.buttonStyle || null,      // 'classic'|'round'|'fab'|'play'|'double'|'pixel'
+    // === Kształt (shape) ===
+    shapeKind: opts.shapeKind || null,          // 'square'|'rect'|'circle'|'star'
+    shapeWidth: opts.shapeWidth || null,        // szerokość kształtu w px
+    shapeHeight: opts.shapeHeight || null,      // wysokość kształtu w px
+    fillColor: opts.fillColor || '#ffffff',     // kolor wypełnienia
+    strokeColor: opts.strokeColor || '#000000', // kolor obramowania
+    strokeWidth: opts.strokeWidth !== undefined ? opts.strokeWidth : 0  // grubość obramowania (0=brak)
   };
   // Dla przycisku: ustaw tekst domyślny ze stylu jeśli nie podano
   if (type === 'button' && opts.content === undefined) {
     const def = BUTTON_STYLES.find(s => s.id === item.buttonStyle);
     item.content = def ? def.defaultText : 'Dalej';
   }
+  // Dla shape: ustal pozycję x,y z opts (przy rysowaniu klik+drag)
+  if (type === 'shape' && opts.x !== undefined) item.x = opts.x;
+  if (type === 'shape' && opts.y !== undefined) item.y = opts.y;
   currentItems().push(item);
   state.selectedId = item.id;
   render();
@@ -1547,6 +1714,12 @@ function render() {
       inner.style.color = item.color;
       inner.style.fontWeight = item.bold ? '700' : '400';
       inner.style.textAlign = item.align || 'left';
+    } else if (item.type === 'shape') {
+      // Kształt - SVG inline. Rozmiar wrappera = shapeWidth × shapeHeight.
+      inner.className = 'item-shape';
+      inner.style.width = (item.shapeWidth || 100) + 'px';
+      inner.style.height = (item.shapeHeight || 100) + 'px';
+      inner.innerHTML = buildShapeSVG(item);
     } else if (item.type === 'image') {
       // Miniaturka YouTube lub dowolny obrazek
       inner.className = 'item-image';
@@ -2081,6 +2254,49 @@ function renderProps() {
   const item = currentItems().find(i => i.id === state.selectedId);
 
   if (!item) {
+    // Tryb pędzla - pokaż panel kształtów zamiast pustego stanu
+    if (state.drawMode === 'draw') {
+      const shapes = [
+        { id: 'square', label: '⬛', name: 'Kwadrat' },
+        { id: 'rect',   label: '▭',  name: 'Prostokąt' },
+        { id: 'circle', label: '⚪', name: 'Koło' },
+        { id: 'star',   label: '⭐', name: 'Gwiazda' }
+      ];
+      const tiles = shapes.map(s => `
+        <button class="anim-btn shape-btn ${state.shapeTool === s.id ? 'active' : ''}" data-shape="${s.id}" title="${s.name}" style="font-size:24px;height:60px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:2px;">
+          <span>${s.label}</span>
+          <span style="font-size:10px;font-weight:normal;">${s.name}</span>
+        </button>
+      `).join('');
+      c.innerHTML = `
+        <div class="prop-group">
+          <div class="prop-label">🎨 Tryb pędzla</div>
+          <p style="font-size:11px;color:#888;line-height:1.5;margin:6px 0 12px 0;">
+            <strong>Pędzel</strong> = swobodne rysowanie myszą po scenie.<br>
+            <strong>Kształt</strong> (poniżej) = klik+ciągnij na scenie tworzy obiekt.
+          </p>
+        </div>
+        <div class="prop-group">
+          <div class="prop-label">Kształty <span style="opacity:0.5;font-size:9px;">· kolor z palety pędzla</span></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">${tiles}</div>
+          ${state.shapeTool ? `<button class="anim-btn" id="shape-cancel" style="width:100%;margin-top:8px;background:#3a2025;border-color:#6a3035;color:#ff8090;">✕ Anuluj wybór kształtu</button>` : ''}
+        </div>
+        ${state.shapeTool ? `<div style="background:rgba(77,212,255,0.08);border:1px solid #4dd4ff;border-radius:6px;padding:10px;font-size:11px;color:#bce8ff;line-height:1.5;">
+          📐 Wybrano: <strong>${shapes.find(s => s.id === state.shapeTool).name}</strong><br>
+          Teraz <strong>kliknij i przeciągnij</strong> na scenie żeby narysować.
+        </div>` : ''}
+      `;
+      // Bind przycisków
+      c.querySelectorAll('[data-shape]').forEach(b => {
+        b.onclick = () => {
+          state.shapeTool = state.shapeTool === b.dataset.shape ? null : b.dataset.shape;
+          renderProps();
+        };
+      });
+      const cancelBtn = c.querySelector('#shape-cancel');
+      if (cancelBtn) cancelBtn.onclick = () => { state.shapeTool = null; renderProps(); };
+      return;
+    }
     c.innerHTML = `<div class="empty-state">← Dodaj element z lewego panelu<br>albo zaznacz coś na scenie,<br>żeby edytować właściwości.</div>`;
     return;
   }
@@ -2093,6 +2309,10 @@ function renderProps() {
   const typeLabel = (() => {
     if (item.type === 'text')   return 'Tekst';
     if (item.type === 'textbox') return 'Pole tekstowe';
+    if (item.type === 'shape') {
+      const names = { square: 'Kwadrat', rect: 'Prostokąt', circle: 'Koło', star: 'Gwiazda' };
+      return names[item.shapeKind] || 'Kształt';
+    }
     if (item.type === 'button') return 'Przycisk';
     if (item.type === 'image') {
       if (item.youtubeId)  return 'Miniaturka YouTube';
@@ -2108,8 +2328,8 @@ function renderProps() {
     </div>
   `;
 
-  // Treść — pokazujemy dla wszystkich oprócz obrazka i pola tekstowego (textbox edytowany bezpośrednio na scenie)
-  if (item.type !== 'image' && item.type !== 'textbox') {
+  // Treść — pokazujemy dla wszystkich oprócz obrazka, pola tekstowego (textbox edytowany bezpośrednio na scenie) i kształtu
+  if (item.type !== 'image' && item.type !== 'textbox' && item.type !== 'shape') {
     html += `
       <div class="prop-group">
         <div class="prop-label">Treść ${item.type === 'text' ? '(podwójny klik na scenie też edytuje)' : ''}</div>
@@ -2131,6 +2351,35 @@ function renderProps() {
       <div class="prop-group">
         <div class="prop-label">Pogrubienie</div>
         <button class="anim-btn ${item.bold?'active':''}" id="prop-bold" style="width:100%">B</button>
+      </div>
+    `;
+  }
+
+  if (item.type === 'shape') {
+    const shapeNames = { square: 'Kwadrat', rect: 'Prostokąt', circle: 'Koło', star: 'Gwiazda' };
+    html += `
+      <div class="prop-group">
+        <div class="prop-label">Kształt: ${shapeNames[item.shapeKind] || '?'}</div>
+      </div>
+      <div class="prop-group">
+        <div class="prop-label">Kolor wypełnienia</div>
+        <input type="color" id="prop-fill" value="${item.fillColor}" />
+      </div>
+      <div class="prop-group">
+        <div class="prop-label">Kolor obramowania</div>
+        <input type="color" id="prop-stroke" value="${item.strokeColor}" />
+      </div>
+      <div class="prop-group">
+        <div class="prop-label">Grubość obramowania: <span id="prop-strokew-val">${item.strokeWidth}</span> px <span style="opacity:0.5;font-size:9px;">· 0 = brak</span></div>
+        <input type="range" id="prop-strokew" min="0" max="20" value="${item.strokeWidth}" />
+      </div>
+      <div class="prop-group">
+        <div class="prop-label">Szerokość: <span id="prop-shapew-val">${item.shapeWidth}</span> px</div>
+        <input type="range" id="prop-shapew" min="10" max="2000" value="${item.shapeWidth}" />
+      </div>
+      <div class="prop-group">
+        <div class="prop-label">Wysokość: <span id="prop-shapeh-val">${item.shapeHeight}</span> px</div>
+        <input type="range" id="prop-shapeh" min="10" max="2000" value="${item.shapeHeight}" />
       </div>
     `;
   }
@@ -2166,10 +2415,10 @@ function renderProps() {
   }
 
   html += `
-    <div class="prop-group">
+    ${item.type !== 'shape' ? `<div class="prop-group">
       <div class="prop-label">Rozmiar: <span id="prop-size-val">${item.size}</span> px <span style="opacity:0.5;font-size:9px;">· 2× klik = reset</span></div>
       <input type="range" id="prop-size" min="10" max="200" value="${item.size}" />
-    </div>
+    </div>` : ''}
 
     <div class="prop-group">
       <div class="prop-label">Skala: <span id="prop-scale-val">${item.scale.toFixed(2)}</span> <span style="opacity:0.5;font-size:9px;">· 2× klik = reset</span></div>
@@ -2286,20 +2535,23 @@ function renderProps() {
     propContent.onchange = () => pushHistory();
   }
 
-  document.getElementById('prop-size').oninput = e => {
-    item.size = +e.target.value;
-    document.getElementById('prop-size-val').textContent = item.size;
-    liveUpdateItem();
-  };
-  document.getElementById('prop-size').onchange = () => pushHistory();
-  // Dwuklik na suwak = reset do wartości domyślnej dla typu
-  document.getElementById('prop-size').ondblclick = () => {
-    const def = item.type === 'text' ? 32 : (item.type === 'textbox' ? 18 : (item.type === 'image' ? 240 : 64));
-    item.size = def;
-    render();
-    pushHistory();
-    toast('↩ Rozmiar zresetowany');
-  };
+  const sizeEl = document.getElementById('prop-size');
+  if (sizeEl) {
+    sizeEl.oninput = e => {
+      item.size = +e.target.value;
+      document.getElementById('prop-size-val').textContent = item.size;
+      liveUpdateItem();
+    };
+    sizeEl.onchange = () => pushHistory();
+    // Dwuklik na suwak = reset do wartości domyślnej dla typu
+    sizeEl.ondblclick = () => {
+      const def = item.type === 'text' ? 32 : (item.type === 'textbox' ? 18 : (item.type === 'image' ? 240 : 64));
+      item.size = def;
+      render();
+      pushHistory();
+      toast('↩ Rozmiar zresetowany');
+    };
+  }
 
   document.getElementById('prop-scale').oninput = e => {
     item.scale = +e.target.value;
@@ -2361,6 +2613,47 @@ function renderProps() {
       };
       propBoxw.onchange = () => pushHistory();
     }
+  }
+
+  if (item.type === 'shape') {
+    // Helper - aktualizuje SVG w istniejącym DOM bez full render (płynność)
+    const refreshShapeDOM = () => {
+      const el = scene.querySelector(`.scene-item[data-id="${item.id}"]`);
+      if (!el) return;
+      const inner = el.querySelector('.item-shape');
+      if (inner) {
+        inner.style.width = (item.shapeWidth || 100) + 'px';
+        inner.style.height = (item.shapeHeight || 100) + 'px';
+        inner.innerHTML = buildShapeSVG(item);
+      }
+    };
+    const propFill = document.getElementById('prop-fill');
+    propFill.oninput = e => { item.fillColor = e.target.value; refreshShapeDOM(); };
+    propFill.onchange = () => pushHistory();
+    const propStroke = document.getElementById('prop-stroke');
+    propStroke.oninput = e => { item.strokeColor = e.target.value; refreshShapeDOM(); };
+    propStroke.onchange = () => pushHistory();
+    const propStrokew = document.getElementById('prop-strokew');
+    propStrokew.oninput = e => {
+      item.strokeWidth = +e.target.value;
+      document.getElementById('prop-strokew-val').textContent = item.strokeWidth;
+      refreshShapeDOM();
+    };
+    propStrokew.onchange = () => pushHistory();
+    const propShapew = document.getElementById('prop-shapew');
+    propShapew.oninput = e => {
+      item.shapeWidth = +e.target.value;
+      document.getElementById('prop-shapew-val').textContent = item.shapeWidth;
+      refreshShapeDOM();
+    };
+    propShapew.onchange = () => pushHistory();
+    const propShapeh = document.getElementById('prop-shapeh');
+    propShapeh.oninput = e => {
+      item.shapeHeight = +e.target.value;
+      document.getElementById('prop-shapeh-val').textContent = item.shapeHeight;
+      refreshShapeDOM();
+    };
+    propShapeh.onchange = () => pushHistory();
   }
 
   // Animacja zmienia klasę CSS na elemencie scenicznym + przycisk active w panelu — wymaga render()
@@ -3432,6 +3725,147 @@ QUICK_EMOJIS.forEach(em => {
 });
 
 // ============================================================
+// MODAL Z PEŁNĄ BIBLIOTEKĄ EMOTEK
+// Kategorie + wyszukiwarka (po nazwie/słowach kluczowych).
+// Klik emotki = wstawia na scenę i zamyka modal.
+// ============================================================
+const emojiModal = document.getElementById('modal-emoji-lib');
+const emojiTabsBox = document.getElementById('emoji-tabs');
+const emojiGrid = document.getElementById('emoji-modal-grid');
+const emojiSearch = document.getElementById('emoji-search');
+
+// Aktualnie wybrana kategoria (gdy puste search). Default = wszystkie
+let currentEmojiCategory = 'Wszystkie';
+
+// Renderuje kafelki w siatce z podanej tablicy emotek
+function renderEmojiGrid(emojis) {
+  emojiGrid.innerHTML = '';
+  if (emojis.length === 0) {
+    emojiGrid.innerHTML = `<div class="emoji-modal-empty" style="grid-column:1/-1;">Nic nie znaleziono. Spróbuj innego słowa.</div>`;
+    return;
+  }
+  // Limit dla wydajności - max 600 emotek na raz (i tak nie da się pokazać więcej w siatce sensownie)
+  const slice = emojis.slice(0, 600);
+  slice.forEach(em => {
+    const b = document.createElement('button');
+    b.className = 'emoji-btn';
+    b.textContent = em;
+    b.onclick = () => {
+      addItem('emoji');
+      const last = currentItems()[currentItems().length - 1];
+      last.content = em;
+      render();
+      // Zamknij modal
+      emojiModal.classList.remove('show');
+    };
+    emojiGrid.appendChild(b);
+  });
+}
+
+// Renderuje zakładki kategorii
+function renderEmojiTabs() {
+  emojiTabsBox.innerHTML = '';
+  const cats = ['Wszystkie', ...Object.keys(EMOJI_LIBRARY)];
+  cats.forEach(cat => {
+    const tab = document.createElement('button');
+    tab.className = 'emoji-tab' + (cat === currentEmojiCategory ? ' active' : '');
+    tab.textContent = cat;
+    tab.onclick = () => {
+      currentEmojiCategory = cat;
+      emojiSearch.value = '';   // wyczyść wyszukiwarkę przy zmianie kategorii
+      renderEmojiTabs();
+      const list = cat === 'Wszystkie' ? ALL_EMOJIS : EMOJI_LIBRARY[cat];
+      renderEmojiGrid(list);
+    };
+    emojiTabsBox.appendChild(tab);
+  });
+}
+
+// Wyszukiwanie - filtruje wszystkie emotki po Unicode "name" (z metadanych przeglądarki nie mamy,
+// więc używamy uproszczonego dopasowania - prefiksy słów + niektóre popularne nazwy po polsku)
+const EMOJI_NAMES = {
+  // Krótki słownik popularnych emotek po polsku (do wyszukiwania)
+  '😀':'usmiech buzia twarz wesoly','😍':'serca milosc zakochany','🥳':'impreza party','🔥':'ogien plomien','⭐':'gwiazda',
+  '💖':'serce milosc','🎉':'impreza konfetti','🎵':'muzyka nuta','☀':'slonce','🌙':'ksiezyc','⚡':'piorun',
+  '🌈':'tecza','🦄':'jednorozec','🌸':'kwiat sakura','🍕':'pizza','🚀':'rakieta','👻':'duch',
+  '💀':'czaszka','🎮':'gra konsola','🎨':'paleta sztuka','🐶':'pies','🐱':'kot','🐭':'mysz',
+  '🐰':'krolik','🐻':'mis niedzwiedz','🐼':'panda','🐨':'koala','🐯':'tygrys','🦁':'lew',
+  '🐮':'krowa','🐷':'swinia','🐸':'zaba','🐔':'kura','🐧':'pingwin','🦋':'motyl',
+  '🐢':'zolw','🐍':'waz','🐙':'osmiornica','🐠':'ryba','🐳':'wieloryb','🦈':'rekin',
+  '🌳':'drzewo','🌲':'sosna','🌴':'palma','🌵':'kaktus','🌷':'tulipan','🌹':'roza',
+  '🍎':'jablko','🍊':'pomarancza','🍋':'cytryna','🍌':'banan','🍇':'winogrona','🍓':'truskawka',
+  '🍅':'pomidor','🥑':'awokado','🥕':'marchew','🌽':'kukurydza','🍞':'chleb','🧀':'ser',
+  '🍔':'hamburger','🍟':'frytki','🌭':'hotdog','🍿':'popcorn','🍰':'ciasto','🎂':'tort',
+  '🍪':'ciastko','🍫':'czekolada','☕':'kawa','🍺':'piwo','🍷':'wino','⚽':'pilka futbol',
+  '🏀':'koszykowka','🎾':'tenis','🏐':'siatkowka','🎱':'bilard','🎯':'tarcza cel','🎲':'kostka',
+  '🚗':'samochod auto','🚌':'autobus','🚑':'karetka','🚒':'straz','🚓':'policja','🏎':'wyscig',
+  '✈':'samolot','🚁':'helikopter','🛸':'ufo','🚲':'rower','🛵':'skuter','⛵':'zaglowka',
+  '🏠':'dom','🏥':'szpital','🏫':'szkola','💻':'laptop','📱':'telefon','⌚':'zegarek',
+  '📷':'aparat','📺':'telewizor','💡':'zarowka','🔑':'klucz','🔒':'zamek','✉':'list email',
+  '🎁':'prezent','🎈':'balon','🎀':'kokarda','💐':'bukiet','💎':'diament','💰':'pieniadze',
+  '❤':'serce milosc','💔':'zlamane serce','💯':'sto procent','✅':'haczyk ok','❌':'krzyzyk x',
+  '⛔':'stop zakaz','⚠':'uwaga','🔴':'czerwone kolo','🟢':'zielone kolo','🔵':'niebieskie kolo',
+  '🐺':'wilk','🦊':'lis','🐝':'pszczola','🦆':'kaczka','🦅':'orzel','🦉':'sowa',
+  '🍉':'arbuz','🍍':'ananas','🥭':'mango','🥝':'kiwi','🥦':'brokul','🥒':'ogorek',
+  '🍣':'sushi','🍝':'makaron','🥘':'patelnia','🍲':'zupa','🍖':'mieso','🐟':'ryba',
+  '🚂':'pociag lokomotywa','🚊':'tramwaj','🚇':'metro','🚢':'statek','⚓':'kotwica',
+  '🌋':'wulkan','⛰':'gora','🏖':'plaza','🌊':'fala morze','🏰':'zamek',
+  '🗽':'wolnosc nowy jork','🗼':'wieza tokyo','🏔':'szczyt gora','🎡':'diabelski mlyn',
+  '🎢':'kolejka rollercoaster','🎪':'cyrk namiot','🎭':'maska teatr','🎬':'klaps film',
+  '🎤':'mikrofon','🎧':'sluchawki','🎸':'gitara','🎹':'pianino','🥁':'beben',
+  '🏆':'puchar trofeum','🥇':'medal zloty','⚖':'waga','🔍':'lupa szukaj','🔭':'teleskop',
+  '🧠':'mozg','💪':'biceps sila','👁':'oko','👄':'usta','👂':'ucho','👅':'jezyk',
+  '👶':'dziecko niemowle','👨':'mezczyzna','👩':'kobieta','👴':'staruszek dziadek','👵':'staruszka babcia',
+  '👼':'aniol','🎅':'mikolaj','🤴':'ksiaze','👸':'ksiezniczka','🧙':'czarodziej',
+  '🧚':'wrozka','🧛':'wampir','🧜':'syrena','💒':'kosciol slub','⛪':'kosciol',
+  '🌧':'deszcz','❄':'snieg sniezynka','☃':'balwan','🌩':'burza','💧':'kropla',
+  '🔮':'kula krysztal','🕯':'swieca','💣':'bomba','🧨':'petarda fajerwerk','⚔':'mecze',
+  '🛡':'tarcza','📚':'ksiazki','📖':'ksiazka','📝':'notatka','✏':'olowek','🖊':'dlugopis'
+};
+
+emojiSearch.oninput = () => {
+  const q = emojiSearch.value.trim().toLowerCase();
+  if (!q) {
+    // Pusty - pokaż aktualną kategorię
+    const list = currentEmojiCategory === 'Wszystkie' ? ALL_EMOJIS : EMOJI_LIBRARY[currentEmojiCategory];
+    renderEmojiGrid(list);
+    return;
+  }
+  // Filtruj po wszystkich
+  const matches = ALL_EMOJIS.filter(em => {
+    const name = (EMOJI_NAMES[em] || '').toLowerCase();
+    return name.includes(q);
+  });
+  renderEmojiGrid(matches);
+};
+
+// Otwieranie modala - przycisk "Wszystkie emotki"
+document.getElementById('btn-emoji-library').onclick = () => {
+  emojiSearch.value = '';
+  currentEmojiCategory = 'Wszystkie';
+  renderEmojiTabs();
+  renderEmojiGrid(ALL_EMOJIS);
+  emojiModal.classList.add('show');
+  // Auto-focus na wyszukiwarce
+  setTimeout(() => emojiSearch.focus(), 50);
+};
+
+// Zamykanie modala
+document.getElementById('emoji-modal-close').onclick = () => {
+  emojiModal.classList.remove('show');
+};
+// Klik w tło też zamyka
+emojiModal.addEventListener('click', (e) => {
+  if (e.target === emojiModal) emojiModal.classList.remove('show');
+});
+// ESC zamyka
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && emojiModal.classList.contains('show')) {
+    emojiModal.classList.remove('show');
+  }
+});
+
+// ============================================================
 // TŁA
 // ============================================================
 const bgGrid = document.getElementById('bg-grid');
@@ -3517,13 +3951,15 @@ const btnErase = document.getElementById('btn-erase');
 
 function setDrawMode(mode) {
   state.drawMode = state.drawMode === mode ? null : mode;
+  // Reset wybranego kształtu gdy wychodzimy z trybu rysowania
+  if (!state.drawMode) state.shapeTool = null;
   btnDraw.classList.toggle('active', state.drawMode === 'draw');
   btnErase.classList.toggle('active', state.drawMode === 'erase');
   scene.classList.toggle('draw-mode', !!state.drawMode);
   if (state.drawMode) {
     state.selectedId = null;
-    render();
   }
+  render();   // zawsze odśwież (zarówno wejście jak wyjście z trybu)
 }
 btnDraw.onclick = () => setDrawMode('draw');
 btnErase.onclick = () => setDrawMode('erase');
@@ -3538,6 +3974,22 @@ let lastPos = null;
 bgCanvas.addEventListener('pointerdown', (e) => {
   if (!state.drawMode) return;
   e.preventDefault();
+  // === RYSOWANIE KSZTAŁTU ===
+  // Gdy mamy aktywny shapeTool, klik+drag tworzy obiekt zamiast malowania pikselami
+  if (state.drawMode === 'draw' && state.shapeTool) {
+    bgCanvas.setPointerCapture(e.pointerId);
+    const p = clientToScene(e.clientX, e.clientY);
+    state.shapeDrawing = true;
+    state.shapeStart = { x: p.x, y: p.y };
+    // Stwórz tymczasowy SVG na scenie - to nasz "preview"
+    const preview = document.createElement('div');
+    preview.id = 'shape-preview';
+    preview.style.cssText = `position:absolute;left:${p.x}px;top:${p.y}px;width:0;height:0;pointer-events:none;z-index:9999;opacity:0.7;`;
+    scene.appendChild(preview);
+    state.shapePreview = preview;
+    return;
+  }
+  // === RYSOWANIE PĘDZLEM (jak było) ===
   bgCanvas.setPointerCapture(e.pointerId);
   resizeCanvas();
   state.drawing = true;
@@ -3545,6 +3997,43 @@ bgCanvas.addEventListener('pointerdown', (e) => {
   lastPos = clientToScene(e.clientX, e.clientY);
 });
 bgCanvas.addEventListener('pointermove', (e) => {
+  // === RYSOWANIE KSZTAŁTU - preview ===
+  if (state.shapeDrawing && state.shapePreview) {
+    e.preventDefault();
+    const p = clientToScene(e.clientX, e.clientY);
+    const sx = state.shapeStart.x;
+    const sy = state.shapeStart.y;
+    let x = Math.min(sx, p.x);
+    let y = Math.min(sy, p.y);
+    let w = Math.abs(p.x - sx);
+    let h = Math.abs(p.y - sy);
+    // Dla kwadratu i koła wymuszamy proporcje 1:1
+    if (state.shapeTool === 'square' || state.shapeTool === 'circle' || state.shapeTool === 'star') {
+      const side = Math.max(w, h);
+      w = side;
+      h = side;
+      // Przy proporcjach kwadratowych - jeśli kursor poszedł "wstecz", przesuń startowo
+      if (p.x < sx) x = sx - side;
+      if (p.y < sy) y = sy - side;
+    }
+    // Aktualizuj preview
+    state.shapePreview.style.left = x + 'px';
+    state.shapePreview.style.top = y + 'px';
+    state.shapePreview.style.width = w + 'px';
+    state.shapePreview.style.height = h + 'px';
+    // Zbuduj SVG preview używając buildShapeSVG
+    const previewItem = {
+      shapeKind: state.shapeTool,
+      shapeWidth: w,
+      shapeHeight: h,
+      fillColor: state.brushColor,
+      strokeColor: '#000000',
+      strokeWidth: 0
+    };
+    state.shapePreview.innerHTML = buildShapeSVG(previewItem);
+    return;
+  }
+  // === RYSOWANIE PĘDZLEM (jak było) ===
   if (!state.drawing) return;
   e.preventDefault();
   const p = clientToScene(e.clientX, e.clientY);
@@ -3566,6 +4055,37 @@ bgCanvas.addEventListener('pointermove', (e) => {
   lastPos = { x, y };
 });
 const stopDraw = () => {
+  // === KOŃCZENIE RYSOWANIA KSZTAŁTU ===
+  if (state.shapeDrawing) {
+    const sx = state.shapeStart.x;
+    const sy = state.shapeStart.y;
+    let x = parseFloat(state.shapePreview.style.left);
+    let y = parseFloat(state.shapePreview.style.top);
+    let w = parseFloat(state.shapePreview.style.width);
+    let h = parseFloat(state.shapePreview.style.height);
+    // Usuń preview
+    state.shapePreview.remove();
+    state.shapePreview = null;
+    state.shapeDrawing = false;
+    state.shapeStart = null;
+    // Sprawdź czy kształt nie jest mikroskopijny (przypadkowy klik)
+    if (w < 8 || h < 8) {
+      return;
+    }
+    // Utwórz obiekt
+    addItem('shape', {
+      shapeKind: state.shapeTool,
+      shapeWidth: Math.round(w),
+      shapeHeight: Math.round(h),
+      fillColor: state.brushColor,
+      strokeColor: '#000000',
+      strokeWidth: 0,
+      x: Math.round(x),
+      y: Math.round(y)
+    });
+    return;
+  }
+  // === KOŃCZENIE RYSOWANIA PĘDZLEM (jak było) ===
   if (state.drawing) {
     state.drawing = false;
     lastPos = null;
@@ -3739,6 +4259,11 @@ function buildExportHTML(title, useEmbeddedImages = false) {
         const w = item.boxWidth || 360;
         const align = item.align || 'left';
         inner = `<div style="width:${w}px;font-family:'${item.font}',serif;font-size:${item.size}px;color:${item.color};font-weight:${item.bold?700:400};line-height:1.5;text-align:${align};white-space:pre-wrap;word-wrap:break-word;overflow-wrap:break-word;">${safe}</div>`;
+      } else if (item.type === 'shape') {
+        // Kształt - SVG inline w div o szerokości × wysokości
+        const w = item.shapeWidth || 100;
+        const h = item.shapeHeight || 100;
+        inner = `<div style="width:${w}px;height:${h}px;display:inline-block;">${buildShapeSVG(item)}</div>`;
       } else if (item.type === 'image') {
         const imgW = item.size;
         const imgH = item.size * 9 / 16;
