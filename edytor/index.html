@@ -2141,17 +2141,17 @@ function renderProps() {
 
   html += `
     <div class="prop-group">
-      <div class="prop-label">Rozmiar: <span id="prop-size-val">${item.size}</span> px</div>
+      <div class="prop-label">Rozmiar: <span id="prop-size-val">${item.size}</span> px <span style="opacity:0.5;font-size:9px;">· 2× klik = reset</span></div>
       <input type="range" id="prop-size" min="10" max="200" value="${item.size}" />
     </div>
 
     <div class="prop-group">
-      <div class="prop-label">Skala: <span id="prop-scale-val">${item.scale.toFixed(2)}</span></div>
+      <div class="prop-label">Skala: <span id="prop-scale-val">${item.scale.toFixed(2)}</span> <span style="opacity:0.5;font-size:9px;">· 2× klik = reset</span></div>
       <input type="range" id="prop-scale" min="0.2" max="5" step="0.05" value="${item.scale}" />
     </div>
 
     <div class="prop-group">
-      <div class="prop-label">Obrót: <span id="prop-rotate-val">${Math.round(item.rotate)}</span>°</div>
+      <div class="prop-label">Obrót: <span id="prop-rotate-val">${Math.round(item.rotate)}</span>° <span style="opacity:0.5;font-size:9px;">· 2× klik = reset</span></div>
       <input type="range" id="prop-rotate" min="-180" max="180" value="${item.rotate}" />
     </div>
 
@@ -2224,6 +2224,14 @@ function renderProps() {
       inner.style.fontSize = item.size + 'px';
       inner.style.color = item.color;
       inner.style.fontWeight = item.bold ? '700' : '400';
+    } else if (item.type === 'textbox') {
+      // Pole tekstowe - aktualizuj style ALE NIE content (żeby nie zniszczyć kursora przy edycji)
+      inner.style.fontFamily = item.font;
+      inner.style.fontSize = item.size + 'px';
+      inner.style.color = item.color;
+      inner.style.fontWeight = item.bold ? '700' : '400';
+      inner.style.textAlign = item.align || 'left';
+      inner.style.width = (item.boxWidth || 360) + 'px';
     } else if (item.type === 'emoji') {
       inner.textContent = item.content;
       inner.style.fontSize = item.size + 'px';
@@ -2250,6 +2258,14 @@ function renderProps() {
     liveUpdateItem();
   };
   document.getElementById('prop-size').onchange = () => pushHistory();
+  // Dwuklik na suwak = reset do wartości domyślnej dla typu
+  document.getElementById('prop-size').ondblclick = () => {
+    const def = item.type === 'text' ? 32 : (item.type === 'textbox' ? 18 : (item.type === 'image' ? 240 : 64));
+    item.size = def;
+    render();
+    pushHistory();
+    toast('↩ Rozmiar zresetowany');
+  };
 
   document.getElementById('prop-scale').oninput = e => {
     item.scale = +e.target.value;
@@ -2257,6 +2273,12 @@ function renderProps() {
     liveUpdateItem();
   };
   document.getElementById('prop-scale').onchange = () => pushHistory();
+  document.getElementById('prop-scale').ondblclick = () => {
+    item.scale = 1;
+    render();
+    pushHistory();
+    toast('↩ Skala zresetowana');
+  };
 
   document.getElementById('prop-rotate').oninput = e => {
     item.rotate = +e.target.value;
@@ -2264,6 +2286,12 @@ function renderProps() {
     liveUpdateItem();
   };
   document.getElementById('prop-rotate').onchange = () => pushHistory();
+  document.getElementById('prop-rotate').ondblclick = () => {
+    item.rotate = 0;
+    render();
+    pushHistory();
+    toast('↩ Obrót zresetowany');
+  };
 
   if (item.type === 'text') {
     document.getElementById('prop-font').onchange = e => { item.font = e.target.value; liveUpdateItem(); pushHistory(); };
