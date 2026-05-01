@@ -279,6 +279,51 @@
   .leaflet-popup-content em{color:#aaa;font-style:italic;font-size:11px;display:block;margin-top:6px;letter-spacing:1px}
   .leaflet-popup-close-button{color:#ff9a3d !important;font-size:20px !important;padding:8px !important}
 
+  /* === WACHLARZ PŁATKÓW (przy specjalnej pinezce) === */
+  .platki-wrapper{
+    position:relative;
+    width:36px;height:36px;
+  }
+  .platek{
+    position:absolute;
+    top:0;left:0;
+    width:36px;height:36px;
+    border-radius:50%;
+    background:rgba(20,20,30,0.95);
+    border:2px solid #ff9a3d;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    cursor:pointer;
+    box-shadow:0 0 16px rgba(255,154,61,0.6),0 4px 12px rgba(0,0,0,0.6);
+    opacity:0;
+    transform:translate(0,0) scale(0.3);
+    pointer-events:none;
+    transition:transform 0.4s cubic-bezier(0.34,1.56,0.64,1), opacity 0.3s ease;
+    z-index:1000;
+  }
+  .platek:hover{
+    background:#ff9a3d;
+    transform:translate(var(--dx),var(--dy)) scale(1.15) !important;
+  }
+  .platek:hover .platek-ikona,
+  .platek:hover .platek-nazwa{color:#000}
+  .platek-ikona{
+    font-size:14px;line-height:1;color:#ff9a3d;
+    transition:color 0.2s;
+  }
+  .platek-nazwa{
+    font-size:7px;font-weight:700;letter-spacing:0.5px;
+    color:#ff9a3d;text-transform:uppercase;margin-top:2px;
+    font-family:'JetBrains Mono',monospace;
+    transition:color 0.2s;
+  }
+
+  /* Stan otwarty - płatki rozsuwają się wachlarzem */
+  .platki-wrapper.open .platek{
+    opacity:1;
+    pointer-events:auto;
+    transform:translate(var(--dx),var(--dy)) scale(1);
+  }
+
   footer{
     text-align:center;margin-top:30px;padding:20px 0;
     color:#555;font-size:11px;font-family:'JetBrains Mono',monospace;letter-spacing:2px;
@@ -414,85 +459,85 @@
 <script>
 const miejsca = [
   // === SAKRALNE ===
-  { nazwa: 'Kościół Matki Bożej Częstochowskiej', pozycja: [51.1943, 23.1628], ikona: '⛪', kategoria: 'sakral',
+  { klucz: 'kosciol', nazwa: 'Kościół Matki Bożej Częstochowskiej', pozycja: [51.1943, 23.1628], ikona: '⛪', kategoria: 'sakral',
     krotki: 'Parafia rzymskokatolicka',
     opis: 'Kościół parafialny w centrum Siedliszcza. Msze święte w niedziele 9:00, 10:30 i 17:00.',
     historia: 'Pierwsza cerkiew w Siedliszczu istniała przed rokiem 1510. W XVI wieku miejsce ścierania się różnych tendencji religijnych — Siedliszcze było ośrodkiem protestanckim.' },
-  { nazwa: 'Kapliczka przy ul. Lubelskiej', pozycja: [51.1824, 23.1742], ikona: '🕯️', kategoria: 'sakral',
+  { klucz: 'kapliczka-lubelska', nazwa: 'Kapliczka przy ul. Lubelskiej', pozycja: [51.1824, 23.1742], ikona: '🕯️', kategoria: 'sakral',
     krotki: 'Tradycyjna kapliczka przydrożna',
     opis: 'Charakterystyczne dla regionu kapliczki przydrożne — element tożsamości polskiej wsi.',
     historia: 'Kapliczki przydrożne stawiano przy rozstajach dróg i wjazdach do miejscowości, jako wyraz wiary i prośby o opiekę nad wędrowcami.' },
-  { nazwa: 'Kapliczka przy ul. Szpitalnej', pozycja: [51.1984, 23.1569], ikona: '🕯️', kategoria: 'sakral',
+  { klucz: 'kapliczka-szpitalna', nazwa: 'Kapliczka przy ul. Szpitalnej', pozycja: [51.1984, 23.1569], ikona: '🕯️', kategoria: 'sakral',
     krotki: 'Kapliczka przydrożna',
     opis: 'Kapliczka przy ul. Szpitalnej w Siedliszczu — jeden z elementów krajobrazu sakralnego miasteczka.',
     historia: 'Liczne kapliczki i krzyże przydrożne w gminie Siedliszcze są pamiątką tradycyjnej kultury sakralnej regionu chełmskiego.' },
-  { nazwa: 'Stare Krzyże przy ul. Lubelskiej', pozycja: [51.1895, 23.1638], ikona: '✝️', kategoria: 'sakral',
+  { klucz: 'krzyze-lubelska', nazwa: 'Stare Krzyże przy ul. Lubelskiej', pozycja: [51.1895, 23.1638], ikona: '✝️', kategoria: 'sakral',
     krotki: 'Historyczne krzyże przydrożne',
     opis: 'Stare krzyże przydrożne przy ul. Lubelskiej — świadectwo dawnej kultury religijnej Siedliszcza.',
     historia: 'Krzyże przydrożne stawiano dla upamiętnienia ważnych wydarzeń, w intencji błogosławieństwa dla mieszkańców lub jako wotum wdzięczności. Stanowią cenne dziedzictwo lokalne.' },
-  { nazwa: 'Kaplica św. Marii Magdaleny w Dobromyśli', pozycja: [51.2317, 23.1920], ikona: '⛪', kategoria: 'sakral',
+  { klucz: 'kaplica-dobromysl', nazwa: 'Kaplica św. Marii Magdaleny w Dobromyśli', pozycja: [51.2317, 23.1920], ikona: '⛪', kategoria: 'sakral',
     krotki: 'Ukryta wśród pól · ocena 5.0⭐',
     opis: 'Kaplica filialna parafii Siedliszcze pod wezwaniem św. Marii Magdaleny. Położona ok. 5 km od Siedliszcza w kierunku Cycowa, ukryta wśród pól i drzew. Świetnie utrzymana przez lokalną społeczność.',
     historia: 'Wspomnienie św. Marii Magdaleny obchodzi się 22 lipca. Miejsce ciche, malowniczo położone z dala od głównych dróg — odwiedzający chwalą atmosferę i staranne dbanie o kapliczkę przez mieszkańców.' },
-  { nazwa: 'Kaplica w Anusinie', pozycja: [51.1703, 23.1434], ikona: '⛪', kategoria: 'sakral',
+  { klucz: 'kaplica-anusin', nazwa: 'Kaplica w Anusinie', pozycja: [51.1703, 23.1434], ikona: '⛪', kategoria: 'sakral',
     krotki: 'Przy drodze Chełm-Lublin',
     opis: 'Kaplica filialna parafii Najświętszej Maryi Panny Częstochowskiej w Siedliszczu. Położona przy drodze krajowej DK12 łączącej Chełm z Lublinem.',
     historia: 'Wieś Anusin (122 mieszkańców) od dawna należy do parafii siedliszczeńskiej — księgi metrykalne odnotowują ją wśród miejscowości parafii już w XIX wieku.' },
 
   // === ZABYTKI ===
-  { nazwa: 'Zespół Pałacowo-Parkowy Węglińskich', pozycja: [51.1976, 23.1729], ikona: '🏰', kategoria: 'zabytek',
+  { klucz: 'palac', nazwa: 'Zespół Pałacowo-Parkowy Węglińskich', pozycja: [51.1976, 23.1729], ikona: '🏰', kategoria: 'zabytek',
     krotki: 'Zabytek z XVIII w.',
     opis: 'Dawna rezydencja Wojciecha Węglińskiego, ostatniego kasztelana chełmskiego. Obecnie funkcjonuje tu Dom Pomocy Społecznej, ale architektura pozostała.',
     historia: 'W 1758 r. Wacław Rzewuski sprzedał Siedliszcze pułkownikowi husarii Wojciechowi Węglińskiemu. Pałac wpisany jest do rejestru zabytków.' },
-  { nazwa: 'Centrum Siedliszcza (rynek)', pozycja: [51.1948, 23.1638], ikona: '⭐', kategoria: 'zabytek',
+  { klucz: 'centrum', nazwa: 'Centrum Siedliszcza (rynek)', pozycja: [51.1948, 23.1638], ikona: '⭐', kategoria: 'zabytek',
     krotki: 'Promienisty układ ulic',
     opis: 'Charakterystyczny układ ulic rozchodzących się promieniście od centrum — pamiątka po czasach kiedy Siedliszcze było miasteczkiem (1760-1821).',
     historia: 'Taki układ urbanistyczny stosowano w czasach baroku — wyznaczał on dawną wagę miejscowości jako ośrodka handlowego i administracyjnego.' },
-  { nazwa: 'Stary młyn', pozycja: [51.1954, 23.1656], ikona: '🌾', kategoria: 'zabytek',
+  { klucz: 'mlyn', nazwa: 'Stary młyn', pozycja: [51.1954, 23.1656], ikona: '🌾', kategoria: 'zabytek',
     krotki: 'Dawny młyn w Siedliszczu',
     opis: 'Pozostałość po dawnym młynie — element gospodarczego dziedzictwa miasteczka. Młyny były ważnym ośrodkiem życia społecznego dawnych miasteczek.',
     historia: 'Młynarstwo to jedno z najstarszych rzemiosł — w okresie kiedy Siedliszcze było miasteczkiem (1760-1821) młyny stanowiły kluczowy element gospodarki lokalnej.' },
-  { nazwa: 'Zamczysko', pozycja: [51.2097, 23.1733], ikona: '🏰', kategoria: 'zabytek',
+  { klucz: 'zamczysko', nazwa: 'Zamczysko', pozycja: [51.2097, 23.1733], ikona: '🏰', kategoria: 'zabytek',
     krotki: 'Pozostałości dawnego założenia obronnego',
     opis: 'Miejsce zwane „Zamczyskiem" — historyczna lokalizacja związana z dawnym założeniem obronnym lub dworem. Lokalna nazwa wskazująca na średniowieczne lub wczesnonowożytne korzenie.',
     historia: 'Nazwa „Zamczysko" w polskiej toponimii zwykle oznacza miejsce dawnego zamku, dworu obronnego lub grodu — często bez zachowanej dziś budowli, ale z czytelnym układem terenu.' },
-  { nazwa: 'Zespół dworsko-parkowy w Chojnie Nowym', pozycja: [51.1740, 23.0862], ikona: '🏛️', kategoria: 'zabytek',
+  { klucz: 'chojno-nowe', nazwa: 'Zespół dworsko-parkowy w Chojnie Nowym', pozycja: [51.1740, 23.0862], ikona: '🏛️', kategoria: 'zabytek',
     krotki: 'XIX w.',
     opis: 'Zabytkowy zespół dworsko-parkowy w Chojnie Nowym — jedna z większych miejscowości gminy Siedliszcze. Element krajobrazu kulturowego regionu.',
     historia: 'Na terenie gminy Siedliszcze zachowało się osiem parków podworskich. Najcenniejsze z nich (w tym Chojno Nowe) wpisane są do rejestru zabytków.' },
-  { nazwa: 'Ogród folwarczny w Mogilnicy', pozycja: [51.2049, 23.2283], ikona: '🌿', kategoria: 'zabytek',
+  { klucz: 'mogilnica', nazwa: 'Ogród folwarczny w Mogilnicy', pozycja: [51.2049, 23.2283], ikona: '🌿', kategoria: 'zabytek',
     krotki: 'XVI w. · najstarszy w gminie',
     opis: 'Najstarszy zabytek krajobrazowy w gminie Siedliszcze — XVI-wieczny ogród folwarczny w Mogilnicy. Mogilnica to typowa wieś o układzie liniowym, z 193 mieszkańcami.',
     historia: 'Założenie ogrodów folwarcznych w XVI w. wiązało się z rozwojem gospodarki folwarcznej w I Rzeczypospolitej.' },
 
   // === PRZYRODA ===
-  { nazwa: 'Zalew Majdan Zahorodyński', pozycja: [51.2278, 23.1418], ikona: '🏖️', kategoria: 'przyroda',
+  { klucz: 'zalew', nazwa: 'Zalew Majdan Zahorodyński', pozycja: [51.2278, 23.1418], ikona: '🏖️', kategoria: 'przyroda',
     krotki: 'Plaża, kąpielisko, kemping',
     opis: 'Spokojne kąpielisko z piaszczystą plażą, ratownikiem (w sezonie) i miejscami do wędkowania. Można rozbić namiot lub przyjechać kamperem. Czysta i ciepła woda.',
     historia: 'Sztuczny zbiornik utworzony na potrzeby rolnicze i rekreacyjne. Średnia ocena gości: 4.5⭐' },
-  { nazwa: 'Chełmski Obszar Chronionego Krajobrazu', pozycja: [51.2150, 23.2000], ikona: '🌲', kategoria: 'przyroda',
+  { klucz: 'chok', nazwa: 'Chełmski Obszar Chronionego Krajobrazu', pozycja: [51.2150, 23.2000], ikona: '🌲', kategoria: 'przyroda',
     krotki: 'Otulina parku krajobrazowego',
     opis: 'Dwie trzecie gminy Siedliszcze leży w granicach Chełmskiego OChK (utworzony 1983 r., 30 420 ha). Charakterystyczne pagóry kredowe i rozległe torfowiska.',
     historia: 'Stanowi otulinę Chełmskiego Parku Krajobrazowego. Chroni krajobrazy Pagórów Chełmskich z masywnymi wyniosłościami z margli kredowych.' },
-  { nazwa: 'Torfowiska gminy', pozycja: [51.1850, 23.0950], ikona: '🌾', kategoria: 'przyroda',
+  { klucz: 'torfowiska', nazwa: 'Torfowiska gminy', pozycja: [51.1850, 23.0950], ikona: '🌾', kategoria: 'przyroda',
     krotki: 'Pozostałości dawnych torfowisk',
     opis: 'Najcenniejszym elementem przyrody Siedliszcza są pozostałości dawniej rozległych torfowisk. Występują tu wszystkie typy torfowisk niskich, w tym węglanowe.',
     historia: 'Torfowiska węglanowe regionu chełmskiego są unikatowe w skali Europy — żyje na nich ponad 800 gatunków motyli (38% wszystkich w Polsce!).' },
-  { nazwa: 'Popski Las', pozycja: [51.1620, 23.1700], ikona: '🌳', kategoria: 'przyroda',
+  { klucz: 'popski-las', nazwa: 'Popski Las', pozycja: [51.1620, 23.1700], ikona: '🌳', kategoria: 'przyroda',
     krotki: 'Obszar leśny w południowej części gminy',
     opis: 'Jeden z większych obszarów leśnych w gminie Siedliszcze, położony w jej południowej części.',
     historia: 'Lasy zajmują tylko 3% powierzchni gminy — to dlatego każdy zachowany kompleks leśny ma duże znaczenie dla bioróżnorodności.' },
 
   // === INSTYTUCJE ===
-  { nazwa: 'Urząd Miejski', pozycja: [51.1963, 23.1603], ikona: '🏛️', kategoria: 'urzad',
+  { klucz: 'urzad', nazwa: 'Urząd Miejski', pozycja: [51.1963, 23.1603], ikona: '🏛️', kategoria: 'urzad',
     krotki: 'ul. Szpitalna 15a',
     opis: 'Siedziba władz gminy Siedliszcze. Burmistrz: Hieronim Zonik. Czynne pn-pt 7:00-15:00.',
     historia: 'Siedliszcze odzyskało prawa miejskie w 2016 roku — po ponad 200 latach przerwy (od 1821 r.).' },
-  { nazwa: 'Bezek', pozycja: [51.1750, 23.1300], ikona: '🏘️', kategoria: 'urzad',
+  { klucz: 'bezek', nazwa: 'Bezek', pozycja: [51.1750, 23.1300], ikona: '🏘️', kategoria: 'urzad',
     krotki: 'Druga co do wielkości wieś',
     opis: 'Jedna z najludniejszych miejscowości gminy — typowy układ liniowy zabudowy wzdłuż drogi.',
     historia: 'Bezek wraz z Mogielnicą i Majdanem Zahorodyńskim mają charakterystyczny dla regionu układ "ulicówki".' },
-  { nazwa: 'Wola Korybutowa', pozycja: [51.2100, 23.0900], ikona: '🌾', kategoria: 'urzad',
+  { klucz: 'wola-korybutowa', nazwa: 'Wola Korybutowa', pozycja: [51.2100, 23.0900], ikona: '🌾', kategoria: 'urzad',
     krotki: 'Historyczna wieś szlachecka',
     opis: 'Zachodnia część gminy. W XVI w. wieś Siedliszcze Korybutowe wraz z Janowicą tworzyły osobne dobra szlacheckie.',
     historia: 'Nazwa od rodu Korybutów. Pierwsze wzmianki z 1564 roku — wsie Siedliszcze Korybutowe i Siedliszcze Episkopales.' }
@@ -520,14 +565,126 @@ function ikonaMarkera(emoji) {
   });
 }
 
+// === SPECJALNA IKONA Z WACHLARZEM PŁATKÓW ===
+// Główna pinezka + 3 płatki ukryte, rozwijają się po kliknięciu
+function ikonaSpecjalna(emoji, idMarkera) {
+  // Pozycje płatków: lewo (-60, -10), góra (0, -70), prawo (60, -10)
+  const platki = [
+    { ikona: '📜', nazwa: 'Opis',    dx: -60, dy: -10, akcja: 'opis' },
+    { ikona: '📷', nazwa: 'Zdjęcie', dx:   0, dy: -70, akcja: 'zdjecie' },
+    { ikona: '🎲', nazwa: '3D',      dx:  60, dy: -10, akcja: 'd3' }
+  ];
+
+  const platkiHTML = platki.map(p => `
+    <div class="platek"
+         style="--dx:${p.dx}px;--dy:${p.dy}px"
+         onclick="event.stopPropagation();otworzPlatek('${idMarkera}','${p.akcja}')">
+      <span class="platek-ikona">${p.ikona}</span>
+      <span class="platek-nazwa">${p.nazwa}</span>
+    </div>
+  `).join('');
+
+  return L.divIcon({
+    className: 'custom-marker-wrapper',
+    html: `
+      <div class="platki-wrapper" id="${idMarkera}">
+        ${platkiHTML}
+        <div onclick="event.stopPropagation();togglePlatki('${idMarkera}')"
+             style="position:relative;background:#ff9a3d;width:36px;height:36px;border-radius:50%;
+          border:3px solid #1a0f2e;box-shadow:0 0 16px rgba(255,154,61,0.8),0 0 4px rgba(0,0,0,0.8);
+          display:flex;align-items:center;justify-content:center;font-size:18px;cursor:pointer;
+          transition:transform 0.2s;z-index:5;"
+          onmouseover="this.style.transform='scale(1.2)'" onmouseout="this.style.transform='scale(1)'">${emoji}</div>
+      </div>`,
+    iconSize: [36, 36], iconAnchor: [18, 18], popupAnchor: [0, -18]
+  });
+}
+
+// Toggle wachlarza
+function togglePlatki(id) {
+  const wrap = document.getElementById(id);
+  if (!wrap) return;
+  // zamknij inne otwarte
+  document.querySelectorAll('.platki-wrapper.open').forEach(w => {
+    if (w.id !== id) w.classList.remove('open');
+  });
+  wrap.classList.toggle('open');
+}
+
+// Akcja po kliknięciu w płatek
+function otworzPlatek(id, akcja) {
+  // znajdź miejsce po id
+  const miejsce = miejsca.find(m => m.id === id);
+  if (!miejsce) return;
+
+  // zamknij wachlarz
+  const wrap = document.getElementById(id);
+  if (wrap) wrap.classList.remove('open');
+
+  let tresc = '';
+  if (akcja === 'opis') {
+    tresc = `<b>${miejsce.nazwa}</b>${miejsce.opis}<em>📜 ${miejsce.historia}</em>`;
+  } else if (akcja === 'zdjecie') {
+    // Próbujemy pokazać zdjęcie. Plik powinien być w mapa/img/<klucz>.jpg
+    // Jeśli plik nie istnieje, JS automatycznie pokaże placeholder (onerror)
+    const sciezka = `img/${miejsce.klucz}.jpg`;
+    tresc = `<b>${miejsce.nazwa}</b>
+      <div style="text-align:center;padding:4px 0;">
+        <img src="${sciezka}"
+             alt="${miejsce.nazwa}"
+             style="max-width:280px;width:100%;border-radius:8px;border:1px solid rgba(255,154,61,0.3);box-shadow:0 4px 12px rgba(0,0,0,0.5);display:block;margin:0 auto"
+             onerror="this.parentElement.innerHTML='<div style=\\'padding:20px 0;color:#888;font-size:12px\\'><div style=\\'font-size:48px;margin-bottom:10px\\'>📷</div><em style=\\'font-style:italic;letter-spacing:0;color:#aaa;text-transform:none\\'>Tu pojawi się zdjęcie miejsca.<br>Wkrótce dodamy galerię!</em></div>'">
+      </div>`;
+  } else if (akcja === 'd3') {
+    tresc = `<b>${miejsce.nazwa}</b>
+      <div style="text-align:center;padding:20px 0;color:#888;font-size:12px">
+        <div style="font-size:48px;margin-bottom:10px;animation:obrot 3s linear infinite;display:inline-block">🎲</div>
+        <em style="font-style:italic;letter-spacing:0;color:#aaa;text-transform:none">
+          Widok 3D — w przygotowaniu.<br>
+          Niedługo zobaczysz to miejsce w 3D!
+        </em>
+      </div>
+      <style>@keyframes obrot{from{transform:rotateY(0deg)}to{transform:rotateY(360deg)}}</style>`;
+  }
+
+  L.popup({ className: 'custom-popup' })
+    .setLatLng(miejsce.pozycja)
+    .setContent(tresc)
+    .openOn(mapa);
+}
+
 const markery = [];
 const listaEl = document.getElementById('lista-miejsc');
 
-miejsca.forEach((miejsce) => {
-  const marker = L.marker(miejsce.pozycja, { icon: ikonaMarkera(miejsce.ikona) })
-    .addTo(mapa)
-    .bindPopup(`<b>${miejsce.nazwa}</b>${miejsce.opis}<em>📜 ${miejsce.historia}</em>`);
+// Lista nazw miejsc, które mają mieć specjalny wachlarz płatków
+// (wszystkie zabytki + Centrum)
+const specjalneMarkery = [
+  'Centrum Siedliszcza (rynek)',
+  'Zespół Pałacowo-Parkowy Węglińskich',
+  'Stary młyn',
+  'Zamczysko',
+  'Zespół dworsko-parkowy w Chojnie Nowym',
+  'Ogród folwarczny w Mogilnicy'
+];
+
+miejsca.forEach((miejsce, idx) => {
+  // generujemy unikalne id dla każdego miejsca (do referencji z płatków)
+  miejsce.id = 'marker-' + idx;
+
+  let marker;
+  if (specjalneMarkery.includes(miejsce.nazwa)) {
+    // SPECJALNA pinezka z wachlarzem płatków
+    marker = L.marker(miejsce.pozycja, { icon: ikonaSpecjalna(miejsce.ikona, miejsce.id) })
+      .addTo(mapa);
+    // dla niej nie używamy bindPopup — popup otwiera się przez płatki
+  } else {
+    // ZWYKŁA pinezka z popupem
+    marker = L.marker(miejsce.pozycja, { icon: ikonaMarkera(miejsce.ikona) })
+      .addTo(mapa)
+      .bindPopup(`<b>${miejsce.nazwa}</b>${miejsce.opis}<em>📜 ${miejsce.historia}</em>`);
+  }
   marker.kategoria = miejsce.kategoria;
+  marker.miejsce = miejsce;
   markery.push(marker);
 
   const card = document.createElement('div');
@@ -538,9 +695,23 @@ miejsca.forEach((miejsce) => {
     <div class="opis">${miejsce.krotki}</div>`;
   card.onclick = () => {
     mapa.flyTo(miejsce.pozycja, 16, { duration: 1.2 });
-    setTimeout(() => marker.openPopup(), 1300);
+    setTimeout(() => {
+      if (specjalneMarkery.includes(miejsce.nazwa)) {
+        // dla specjalnych - rozwijamy wachlarz
+        togglePlatki(miejsce.id);
+      } else {
+        marker.openPopup();
+      }
+    }, 1300);
   };
   listaEl.appendChild(card);
+});
+
+// Zamykanie wachlarza po kliknięciu w mapę (nie w pinezkę)
+// Łączymy z pokazywaniem współrzędnych
+mapa.on('click', function(e) {
+  // Zamknij ewentualnie otwarty wachlarz
+  document.querySelectorAll('.platki-wrapper.open').forEach(w => w.classList.remove('open'));
 });
 
 // === FILTRY KATEGORII ===
