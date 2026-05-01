@@ -63,6 +63,17 @@
     padding: 12px;
   }
   .section { margin-bottom: 18px; }
+  /* Tryb edycji obszaru wokół sceny — sekcja TŁA dostaje wyraźne obramowanie */
+  .section.wrap-edit-active {
+    border: 2px solid #fbbf24;
+    border-radius: 6px;
+    padding: 8px;
+    background: rgba(251, 191, 36, 0.05);
+    box-shadow: 0 0 12px rgba(251, 191, 36, 0.25);
+  }
+  .section.wrap-edit-active .section-title {
+    color: #fbbf24;
+  }
   .section-title {
     font-size: 10px;
     text-transform: uppercase;
@@ -133,11 +144,12 @@
   /* ========== ŚRODEK — canvas/scena ========== */
   #canvas-wrap {
     background: #0a0a0f;
-    overflow: hidden;
+    overflow-x: hidden;
+    overflow-y: auto;
     position: relative;
     display: flex;
     align-items: center;
-    justify-content: center;
+    justify-content: safe center;
     padding: 24px;
   }
   #scene {
@@ -266,6 +278,9 @@
     background: #16161d;
     border-left: 1px solid #2a2a35;
     overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    max-height: calc(100vh - 48px);
+    min-height: 0;
     padding: 12px;
   }
   .prop-group { margin-bottom: 14px; }
@@ -1098,8 +1113,8 @@
     <div class="emoji-pad" id="quick-emoji-pad"></div>
   </div>
 
-  <div class="section">
-    <div class="section-title">Tła</div>
+  <div class="section" id="section-tla">
+    <div class="section-title" id="section-tla-title">Tła</div>
     <div class="bg-grid" id="bg-grid"></div>
     <div style="margin-top:8px;">
       <div class="prop-label">Własny kolor tła</div>
@@ -1126,7 +1141,7 @@
 </div>
 
 <!-- ===== PRAWY PANEL: WŁAŚCIWOŚCI ===== -->
-<div id="right-panel" id="props-panel">
+<div id="right-panel">
   <div id="props-content">
     <div class="empty-state">
       ← Dodaj element z lewego panelu<br>albo zaznacz coś na scenie,<br>żeby edytować właściwości.
@@ -1214,6 +1229,9 @@ const state = {
   // === Tryb układu strony ===
   layoutMode: false,
   canvasFormat: 'slide43',    // domyślnie 4:3 — pasuje do dotychczasowych projektów
+  // === Kolor obszaru wokół sceny (letterbox) ===
+  wrapBgColor: '#000000',     // kolor czarnego obszaru wokół sceny w eksporcie + edytorze
+  wrapEditMode: false,        // gdy true, panel TŁA edytuje wrapBgColor zamiast tła sceny
   // === Auto-zmiana poziomów (pokaz slajdów) ===
   autoplayOn: false,          // czy włączona automatyczna zmiana poziomów
   autoplaySeconds: 3,         // co ile sekund zmieniać
@@ -1286,9 +1304,16 @@ const bgCtx = bgCanvas.getContext('2d');
 
 function resizeCanvas() {
   // Skalowanie sceny — działa dla WSZYSTKICH formatów i WSZYSTKICH ekranów.
-  // Logiczne wymiary sceny biorę ze state.canvasFormat (np. 1080×1080 dla kwadratu).
-  // Skala = min(dostępna_szer/szer_logiczna, dostępna_wys/wys_logiczna), ograniczona do 1.
-  const fmt = (typeof getCurrentFormat === 'function') ? getCurrentFormat() : { width: 800, height: 600 };
+  // Wymiary biorę z CSS variables (--canvas-w, --canvas-h) — działa zarówno dla presetów
+  // jak i dla custom rozmiarów wpisanych w panelu Układ.
+  const root = document.documentElement;
+  const cssW = parseInt(getComputedStyle(root).getPropertyValue('--canvas-w'));
+  const cssH = parseInt(getComputedStyle(root).getPropertyValue('--canvas-h'));
+  const fallback = (typeof getCurrentFormat === 'function') ? getCurrentFormat() : { width: 800, height: 600 };
+  const fmt = {
+    width:  (cssW && !isNaN(cssW)) ? cssW : fallback.width,
+    height: (cssH && !isNaN(cssH)) ? cssH : fallback.height
+  };
   const wrap = document.getElementById('canvas-wrap');
   if (wrap && fmt) {
     // Dostępna powierzchnia w canvas-wrap minus padding minus pasek poziomów (~56px) i gap (12px)
@@ -1631,6 +1656,9 @@ function attachItemEvents(el, item) {
 
     e.stopPropagation();
 
+    // Klik w obiekt → wyjdź z trybu edycji obszaru wokół sceny
+    if (state.wrapEditMode) setWrapEditMode(false);
+
     // zaznacz (jeśli jeszcze niezaznaczony) — bez full render(), żeby nie pominąć dragu
     if (state.selectedId !== item.id) {
       const prev = scene.querySelector('.scene-item.selected');
@@ -1764,10 +1792,32 @@ scene.addEventListener('pointerdown', (e) => {
     }
     if (!state.drawMode) {
       state.selectedId = null;
+      // Klik w scenę (poza obiektami) → wyłącz tryb edycji wrap
+      if (state.wrapEditMode) setWrapEditMode(false);
       render();
     }
   }
 });
+
+// ============================================================
+// KLIK W OBSZAR WOKÓŁ SCENY (canvas-wrap) → tryb edycji wrapBg
+// Klikasz w czarny/kolorowy obszar wokół sceny — panel TŁA po lewej
+// zaczyna sterować kolorem tego obszaru zamiast tła sceny.
+// ============================================================
+const canvasWrap = document.getElementById('canvas-wrap');
+if (canvasWrap) {
+  canvasWrap.addEventListener('click', (e) => {
+    // Tylko gdy klik jest w sam canvas-wrap (nie w scenę, nie w scene-frame, nie w pasek poziomów)
+    if (e.target !== canvasWrap) return;
+    // W trybach specjalnych nic nie robimy
+    if (state.drawMode || state.transitionsMode || state.mediaMode || state.layoutMode) return;
+    // Włącz tryb edycji wrap (jeśli nie aktywny) — i odznacz obiekty
+    state.selectedId = null;
+    setWrapEditMode(true);
+    render();
+    toast('🎨 Kliknij kolor po lewej, by zmienić obszar wokół');
+  });
+}
 
 // ============================================================
 // PANEL WŁAŚCIWOŚCI (prawy)
@@ -2239,6 +2289,28 @@ function applyCanvasFormat() {
   setTimeout(resizeCanvas, 50);
 }
 
+// ============================================================
+// KOLOR OBSZARU WOKÓŁ SCENY (letterbox)
+// Klikasz w czarny obszar obok sceny → włącza się tryb edycji
+// i panel TŁA po lewej zaczyna sterować kolorem TEGO obszaru.
+// Klik w obiekt lub scenę → wraca do normalnego trybu.
+// ============================================================
+
+function applyWrapBg() {
+  // Stosuje kolor wokół sceny do canvas-wrap (edytor)
+  const wrap = document.getElementById('canvas-wrap');
+  if (wrap) wrap.style.background = state.wrapBgColor;
+}
+
+function setWrapEditMode(on) {
+  state.wrapEditMode = on;
+  // Wizualne potwierdzenie — sekcja TŁA dostaje obramowanie + zmienia tytuł
+  const tlaSection = document.getElementById('section-tla');
+  const tlaTitle   = document.getElementById('section-tla-title');
+  if (tlaSection) tlaSection.classList.toggle('wrap-edit-active', on);
+  if (tlaTitle)   tlaTitle.textContent = on ? 'TŁA — edycja obszaru wokół' : 'TŁA';
+}
+
 function toggleLayoutMode(force) {
   const next = (force === undefined) ? !state.layoutMode : force;
   state.layoutMode = next;
@@ -2289,6 +2361,18 @@ function renderLayoutPanel() {
 
   c.innerHTML = `
     <div class="layout-card">
+      <h4>📏 Wymiary sceny</h4>
+      <p>Wpisz dowolne wymiary w pikselach (100–5000). Po zamknięciu/otwarciu projektu wraca do formatu 4:3.</p>
+      <div style="display:flex;gap:6px;align-items:center;margin-bottom:8px;">
+        <input type="number" id="custom-w" min="100" max="5000" placeholder="Szerokość" style="flex:1;">
+        <span style="color:#707080;font-size:12px;">×</span>
+        <input type="number" id="custom-h" min="100" max="5000" placeholder="Wysokość" style="flex:1;">
+      </div>
+      <button class="btn-go" id="custom-apply">✓ Zastosuj wymiary</button>
+      <p id="custom-current" style="font-size:10px;color:#888;margin-top:6px;margin-bottom:0;text-align:center;"></p>
+    </div>
+
+    <div class="layout-card">
       <h4>📐 Format strony</h4>
       <p>Wybierz proporcje sceny. Dotyczy <strong>wszystkich poziomów</strong> w projekcie. Obiekty zostaną zachowane (jeśli wyjdą poza nowe granice, możesz je przeciągnąć z powrotem).</p>
       <div class="format-grid">${cards}</div>
@@ -2335,6 +2419,55 @@ function renderLayoutPanel() {
       toast(`📐 Format: ${newFmt.name}`);
       renderLayoutPanel();   // odśwież podświetlenie aktywnego
     };
+  });
+
+  // === Custom wymiary — pola na górze panelu ===
+  // Pokazuję aktualne wymiary sceny (z CSS variables ustawionych przez applyCanvasFormat)
+  const root = document.documentElement;
+  const curW = parseInt(getComputedStyle(root).getPropertyValue('--canvas-w')) || getCurrentFormat().width;
+  const curH = parseInt(getComputedStyle(root).getPropertyValue('--canvas-h')) || getCurrentFormat().height;
+  const curInfo = c.querySelector('#custom-current');
+  if (curInfo) curInfo.textContent = `Aktualny rozmiar sceny: ${curW} × ${curH} px`;
+
+  const inputW = c.querySelector('#custom-w');
+  const inputH = c.querySelector('#custom-h');
+  const btnApply = c.querySelector('#custom-apply');
+
+  // Wstępnie wpisuję aktualne wartości w pola — żeby user widział od czego startuje
+  if (inputW) inputW.value = curW;
+  if (inputH) inputH.value = curH;
+
+  function applyCustom() {
+    let w = parseInt(inputW.value);
+    let h = parseInt(inputH.value);
+    if (!w || !h || isNaN(w) || isNaN(h)) {
+      toast('⚠ Wpisz oba wymiary');
+      return;
+    }
+    // Klamrowanie do 100–5000 px
+    w = Math.max(100, Math.min(5000, w));
+    h = Math.max(100, Math.min(5000, h));
+    inputW.value = w;
+    inputH.value = h;
+
+    // Ustawiam wymiary BEZPOŚREDNIO przez CSS variables — bez ruszania state.canvasFormat
+    // → po zapisie/otwarciu projektu wraca do 4:3 (zgodnie z planem)
+    root.style.setProperty('--canvas-w', w + 'px');
+    root.style.setProperty('--canvas-h', h + 'px');
+    root.style.setProperty('--canvas-ar', w + ' / ' + h);
+    resizeCanvas();
+    requestAnimationFrame(resizeCanvas);
+    setTimeout(resizeCanvas, 50);
+    render();
+
+    if (curInfo) curInfo.textContent = `Aktualny rozmiar sceny: ${w} × ${h} px`;
+    toast(`📏 Wymiary: ${w} × ${h} px`);
+  }
+
+  if (btnApply) btnApply.onclick = applyCustom;
+  // Enter w polu → zastosuj
+  [inputW, inputH].forEach(inp => {
+    if (inp) inp.onkeydown = (e) => { if (e.key === 'Enter') applyCustom(); };
   });
 
   // Wczytaj bibliotekę z folderu obok edytora (asynchronicznie, nie blokuje panelu)
@@ -2962,6 +3095,13 @@ BG_PRESETS.forEach(bg => {
   sw.style.background = bg.value;
   sw.title = bg.name;
   sw.onclick = () => {
+    if (state.wrapEditMode) {
+      // Tryb edycji obszaru wokół sceny — zapisz kolor i zastosuj do canvas-wrap
+      state.wrapBgColor = bg.value;
+      applyWrapBg();
+      pushHistory();
+      return;
+    }
     currentPage().background = { type: 'gradient', value: bg.value };
     document.querySelectorAll('.bg-swatch').forEach(s => s.classList.remove('active'));
     sw.classList.add('active');
@@ -2973,6 +3113,12 @@ BG_PRESETS.forEach(bg => {
 
 const customBg = document.getElementById('custom-bg');
 customBg.oninput = e => {
+  if (state.wrapEditMode) {
+    // Tryb edycji obszaru wokół sceny
+    state.wrapBgColor = e.target.value;
+    applyWrapBg();
+    return;
+  }
   currentPage().background = { type: 'color', value: e.target.value };
   document.querySelectorAll('.bg-swatch').forEach(s => s.classList.remove('active'));
   render();
@@ -3202,11 +3348,15 @@ function buildExportHTML(title, useEmbeddedImages = false) {
     [data-link] .item-button:hover { filter: brightness(1.15); transform: scale(1.02); transition: all 0.15s; }
   `.trim();
 
-  // Wymiary sceny — z formatu projektu (nie z DOM, żeby uniknąć skalowania na tablecie).
+  // Wymiary sceny — z CSS variables (ustawiane przez applyCanvasFormat lub custom wymiary).
+  // Dzięki temu działa zarówno dla presetów (4:3, 16:9) jak i dla custom px.
   // Wszystkie strony mają ten sam rozmiar.
+  const root = document.documentElement;
+  const cssW = parseInt(getComputedStyle(root).getPropertyValue('--canvas-w'));
+  const cssH = parseInt(getComputedStyle(root).getPropertyValue('--canvas-h'));
   const fmt = getCurrentFormat();
-  const w = fmt.width;
-  const h = fmt.height;
+  const w = (cssW && !isNaN(cssW)) ? cssW : fmt.width;
+  const h = (cssH && !isNaN(cssH)) ? cssH : fmt.height;
 
   // Generuj sekcję per strona
   const sectionsHTML = state.pages.map((page, pageIdx) => {
@@ -3484,7 +3634,7 @@ ${itemsHTML}
 `.trim();
 
   return `<!DOCTYPE html>
-<html lang="pl">
+<html lang="pl"${h > w ? ' class="tall-mode"' : ''}>
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
@@ -3493,7 +3643,7 @@ ${itemsHTML}
   *{box-sizing:border-box;margin:0;padding:0}
   html,body{height:100%;overflow:hidden}
   body{
-    background:#000;
+    background:${state.wrapBgColor || '#000'};
     display:flex;
     align-items:center;
     justify-content:center;
@@ -3514,6 +3664,25 @@ ${itemsHTML}
     overflow:hidden;
     box-shadow:0 12px 48px rgba(0,0,0,0.6);
     display:none;
+  }
+  /* ===== TRYB PIONOWY (h > w) — strona scrolluje jak normalna WWW ===== */
+  /* Aktywowany klasą .tall-mode na <body> — gdy projekt jest wyższy niż szerszy. */
+  body.tall-mode{
+    align-items:flex-start;       /* przyklej do góry, nie centruj pionowo */
+  }
+  html.tall-mode, body.tall-mode{
+    height:auto;                  /* pozwól rosnąć w dół */
+    min-height:100%;
+    overflow-x:hidden;
+    overflow-y:auto;              /* scroll pionowy */
+  }
+  body.tall-mode .page{
+    /* Skaluj do szerokości okna, wysokość liczy się proporcjonalnie.
+       Bez ograniczenia 100vh — strona może być wyższa niż okno. */
+    width:  min(100vw, ${w}px);
+    height: auto;
+    aspect-ratio: var(--canvas-w) / var(--canvas-h);
+    max-height:none;
   }
   /* Płynne przejście (fade) — aktywuje się klasą .fade-enabled na body.
      Strona wyświetlana ma display:block z opacity zarządzanym przez JS. */
@@ -3586,7 +3755,7 @@ ${itemsHTML}
   }
 </style>
 </head>
-<body>
+<body${h > w ? ' class="tall-mode"' : ''}>
 ${sectionsHTML}
 
 <button id="fs-btn" title="Pełny ekran (F lub F11)">⛶ Pełny ekran</button>
@@ -3941,6 +4110,7 @@ function buildProjectData() {
     gridOn: state.gridOn,
     gridSize: state.gridSize,
     canvasFormat: state.canvasFormat,
+    wrapBgColor: state.wrapBgColor,
     autoplayOn: state.autoplayOn,
     autoplaySeconds: state.autoplaySeconds,
     autoplayLoop: state.autoplayLoop,
@@ -4086,6 +4256,13 @@ function loadProject(data) {
     state.canvasFormat = 'slide43';   // domyślnie dla starych projektów
   }
   applyCanvasFormat();
+  // Przywróć kolor obszaru wokół sceny (letterbox)
+  if (typeof data.wrapBgColor === 'string' && /^#[0-9a-fA-F]{6}$/.test(data.wrapBgColor)) {
+    state.wrapBgColor = data.wrapBgColor;
+  } else {
+    state.wrapBgColor = '#000000';   // domyślnie dla starych projektów
+  }
+  applyWrapBg();
   // Przywróć ustawienia auto-zmiany poziomów (tylko jeśli były zapisane)
   if (typeof data.autoplayOn === 'boolean')      state.autoplayOn = data.autoplayOn;
   if (typeof data.autoplaySeconds === 'number')  state.autoplaySeconds = Math.max(1, Math.min(60, data.autoplaySeconds));
@@ -4143,6 +4320,7 @@ document.querySelector('.bg-swatch:nth-child(2)')?.classList.add('active');
 // Zastosuj startowy format sceny — ważne, żeby CSS variables były ustawione
 // zanim render() pokaże scenę.
 applyCanvasFormat();
+applyWrapBg();
 
 render();
 
