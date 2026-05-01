@@ -1301,6 +1301,10 @@ const state = {
   // === Kolor obszaru wokół sceny (letterbox) ===
   wrapBgColor: '#000000',     // kolor czarnego obszaru wokół sceny w eksporcie + edytorze
   wrapEditMode: false,        // gdy true, panel TŁA edytuje wrapBgColor zamiast tła sceny
+  // === Zoom kółkiem myszy ===
+  // Mnożnik: 1 = auto-fit (jak w resizeCanvas), >1 = zbliżenie, <1 = oddalenie.
+  // Tylko wizualne — nie wpływa na eksport, zapisy, eksport HTML itd.
+  userZoom: 1,
   // === Auto-zmiana poziomów (pokaz slajdów) ===
   autoplayOn: false,          // czy włączona automatyczna zmiana poziomów
   autoplaySeconds: 3,         // co ile sekund zmieniać
@@ -1395,6 +1399,8 @@ function resizeCanvas() {
       sc = Math.min(scW, scH, 1);            // nie powiększamy ponad 1:1
       if (sc < 0.1) sc = 0.1;                // bezpiecznik — nie znikamy
     }
+    // Mnożymy przez user zoom (kółko myszy) - może zwiększać ponad 1:1
+    sc = sc * (state.userZoom || 1);
     document.documentElement.style.setProperty('--scene-scale', String(sc));
   }
 
@@ -2012,6 +2018,26 @@ if (canvasWrap) {
     render();
     toast('🎨 Kliknij kolor po lewej, by zmienić obszar wokół');
   });
+
+  // ============================================================
+  // ZOOM KÓŁKIEM MYSZY
+  // Kółko w górę = zbliżenie, w dół = oddalenie. Tylko wizualne (skala wyświetlania).
+  // Mnożnik 1.1 daje dobre tempo. Limit 0.2× – 5× żeby nie znikać/wybuchać.
+  // ============================================================
+  canvasWrap.addEventListener('wheel', (e) => {
+    // Nie ingerujemy w trybie rysowania (tam scroll może być potrzebny do innych rzeczy)
+    if (state.drawMode) return;
+    e.preventDefault();   // blokujemy domyślny scroll strony
+    const delta = e.deltaY;
+    // Współczynnik: ~10% na "tik" kółka. Ujemny delta = w górę = zbliżenie.
+    const factor = delta < 0 ? 1.1 : (1 / 1.1);
+    let z = (state.userZoom || 1) * factor;
+    // Limity
+    if (z < 0.2) z = 0.2;
+    if (z > 5)   z = 5;
+    state.userZoom = z;
+    resizeCanvas();
+  }, { passive: false });
 }
 
 // ============================================================
@@ -2153,6 +2179,14 @@ function renderProps() {
     <div class="prop-group">
       <div class="prop-label">Obrót: <span id="prop-rotate-val">${Math.round(item.rotate)}</span>° <span style="opacity:0.5;font-size:9px;">· 2× klik = reset</span></div>
       <input type="range" id="prop-rotate" min="-180" max="180" value="${item.rotate}" />
+    </div>
+
+    <div class="prop-group">
+      <div class="prop-label">Warstwa <span style="opacity:0.5;font-size:9px;">· pozycja ${currentItems().indexOf(item) + 1} / ${currentItems().length}</span></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
+        <button class="anim-btn" id="prop-layer-up" title="Wyżej (na wierzch)">⬆ Wyżej +</button>
+        <button class="anim-btn" id="prop-layer-down" title="Niżej (pod inne)">⬇ Niżej −</button>
+      </div>
     </div>
 
     <div class="prop-group">
@@ -2333,6 +2367,35 @@ function renderProps() {
   document.querySelectorAll('[data-anim]').forEach(b => {
     b.onclick = () => { item.animation = b.dataset.anim; render(); pushHistory(); };
   });
+
+  // Warstwy - przesuwanie obiektu o 1 w tablicy items
+  // Tablica items[] - element o większym indeksie jest na wierzchu (renderowany później = nad innymi)
+  const btnUp = document.getElementById('prop-layer-up');
+  if (btnUp) btnUp.onclick = () => {
+    const items = currentItems();
+    const i = items.indexOf(item);
+    if (i < 0 || i === items.length - 1) {
+      toast('Już na samej górze');
+      return;
+    }
+    // Zamień miejscami z następnym (idzie wyżej w warstwach)
+    [items[i], items[i + 1]] = [items[i + 1], items[i]];
+    render();
+    pushHistory();
+  };
+  const btnDown = document.getElementById('prop-layer-down');
+  if (btnDown) btnDown.onclick = () => {
+    const items = currentItems();
+    const i = items.indexOf(item);
+    if (i <= 0) {
+      toast('Już na samym dole');
+      return;
+    }
+    // Zamień miejscami z poprzednim (idzie niżej w warstwach)
+    [items[i], items[i - 1]] = [items[i - 1], items[i]];
+    render();
+    pushHistory();
+  };
 
   const clearGoto = document.getElementById('prop-clear-goto');
   if (clearGoto) clearGoto.onclick = () => { item.gotoPage = null; render(); pushHistory(); toast('Przejście usunięte'); };
@@ -2556,6 +2619,8 @@ const btnLayout = document.getElementById('btn-layout');
 
 function applyCanvasFormat() {
   const fmt = getCurrentFormat();
+  // Reset zoomu kółkiem przy zmianie formatu - inaczej obraz może być monstrualnej wielkości
+  state.userZoom = 1;
   // CSS variables na <html> — używane przez #scene i #scene-frame
   const root = document.documentElement;
   root.style.setProperty('--canvas-w', fmt.width + 'px');
