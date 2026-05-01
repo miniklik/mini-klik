@@ -109,6 +109,17 @@
     border-color: #c66818;
     color: #fff;
   }
+  /* Szeroki przycisk (cała szerokość sekcji) - dla "Pole tekstowe" itd. */
+  .tool-btn-wide {
+    width: 100%;
+    flex-direction: row;
+    justify-content: center;
+    gap: 8px;
+    padding: 10px 12px;
+  }
+  .tool-btn-wide .icon {
+    font-size: 16px;
+  }
 
   .emoji-pad {
     display: grid;
@@ -251,6 +262,63 @@
     outline: 2px solid #4dd4ff;
     cursor: text;
   }
+  /* ========== POLE TEKSTOWE (Pole tekstowe / textbox) ========== */
+  /* Pole tekstowe = obiekt z contenteditable, zmienna szerokość, auto-wysokość.
+     W edytorze ma przerywaną ramkę żeby było widać granice. W eksporcie ramki nie ma. */
+  .item-textbox {
+    color: #ffffff;
+    font-size: 18px;
+    font-family: Georgia, serif;
+    font-weight: 400;
+    line-height: 1.5;
+    text-align: left;
+    /* Domyślne wymiary - szerokość ustawia JS, wysokość auto */
+    min-height: 40px;
+    padding: 10px 14px;
+    box-sizing: border-box;
+    /* Przerywana ramka tylko w edytorze */
+    border: 2px dashed rgba(77, 212, 255, 0.5);
+    border-radius: 4px;
+    /* Tekst zawija się, żadnego skrótu nowych linii */
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    cursor: text;
+    /* Outline gdy edytujemy */
+    outline: none;
+  }
+  .item-textbox:focus,
+  .item-textbox[contenteditable="true"]:focus {
+    border-color: #4dd4ff;
+    background: rgba(77, 212, 255, 0.04);
+  }
+  .item-textbox:empty::before {
+    content: attr(data-placeholder);
+    color: rgba(255, 255, 255, 0.4);
+    font-style: italic;
+    pointer-events: none;
+  }
+  /* Boczne uchwyty - tylko dla pól tekstowych (lewy i prawy bok, środek pionowy) */
+  .scene-item .handle.resize-left,
+  .scene-item .handle.resize-right {
+    display: none;
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 14px;
+    height: 36px;
+    background: #4dd4ff;
+    border: 2px solid #fff;
+    border-radius: 4px;
+    cursor: ew-resize;
+    z-index: 10;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+  }
+  .scene-item .handle.resize-left  { left: -7px; }
+  .scene-item .handle.resize-right { right: -7px; }
+  .scene-item.selected .handle.resize-left,
+  .scene-item.selected .handle.resize-right { display: block; }
+
   .item-emoji {
     font-size: 64px;
     line-height: 1;
@@ -1088,6 +1156,7 @@
       <button class="tool-btn" data-add="text"><span class="icon">T</span>Tekst</button>
       <button class="tool-btn" id="btn-grid"><span class="icon">⊞</span>Siatka</button>
     </div>
+    <button class="tool-btn tool-btn-wide" data-add="textbox" style="margin-top:8px;"><span class="icon">📝</span>Pole tekstowe</button>
     <div id="grid-size-wrap" style="display:none;margin-top:8px;">
       <div class="prop-label">Oczko: <span id="grid-size-val">20</span> px</div>
       <input type="range" id="grid-size" min="10" max="80" step="2" value="20" />
@@ -1378,7 +1447,7 @@ function confirmModal(title, msg) {
 function addItem(type, opts = {}) {
   const item = {
     id: state.nextId++,
-    type,                                       // 'text' | 'emoji' | 'image' | 'button'
+    type,                                       // 'text' | 'emoji' | 'image' | 'button' | 'textbox'
     x: 100 + Math.random() * 200,
     y: 100 + Math.random() * 200,
     scale: 1,
@@ -1386,12 +1455,15 @@ function addItem(type, opts = {}) {
     animation: '',
     content: opts.content !== undefined
       ? opts.content
-      : (type === 'text' ? 'Twój tekst' : (type === 'emoji' ? '✨' : '')),
+      : (type === 'text' ? 'Twój tekst' : (type === 'emoji' ? '✨' : (type === 'textbox' ? '' : ''))),
     color: '#ffffff',
-    size: type === 'text' ? 32 : (type === 'image' ? 240 : 64),
+    size: type === 'text' ? 32 : (type === 'image' ? 240 : (type === 'textbox' ? 18 : 64)),
     font: 'Georgia',
-    bold: true,
+    bold: type !== 'textbox',                  // textbox domyślnie nie pogrubiony (jak w Wordzie)
     gotoPage: null,                             // 1-based numer poziomu lub null
+    // === Pole tekstowe (textbox) ===
+    boxWidth: type === 'textbox' ? 360 : null, // szerokość pola w px (wysokość auto)
+    align: type === 'textbox' ? 'left' : null, // 'left'|'center'|'right'|'justify'
     // === Media ===
     link: opts.link || null,
     linkMode: opts.linkMode || 'newtab',
@@ -1456,6 +1528,19 @@ function render() {
       inner.style.fontSize = item.size + 'px';
       inner.style.color = item.color;
       inner.style.fontWeight = item.bold ? '700' : '400';
+    } else if (item.type === 'textbox') {
+      // Pole tekstowe - domyślnie NIE edytowalne (jak zwykły tekst). Dwuklik = edycja.
+      // Szerokość ustawiana przez user, wysokość auto.
+      inner.className = 'item-textbox';
+      inner.dataset.placeholder = 'Kliknij dwa razy i zacznij pisać...';
+      // textContent żeby uniknąć wstawienia HTML z item.content (na tym etapie - czysty tekst)
+      inner.textContent = item.content || '';
+      inner.style.width = (item.boxWidth || 360) + 'px';
+      inner.style.fontFamily = item.font;
+      inner.style.fontSize = item.size + 'px';
+      inner.style.color = item.color;
+      inner.style.fontWeight = item.bold ? '700' : '400';
+      inner.style.textAlign = item.align || 'left';
     } else if (item.type === 'image') {
       // Miniaturka YouTube lub dowolny obrazek
       inner.className = 'item-image';
@@ -1509,8 +1594,15 @@ function render() {
     }
 
     // handles
-    const hRes = document.createElement('div'); hRes.className = 'handle resize'; el.appendChild(hRes);
-    const hRot = document.createElement('div'); hRot.className = 'handle rotate'; el.appendChild(hRot);
+    if (item.type === 'textbox') {
+      // Pole tekstowe ma boczne uchwyty (lewy/prawy) — zmiana szerokości.
+      // Wysokość się dopasuje do treści. Bez rotate.
+      const hL = document.createElement('div'); hL.className = 'handle resize-left';  el.appendChild(hL);
+      const hR = document.createElement('div'); hR.className = 'handle resize-right'; el.appendChild(hR);
+    } else {
+      const hRes = document.createElement('div'); hRes.className = 'handle resize'; el.appendChild(hRes);
+      const hRot = document.createElement('div'); hRot.className = 'handle rotate'; el.appendChild(hRot);
+    }
     const hDel = document.createElement('div'); hDel.className = 'handle delete'; hDel.textContent = '×'; el.appendChild(hDel);
 
     el.style.left = item.x + 'px';
@@ -1573,6 +1665,13 @@ function flushOp() {
     op.item.y = op.pendingY;
   } else if (op.kind === 'resize') {
     applyTransform(op.el, op.item);
+  } else if (op.kind === 'resize-left') {
+    op.el.style.left = op.item.x + 'px';
+    const inner = op.el.querySelector('.item-textbox');
+    if (inner) inner.style.width = op.item.boxWidth + 'px';
+  } else if (op.kind === 'resize-right') {
+    const inner = op.el.querySelector('.item-textbox');
+    if (inner) inner.style.width = op.item.boxWidth + 'px';
   } else if (op.kind === 'rotate') {
     applyTransform(op.el, op.item);
   }
@@ -1615,6 +1714,19 @@ window.addEventListener('pointermove', (e) => {
   } else if (activeOp.kind === 'resize') {
     const dx = p.x - activeOp.startX;
     activeOp.item.scale = Math.max(0.2, Math.min(5, activeOp.startScale + dx / 100));
+  } else if (activeOp.kind === 'resize-left') {
+    // Lewy uchwyt - przesunięcie w prawo zmniejsza pole, w lewo - powiększa
+    const dx = p.x - activeOp.startX;
+    const newWidth = Math.max(80, Math.min(2000, activeOp.startBoxWidth - dx));
+    // Jednocześnie przesuwamy x żeby prawa krawędź została w miejscu
+    const newX = activeOp.startItemX + (activeOp.startBoxWidth - newWidth);
+    activeOp.item.boxWidth = newWidth;
+    activeOp.item.x = newX;
+  } else if (activeOp.kind === 'resize-right') {
+    // Prawy uchwyt - przesunięcie w prawo powiększa pole, w lewo - zmniejsza
+    const dx = p.x - activeOp.startX;
+    const newWidth = Math.max(80, Math.min(2000, activeOp.startBoxWidth + dx));
+    activeOp.item.boxWidth = newWidth;
   } else if (activeOp.kind === 'rotate') {
     const a = Math.atan2(p.y - activeOp.centerY, p.x - activeOp.centerX) * 180 / Math.PI;
     activeOp.item.rotate = activeOp.startRotate + (a - activeOp.startAngleDeg);
@@ -1626,6 +1738,21 @@ window.addEventListener('pointerup',     endOp);
 window.addEventListener('pointercancel', endOp);
 
 function attachItemEvents(el, item) {
+  // ===== DEDYKOWANY DWUKLIK DLA POLA TEKSTOWEGO =====
+  // Uwaga: e.detail===2 w pointerdown bywa zawodny w niektórych przeglądarkach.
+  // Dla textbox używamy oddzielnego listenera 'dblclick' — niezawodny standard.
+  if (item.type === 'textbox') {
+    el.addEventListener('dblclick', (e) => {
+      if (state.drawMode || state.transitionsMode || state.mediaMode) return;
+      if (e.target.classList.contains('handle')) return;
+      const inner = el.firstChild;
+      if (!inner || inner.isContentEditable) return;  // już w edycji
+      e.stopPropagation();
+      e.preventDefault();
+      startTextboxEdit(el, item, inner);
+    });
+  }
+
   // ===== SELECT + DRAG (pointerdown na całym elemencie) =====
   el.addEventListener('pointerdown', (e) => {
     if (state.drawMode) return;
@@ -1674,6 +1801,11 @@ function attachItemEvents(el, item) {
       startTextEdit(el, item, inner);
       return;
     }
+    if (e.detail === 2 && item.type === 'textbox') {
+      // Pole tekstowe - włącz contenteditable, ustaw kursor, podepnij listenery
+      startTextboxEdit(el, item, inner);
+      return;
+    }
     if (e.detail === 2 && item.type === 'button') {
       const def = BUTTON_STYLES.find(s => s.id === item.buttonStyle);
       if (def && def.hasInternalText) {
@@ -1704,8 +1836,8 @@ function attachItemEvents(el, item) {
     };
   });
 
-  // ===== RESIZE =====
-  el.querySelector('.handle.resize').addEventListener('pointerdown', (e) => {
+  // ===== RESIZE (rogowy - tylko dla nie-textbox) =====
+  el.querySelector('.handle.resize')?.addEventListener('pointerdown', (e) => {
     e.stopPropagation();
     el.setPointerCapture(e.pointerId);
     el.classList.add('dragging');
@@ -1720,8 +1852,41 @@ function attachItemEvents(el, item) {
     };
   });
 
-  // ===== ROTATE =====
-  el.querySelector('.handle.rotate').addEventListener('pointerdown', (e) => {
+  // ===== RESIZE BOCZNE (tylko textbox) =====
+  // Uchwyt lewy - przesuwa lewą krawędź pola, zmienia szerokość i pozycję x
+  el.querySelector('.handle.resize-left')?.addEventListener('pointerdown', (e) => {
+    e.stopPropagation();
+    el.setPointerCapture(e.pointerId);
+    el.classList.add('dragging');
+    const p = clientToScene(e.clientX, e.clientY);
+    activeOp = {
+      kind: 'resize-left',
+      el, item,
+      pointerId: e.pointerId,
+      startX: p.x,
+      startBoxWidth: item.boxWidth || 360,
+      startItemX: item.x,
+      rafScheduled: false
+    };
+  });
+  // Uchwyt prawy - przesuwa prawą krawędź, zmienia tylko szerokość
+  el.querySelector('.handle.resize-right')?.addEventListener('pointerdown', (e) => {
+    e.stopPropagation();
+    el.setPointerCapture(e.pointerId);
+    el.classList.add('dragging');
+    const p = clientToScene(e.clientX, e.clientY);
+    activeOp = {
+      kind: 'resize-right',
+      el, item,
+      pointerId: e.pointerId,
+      startX: p.x,
+      startBoxWidth: item.boxWidth || 360,
+      rafScheduled: false
+    };
+  });
+
+  // ===== ROTATE (tylko dla nie-textbox) =====
+  el.querySelector('.handle.rotate')?.addEventListener('pointerdown', (e) => {
     e.stopPropagation();
     el.setPointerCapture(e.pointerId);
     el.classList.add('dragging');
@@ -1769,6 +1934,36 @@ function startTextEdit(el, item, inner) {
     render();
     if (item.content !== before) pushHistory();
   };
+  inner.addEventListener('blur', onBlur);
+}
+
+// Edycja pola tekstowego (textbox) - jak startTextEdit, ale:
+//  - kursor na końcu treści (nie zaznacza wszystkiego), żeby nie kasować przypadkiem przy pisaniu
+//  - allow puste pole (nie podstawia "Tekst")
+//  - input listener żywo aktualizuje item.content
+function startTextboxEdit(el, item, inner) {
+  const before = item.content;
+  inner.setAttribute('contenteditable', 'true');
+  inner.style.cursor = 'text';
+  inner.focus();
+  // Kursor na końcu treści (nie selectAll - żeby przypadkowy klawisz nie skasował)
+  const sel = window.getSelection();
+  const range = document.createRange();
+  range.selectNodeContents(inner);
+  range.collapse(false);   // false = na końcu
+  sel.removeAllRanges();
+  sel.addRange(range);
+  // Live update treści przy każdym wpisaniu
+  const onInput = () => { item.content = inner.textContent || ''; };
+  const onBlur = () => {
+    item.content = inner.textContent || '';
+    inner.removeAttribute('contenteditable');
+    inner.style.cursor = '';
+    inner.removeEventListener('blur', onBlur);
+    inner.removeEventListener('input', onInput);
+    if (item.content !== before) pushHistory();
+  };
+  inner.addEventListener('input', onInput);
   inner.addEventListener('blur', onBlur);
 }
 
@@ -1871,6 +2066,7 @@ function renderProps() {
   // Etykieta typu — różna dla każdego rodzaju
   const typeLabel = (() => {
     if (item.type === 'text')   return 'Tekst';
+    if (item.type === 'textbox') return 'Pole tekstowe';
     if (item.type === 'button') return 'Przycisk';
     if (item.type === 'image') {
       if (item.youtubeId)  return 'Miniaturka YouTube';
@@ -1886,8 +2082,8 @@ function renderProps() {
     </div>
   `;
 
-  // Treść — pokazujemy dla wszystkich oprócz obrazka (zdjęcie/YT nie mają edytowalnej treści)
-  if (item.type !== 'image') {
+  // Treść — pokazujemy dla wszystkich oprócz obrazka i pola tekstowego (textbox edytowany bezpośrednio na scenie)
+  if (item.type !== 'image' && item.type !== 'textbox') {
     html += `
       <div class="prop-group">
         <div class="prop-label">Treść ${item.type === 'text' ? '(podwójny klik na scenie też edytuje)' : ''}</div>
@@ -1909,6 +2105,36 @@ function renderProps() {
       <div class="prop-group">
         <div class="prop-label">Pogrubienie</div>
         <button class="anim-btn ${item.bold?'active':''}" id="prop-bold" style="width:100%">B</button>
+      </div>
+    `;
+  }
+
+  if (item.type === 'textbox') {
+    html += `
+      <div class="prop-group">
+        <div class="prop-label">Czcionka</div>
+        <select id="prop-font">${FONTS.map(f => `<option ${item.font===f?'selected':''}>${f}</option>`).join('')}</select>
+      </div>
+      <div class="prop-group">
+        <div class="prop-label">Kolor tekstu</div>
+        <input type="color" id="prop-color" value="${item.color}" />
+      </div>
+      <div class="prop-group">
+        <div class="prop-label">Pogrubienie</div>
+        <button class="anim-btn ${item.bold?'active':''}" id="prop-bold" style="width:100%">B</button>
+      </div>
+      <div class="prop-group">
+        <div class="prop-label">Wyrównanie</div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px;">
+          <button class="anim-btn ${(item.align||'left')==='left'?'active':''}" data-align="left" title="Do lewej">⬅</button>
+          <button class="anim-btn ${item.align==='center'?'active':''}" data-align="center" title="Środek">⬄</button>
+          <button class="anim-btn ${item.align==='right'?'active':''}" data-align="right" title="Do prawej">➡</button>
+          <button class="anim-btn ${item.align==='justify'?'active':''}" data-align="justify" title="Wyjustuj">☰</button>
+        </div>
+      </div>
+      <div class="prop-group">
+        <div class="prop-label">Szerokość pola: <span id="prop-boxw-val">${item.boxWidth || 360}</span> px</div>
+        <input type="range" id="prop-boxw" min="80" max="2000" step="10" value="${item.boxWidth || 360}" />
       </div>
     `;
   }
@@ -2046,6 +2272,33 @@ function renderProps() {
     propColor.onchange = () => pushHistory();
     // Pogrubienie zmienia stan przycisku — wymaga przebudowy panelu (klasa .active)
     document.getElementById('prop-bold').onclick = () => { item.bold = !item.bold; render(); pushHistory(); };
+  }
+
+  if (item.type === 'textbox') {
+    document.getElementById('prop-font').onchange = e => { item.font = e.target.value; render(); pushHistory(); };
+    const propColor = document.getElementById('prop-color');
+    propColor.oninput = e => { item.color = e.target.value; render(); };
+    propColor.onchange = () => pushHistory();
+    document.getElementById('prop-bold').onclick = () => { item.bold = !item.bold; render(); pushHistory(); };
+    // Wyrównanie - 4 przyciski
+    document.querySelectorAll('[data-align]').forEach(b => {
+      b.onclick = () => { item.align = b.dataset.align; render(); pushHistory(); };
+    });
+    // Szerokość pola - suwak
+    const propBoxw = document.getElementById('prop-boxw');
+    if (propBoxw) {
+      propBoxw.oninput = e => {
+        item.boxWidth = +e.target.value;
+        document.getElementById('prop-boxw-val').textContent = item.boxWidth;
+        // Live update bez pełnego render (zachowuje focus pola tekstowego)
+        const el = scene.querySelector(`.scene-item[data-id="${item.id}"]`);
+        if (el) {
+          const inner = el.querySelector('.item-textbox');
+          if (inner) inner.style.width = item.boxWidth + 'px';
+        }
+      };
+      propBoxw.onchange = () => pushHistory();
+    }
   }
 
   // Animacja zmienia klasę CSS na elemencie scenicznym + przycisk active w panelu — wymaga render()
@@ -3382,11 +3635,17 @@ function buildExportHTML(title, useEmbeddedImages = false) {
       const interactive = item.gotoPage || item.link || item.youtubeId;
       const cursorStyle = interactive ? 'cursor:pointer;' : '';
 
-      // Buduj zawartość (tekst / emotka / obrazek / przycisk)
+      // Buduj zawartość (tekst / emotka / obrazek / przycisk / pole tekstowe)
       let inner;
       if (item.type === 'text') {
         const safe = String(item.content).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
         inner = `<span style="font-family:'${item.font}',serif;font-size:${item.size}px;color:${item.color};font-weight:${item.bold?700:400};text-shadow:0 2px 8px rgba(0,0,0,0.4);white-space:nowrap;display:inline-block;">${safe}</span>`;
+      } else if (item.type === 'textbox') {
+        // Pole tekstowe - div ze stałą szerokością i auto-wysokością. Bez przerywanej ramki.
+        const safe = String(item.content || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
+        const w = item.boxWidth || 360;
+        const align = item.align || 'left';
+        inner = `<div style="width:${w}px;font-family:'${item.font}',serif;font-size:${item.size}px;color:${item.color};font-weight:${item.bold?700:400};line-height:1.5;text-align:${align};white-space:pre-wrap;word-wrap:break-word;overflow-wrap:break-word;">${safe}</div>`;
       } else if (item.type === 'image') {
         const imgW = item.size;
         const imgH = item.size * 9 / 16;
