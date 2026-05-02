@@ -4,901 +4,605 @@
 <meta charset="UTF-8">
 <title>Mini Przygoda Eda • mini-klik</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#fff200">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bungee&family=Outfit:wght@400;700;800;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 
 <style>
-:root {
-    --cyan: #00f7ff;
-    --pink: #ff00c8;
-    --gold: #ffb84d;
-    --sidebar-w: 220px;
-    --guestbook-w: 340px;
-    --topbar-h: 60px;
+:root{
+  --yellow:#fff200;
+  --black:#000;
+  --red:#ff003c;
+  --blue:#0040ff;
+  --green:#00ffaa;
+  --pink:#ff44a8;
+  --gray:#1a1a1a;
 }
 
-* { margin:0; padding:0; box-sizing:border-box; }
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{min-height:100%;overflow-x:hidden}
 
-body {
-    font-family: 'Segoe UI', Arial, sans-serif;
-    background:
-        linear-gradient(180deg,
-            #1a0d3a 0%,
-            #3d1a5a 12%,
-            #7a2a6e 22%,
-            #c94a6e 35%,
-            #ff7a3d 50%,
-            #8a2e5e 70%,
-            #2a1550 85%,
-            #0a0520 100%);
-    background-attachment: fixed;
-    color: #f5e8dc;
-    overflow-x: hidden;
+body{
+  font-family:'Outfit',sans-serif;
+  background:var(--yellow);
+  color:var(--black);
+  position:relative;
+  min-height:100vh;
 }
-
-/* Gwiazdy */
-body::before {
-    content: "";
-    position: fixed;
-    top: 0; left: 0; right: 0;
-    height: 40vh;
-    background-image:
-        radial-gradient(circle 1.5px at 10% 15%, #fff, transparent 2px),
-        radial-gradient(circle 1px at 25% 25%, #fff, transparent 2px),
-        radial-gradient(circle 2px at 40% 10%, #fff5d0, transparent 3px),
-        radial-gradient(circle 1.5px at 55% 30%, #fff, transparent 2px),
-        radial-gradient(circle 1px at 70% 12%, #fff, transparent 2px),
-        radial-gradient(circle 2px at 85% 28%, #ffe6a0, transparent 3px),
-        radial-gradient(circle 1px at 95% 18%, #fff, transparent 2px),
-        radial-gradient(circle 1.5px at 15% 35%, #fff, transparent 2px),
-        radial-gradient(circle 1px at 50% 8%, #fff, transparent 2px);
-    opacity: 0.85;
-    animation: twinkle 4s ease-in-out infinite;
-    pointer-events: none;
-    z-index: -2;
-}
-@keyframes twinkle {
-    0%, 100% { opacity: 0.85; }
-    50% { opacity: 0.4; }
+/* siatka w tle */
+body::before{
+  content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
+  background-image:
+    linear-gradient(0deg,transparent 49%,rgba(0,0,0,0.05) 50%,transparent 51%),
+    linear-gradient(90deg,transparent 49%,rgba(0,0,0,0.05) 50%,transparent 51%);
+  background-size:40px 40px
 }
 
-#spaceCanvas {
-    position: fixed;
-    top: 0; left: 0;
-    width: 100vw;
-    height: 100vh;
-    pointer-events: none;
-    z-index: -1;
+a{color:inherit;text-decoration:none}
+
+/* ===== TOP BAR ===== */
+.topbar{
+  position:sticky;top:0;z-index:100;
+  background:var(--black);color:var(--yellow);
+  border-bottom:4px solid var(--black);
+  padding:14px 24px;
+  display:flex;align-items:center;justify-content:space-between;
+  font-family:'Bungee',sans-serif;
+}
+.topbar .logo{
+  font-size:24px;letter-spacing:-1px;color:var(--yellow);
+  display:flex;align-items:center;gap:8px;
+}
+.topbar .logo .red{color:var(--red)}
+.topbar .logo .blue{color:#5ba3ff}
+.topbar-right{display:flex;align-items:center;gap:10px;font-family:'Outfit',sans-serif;font-weight:900;font-size:13px;text-transform:uppercase}
+.back-link{
+  color:var(--yellow);padding:8px 14px;border:2px solid var(--yellow);
+  transition:all .15s;letter-spacing:1px;
+}
+.back-link:hover{background:var(--yellow);color:var(--black)}
+.mobile-btn{
+  display:none;background:var(--yellow);color:var(--black);border:none;
+  padding:8px 14px;cursor:pointer;font-family:'Outfit',sans-serif;
+  font-weight:900;font-size:13px;letter-spacing:1px;text-transform:uppercase;
+}
+.mobile-btn.hamburger-toggle{font-size:20px;padding:6px 12px}
+
+/* ===== LAYOUT ===== */
+.layout{
+  position:relative;z-index:1;
+  display:grid;
+  grid-template-columns:200px minmax(0,1fr) 300px;
+  gap:0;
+  max-width:1400px;
+  margin:0 auto;
+  min-height:calc(100vh - 60px);
 }
 
-/* === GÓRNY PASEK === */
-.topbar {
-    position: sticky;
-    top: 0;
-    z-index: 100;
-    height: var(--topbar-h);
-    background: rgba(10,10,10,0.96);
-    backdrop-filter: blur(12px);
-    border-bottom: 1px solid var(--cyan);
-    padding: 0 20px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
+/* ===== SIDEBAR ===== */
+.sidebar{
+  background:var(--black);color:var(--yellow);
+  padding:32px 0;
+  border-right:4px solid var(--black);
 }
-.logo {
-    font-size: 24px;
-    font-weight: bold;
-    color: var(--cyan);
-    text-shadow: 0 0 15px var(--cyan);
-    text-decoration: none;
-    transition: text-shadow 0.2s;
+.sidebar-close{
+  display:none;position:absolute;top:14px;right:14px;
+  background:var(--yellow);color:var(--black);border:none;
+  width:36px;height:36px;font-size:22px;font-weight:900;cursor:pointer;
+  font-family:'Outfit',sans-serif;
 }
-.logo:hover {
-    text-shadow: 0 0 25px var(--cyan), 0 0 40px var(--cyan);
+.sidebar-section-title{
+  font-family:'Bungee',sans-serif;font-size:12px;letter-spacing:2px;
+  color:var(--red);padding:0 24px;margin:20px 0 12px;
 }
-.topbar-right {
-    display: flex;
-    align-items: center;
-    gap: 14px;
+.sidebar-section-title:first-of-type{margin-top:0}
+.sidebar a{
+  display:flex;align-items:center;gap:12px;
+  padding:12px 24px;
+  color:var(--yellow);
+  font-weight:700;font-size:15px;letter-spacing:0.5px;
+  transition:all .15s;
+  border-left:4px solid transparent;
+  text-transform:uppercase;
 }
-.back-link {
-    color: #ccc;
-    text-decoration: none;
-    font-size: 0.9rem;
-    padding: 7px 14px;
-    border: 1px solid #333;
-    border-radius: 50px;
-    transition: all 0.2s;
+.sidebar a:hover{
+  background:var(--yellow);color:var(--black);
+  border-left-color:var(--red);
 }
-.back-link:hover {
-    border-color: var(--cyan);
-    color: var(--cyan);
-    box-shadow: 0 0 15px rgba(0,247,255,0.2);
-}
-.mobile-btn {
-    display: none;
-    background: transparent;
-    border: 1px solid #333;
-    color: #ccc;
-    padding: 7px 12px;
-    border-radius: 8px;
-    font-size: 0.85rem;
-    cursor: pointer;
-    transition: all 0.2s;
-}
-.mobile-btn:hover {
-    border-color: var(--cyan);
-    color: var(--cyan);
-}
-.hamburger { font-size: 22px; line-height: 1; }
+.sidebar-icon{font-size:18px;flex-shrink:0;width:24px;text-align:center}
 
-/* === LAYOUT TRZYKOLUMNOWY === */
-.layout {
-    display: grid;
-    grid-template-columns: var(--sidebar-w) 1fr var(--guestbook-w);
-    gap: 0;
-    align-items: start;
-    min-height: calc(100vh - var(--topbar-h));
+/* ===== MAIN ===== */
+.main{
+  background:var(--yellow);
+  padding:28px 24px;
+  border-right:4px solid var(--black);
+  min-width:0;
+  overflow:hidden;
 }
 
-/* === LEWY PASEK NAWIGACJI === */
-.sidebar {
-    position: sticky;
-    top: var(--topbar-h);
-    height: calc(100vh - var(--topbar-h));
-    overflow-y: auto;
-    background: rgba(10,10,10,0.85);
-    backdrop-filter: blur(10px);
-    border-right: 1px solid #1f1f1f;
-    padding: 24px 14px;
+/* HEADER GRY */
+.game-header{
+  border-bottom:4px solid var(--black);
+  padding-bottom:20px;
+  margin-bottom:32px;
 }
-.sidebar-section-title {
-    font-size: 0.7rem;
-    color: var(--cyan);
-    letter-spacing: 2px;
-    margin: 18px 10px 10px;
-    text-transform: uppercase;
-    text-shadow: 0 0 8px var(--cyan), 0 0 14px rgba(0,247,255,0.6);
-    font-weight: 700;
+.game-header h1{
+  font-family:'Bungee',sans-serif;
+  font-size:48px;letter-spacing:-2px;line-height:0.95;
+  color:var(--black);
 }
-.sidebar-section-title:first-child { margin-top: 0; }
-.sidebar a {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 11px 14px;
-    color: #ccc;
-    text-decoration: none;
-    border-radius: 10px;
-    font-weight: 500;
-    font-size: 0.97rem;
-    transition: all 0.2s;
-    margin-bottom: 4px;
+.game-header h1::after{
+  content:'★';color:var(--red);margin-left:14px;font-size:32px;display:inline-block;animation:starSpin 4s linear infinite;
 }
-.sidebar a:hover {
-    background: rgba(0, 247, 255, 0.08);
-    color: var(--cyan);
-    transform: translateX(3px);
+@keyframes starSpin{from{transform:rotate(0)}to{transform:rotate(360deg)}}
+
+/* MARQUEE */
+.marquee{
+  background:var(--black);color:var(--yellow);padding:10px 0;margin:0 -24px 28px;
+  overflow:hidden;border-top:4px solid var(--black);border-bottom:4px solid var(--black);
 }
-.sidebar a.copied {
-    background: rgba(0, 247, 255, 0.18);
-    color: var(--cyan);
-    box-shadow: inset 0 0 12px rgba(0, 247, 255, 0.25);
+.marquee-track{
+  display:flex;gap:48px;white-space:nowrap;
+  animation:marquee 25s linear infinite;
+  font-family:'Bungee',sans-serif;font-size:16px;
 }
-.sidebar-icon {
-    font-size: 1.2rem;
-    width: 22px;
-    text-align: center;
+.marquee-track span::before{content:'★';margin-right:48px;color:var(--red)}
+@keyframes marquee{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+
+/* SECTION */
+.section{
+  background:#fff;
+  border:4px solid var(--black);
+  padding:24px;
+  margin-bottom:24px;
+  position:relative;
+  transition:all .15s;
+  min-width:0;
+}
+.section:hover{transform:translate(-3px,-3px);box-shadow:6px 6px 0 var(--black)}
+.section.player{background:#fff}
+.section.editor{background:var(--green)}
+
+.section h2{
+  font-family:'Bungee',sans-serif;font-size:22px;letter-spacing:0;
+  margin-bottom:18px;line-height:1;
+  display:flex;align-items:center;gap:10px;
 }
 
-/* === ŚRODEK === */
-.main {
-    padding: 30px 32px 40px;
-    min-width: 0;
+/* PLAYER ROW */
+.player-row{
+  display:grid;grid-template-columns:minmax(0,240px) minmax(0,1fr);gap:20px;align-items:start;
+}
+.cover-action{
+  display:block;position:relative;
+  background:var(--black);
+  border:4px solid var(--black);
+  aspect-ratio:16/10;
+  width:100%;
+  overflow:hidden;
+  transition:all .15s;
+}
+.cover-action:hover{transform:translate(-4px,-4px);box-shadow:8px 8px 0 var(--black)}
+.cover-action img{width:100%;height:100%;object-fit:cover;display:block}
+.cover-action.cover-broken{
+  display:flex;align-items:center;justify-content:center;
+  background:var(--blue);color:#fff;
+}
+.cover-play-overlay{
+  position:absolute;inset:0;
+  display:flex;align-items:center;justify-content:center;
+  font-size:80px;color:var(--yellow);
+  text-shadow:4px 4px 0 var(--black);
+  opacity:0;transition:opacity .15s;
+  font-family:'Bungee',sans-serif;
+}
+.cover-action:hover .cover-play-overlay{opacity:1}
+
+.game-desc p{
+  font-size:15px;line-height:1.5;font-weight:500;margin-bottom:10px;
+}
+.game-desc p:last-child{margin-bottom:0}
+
+/* INFO PILLS */
+.info-row{
+  display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0;
+  margin-top:24px;
+  border:4px solid var(--black);
+}
+.info-pill{
+  padding:14px 12px;
+  background:#fff;
+  border-right:4px solid var(--black);
+  text-align:left;
+  min-width:0;
+  overflow:hidden;
+}
+.info-pill:last-child{border-right:none}
+.info-pill:nth-child(1){background:var(--yellow)}
+.info-pill:nth-child(2){background:var(--red);color:#fff}
+.info-pill:nth-child(3){background:var(--blue);color:#fff}
+.pill-label{
+  display:block;font-family:'JetBrains Mono',monospace;font-size:10px;
+  letter-spacing:2px;text-transform:uppercase;font-weight:700;
+  opacity:0.7;margin-bottom:4px;
+}
+.pill-value{
+  font-family:'Bungee',sans-serif;font-size:15px;letter-spacing:0;
+  word-break:break-word;
+  display:block;
+  line-height:1.1;
+}
+.mini-controls{display:inline-flex;gap:4px;align-items:center}
+.mini-key{
+  display:inline-block;padding:3px 8px;
+  background:var(--black);color:var(--yellow);
+  font-family:'Bungee',sans-serif;font-size:13px;
+  border:2px solid var(--black);
+  min-width:24px;text-align:center;
+}
+.info-pill:nth-child(2) .mini-key,
+.info-pill:nth-child(3) .mini-key{
+  background:#fff;color:var(--black);border-color:#fff;
 }
 
-/* === HEADER GRY === */
-.game-header {
-    text-align: center;
-    margin-bottom: 28px;
-    padding: 36px 20px;
-    background: rgba(10,10,10,0.45);
-    border: 1px solid rgba(0,247,255,0.25);
-    border-radius: 16px;
-    backdrop-filter: blur(8px);
+/* ===== GUESTBOOK ===== */
+.guestbook-col{
+  background:var(--black);color:var(--yellow);
+  padding:24px 18px;
+  display:flex;flex-direction:column;
+  min-width:0;
+  overflow:hidden;
 }
-.game-header h1 {
-    font-size: 3.6rem;
-    background: linear-gradient(90deg, #ffd4a0 0%, var(--gold) 30%, #ff7a3d 60%, var(--pink) 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-    filter: drop-shadow(0 4px 30px rgba(255, 120, 70, 0.6));
-    line-height: 1.1;
-    font-weight: 900;
-    letter-spacing: -0.5px;
+.guestbook-close{
+  display:none;position:absolute;top:14px;right:14px;
+  background:var(--yellow);color:var(--black);border:none;
+  width:36px;height:36px;font-size:22px;font-weight:900;cursor:pointer;
+  font-family:'Outfit',sans-serif;
 }
-
-/* === STATYSTYKI === */
-.stats-row {
-    display: flex;
-    gap: 14px;
-    margin-top: 14px;
-    flex-wrap: wrap;
+.guestbook-col h2{
+  font-family:'Bungee',sans-serif;font-size:20px;letter-spacing:0;
+  margin-bottom:6px;color:var(--yellow);
+  display:flex;align-items:center;gap:8px;
 }
-.stat-item {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    background: #111;
-    border: 1px solid #222;
-    border-radius: 50px;
-    padding: 9px 16px;
-    transition: all 0.3s;
-}
-.stat-icon { font-size: 1.2rem; line-height: 1; }
-.stat-content { display: flex; flex-direction: column; line-height: 1.1; }
-.stat-number { font-weight: 700; font-size: 0.95rem; color: #eee; }
-.stat-label { font-size: 0.68rem; color: #666; letter-spacing: 1px; }
-
-.like-btn { cursor: pointer; user-select: none; }
-.like-btn:hover {
-    border-color: #ff4e7e;
-    transform: scale(1.05);
-    box-shadow: 0 0 20px rgba(255,78,126,0.3);
-}
-.like-btn.liked {
-    background: rgba(255,78,126,0.15);
-    border-color: #ff4e7e;
-    box-shadow: 0 0 20px rgba(255,78,126,0.4);
-}
-.like-btn.liked .stat-icon { animation: heartPop 0.4s; }
-@keyframes heartPop {
-    0% { transform: scale(1); }
-    50% { transform: scale(1.4); }
-    100% { transform: scale(1); }
+.guestbook-count{
+  font-family:'JetBrains Mono',monospace;font-size:11px;
+  color:var(--green);letter-spacing:1px;margin-bottom:16px;text-transform:uppercase;
 }
 
-/* === SEKCJE — Game Player i Edytor === */
-.section {
-    margin-bottom: 28px;
-    background: rgba(10,10,10,0.55);
-    border: 1px solid #1f1f1f;
-    border-radius: 14px;
-    padding: 24px;
-    backdrop-filter: blur(8px);
+.comments{
+  flex:1;overflow-y:auto;
+  margin-bottom:16px;
+  display:flex;flex-direction:column;gap:10px;
+  max-height:50vh;
 }
-.section h2 {
-    font-size: 1.3rem;
-    margin-bottom: 18px;
-    display: flex;
-    align-items: center;
-    gap: 10px;
+.comment{
+  background:#1a1a1a;border:2px solid var(--yellow);
+  padding:10px 12px;
+  display:grid;grid-template-columns:36px 1fr;gap:10px;
+  transition:transform .15s;
 }
-.section.player h2 { color: var(--cyan); }
-.section.editor h2 { color: var(--pink); }
-
-/* PLAYER ROW: mała okładka + opis obok */
-.player-row {
-    display: flex;
-    gap: 22px;
-    align-items: flex-start;
-    flex-wrap: wrap;
+.comment:hover{transform:translate(-2px,-2px);box-shadow:4px 4px 0 var(--red)}
+.comment-avatar{
+  width:36px;height:36px;border-radius:0;
+  display:flex;align-items:center;justify-content:center;
+  font-family:'Bungee',sans-serif;font-size:13px;font-weight:700;
 }
-
-/* MAŁA OKŁADKA-PRZYCISK */
-.cover-action {
-    flex-shrink: 0;
-    display: block;
-    width: 160px;
-    height: 160px;
-    border-radius: 14px;
-    overflow: hidden;
-    position: relative;
-    background: linear-gradient(180deg, #2a1550, #5a2a5a);
-    border: 2px solid var(--cyan);
-    box-shadow: 0 0 25px rgba(0,247,255,0.3), inset 0 1px 0 rgba(255,255,255,0.1);
-    text-decoration: none;
-    cursor: pointer;
-    transition: all 0.3s;
-    animation: coverFloat 5s ease-in-out infinite;
+.comment-meta{
+  display:flex;justify-content:space-between;align-items:center;
+  margin-bottom:4px;font-size:11px;
 }
-.cover-action.edit {
-    border-color: var(--pink);
-    box-shadow: 0 0 25px rgba(255,0,200,0.3), inset 0 1px 0 rgba(255,255,255,0.1);
+.comment-author{font-family:'Bungee',sans-serif;font-size:12px}
+.comment-time{
+  font-family:'JetBrains Mono',monospace;color:#888;font-size:10px;
 }
-.cover-action.cover-broken {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-}
-.cover-action img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    transition: transform 0.4s;
-}
-.cover-action:hover {
-    transform: scale(1.05);
-    box-shadow: 0 0 45px rgba(0,247,255,0.6);
-}
-.cover-action.edit:hover {
-    box-shadow: 0 0 45px rgba(255,0,200,0.6);
-}
-.cover-action:hover img {
-    transform: scale(1.08);
+.comment-text{
+  font-size:13px;line-height:1.4;color:#eee;font-weight:500;
+  word-wrap:break-word;overflow-wrap:break-word;
 }
 
-/* OVERLAY ▶ NA OKŁADCE */
-.cover-play-overlay {
-    position: absolute;
-    inset: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 3rem;
-    color: #fff;
-    background: rgba(0,0,0,0.0);
-    opacity: 0;
-    transition: all 0.3s;
-    text-shadow: 0 0 20px var(--cyan), 0 0 40px var(--cyan);
-    pointer-events: none;
+/* GUESTBOOK FORM */
+.guestbook-form{
+  display:flex;flex-direction:column;gap:8px;
+  background:var(--yellow);color:var(--black);
+  padding:14px;border:3px solid var(--yellow);
 }
-.cover-action.edit .cover-play-overlay {
-    text-shadow: 0 0 20px var(--pink), 0 0 40px var(--pink);
+.guestbook-form label{
+  font-family:'Bungee',sans-serif;font-size:13px;letter-spacing:1px;
 }
-.cover-action:hover .cover-play-overlay {
-    opacity: 1;
-    background: rgba(0,0,0,0.45);
+.guestbook-form input,.guestbook-form textarea{
+  background:#fff;border:2px solid var(--black);
+  padding:8px 10px;font-family:'Outfit',sans-serif;font-size:14px;font-weight:600;
+  color:var(--black);width:100%;
+}
+.guestbook-form textarea{
+  min-height:60px;resize:vertical;
+}
+.guestbook-form input:focus,.guestbook-form textarea:focus{
+  outline:none;border-color:var(--red);box-shadow:3px 3px 0 var(--red);
+}
+.char-count{
+  font-family:'JetBrains Mono',monospace;font-size:10px;text-align:right;color:#555;
+}
+.guestbook-form button{
+  background:var(--black);color:var(--yellow);border:none;
+  padding:12px;font-family:'Bungee',sans-serif;font-size:15px;letter-spacing:1px;
+  cursor:pointer;transition:all .15s;
+}
+.guestbook-form button:hover{
+  background:var(--red);transform:translate(-2px,-2px);box-shadow:4px 4px 0 var(--black);
+}
+.guestbook-form button:disabled{opacity:0.6;cursor:not-allowed}
+
+/* ===== FOOTER ===== */
+.footer{
+  position:relative;z-index:1;
+  background:var(--black);color:var(--yellow);
+  padding:32px 24px;border-top:4px solid var(--black);
+  margin-top:0;
+}
+.footer-links{
+  display:flex;justify-content:center;gap:32px;
+  flex-wrap:wrap;margin-bottom:16px;
+}
+.footer-link{
+  display:flex;align-items:center;gap:8px;
+  padding:10px 18px;border:2px solid var(--yellow);
+  font-family:'Bungee',sans-serif;font-size:14px;letter-spacing:1px;
+  transition:all .15s;cursor:pointer;
+}
+.footer-link:hover{
+  background:var(--yellow);color:var(--black);
+  transform:translate(-2px,-2px);box-shadow:4px 4px 0 var(--red);
+}
+.footer-link.copied{background:var(--green);color:var(--black);border-color:var(--green)}
+.footer-link svg{flex-shrink:0}
+.footer-link:hover svg{stroke:var(--black) !important}
+.footer-link:hover svg[fill="#ff0000"]{fill:var(--black)}
+.footer-copy{
+  text-align:center;font-family:'JetBrains Mono',monospace;
+  font-size:11px;letter-spacing:1px;color:var(--yellow);
+}
+.footer-copy a{color:var(--green);text-decoration:none;font-weight:700}
+
+/* ===== BACKDROP ===== */
+.backdrop{
+  display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);
+  z-index:200;
+}
+.backdrop.show{display:block}
+
+/* ============ RESPONSYWNOŚĆ ============ */
+
+/* Średnie ekrany - chowamy księgę pod drawer, sidebar zostaje */
+@media (max-width:1100px){
+  .layout{grid-template-columns:200px minmax(0,1fr)}
+  .guestbook-col{
+    position:fixed;top:0;right:0;height:100vh;width:340px;
+    z-index:300;
+    transform:translateX(100%);
+    transition:transform .3s ease;
+    overflow-y:auto;
+    border-left:4px solid var(--yellow);
+  }
+  .guestbook-col.open{transform:translateX(0)}
+  .guestbook-close{display:flex;align-items:center;justify-content:center}
+  .mobile-btn.guestbook-toggle{display:inline-flex;align-items:center;gap:6px}
+  .game-header h1{font-size:42px}
 }
 
-@keyframes coverFloat {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-4px); }
+/* Małe ekrany - również sidebar pod drawer */
+@media (max-width:768px){
+  .mobile-btn{display:inline-flex;align-items:center;gap:6px}
+  .layout{grid-template-columns:minmax(0,1fr)}
+  .sidebar{
+    position:fixed;top:0;left:0;height:100vh;width:280px;
+    z-index:300;
+    transform:translateX(-100%);
+    transition:transform .3s ease;
+    overflow-y:auto;
+    border-right:4px solid var(--yellow);
+  }
+  .sidebar.open{transform:translateX(0)}
+  .sidebar-close{display:flex;align-items:center;justify-content:center}
+  .main{border-right:none;padding:20px 16px}
+  .marquee{margin:0 -16px 24px}
+  .game-header h1{font-size:32px}
+  .game-header h1::after{font-size:22px}
+  .player-row{grid-template-columns:1fr;gap:16px}
+  .cover-action{aspect-ratio:16/9;max-width:100%}
+  .info-row{grid-template-columns:1fr;border:none}
+  .info-pill{border:4px solid var(--black);border-bottom:none;border-right:none}
+  .info-pill:last-child{border-bottom:4px solid var(--black)}
 }
 
-/* OPIS OBOK OKŁADKI */
-.game-desc {
-    flex: 1;
-    min-width: 240px;
-    color: #cfcfcf;
-    line-height: 1.65;
-    font-size: 0.97rem;
-    padding-top: 4px;
-}
-.game-desc p {
-    margin-bottom: 10px;
-}
-.game-desc p:last-child { margin-bottom: 0; }
-.game-desc-list {
-    list-style: none;
-    padding: 0;
-    margin: 12px 0 0;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-}
-.game-desc-list li {
-    padding: 4px 0 4px 18px;
-    position: relative;
-    line-height: 1.55;
-    font-size: 0.93rem;
-    color: #bbb;
-}
-.game-desc-list li::before {
-    content: "•";
-    position: absolute;
-    left: 4px;
-    color: var(--cyan);
-    font-weight: bold;
-}
-.game-desc b {
-    color: #fff;
-    background: rgba(0, 247, 255, 0.1);
-    padding: 1px 6px;
-    border-radius: 4px;
-    border: 1px solid rgba(0, 247, 255, 0.25);
-    font-weight: 600;
-}
-.section.editor .game-desc b {
-    background: rgba(255, 0, 200, 0.1);
-    border-color: rgba(255, 0, 200, 0.3);
-}
-
-/* INFO POD GRACZEM */
-.info-row {
-    display: flex;
-    gap: 10px;
-    margin-top: 22px;
-    padding-top: 18px;
-    border-top: 1px solid #1f1f1f;
-    flex-wrap: wrap;
-}
-.info-pill {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    padding: 7px 14px;
-    background: rgba(0,0,0,0.3);
-    border: 1px solid #222;
-    border-radius: 50px;
-    font-size: 0.82rem;
-}
-.info-pill .pill-label {
-    color: #888;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    font-size: 0.65rem;
-}
-.info-pill .pill-value { color: #eee; font-weight: 600; }
-.info-pill .pill-value.cyan { color: var(--cyan); }
-.info-pill .pill-value.pink { color: var(--pink); }
-
-.mini-controls {
-    display: inline-flex;
-    gap: 4px;
-    align-items: center;
-}
-.mini-key {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 26px;
-    height: 26px;
-    padding: 0 6px;
-    background: #1f1f1f;
-    border: 1px solid #333;
-    border-bottom: 2px solid #444;
-    border-radius: 5px;
-    font-family: monospace;
-    font-size: 0.78rem;
-    color: var(--cyan);
-    font-weight: 600;
-}
-
-/* === PRAWA KOLUMNA: KSIĘGA GOŚCI === */
-.guestbook-col {
-    position: sticky;
-    top: var(--topbar-h);
-    height: calc(100vh - var(--topbar-h));
-    background: rgba(10,10,10,0.85);
-    backdrop-filter: blur(10px);
-    border-left: 1px solid #1f1f1f;
-    padding: 24px 20px;
-    display: flex;
-    flex-direction: column;
-}
-.guestbook-col h2 {
-    color: var(--cyan);
-    font-size: 1.25rem;
-    margin-bottom: 6px;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-.guestbook-count {
-    color: #555;
-    font-size: 0.78rem;
-    margin-bottom: 16px;
-}
-.comments {
-    flex: 1;
-    overflow-y: auto;
-    margin-bottom: 16px;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    padding-right: 4px;
-    scrollbar-width: thin;
-    scrollbar-color: #333 transparent;
-}
-.comments::-webkit-scrollbar { width: 6px; }
-.comments::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
-.comment {
-    background: #1a1a1a;
-    padding: 12px 14px;
-    border-radius: 10px;
-    border-left: 3px solid var(--cyan);
-    font-size: 0.88rem;
-    display: flex;
-    gap: 10px;
-    align-items: flex-start;
-    animation: fadeIn .4s ease;
-}
-.comment-avatar {
-    flex-shrink: 0;
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 0.7rem;
-    font-weight: 700;
-    letter-spacing: .5px;
-}
-.comment-body { flex: 1; min-width: 0; }
-.comment-meta {
-    display: flex;
-    align-items: baseline;
-    gap: 8px;
-    flex-wrap: wrap;
-    margin-bottom: 4px;
-}
-.comment-author { font-weight: 600; font-size: 0.85rem; }
-.comment-time { font-size: 0.68rem; color: #444; }
-.comment-text {
-    color: #ccc;
-    line-height: 1.5;
-    word-break: break-word;
-    font-size: 0.85rem;
-}
-
-.guestbook-form {
-    background: #161616;
-    border: 1px solid #2a2a2a;
-    border-radius: 10px;
-    padding: 14px;
-}
-.guestbook-form label {
-    display: block;
-    color: #777;
-    font-size: 0.7rem;
-    letter-spacing: .5px;
-    margin-bottom: 8px;
-}
-.guestbook-form input,
-.guestbook-form textarea {
-    width: 100%;
-    background: #1f1f1f;
-    border: 1px solid #333;
-    color: #eee;
-    padding: 10px 12px;
-    border-radius: 8px;
-    font-size: 0.88rem;
-    margin-bottom: 8px;
-    font-family: inherit;
-}
-.guestbook-form textarea { resize: vertical; min-height: 70px; }
-.guestbook-form button {
-    width: 100%;
-    padding: 10px;
-    background: var(--cyan);
-    color: black;
-    border: none;
-    border-radius: 8px;
-    font-weight: bold;
-    cursor: pointer;
-    font-size: 0.88rem;
-    transition: all 0.2s;
-}
-.guestbook-form button:hover { box-shadow: 0 0 18px rgba(0,247,255,0.5); }
-.char-count {
-    font-size: 0.7rem;
-    color: #555;
-    text-align: right;
-    margin-top: -4px;
-    margin-bottom: 6px;
-}
-
-/* === STOPKA === */
-.footer {
-    border-top: 1px solid #1a1a1a;
-    background: rgba(10,10,10,0.85);
-    backdrop-filter: blur(10px);
-    padding: 30px 20px;
-    text-align: center;
-}
-.footer-links {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 16px;
-    flex-wrap: wrap;
-    margin-bottom: 16px;
-}
-.footer-link {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 10px 20px;
-    background: #111;
-    border: 1px solid #222;
-    border-radius: 50px;
-    color: #eee;
-    text-decoration: none;
-    font-weight: 600;
-    font-size: 0.9rem;
-    transition: all .3s;
-}
-.footer-link.contact:hover {
-    border-color: var(--cyan);
-    color: var(--cyan);
-    box-shadow: 0 0 18px rgba(0,247,255,0.2);
-}
-.footer-link.contact.copied {
-    border-color: var(--cyan);
-    color: var(--cyan);
-    background: rgba(0, 247, 255, 0.12);
-    box-shadow: 0 0 18px rgba(0,247,255,0.35);
-}
-.footer-link.youtube:hover {
-    border-color: #ff0000;
-    color: #ff4444;
-    box-shadow: 0 0 18px rgba(255,0,0,0.25);
-}
-.footer-link.coffee:hover {
-    border-color: var(--cyan);
-    color: var(--cyan);
-    box-shadow: 0 0 18px rgba(0,247,255,0.2);
-}
-.footer-copy {
-    color: #555;
-    font-size: 0.82rem;
-}
-
-@keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
-
-/* === RESPONSIVE === */
-@media (max-width: 1100px) {
-    :root { --guestbook-w: 0px; }
-    .layout { grid-template-columns: var(--sidebar-w) 1fr; }
-    .guestbook-col {
-        position: fixed;
-        top: 0;
-        right: 0;
-        width: 360px;
-        max-width: 90vw;
-        height: 100vh;
-        z-index: 200;
-        border-left: 1px solid #333;
-        transform: translateX(100%);
-        transition: transform 0.3s ease;
-        padding-top: 60px;
-    }
-    .guestbook-col.open { transform: translateX(0); }
-    .guestbook-close {
-        position: absolute;
-        top: 14px;
-        right: 14px;
-        background: transparent;
-        border: 1px solid #333;
-        color: #ccc;
-        width: 34px;
-        height: 34px;
-        border-radius: 50%;
-        cursor: pointer;
-        font-size: 1.2rem;
-    }
-    .mobile-btn.guestbook-toggle { display: inline-flex; align-items: center; gap: 6px; }
-    .backdrop {
-        position: fixed;
-        inset: 0;
-        background: rgba(0,0,0,0.6);
-        z-index: 150;
-        opacity: 0;
-        pointer-events: none;
-        transition: opacity 0.3s;
-    }
-    .backdrop.show { opacity: 1; pointer-events: auto; }
-}
-
-@media (max-width: 768px) {
-    :root { --sidebar-w: 0px; }
-    .layout { grid-template-columns: 1fr; }
-    .sidebar {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 260px;
-        max-width: 80vw;
-        height: 100vh;
-        z-index: 200;
-        border-right: 1px solid #333;
-        transform: translateX(-100%);
-        transition: transform 0.3s ease;
-        padding-top: 60px;
-    }
-    .sidebar.open { transform: translateX(0); }
-    .sidebar-close {
-        position: absolute;
-        top: 14px;
-        right: 14px;
-        background: transparent;
-        border: 1px solid #333;
-        color: #ccc;
-        width: 34px;
-        height: 34px;
-        border-radius: 50%;
-        cursor: pointer;
-        font-size: 1.2rem;
-    }
-    .mobile-btn.hamburger-toggle { display: inline-flex; }
-    .back-link { display: none; }
-    .main { padding: 20px 16px 30px; }
-    .game-header { padding: 24px 16px; }
-    .game-header h1 { font-size: 2.2rem; }
-    .player-row { gap: 16px; }
-    .cover-action { width: 130px; height: 130px; }
-    .game-desc { font-size: 0.92rem; }
+@media (max-width:500px){
+  .topbar{padding:10px 14px}
+  .topbar .logo{font-size:18px}
+  .back-link{display:none}
+  .main{padding:16px 12px}
+  .marquee{margin:0 -12px 18px}
+  .marquee-track{font-size:14px}
+  .game-header h1{font-size:24px;letter-spacing:-1px}
+  .section{padding:14px 12px}
+  .section h2{font-size:18px}
+  .game-desc p{font-size:14px}
+  .footer-links{gap:10px}
+  .footer-link{font-size:12px;padding:8px 12px}
+  .topbar-right{gap:6px}
+  .mobile-btn{padding:6px 10px;font-size:12px}
 }
 </style>
 </head>
-
 <body>
 
-<canvas id="spaceCanvas"></canvas>
 <div class="backdrop" id="backdrop"></div>
 
 <!-- TOP BAR -->
 <header class="topbar">
-    <div style="display:flex; align-items:center; gap:12px;">
-        <button class="mobile-btn hamburger-toggle" id="hamburgerBtn" aria-label="Menu">
-            <span class="hamburger">☰</span>
-        </button>
-        <a href="https://mini-klik.pl" class="logo">🎮 mini-klik</a>
-    </div>
-    <div class="topbar-right">
-        <a href="../" class="back-link">← powrót do galerii</a>
-        <button class="mobile-btn guestbook-toggle" id="guestbookBtn">
-            💬 Księga
-        </button>
-    </div>
+  <div style="display:flex;align-items:center;gap:12px">
+    <button class="mobile-btn hamburger-toggle" id="hamburgerBtn" aria-label="Menu">☰</button>
+    <a href="https://mini-klik.pl" class="logo">MINI<span class="red">·</span>KLIK<span class="blue">.PL</span></a>
+  </div>
+  <div class="topbar-right">
+    <a href="../" class="back-link">← Galeria</a>
+    <button class="mobile-btn guestbook-toggle" id="guestbookBtn">💬 KSIĘGA</button>
+  </div>
 </header>
 
 <div class="layout">
 
-    <!-- ===== LEWY SIDEBAR ===== -->
-    <aside class="sidebar" id="sidebar">
-        <button class="sidebar-close" id="sidebarClose" aria-label="Zamknij">×</button>
+  <!-- ===== LEWY SIDEBAR ===== -->
+  <aside class="sidebar" id="sidebar">
+    <button class="sidebar-close" id="sidebarClose" aria-label="Zamknij">×</button>
 
-        <div class="sidebar-section-title">Nawigacja</div>
-        <a href="../#home">
-            <span class="sidebar-icon">🏠</span> Dom
-        </a>
-        <a href="../#nowe">
-            <span class="sidebar-icon">🎮</span> Dema
-        </a>
-        <a href="../#wasze-gry">
-            <span class="sidebar-icon">⭐</span> Nasze gry
-        </a>
-        <a href="../#opis">
-            <span class="sidebar-icon">📖</span> Opis
+    <div class="sidebar-section-title">/ NAWIGACJA</div>
+    <a href="../#home"><span class="sidebar-icon">🏠</span> Dom</a>
+    <a href="../#nowe"><span class="sidebar-icon">🎮</span> Dema</a>
+    <a href="../#wasze-gry"><span class="sidebar-icon">⭐</span> Nasze gry</a>
+    <a href="../#opis"><span class="sidebar-icon">📖</span> Opis</a>
+
+    <div class="sidebar-section-title">/ SPOŁECZNOŚĆ</div>
+    <a href="#" data-email="mini-klik@wp.pl">
+      <span class="sidebar-icon">📧</span>
+      <span class="copy-email-text">Kontakt</span>
+    </a>
+    <a href="https://www.youtube.com/@mini-klik" target="_blank">
+      <span class="sidebar-icon" style="color:var(--red);">▶</span> YouTube
+    </a>
+    <a href="https://buycoffee.to/ramzi-studio" target="_blank">
+      <span class="sidebar-icon">☕</span> Postaw kawę
+    </a>
+  </aside>
+
+  <!-- ===== ŚRODEK ===== -->
+  <main class="main">
+
+    <!-- HEADER GRY -->
+    <div class="game-header">
+      <h1 id="gameTitle">MINI PRZYGODA EDA</h1>
+    </div>
+
+    <!-- MARQUEE -->
+    <div class="marquee">
+      <div class="marquee-track">
+        <span>GRAJ TWÓRZ EKSPLORUJ ODKRYWAJ</span>
+        <span>GRAJ TWÓRZ EKSPLORUJ ODKRYWAJ</span>
+        <span>GRAJ TWÓRZ EKSPLORUJ ODKRYWAJ</span>
+        <span>GRAJ TWÓRZ EKSPLORUJ ODKRYWAJ</span>
+      </div>
+    </div>
+
+    <!-- GAME PLAYER -->
+    <section class="section player">
+      <h2>▶ GAME PLAYER</h2>
+
+      <div class="player-row">
+        <a href="player.html" class="cover-action" target="_blank" title="Kliknij, aby grać">
+          <img id="coverImg" src="../images/demo5.png" alt="okładka gry"
+               onerror="this.style.display='none'; this.parentElement.classList.add('cover-broken'); this.parentElement.innerHTML='<span style=&quot;color:#fff;font-family:Bungee;letter-spacing:2px;&quot;>[ OKŁADKA GRY ]</span><span class=&quot;cover-play-overlay&quot;>▶</span>';">
+          <span class="cover-play-overlay">▶</span>
         </a>
 
-        <div class="sidebar-section-title">Społeczność</div>
-        <a href="#" data-email="mini-klik@wp.pl">
-            <span class="sidebar-icon">📧</span>
-            <span class="copy-email-text">Kontakt</span>
-        </a>
-        <a href="https://www.youtube.com/@mini-klik" target="_blank">
-            <span class="sidebar-icon" style="color:#ff4444;">▶</span> YouTube
-        </a>
-        <a href="https://buycoffee.to/ramzi-studio" target="_blank">
-            <span class="sidebar-icon">☕</span> Postaw kawę
-        </a>
-    </aside>
-
-    <!-- ===== ŚRODEK ===== -->
-    <main class="main">
-
-        <!-- HEADER GRY -->
-        <div class="game-header">
-            <h1 id="gameTitle">Mini Przygoda Eda</h1>
+        <div class="game-desc">
+          <p id="gameDescription">Kosmos to przygoda nie do opisania.</p>
+          <p>A Ty w małym statku — pośród milionów meteorytów i statków UFO. <b>Cztery poziomy</b> zmagania się z nieziemską rzeczywistością.</p>
+          <p>🚀 Powodzenia — dotrzyj do końcowej flagi!</p>
         </div>
+      </div>
 
-        <!-- GAME PLAYER -->
-        <section class="section player">
-            <h2>▶ Game Player</h2>
+      <!-- INFO POD GRACZEM -->
+      <div class="info-row">
+        <div class="info-pill">
+          <span class="pill-label">Twórca</span>
+          <span class="pill-value" id="gameAuthor">mini-klik.pl</span>
+        </div>
+        <div class="info-pill">
+          <span class="pill-label">Poziomy</span>
+          <span class="pill-value" id="gameLevels">6</span>
+        </div>
+        <div class="info-pill">
+          <span class="pill-label">Sterowanie</span>
+          <span class="mini-controls" id="controlsGrid">
+            <span class="mini-key">←</span>
+            <span class="mini-key">→</span>
+            <span class="mini-key">↑</span>
+          </span>
+        </div>
+      </div>
+    </section>
 
-            <div class="player-row">
-                <a href="player.html" class="cover-action" target="_blank" title="Kliknij, aby grać">
-                    <img id="coverImg" src="../images/demo5.png" alt="okładka gry"
-                         onerror="this.style.display='none'; this.parentElement.classList.add('cover-broken'); this.parentElement.innerHTML='<span style=&quot;color:#8a6a90;font-size:0.9rem;letter-spacing:2px;&quot;>[ okładka gry ]</span><span class=&quot;cover-play-overlay&quot;>▶</span>';">
-                    <span class="cover-play-overlay">▶</span>
-                </a>
+    <!-- EDYTOR -->
+    <section class="section editor">
+      <h2>✎ EDYTOR GRY</h2>
 
-                <div class="game-desc">
-                    <p id="gameDescription">Kosmos to przygoda nie do opisania.</p>
-                    <p>A Ty w małym statku — pośród milionów meteorytów i statków UFO. <b>Cztery poziomy</b> zmagania się z nieziemską rzeczywistością.</p>
-                    <p>🚀 Powodzenia — dotrzyj do końcowej flagi!</p>
-                </div>
-            </div>
+      <div class="player-row">
+        <a href="app.html" class="cover-action edit" target="_blank" title="Kliknij, aby otworzyć edytor">
+          <img src="../images/demo5.png" alt="edytor gry"
+               onerror="this.style.display='none'; this.parentElement.classList.add('cover-broken'); this.parentElement.innerHTML='<span style=&quot;color:#fff;font-family:Bungee;letter-spacing:2px;&quot;>[ EDYTOR ]</span><span class=&quot;cover-play-overlay&quot;>✎</span>';">
+          <span class="cover-play-overlay">✎</span>
+        </a>
 
-            <!-- INFO POD GRACZEM -->
-            <div class="info-row">
-                <div class="info-pill">
-                    <span class="pill-label">Twórca</span>
-                    <span class="pill-value pink" id="gameAuthor">mini-klik.pl</span>
-                </div>
-                <div class="info-pill">
-                    <span class="pill-label">Poziomy</span>
-                    <span class="pill-value cyan" id="gameLevels">6</span>
-                </div>
-                <div class="info-pill">
-                    <span class="pill-label">Sterowanie</span>
-                    <span class="mini-controls" id="controlsGrid">
-                        <span class="mini-key">←</span>
-                        <span class="mini-key">→</span>
-                        <span class="mini-key">↑</span>
-                    </span>
-                </div>
-            </div>
-        </section>
+        <div class="game-desc">
+          <p>W edytorze możesz <b>tworzyć własne gry od zera</b> lub modyfikować grę. Dodawaj kosmiczne przeszkody, wrogów, ustawiaj sterowanie, twórz nowe poziomy.</p>
+          <p>Zapisz projekt do pliku <b>.json</b> i prześlij nam swoją grę — najlepsze publikujemy na portalu.</p>
+        </div>
+      </div>
+    </section>
 
-        <!-- EDYTOR -->
-        <section class="section editor">
-            <h2>✎ Edytor gry</h2>
+  </main>
 
-            <div class="player-row">
-                <a href="app.html" class="cover-action edit" target="_blank" title="Kliknij, aby otworzyć edytor">
-                    <img src="../images/demo5.png" alt="edytor gry"
-                         onerror="this.style.display='none'; this.parentElement.classList.add('cover-broken'); this.parentElement.innerHTML='<span style=&quot;color:#8a6a90;font-size:0.9rem;letter-spacing:2px;&quot;>[ edytor ]</span><span class=&quot;cover-play-overlay&quot;>✎</span>';">
-                    <span class="cover-play-overlay">✎</span>
-                </a>
+  <!-- ===== PRAWA KOLUMNA: KSIĘGA GOŚCI ===== -->
+  <aside class="guestbook-col" id="guestbookCol">
+    <button class="guestbook-close" id="guestbookClose" aria-label="Zamknij">×</button>
 
-                <div class="game-desc">
-                    <p>W edytorze możesz <b>tworzyć własne gry od zera</b> lub modyfikować grę. Dodawaj kosmiczne przeszkody, wrogów, ustawiaj sterowanie, twórz nowe poziomy.</p>
-                    <p>Zapisz projekt do pliku <b>.json</b> i prześlij nam swoją grę — najlepsze publikujemy na portalu.</p>
-                </div>
-            </div>
-        </section>
+    <h2>★ KSIĘGA GOŚCI</h2>
+    <p class="guestbook-count" id="commentCount">// ŁADOWANIE WPISÓW…</p>
 
-    </main>
+    <div class="comments" id="comments"></div>
 
-    <!-- ===== PRAWA KOLUMNA: KSIĘGA GOŚCI ===== -->
-    <aside class="guestbook-col" id="guestbookCol">
-        <button class="guestbook-close" id="guestbookClose" aria-label="Zamknij">×</button>
-
-        <h2>
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#00f7ff" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
-            Księga Gości
-        </h2>
-        <p class="guestbook-count" id="commentCount">ładowanie wpisów…</p>
-
-        <div class="comments" id="comments"></div>
-
-        <form id="guestbookForm" class="guestbook-form">
-            <label>ZOSTAW SWÓJ ŚLAD</label>
-            <input type="text" id="name" placeholder="Twój nick / imię" required>
-            <textarea id="message" placeholder="Napisz coś o mini-klik… 🎮" required maxlength="280"
-                      oninput="document.getElementById('charCount').textContent=this.value.length+'/280'"></textarea>
-            <div class="char-count"><span id="charCount">0/280</span></div>
-            <button type="submit">📨 ZOSTAW WPIS</button>
-        </form>
-    </aside>
+    <form id="guestbookForm" class="guestbook-form">
+      <label>ZOSTAW SWÓJ ŚLAD</label>
+      <input type="text" id="name" placeholder="Twój nick / imię" required>
+      <textarea id="message" placeholder="Napisz coś o mini-klik… 🎮" required maxlength="280"
+                oninput="document.getElementById('charCount').textContent=this.value.length+'/280'"></textarea>
+      <div class="char-count"><span id="charCount">0/280</span></div>
+      <button type="submit">📨 ZOSTAW WPIS</button>
+    </form>
+  </aside>
 
 </div>
 
 <!-- STOPKA -->
 <footer class="footer">
-    <div class="footer-links">
-        <a href="#" class="footer-link contact" data-email="mini-klik@wp.pl">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#00f7ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
-                <polyline points="22,6 12,13 2,6"/>
-            </svg>
-            <span class="footer-link-text">Kontakt</span>
-        </a>
-        <a href="https://www.youtube.com/@mini-klik" target="_blank" class="footer-link youtube">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="#ff0000">
-                <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
-            </svg>
-            YouTube
-        </a>
-        <a href="https://buycoffee.to/ramzi-studio" target="_blank" class="footer-link coffee">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#00f7ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M18 8h1a4 4 0 0 1 0 8h-1"/>
-                <path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/>
-                <line x1="6" y1="1" x2="6" y2="4"/>
-                <line x1="10" y1="1" x2="10" y2="4"/>
-                <line x1="14" y1="1" x2="14" y2="4"/>
-            </svg>
-            Postaw kawę
-        </a>
-    </div>
-    <p class="footer-copy">© 2026 mini-klik • <a href="../" style="color:var(--cyan); text-decoration:none;">mini-klik.pl</a></p>
+  <div class="footer-links">
+    <a href="#" class="footer-link contact" data-email="mini-klik@wp.pl">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+        <polyline points="22,6 12,13 2,6"/>
+      </svg>
+      <span class="footer-link-text">KONTAKT</span>
+    </a>
+    <a href="https://www.youtube.com/@mini-klik" target="_blank" class="footer-link youtube">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="#ff0000">
+        <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+      </svg>
+      YOUTUBE
+    </a>
+    <a href="https://buycoffee.to/ramzi-studio" target="_blank" class="footer-link coffee">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M18 8h1a4 4 0 0 1 0 8h-1"/>
+        <path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/>
+        <line x1="6" y1="1" x2="6" y2="4"/>
+        <line x1="10" y1="1" x2="10" y2="4"/>
+        <line x1="14" y1="1" x2="14" y2="4"/>
+      </svg>
+      KAWA
+    </a>
+  </div>
+  <p class="footer-copy">© 2026 MINI-KLIK • <a href="../">mini-klik.pl</a></p>
 </footer>
 
 <script>
@@ -928,7 +632,7 @@ async function copyEmail(link) {
 
     try {
         await navigator.clipboard.writeText(email);
-        textEl.textContent = '✓ Skopiowano!';
+        textEl.textContent = '✓ SKOPIOWANO!';
         link.classList.add('copied');
     } catch (err) {
         const ta = document.createElement('textarea');
@@ -937,7 +641,7 @@ async function copyEmail(link) {
         ta.style.opacity = '0';
         document.body.appendChild(ta);
         ta.select();
-        try { document.execCommand('copy'); textEl.textContent = '✓ Skopiowano!'; link.classList.add('copied'); }
+        try { document.execCommand('copy'); textEl.textContent = '✓ SKOPIOWANO!'; link.classList.add('copied'); }
         catch (e2) { textEl.textContent = email; }
         document.body.removeChild(ta);
     }
@@ -955,204 +659,21 @@ document.querySelectorAll('[data-email]').forEach(link => {
     });
 });
 
-// ============== TŁO KOSMICZNE ==============
-;(function() {
-    const canvas = document.getElementById('spaceCanvas');
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-
-    function resize() {
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
-    }
-    resize();
-    window.addEventListener('resize', resize);
-
-    const moon = {
-        cx: () => canvas.width * 0.18,
-        cy: () => canvas.height * 0.25,
-        r: () => Math.min(canvas.width, canvas.height) * 0.05
-    };
-
-    const asteroids = [];
-    for (let i = 0; i < 14; i++) {
-        asteroids.push({
-            x: Math.random() * canvas.width,
-            y: Math.random() * canvas.height * 0.7,
-            vx: (Math.random() - 0.5) * 0.3,
-            vy: (Math.random() - 0.5) * 0.15,
-            size: 4 + Math.random() * 14,
-            rotation: Math.random() * Math.PI * 2,
-            rotSpeed: (Math.random() - 0.5) * 0.015,
-            points: 6 + Math.floor(Math.random() * 4)
-        });
-    }
-
-    const ships = [];
-    function spawnShip() {
-        const fromLeft = Math.random() > 0.5;
-        const y = canvas.height * (0.1 + Math.random() * 0.6);
-        ships.push({
-            x: fromLeft ? -80 : canvas.width + 80,
-            y, targetY: y + (Math.random() - 0.5) * 60,
-            vx: (fromLeft ? 1 : -1) * (0.3 + Math.random() * 0.4),
-            size: 0.6 + Math.random() * 1.2,
-            type: Math.floor(Math.random() * 3),
-            flame: 0, fromLeft
-        });
-    }
-    for (let i = 0; i < 3; i++) {
-        spawnShip();
-        ships[ships.length - 1].x = Math.random() * canvas.width;
-    }
-    setInterval(() => { if (ships.length < 6) spawnShip(); }, 4000);
-
-    function drawMoon() {
-        const cx = moon.cx(), cy = moon.cy(), r = moon.r();
-        const glowGrad = ctx.createRadialGradient(cx, cy, r, cx, cy, r * 2.5);
-        glowGrad.addColorStop(0, 'rgba(255, 220, 160, 0.35)');
-        glowGrad.addColorStop(0.5, 'rgba(255, 180, 120, 0.1)');
-        glowGrad.addColorStop(1, 'rgba(255, 180, 120, 0)');
-        ctx.fillStyle = glowGrad;
-        ctx.beginPath(); ctx.arc(cx, cy, r * 2.5, 0, Math.PI * 2); ctx.fill();
-
-        const moonGrad = ctx.createRadialGradient(cx - r * 0.3, cy - r * 0.3, r * 0.1, cx, cy, r);
-        moonGrad.addColorStop(0, '#3a2a3a');
-        moonGrad.addColorStop(0.7, '#1a0a1a');
-        moonGrad.addColorStop(1, '#0a0510');
-        ctx.fillStyle = moonGrad;
-        ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill();
-
-        const rimGrad = ctx.createRadialGradient(cx - r * 0.4, cy - r * 0.4, r * 0.75, cx - r * 0.4, cy - r * 0.4, r * 1.05);
-        rimGrad.addColorStop(0, 'rgba(255, 120, 60, 0)');
-        rimGrad.addColorStop(0.9, 'rgba(255, 160, 80, 0.6)');
-        rimGrad.addColorStop(1, 'rgba(255, 200, 100, 0.95)');
-        ctx.fillStyle = rimGrad;
-        ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill();
-
-        ctx.fillStyle = 'rgba(10, 5, 15, 0.6)';
-        const craters = [[-0.3, 0.1, 0.15], [0.2, -0.25, 0.1], [0.05, 0.35, 0.12], [-0.15, -0.15, 0.08]];
-        for (const [dx, dy, dr] of craters) {
-            ctx.beginPath();
-            ctx.arc(cx + dx * r, cy + dy * r, dr * r, 0, Math.PI * 2);
-            ctx.fill();
-        }
-    }
-
-    function drawAsteroid(a) {
-        ctx.save(); ctx.translate(a.x, a.y); ctx.rotate(a.rotation);
-        ctx.beginPath();
-        for (let i = 0; i < a.points; i++) {
-            const angle = (i / a.points) * Math.PI * 2;
-            const variation = 0.7 + ((i * 37) % 7) * 0.05;
-            const px = Math.cos(angle) * a.size * variation;
-            const py = Math.sin(angle) * a.size * variation;
-            if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
-        }
-        ctx.closePath();
-        ctx.fillStyle = '#1a0a1a'; ctx.fill();
-        ctx.strokeStyle = 'rgba(255, 140, 70, 0.7)'; ctx.lineWidth = 1.2; ctx.stroke();
-        ctx.restore();
-    }
-
-    function drawShip(s) {
-        ctx.save(); ctx.translate(s.x, s.y);
-        s.y += (s.targetY - s.y) * 0.02;
-        const sc = s.size, flip = s.fromLeft ? 1 : -1;
-        ctx.scale(sc * flip, sc);
-
-        if (s.type === 0) {
-            ctx.fillStyle = '#0a0515';
-            ctx.strokeStyle = 'rgba(255, 150, 80, 0.85)'; ctx.lineWidth = 0.8;
-            ctx.beginPath();
-            ctx.moveTo(12, 0); ctx.lineTo(-6, -5); ctx.lineTo(-10, 0); ctx.lineTo(-6, 5);
-            ctx.closePath(); ctx.fill(); ctx.stroke();
-            ctx.fillStyle = 'rgba(255, 100, 50, 0.8)'; ctx.fillRect(-10, -1.5, 3, 3);
-            ctx.fillStyle = 'rgba(255, 200, 100, 0.8)';
-            ctx.beginPath(); ctx.arc(4, 0, 2, 0, Math.PI * 2); ctx.fill();
-        } else if (s.type === 1) {
-            ctx.fillStyle = '#0a0515';
-            ctx.strokeStyle = 'rgba(255, 140, 70, 0.8)'; ctx.lineWidth = 0.8;
-            ctx.beginPath();
-            ctx.moveTo(18, 0); ctx.lineTo(14, -4); ctx.lineTo(-12, -4);
-            ctx.lineTo(-14, 0); ctx.lineTo(-12, 4); ctx.lineTo(14, 4);
-            ctx.closePath(); ctx.fill(); ctx.stroke();
-            ctx.fillStyle = 'rgba(255, 200, 120, 0.7)';
-            ctx.fillRect(-4, -1, 2, 2); ctx.fillRect(2, -1, 2, 2); ctx.fillRect(8, -1, 2, 2);
-            ctx.fillStyle = 'rgba(255, 80, 40, 0.9)'; ctx.fillRect(-14, -2.5, 3, 5);
-        } else {
-            ctx.fillStyle = '#0a0515';
-            ctx.strokeStyle = 'rgba(255, 160, 90, 0.9)'; ctx.lineWidth = 0.8;
-            ctx.beginPath();
-            ctx.moveTo(14, 0); ctx.lineTo(2, -3); ctx.lineTo(-8, -4);
-            ctx.lineTo(-8, 4); ctx.lineTo(2, 3);
-            ctx.closePath(); ctx.fill(); ctx.stroke();
-            ctx.fillStyle = 'rgba(255, 140, 70, 0.5)';
-            ctx.beginPath(); ctx.moveTo(-5, -4); ctx.lineTo(-2, -9); ctx.lineTo(2, -4); ctx.closePath(); ctx.fill();
-            ctx.beginPath(); ctx.moveTo(-5, 4); ctx.lineTo(-2, 9); ctx.lineTo(2, 4); ctx.closePath(); ctx.fill();
-            ctx.fillStyle = 'rgba(255, 220, 150, 0.9)';
-            ctx.beginPath(); ctx.arc(6, 0, 1.5, 0, Math.PI * 2); ctx.fill();
-        }
-
-        s.flame = (s.flame + 1) % 6;
-        const flameLen = 8 + s.flame * 0.5;
-        const flameGrad = ctx.createLinearGradient(-10, 0, -10 - flameLen, 0);
-        flameGrad.addColorStop(0, 'rgba(255, 180, 80, 0.8)');
-        flameGrad.addColorStop(0.5, 'rgba(255, 100, 50, 0.4)');
-        flameGrad.addColorStop(1, 'rgba(255, 50, 30, 0)');
-        ctx.fillStyle = flameGrad;
-        ctx.beginPath();
-        ctx.moveTo(-10, -1.5); ctx.lineTo(-10 - flameLen, 0); ctx.lineTo(-10, 1.5);
-        ctx.closePath(); ctx.fill();
-        ctx.restore();
-    }
-
-    function animate() {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        drawMoon();
-        for (const a of asteroids) {
-            a.x += a.vx; a.y += a.vy; a.rotation += a.rotSpeed;
-            if (a.x < -50) a.x = canvas.width + 50;
-            if (a.x > canvas.width + 50) a.x = -50;
-            if (a.y < -50) a.y = canvas.height + 50;
-            if (a.y > canvas.height + 50) a.y = -50;
-            drawAsteroid(a);
-        }
-        for (let i = ships.length - 1; i >= 0; i--) {
-            const s = ships[i];
-            s.x += s.vx;
-            drawShip(s);
-            if ((s.fromLeft && s.x > canvas.width + 100) || (!s.fromLeft && s.x < -100)) {
-                ships.splice(i, 1);
-            }
-        }
-        requestAnimationFrame(animate);
-    }
-    animate();
-})();
-
-// ============== METADANE Z DEMO.JSON ==============
-const gameId = (() => {
-    const parts = window.location.pathname.split('/').filter(Boolean);
-    return parts[parts.length - 2] || 'demo';
-})();
-
+// ============== WCZYTAJ DEMO.JSON ==============
 fetch('demo.json')
     .then(r => r.ok ? r.json() : null)
     .then(data => {
         if (!data) return;
         const s = data.settings || {};
-        if (s.nazwaGry)  document.getElementById('gameTitle').textContent  = s.nazwaGry;
+        if (s.nazwaGry)  document.getElementById('gameTitle').textContent  = s.nazwaGry.toUpperCase();
         if (s.autorGry)  document.getElementById('gameAuthor').textContent = s.autorGry;
-        // Opis NIE jest pobierany z demo.json — siedzi statycznie w HTML.
-        // s.opisGry służy tylko do wyświetlania w samym Game Playerze (player.html).
         if (Array.isArray(data.levels)) {
             document.getElementById('gameLevels').textContent = data.levels.length;
         }
         if (s.sterowanie) {
             const keyMap = {
                 'ArrowLeft':'←', 'ArrowRight':'→', 'ArrowUp':'↑', 'ArrowDown':'↓',
-                'Space':'Spacja', ' ':'Spacja'
+                'Space':'␣', ' ':'␣'
             };
             const grid = document.getElementById('controlsGrid');
             grid.innerHTML = '';
@@ -1188,7 +709,7 @@ form.addEventListener('submit', async function(e) {
     const btn = form.querySelector('button[type=submit]');
     btn.disabled = true;
     const oldHtml = btn.innerHTML;
-    btn.textContent = 'Wysyłanie…';
+    btn.textContent = 'WYSYŁANIE…';
 
     try {
         await db.collection("wpisy").add({
@@ -1207,7 +728,7 @@ form.addEventListener('submit', async function(e) {
 });
 
 function avatarColor(name) {
-    const colors = ['#00f7ff','#ff00c8','#a855f7','#22d3ee','#f472b6','#34d399','#fb923c'];
+    const colors = ['#fff200','#ff003c','#0040ff','#00ffaa','#ff44a8','#ff9a3d','#a855f7'];
     let h = 0;
     for (let c of name) h = (h * 31 + c.charCodeAt(0)) % colors.length;
     return colors[h];
@@ -1222,14 +743,14 @@ function timeAgo(ts) {
 }
 async function loadComments() {
     const commentsDiv = document.getElementById('comments');
-    commentsDiv.innerHTML = '<p style="text-align:center;color:#444;padding:20px;font-size:0.85rem;">ładowanie…</p>';
+    commentsDiv.innerHTML = '<p style="text-align:center;color:#888;padding:20px;font-size:0.85rem;font-family:JetBrains Mono;">// ŁADOWANIE…</p>';
     try {
         const snapshot = await db.collection("wpisy").orderBy("created", "desc").get();
         const count = snapshot.size;
         document.getElementById('commentCount').textContent =
-            count === 0 ? 'Bądź pierwszy!' : `${count} ${count === 1 ? 'wpis' : count < 5 ? 'wpisy' : 'wpisów'}`;
+            count === 0 ? '// BĄDŹ PIERWSZY!' : `// ${count} ${count === 1 ? 'WPIS' : count < 5 ? 'WPISY' : 'WPISÓW'}`;
         if (count === 0) {
-            commentsDiv.innerHTML = '<p style="text-align:center;color:#444;padding:30px;font-size:0.85rem;">Brak wpisów — bądź pierwszy! 👇</p>';
+            commentsDiv.innerHTML = '<p style="text-align:center;color:#888;padding:30px;font-size:0.85rem;font-family:JetBrains Mono;">BRAK WPISÓW — BĄDŹ PIERWSZY 👇</p>';
             return;
         }
         commentsDiv.innerHTML = '';
@@ -1243,7 +764,7 @@ async function loadComments() {
             const div = document.createElement('div');
             div.className = 'comment';
             div.innerHTML = `
-                <div class="comment-avatar" style="background:${color}22; border:2px solid ${color}; color:${color};">${initials}</div>
+                <div class="comment-avatar" style="background:${color}; color:#000;">${initials}</div>
                 <div class="comment-body">
                     <div class="comment-meta">
                         <span class="comment-author" style="color:${color};">@${name}</span>
@@ -1256,7 +777,7 @@ async function loadComments() {
         });
     } catch (err) {
         console.error("Błąd ładowania:", err);
-        commentsDiv.innerHTML = '<p style="text-align:center;color:#f55;padding:20px;font-size:0.85rem;">Błąd ładowania wpisów.</p>';
+        commentsDiv.innerHTML = '<p style="text-align:center;color:#ff003c;padding:20px;font-size:0.85rem;font-family:JetBrains Mono;">! BŁĄD ŁADOWANIA</p>';
     }
 }
 loadComments();
