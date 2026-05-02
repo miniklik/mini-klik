@@ -7,6 +7,7 @@
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -255,6 +256,399 @@ h1 em{font-style:italic;color:var(--gold);font-weight:400}
 .miejsce-card[data-kategoria="przyroda"]{border-left-color:var(--emerald)}
 .miejsce-card[data-kategoria="urzad"]{border-left-color:var(--indigo)}
 
+/* === BADGE ODLEGŁOŚCI === */
+.miejsce-card .dystans{
+  display:inline-block;
+  background:var(--paper-3);
+  color:var(--gold);
+  border:1px solid rgba(160,69,16,0.3);
+  border-radius:3px;
+  padding:1px 7px;
+  font-family:'Cinzel',serif;
+  font-size:10px;letter-spacing:1px;font-weight:600;
+  margin-top:6px;
+  text-transform:uppercase;
+}
+.miejsce-card .dystans.bliski{background:var(--gold);color:var(--paper-2)}
+
+/* === PRZYCISK GPS NA MAPIE === */
+.gps-btn{
+  position:absolute;
+  bottom:14px;left:14px;
+  z-index:500;
+  width:46px;height:46px;
+  background:var(--paper-2);
+  border:2px solid var(--gold);
+  border-radius:50%;
+  cursor:pointer;
+  font-size:20px;
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:var(--shadow-deep);
+  transition:all 0.25s;
+  color:var(--gold);
+  font-family:inherit;
+}
+.gps-btn:hover{background:var(--gold);color:var(--paper-2);transform:scale(1.05)}
+.gps-btn.active{background:var(--gold);color:var(--paper-2)}
+.gps-btn.szukam{animation:pulseGold 1.2s ease-in-out infinite}
+@keyframes pulseGold{
+  0%,100%{box-shadow:var(--shadow-deep)}
+  50%{box-shadow:0 0 0 8px rgba(160,69,16,0.25), var(--shadow-deep)}
+}
+.gps-btn.error{
+  background:#fef0e6;color:var(--crimson);border-color:var(--crimson);
+}
+
+/* === KROPKA UŻYTKOWNIKA === */
+.user-position-marker{background:transparent!important;border:none!important}
+.user-dot{
+  width:18px;height:18px;
+  background:var(--indigo);
+  border:3px solid var(--paper-2);
+  border-radius:50%;
+  box-shadow:0 0 0 2px var(--indigo), 0 4px 12px rgba(60,40,20,0.5);
+  position:relative;
+}
+.user-dot::before{
+  content:'';
+  position:absolute;
+  top:-12px;left:-12px;
+  width:36px;height:36px;
+  background:rgba(58,74,140,0.3);
+  border-radius:50%;
+  animation:userPulse 2s ease-out infinite;
+}
+@keyframes userPulse{
+  0%{transform:scale(0.5);opacity:1}
+  100%{transform:scale(2.5);opacity:0}
+}
+
+/* === STATUS BAR GPS === */
+.gps-status{
+  position:absolute;
+  bottom:14px;left:70px;
+  z-index:500;
+  background:var(--paper-2);
+  border:1px solid var(--gold);
+  border-radius:4px;
+  padding:8px 14px;
+  font-family:'EB Garamond',serif;
+  font-size:13px;
+  color:var(--ink);
+  box-shadow:var(--shadow-soft);
+  max-width:240px;
+  display:none;
+  animation:slideIn 0.3s ease-out;
+}
+@keyframes slideIn{
+  from{opacity:0;transform:translateX(-10px)}
+  to{opacity:1;transform:translateX(0)}
+}
+.gps-status.visible{display:block}
+.gps-status .ikona-stat{color:var(--gold);margin-right:6px}
+.gps-status b{color:var(--gold);font-weight:600}
+.gps-status .czas{
+  font-style:italic;color:var(--ink-soft);font-size:11px;
+  margin-top:2px;
+}
+
+/* === BANER POWITALNY (po skanie QR) === */
+.qr-welcome{
+  position:fixed;
+  top:50%;left:50%;
+  transform:translate(-50%,-50%) scale(0.9);
+  background:linear-gradient(180deg,var(--paper-2) 0%,var(--paper-3) 100%);
+  border:3px solid var(--gold);
+  border-radius:8px;
+  padding:24px 28px;
+  box-shadow:var(--shadow-deep), 0 0 0 9999px rgba(60,40,20,0.4);
+  z-index:9999;
+  max-width:380px;
+  width:calc(100% - 40px);
+  text-align:center;
+  opacity:0;
+  pointer-events:none;
+  transition:all 0.4s cubic-bezier(0.34,1.56,0.64,1);
+  font-family:'EB Garamond',serif;
+}
+.qr-welcome.visible{
+  opacity:1;
+  pointer-events:auto;
+  transform:translate(-50%,-50%) scale(1);
+}
+.qr-welcome::before,.qr-welcome::after{
+  content:'';position:absolute;width:22px;height:22px;
+  border:2px solid var(--gold);
+}
+.qr-welcome::before{top:6px;left:6px;border-right:none;border-bottom:none}
+.qr-welcome::after{bottom:6px;right:6px;border-left:none;border-top:none}
+.qr-welcome .qr-ornament{
+  font-family:'Cinzel',serif;
+  font-size:14px;color:var(--gold);
+  letter-spacing:8px;margin-bottom:10px;
+}
+.qr-welcome h2{
+  font-family:'Cormorant Garamond',serif;
+  font-size:26px;color:var(--ink);
+  font-weight:600;line-height:1.15;
+  margin-bottom:6px;letter-spacing:0.3px;
+}
+.qr-welcome .ikona-qr{
+  font-size:42px;margin-bottom:10px;
+  filter:sepia(0.2);display:block;
+}
+.qr-welcome .opis-qr{
+  color:var(--ink-soft);font-size:14px;
+  font-style:italic;line-height:1.5;
+  margin:8px 0 16px;
+}
+.qr-welcome button{
+  background:var(--gold);color:var(--paper-2);
+  border:none;border-radius:4px;
+  padding:10px 22px;
+  font-family:'Cinzel',serif;font-size:13px;
+  letter-spacing:2px;font-weight:600;
+  cursor:pointer;text-transform:uppercase;
+  transition:all 0.2s;
+}
+.qr-welcome button:hover{background:var(--ink);color:var(--paper-2);transform:translateY(-1px)}
+.qr-welcome .small-link{
+  display:block;margin-top:12px;
+  color:var(--ink-muted);font-size:12px;
+  font-style:italic;cursor:pointer;
+}
+.qr-welcome .small-link:hover{color:var(--gold)}
+
+/* Podświetlenie aktualnie odwiedzanego miejsca w sidebarze */
+.miejsce-card.qr-aktywna{
+  background:linear-gradient(90deg,var(--gold-pale),var(--paper-2));
+  border:2px solid var(--gold);
+  box-shadow:0 4px 16px rgba(160,69,16,0.3);
+  position:relative;
+}
+.miejsce-card.qr-aktywna::before{
+  content:'★ TUTAJ JESTEŚ';
+  position:absolute;
+  top:-9px;right:14px;
+  background:var(--gold);color:var(--paper-2);
+  font-family:'Cinzel',serif;font-size:10px;letter-spacing:2px;
+  padding:2px 9px;border-radius:3px;font-weight:600;
+}
+
+/* === PRZYCISK SKANERA QR (obok GPS) === */
+.scan-btn{
+  position:absolute;
+  bottom:14px;left:70px;
+  z-index:500;
+  width:46px;height:46px;
+  background:var(--paper-2);
+  border:2px solid var(--gold);
+  border-radius:50%;
+  cursor:pointer;
+  font-size:20px;
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:var(--shadow-deep);
+  transition:all 0.25s;
+  color:var(--gold);
+  font-family:inherit;
+}
+.scan-btn:hover{background:var(--gold);color:var(--paper-2);transform:scale(1.05)}
+
+/* Przesuń status GPS żeby nie kolidował ze skanerem */
+.gps-status{left:128px}
+
+/* === MODAL SKANERA (pełen ekran) === */
+.scan-modal{
+  position:fixed;inset:0;z-index:9999;
+  background:rgba(20,12,5,0.97);
+  display:none;
+  flex-direction:column;
+  font-family:'EB Garamond',serif;
+}
+.scan-modal.visible{display:flex}
+
+.scan-header{
+  padding:18px 20px;
+  background:var(--paper-2);
+  border-bottom:2px solid var(--gold);
+  display:flex;justify-content:space-between;align-items:center;
+  position:relative;
+}
+.scan-header h2{
+  font-family:'Cormorant Garamond',serif;
+  font-size:22px;font-weight:600;color:var(--ink);
+  display:flex;align-items:center;gap:10px;
+}
+.scan-header h2::before{content:'❦';color:var(--gold);font-size:18px}
+.scan-header .scan-close{
+  background:transparent;border:2px solid var(--gold);
+  width:38px;height:38px;border-radius:50%;
+  font-size:18px;cursor:pointer;color:var(--gold);
+  font-family:inherit;font-weight:600;
+  display:flex;align-items:center;justify-content:center;
+  transition:all 0.2s;
+}
+.scan-header .scan-close:hover{background:var(--gold);color:var(--paper-2)}
+
+.scan-body{
+  flex:1;
+  display:flex;align-items:center;justify-content:center;
+  position:relative;overflow:hidden;
+  padding:0;
+  min-height:0;
+}
+
+#qrReader{
+  width:100%;height:100%;
+  max-width:520px;
+  background:#000;
+  position:relative;
+}
+/* html5-qrcode generuje swoje elementy - stylizujemy najważniejsze */
+#qrReader video{
+  width:100%!important;height:100%!important;
+  object-fit:cover;
+}
+#qrReader__dashboard{
+  background:transparent!important;
+  padding:14px!important;
+}
+#qrReader__dashboard_section_csr button,
+#qrReader__dashboard_section_swaplink{
+  background:var(--paper-2)!important;
+  color:var(--ink)!important;
+  border:1px solid var(--gold)!important;
+  border-radius:4px!important;
+  padding:8px 14px!important;
+  font-family:'Cinzel',serif!important;font-size:11px!important;
+  letter-spacing:1px!important;text-transform:uppercase!important;
+  cursor:pointer!important;
+  margin:4px!important;
+}
+#qrReader__dashboard_section_csr button:hover,
+#qrReader__dashboard_section_swaplink:hover{
+  background:var(--gold)!important;color:var(--paper-2)!important;
+}
+#qrReader__header_message,
+#qrReader__camera_permission_button{
+  color:var(--paper-2)!important;
+  font-family:'EB Garamond',serif!important;
+  font-size:14px!important;
+}
+/* Ramka celownicza generowana przez bibliotekę - lekko podbarwiamy */
+#qrReader video + div div[style*="border"]{
+  border-color:var(--gold)!important;
+}
+
+.scan-tip{
+  position:absolute;
+  bottom:14px;left:50%;transform:translateX(-50%);
+  background:rgba(60,40,20,0.85);
+  color:var(--paper-2);
+  padding:8px 16px;border-radius:20px;
+  font-size:13px;font-style:italic;
+  pointer-events:none;
+  z-index:5;
+  text-align:center;
+}
+
+/* === MODAL WYNIKU SKANOWANIA === */
+.result-modal{
+  position:fixed;
+  top:50%;left:50%;
+  transform:translate(-50%,-50%) scale(0.9);
+  background:linear-gradient(180deg,var(--paper-2) 0%,var(--paper-3) 100%);
+  border:3px solid var(--gold);
+  border-radius:8px;
+  padding:24px 28px;
+  box-shadow:var(--shadow-deep), 0 0 0 9999px rgba(60,40,20,0.5);
+  z-index:10000;
+  max-width:420px;
+  width:calc(100% - 40px);
+  text-align:center;
+  opacity:0;
+  pointer-events:none;
+  transition:all 0.3s cubic-bezier(0.34,1.56,0.64,1);
+  font-family:'EB Garamond',serif;
+}
+.result-modal.visible{
+  opacity:1;
+  pointer-events:auto;
+  transform:translate(-50%,-50%) scale(1);
+}
+.result-modal::before,.result-modal::after{
+  content:'';position:absolute;width:22px;height:22px;
+  border:2px solid var(--gold);
+}
+.result-modal::before{top:6px;left:6px;border-right:none;border-bottom:none}
+.result-modal::after{bottom:6px;right:6px;border-left:none;border-top:none}
+
+.result-modal .ornament{
+  font-family:'Cinzel',serif;font-size:13px;
+  color:var(--gold);letter-spacing:6px;margin-bottom:10px;
+}
+.result-modal h3{
+  font-family:'Cormorant Garamond',serif;
+  font-size:24px;color:var(--ink);
+  font-weight:600;line-height:1.2;
+  margin-bottom:8px;
+}
+.result-modal .url-box{
+  background:var(--paper);
+  border:1px solid rgba(160,69,16,0.3);
+  border-radius:4px;
+  padding:10px 12px;
+  margin:14px 0;
+  font-family:'JetBrains Mono','Courier New',monospace;
+  font-size:12px;color:var(--ink-soft);
+  word-break:break-all;
+  max-height:80px;overflow-y:auto;
+  text-align:left;
+}
+.result-modal .opcje{
+  display:flex;flex-direction:column;gap:8px;
+  margin-top:14px;
+}
+.result-modal .toggle-row{
+  display:flex;align-items:center;justify-content:center;gap:8px;
+  font-size:13px;color:var(--ink-soft);
+  font-style:italic;margin:6px 0 4px;
+}
+.result-modal .toggle-row input{
+  cursor:pointer;
+  width:16px;height:16px;
+  accent-color:var(--gold);
+}
+.result-modal .toggle-row label{cursor:pointer;user-select:none}
+.result-modal button{
+  background:var(--gold);color:var(--paper-2);
+  border:none;border-radius:4px;
+  padding:11px 18px;cursor:pointer;
+  font-family:'Cinzel',serif;font-size:12px;letter-spacing:2px;
+  font-weight:600;text-transform:uppercase;
+  transition:all 0.2s;width:100%;
+}
+.result-modal button:hover{background:var(--ink)}
+.result-modal button.secondary{
+  background:transparent;color:var(--gold);
+  border:1px solid var(--gold);
+}
+.result-modal button.secondary:hover{background:var(--gold);color:var(--paper-2)}
+.result-modal .small-link{
+  display:block;margin-top:12px;
+  color:var(--ink-muted);font-size:12px;
+  font-style:italic;cursor:pointer;
+}
+.result-modal .small-link:hover{color:var(--gold)}
+
+.result-modal.error h3{color:var(--crimson)}
+.result-modal.error .ornament{color:var(--crimson)}
+
+@media (max-width:540px){
+  .scan-btn{bottom:14px;left:70px}
+  .gps-status{left:14px;bottom:70px;max-width:calc(100vw - 28px)}
+}
+
 /* === ACCORDION === */
 .accordion{
   background:linear-gradient(180deg,var(--paper-2) 0%,var(--paper-3) 100%);
@@ -493,6 +887,46 @@ footer{
 </head>
 <body>
 
+<!-- BANER POWITALNY (pojawia się po zeskanowaniu QR) -->
+<div class="qr-welcome" id="qrWelcome">
+  <div class="qr-ornament">❦ ❦ ❦</div>
+  <span class="ikona-qr" id="qrWelcomeIkona">📍</span>
+  <h2 id="qrWelcomeNazwa">Witaj w Siedliszczu</h2>
+  <p class="opis-qr" id="qrWelcomeOpis">Tu jesteś — zobacz więcej miejsc w pobliżu na mapie.</p>
+  <button onclick="zamknijQrWelcome()">Zobacz mapę</button>
+  <a class="small-link" id="qrWelcomeWiecej" onclick="zobaczOpisPelny()">Pełny opis miejsca →</a>
+</div>
+
+<!-- MODAL SKANERA QR (pełen ekran) -->
+<div class="scan-modal" id="scanModal">
+  <div class="scan-header">
+    <h2>Skaner kodów QR</h2>
+    <button class="scan-close" onclick="zamknijSkaner()" aria-label="Zamknij">×</button>
+  </div>
+  <div class="scan-body">
+    <div id="qrReader"></div>
+    <div class="scan-tip">Skieruj aparat na kod QR</div>
+  </div>
+</div>
+
+<!-- MODAL WYNIKU SKANOWANIA -->
+<div class="result-modal" id="resultModal">
+  <div class="ornament">❦ ❦ ❦</div>
+  <h3 id="resultTitle">Znaleziono kod QR</h3>
+  <div class="url-box" id="resultUrl"></div>
+
+  <div class="toggle-row">
+    <input type="checkbox" id="newTabToggle" checked>
+    <label for="newTabToggle">Otwórz w nowej karcie</label>
+  </div>
+
+  <div class="opcje">
+    <button onclick="otworzZnaleziony()">↗ Otwórz link</button>
+    <button class="secondary" onclick="kontynuujSkanowanie()">📷 Skanuj kolejny</button>
+  </div>
+  <a class="small-link" onclick="zamknijWynik()">Zamknij — wróć do mapy</a>
+</div>
+
 <div class="wrapper">
 
   <header>
@@ -545,7 +979,11 @@ footer{
   </div>
 
   <div class="layout">
-    <div id="mapa"></div>
+    <div id="mapa">
+      <button class="gps-btn" id="gpsBtn" onclick="togglePozycja()" title="Pokaż mnie na mapie">📍</button>
+      <button class="scan-btn" id="scanBtn" onclick="otworzSkaner()" title="Skanuj kod QR">📷</button>
+      <div class="gps-status" id="gpsStatus"></div>
+    </div>
     <aside class="sidebar">
       <div id="lista-miejsc"></div>
     </aside>
@@ -814,6 +1252,7 @@ miejsca.forEach((miejsce, idx) => {
   const card = document.createElement('div');
   card.className = 'miejsce-card';
   card.dataset.kategoria = miejsce.kategoria;
+  card.dataset.id = miejsce.id;
   card.innerHTML = `<span class="ikona">${miejsce.ikona}</span>
     <div class="nazwa">${miejsce.nazwa}</div>
     <div class="opis">${miejsce.krotki}</div>`;
@@ -904,6 +1343,389 @@ mapa.on('click', function(e) {
     .setContent(`<b>Współrzędne</b>${lat}, ${lng}<em>kliknij na pinezki, żeby zobaczyć opisy</em>`)
     .openOn(mapa);
 });
+
+// ============== GPS / GEOLOKALIZACJA ==============
+let userMarker = null;
+let userPozycja = null;
+let watchId = null;
+
+const gpsBtn = document.getElementById('gpsBtn');
+const gpsStatus = document.getElementById('gpsStatus');
+
+// Haversine - dystans między dwoma punktami w metrach
+function dystans(lat1, lon1, lat2, lon2) {
+  const R = 6371000;
+  const φ1 = lat1 * Math.PI / 180;
+  const φ2 = lat2 * Math.PI / 180;
+  const Δφ = (lat2 - lat1) * Math.PI / 180;
+  const Δλ = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(Δφ/2) ** 2 + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ/2) ** 2;
+  return 2 * R * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+function formatDystans(metry) {
+  if (metry < 1000) return Math.round(metry) + ' m';
+  return (metry / 1000).toFixed(1).replace('.', ',') + ' km';
+}
+
+function ikonaUzytkownika() {
+  return L.divIcon({
+    className: 'user-position-marker',
+    html: '<div class="user-dot"></div>',
+    iconSize: [18, 18],
+    iconAnchor: [9, 9]
+  });
+}
+
+function aktualizujListeMiejsc() {
+  // Sortuj karty miejsc po odległości od użytkownika
+  if (!userPozycja) return;
+
+  // Najpierw oblicz odległości
+  miejsca.forEach(m => {
+    m.dystansOdUzytkownika = dystans(
+      userPozycja.lat, userPozycja.lng,
+      m.pozycja[0], m.pozycja[1]
+    );
+  });
+
+  // Posortuj div-y w sidebarze
+  const lista = document.getElementById('lista-miejsc');
+  const karty = Array.from(lista.querySelectorAll('.miejsce-card'));
+  karty.sort((a, b) => {
+    const ma = miejsca.find(x => x.id === a.dataset.id);
+    const mb = miejsca.find(x => x.id === b.dataset.id);
+    return (ma?.dystansOdUzytkownika || Infinity) - (mb?.dystansOdUzytkownika || Infinity);
+  });
+
+  // Wstaw posortowane + dodaj badżyk dystansu
+  karty.forEach(card => {
+    const m = miejsca.find(x => x.id === card.dataset.id);
+    if (!m || !m.dystansOdUzytkownika) return;
+
+    // Usuń stary badżyk jeśli był
+    const stary = card.querySelector('.dystans');
+    if (stary) stary.remove();
+
+    // Dodaj nowy
+    const dyst = document.createElement('div');
+    dyst.className = 'dystans' + (m.dystansOdUzytkownika < 500 ? ' bliski' : '');
+    dyst.textContent = '📍 ' + formatDystans(m.dystansOdUzytkownika);
+    card.appendChild(dyst);
+
+    lista.appendChild(card);
+  });
+
+  // Pokaż status najbliższego miejsca
+  const najblizsze = miejsca
+    .filter(m => m.dystansOdUzytkownika != null)
+    .sort((a, b) => a.dystansOdUzytkownika - b.dystansOdUzytkownika)[0];
+
+  if (najblizsze) {
+    gpsStatus.classList.add('visible');
+    gpsStatus.innerHTML = `
+      <span class="ikona-stat">🧭</span>
+      Najbliżej: <b>${najblizsze.nazwa}</b><br>
+      <span style="font-size:13px">${najblizsze.ikona} ${formatDystans(najblizsze.dystansOdUzytkownika)} stąd</span>
+    `;
+  }
+}
+
+function pokazPozycje(pos) {
+  const lat = pos.coords.latitude;
+  const lng = pos.coords.longitude;
+  const dokladnosc = pos.coords.accuracy;
+
+  userPozycja = { lat, lng };
+
+  if (!userMarker) {
+    userMarker = L.marker([lat, lng], { icon: ikonaUzytkownika(), zIndexOffset: 1000 })
+      .addTo(mapa);
+    userMarker.bindPopup(`
+      <b>Tu jesteś</b>
+      <em>📍 Dokładność: ${Math.round(dokladnosc)} m</em>
+    `);
+    // Wycentruj mapę na użytkowniku przy pierwszym fixie
+    mapa.flyTo([lat, lng], 15, { duration: 1.5 });
+  } else {
+    userMarker.setLatLng([lat, lng]);
+  }
+
+  gpsBtn.classList.remove('szukam', 'error');
+  gpsBtn.classList.add('active');
+  gpsBtn.textContent = '📍';
+
+  aktualizujListeMiejsc();
+}
+
+function bladPozycji(err) {
+  gpsBtn.classList.remove('szukam', 'active');
+  gpsBtn.classList.add('error');
+  gpsBtn.textContent = '⚠️';
+
+  let msg = 'Nie udało się pobrać pozycji';
+  if (err.code === 1) msg = 'Odmówiono dostępu do lokalizacji';
+  else if (err.code === 2) msg = 'Pozycja niedostępna';
+  else if (err.code === 3) msg = 'Przekroczono czas oczekiwania';
+
+  gpsStatus.classList.add('visible');
+  gpsStatus.innerHTML = `<span class="ikona-stat">⚠️</span> ${msg}<div class="czas">Sprawdź czy GPS i pozwolenia są włączone</div>`;
+
+  setTimeout(() => {
+    gpsBtn.classList.remove('error');
+    gpsBtn.textContent = '📍';
+  }, 3000);
+}
+
+function togglePozycja() {
+  // Jeśli już śledzimy - wyłącz
+  if (watchId !== null) {
+    navigator.geolocation.clearWatch(watchId);
+    watchId = null;
+    if (userMarker) {
+      mapa.removeLayer(userMarker);
+      userMarker = null;
+    }
+    userPozycja = null;
+    gpsBtn.classList.remove('active', 'szukam');
+    gpsBtn.textContent = '📍';
+    gpsStatus.classList.remove('visible');
+    // Usuń badżyki dystansów
+    document.querySelectorAll('.miejsce-card .dystans').forEach(d => d.remove());
+    return;
+  }
+
+  if (!navigator.geolocation) {
+    gpsStatus.classList.add('visible');
+    gpsStatus.innerHTML = '<span class="ikona-stat">⚠️</span> Twoja przeglądarka nie obsługuje GPS';
+    return;
+  }
+
+  gpsBtn.classList.add('szukam');
+  gpsBtn.textContent = '⏳';
+
+  // watchPosition - ciągła aktualizacja
+  watchId = navigator.geolocation.watchPosition(
+    pokazPozycje,
+    bladPozycji,
+    {
+      enableHighAccuracy: true,
+      maximumAge: 5000,
+      timeout: 15000
+    }
+  );
+}
+
+// ============== QR — OBSŁUGA URL ?m=klucz ==============
+// Po zeskanowaniu QR-a turysta trafia na adres typu: ...?m=palac
+// Mapa wykrywa parametr, centruje się na miejscu, podświetla pinezkę,
+// pokazuje banner powitalny "Tu jesteś".
+let aktualneMiejsceQR = null;
+
+function obsluzParametrUrl() {
+  const params = new URLSearchParams(window.location.search);
+  const klucz = params.get('m');
+  if (!klucz) return;
+
+  const miejsce = miejsca.find(m => m.klucz === klucz);
+  if (!miejsce) return;
+
+  aktualneMiejsceQR = miejsce;
+
+  // Wycentruj mapę na miejscu (po małej zwłoce, by Leaflet zdążył się załadować)
+  setTimeout(() => {
+    mapa.flyTo(miejsce.pozycja, 17, { duration: 1.5 });
+
+    // Podświetl pinezkę pulsem
+    const m = markery.find(mk => mk.miejsce.klucz === klucz);
+    if (m) {
+      const ikonaEl = m.getElement();
+      if (ikonaEl) {
+        const inner = ikonaEl.querySelector('div');
+        if (inner) {
+          const pulse = document.createElement('div');
+          pulse.className = 'qr-marker-pulse';
+          inner.style.position = 'relative';
+          inner.appendChild(pulse);
+          setTimeout(() => pulse.remove(), 8000);
+        }
+      }
+    }
+
+    // Podświetl kartę w sidebarze
+    document.querySelectorAll('.miejsce-card').forEach(c => c.classList.remove('qr-aktywna'));
+    const karta = document.querySelector(`.miejsce-card[data-id="${miejsce.id}"]`);
+    if (karta) {
+      karta.classList.add('qr-aktywna');
+      setTimeout(() => karta.scrollIntoView({ behavior: 'smooth', block: 'center' }), 600);
+    }
+  }, 300);
+
+  pokazQrWelcome(miejsce);
+}
+
+function pokazQrWelcome(miejsce) {
+  document.getElementById('qrWelcomeIkona').textContent = miejsce.ikona;
+  document.getElementById('qrWelcomeNazwa').textContent = miejsce.nazwa;
+  document.getElementById('qrWelcomeOpis').textContent = miejsce.krotki || 'Tu jesteś — zobacz więcej miejsc w pobliżu.';
+  document.getElementById('qrWelcome').classList.add('visible');
+}
+
+function zamknijQrWelcome() {
+  document.getElementById('qrWelcome').classList.remove('visible');
+}
+
+function zobaczOpisPelny() {
+  zamknijQrWelcome();
+  if (!aktualneMiejsceQR) return;
+  const tresc = `<b>${aktualneMiejsceQR.nazwa}</b>${aktualneMiejsceQR.opis}<em>📜 ${aktualneMiejsceQR.historia}</em>`;
+  L.popup({ className: 'custom-popup' })
+    .setLatLng(aktualneMiejsceQR.pozycja)
+    .setContent(tresc)
+    .openOn(mapa);
+}
+
+// Uruchom obsługę URL po pełnym załadowaniu wszystkich miejsc
+window.addEventListener('load', () => {
+  setTimeout(obsluzParametrUrl, 200);
+});
+
+// ============== SKANER QR ==============
+// Skaner używa biblioteki html5-qrcode. Otwiera tylną kamerę,
+// szuka QR-ów, po znalezieniu pokazuje URL w modalu wyniku.
+let qrScanner = null;
+let znalezionyURL = null;
+
+function otworzSkaner() {
+  document.getElementById('scanModal').classList.add('visible');
+
+  if (!qrScanner) {
+    qrScanner = new Html5Qrcode("qrReader");
+  }
+
+  // Spróbuj uruchomić tylną kamerę (environment), z fallbackiem
+  const config = {
+    fps: 10,
+    qrbox: { width: 250, height: 250 },
+    aspectRatio: 1.0,
+    showTorchButtonIfSupported: true
+  };
+
+  qrScanner.start(
+    { facingMode: "environment" },
+    config,
+    onScanSuccess,
+    onScanError
+  ).catch(err => {
+    // Fallback - jeśli environment nie działa, spróbuj jakąkolwiek kamerę
+    console.warn("Environment camera failed, trying any camera:", err);
+    Html5Qrcode.getCameras()
+      .then(devices => {
+        if (devices && devices.length) {
+          return qrScanner.start(devices[0].id, config, onScanSuccess, onScanError);
+        } else {
+          throw new Error("Brak dostępnych kamer");
+        }
+      })
+      .catch(err2 => {
+        pokazBlad('Nie udało się uruchomić kamery', err2.message || 'Sprawdź pozwolenia w przeglądarce');
+        zamknijSkaner();
+      });
+  });
+}
+
+function onScanSuccess(decodedText) {
+  // Zatrzymaj skanowanie
+  if (qrScanner && qrScanner.isScanning) {
+    qrScanner.stop().catch(() => {});
+  }
+
+  // Wibracja jeśli telefon obsługuje
+  if (navigator.vibrate) navigator.vibrate(80);
+
+  znalezionyURL = decodedText;
+  pokazWynik(decodedText);
+}
+
+function onScanError(errorMessage) {
+  // Cisza - error odpala się przy każdym tiku gdy nie ma kodu
+  // To normalne, nie pokazujemy nic
+}
+
+function zamknijSkaner() {
+  if (qrScanner && qrScanner.isScanning) {
+    qrScanner.stop().catch(() => {});
+  }
+  document.getElementById('scanModal').classList.remove('visible');
+}
+
+function kontynuujSkanowanie() {
+  zamknijWynik();
+  // Skaner jeszcze otwarty, więc wystarczy go restartować
+  setTimeout(() => {
+    if (qrScanner) {
+      qrScanner.start(
+        { facingMode: "environment" },
+        { fps: 10, qrbox: { width: 250, height: 250 }, aspectRatio: 1.0 },
+        onScanSuccess,
+        onScanError
+      ).catch(err => console.error("Restart failed:", err));
+    }
+  }, 200);
+}
+
+// ============== MODAL WYNIKU ==============
+function pokazWynik(url) {
+  const modal = document.getElementById('resultModal');
+  modal.classList.remove('error');
+  document.getElementById('resultTitle').textContent = 'Znaleziono kod QR';
+  document.getElementById('resultUrl').textContent = url;
+  modal.classList.add('visible');
+}
+
+function pokazBlad(tytul, opis) {
+  const modal = document.getElementById('resultModal');
+  modal.classList.add('error');
+  document.getElementById('resultTitle').textContent = '⚠ ' + tytul;
+  document.getElementById('resultUrl').textContent = opis;
+  modal.classList.add('visible');
+}
+
+function zamknijWynik() {
+  document.getElementById('resultModal').classList.remove('visible');
+  zamknijSkaner();
+}
+
+function otworzZnaleziony() {
+  if (!znalezionyURL) return;
+
+  const wNowejKarcie = document.getElementById('newTabToggle').checked;
+
+  // Sprawdź czy to URL czy zwykły tekst
+  const urlPattern = /^https?:\/\//i;
+  let urlDoOtwarcia = znalezionyURL;
+
+  if (!urlPattern.test(znalezionyURL)) {
+    // Jeśli nie zaczyna się od http://, sprawdź czy wygląda jak domena
+    if (/^[\w-]+(\.[\w-]+)+/.test(znalezionyURL)) {
+      // Wygląda jak domena - dodaj https://
+      urlDoOtwarcia = 'https://' + znalezionyURL;
+    } else {
+      // To nie jest URL, spróbujmy potraktować jako wyszukiwanie
+      // ale lepiej powiedzieć użytkownikowi
+      alert('Ten kod QR nie zawiera adresu strony. Treść:\n\n' + znalezionyURL);
+      return;
+    }
+  }
+
+  if (wNowejKarcie) {
+    window.open(urlDoOtwarcia, '_blank', 'noopener,noreferrer');
+  } else {
+    // Zamknij skaner przed nawigacją w tej samej karcie
+    zamknijWynik();
+    window.location.href = urlDoOtwarcia;
+  }
+}
 
 (function loadPreferences() {
   const isMobile = window.matchMedia('(max-width: 900px)').matches;
