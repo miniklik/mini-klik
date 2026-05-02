@@ -482,6 +482,63 @@
   .modal p { font-size: 13px; line-height: 1.6; color: #b0b0b8; margin-bottom: 14px; }
   .modal-row { display: flex; gap: 8px; margin-top: 16px; justify-content: flex-end; }
 
+  /* ========== TRYB EKSPORTU PNG ========== */
+  /* Klasa dodawana do <html> tylko na czas robienia screenshota.
+     Chowa wszystkie elementy edytorskie (siatka, ramki textboxa, kursory itd.)
+     żeby PNG zawierał TYLKO to co w prawdziwie wyeksportowanej stronie. */
+  html.png-export-mode #scene::before,
+  html.png-export-mode #scene::after { display: none !important; }
+  html.png-export-mode #scene { box-shadow: none !important; }
+  html.png-export-mode .item-textbox { border: none !important; padding: 0 !important; }
+  html.png-export-mode .item-textbox:empty::before { display: none !important; content: '' !important; }
+  html.png-export-mode .scene-item.selected { outline: none !important; }
+  html.png-export-mode .scene-item:hover { outline: none !important; }
+  html.png-export-mode .scene-item .handle { display: none !important; }
+  html.png-export-mode .scene-item.has-goto::after,
+  html.png-export-mode .scene-item.has-link::before { display: none !important; content: '' !important; }
+  html.png-export-mode .scene-item { cursor: default !important; }
+  html.png-export-mode #scene { cursor: default !important; }
+
+  /* ========== KAFELKI WYBORU FORMATU EKSPORTU ========== */
+  .export-choice {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    background: #22222c;
+    border: 1px solid #2e2e38;
+    border-radius: 10px;
+    padding: 14px 16px;
+    cursor: pointer;
+    text-align: left;
+    transition: all 0.15s;
+    color: #e8e8ea;
+    font-family: inherit;
+    width: 100%;
+  }
+  .export-choice:hover {
+    background: #2e2e3a;
+    border-color: #fbbf24;
+    transform: translateX(2px);
+  }
+  .export-choice-icon {
+    font-size: 32px;
+    flex-shrink: 0;
+    width: 48px;
+    text-align: center;
+  }
+  .export-choice-body { flex: 1; min-width: 0; }
+  .export-choice-title {
+    font-weight: 700;
+    font-size: 14px;
+    color: #ffb84d;
+    margin-bottom: 4px;
+  }
+  .export-choice-desc {
+    font-size: 12px;
+    color: #b0b0b8;
+    line-height: 1.4;
+  }
+
   /* ========== MODAL EMOJI ========== */
   .modal-emoji {
     max-width: 720px;
@@ -1299,7 +1356,7 @@
   <button class="topbar-btn" id="btn-preview">▶ Podgląd</button>
   <button class="topbar-btn" id="btn-save-project" title="Zapisz projekt (Ctrl+S)">💾 Zapisz projekt</button>
   <button class="topbar-btn" id="btn-load-project" title="Wczytaj projekt z pliku .json">📂 Wczytaj</button>
-  <button class="topbar-btn primary" id="btn-export" title="Eksportuj HTML (Ctrl+E)">⬇ Eksportuj HTML</button>
+  <button class="topbar-btn primary" id="btn-export" title="Eksportuj projekt (Ctrl+E)">⬇ Eksportuj</button>
   <button class="topbar-btn danger" id="btn-clear">🗑 Wyczyść</button>
 </div>
 
@@ -1404,6 +1461,34 @@
 </div>
 
 <!-- ===== MODAL EKSPORTU ===== -->
+<!-- Modal: wybór formatu eksportu -->
+<div class="modal-backdrop" id="modal-export-choose">
+  <div class="modal" style="max-width:560px;">
+    <h2>⬇ Eksportuj projekt</h2>
+    <p>Wybierz w jakim formacie zapisać. Po wyborze zobaczysz dialog <strong>„Zapisz jako"</strong>.</p>
+    <div style="display:grid;grid-template-columns:1fr;gap:10px;margin-top:14px;">
+      <button class="export-choice" data-fmt="html">
+        <div class="export-choice-icon">📄</div>
+        <div class="export-choice-body">
+          <div class="export-choice-title">HTML — pełna strona WWW</div>
+          <div class="export-choice-desc">Wszystkie poziomy, animacje, przejścia, klikalne. Działa w przeglądarce.</div>
+        </div>
+      </button>
+      <button class="export-choice" data-fmt="png">
+        <div class="export-choice-icon">🖼</div>
+        <div class="export-choice-body">
+          <div class="export-choice-title">PNG — obrazek (aktualny poziom)</div>
+          <div class="export-choice-desc">Jedno ujęcie w wysokiej jakości. Do social media, druku, wiadomości.</div>
+        </div>
+      </button>
+    </div>
+    <div class="modal-row">
+      <button class="topbar-btn" id="export-choose-cancel">Anuluj</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: wybór formatu eksportu (stary - opcje HTML, zostaje jako krok 2 dla HTML) -->
 <div class="modal-backdrop" id="modal-export">
   <div class="modal">
     <h2>⬇ Eksportuj jako HTML</h2>
@@ -2331,6 +2416,123 @@ if (canvasWrap) {
 // ============================================================
 // PANEL WŁAŚCIWOŚCI (prawy)
 // ============================================================
+// ============================================================
+// PANEL RAMKI - wbudowany w prawy panel właściwości obiektu.
+// Działa po zaznaczeniu obiektu (zamiast w trybie Media).
+// Używa osobnych ID (pf-... = prop frame) żeby nie kolidować z trybem Media.
+// ============================================================
+function buildFramePanelHTML(item) {
+  const f = item.frame || { theme: 'none', color: '#ffffff', bg: '#000000', bgAlpha: 80, width: 3, padding: 12, radius: 10 };
+  const themes = [
+    { id: 'none',   label: '⊘ Brak' },
+    { id: 'border', label: '▭ Ramka' },
+    { id: 'filled', label: '▣ Z tłem' },
+    { id: 'neon',   label: '✨ Neon' },
+    { id: 'ornate', label: '❖ Ozdobna' }
+  ];
+  const themeBtns = themes.map(t =>
+    `<button class="anim-btn ${(f.theme||'none')===t.id?'active':''}" data-pf-theme="${t.id}" style="font-size:11px;padding:8px 4px;">${t.label}</button>`
+  ).join('');
+  const showDetails = f.theme && f.theme !== 'none';
+  const showBg = showDetails && f.theme !== 'border';
+
+  return `
+    <div class="prop-group" style="border-top:1px solid #2a2a35;padding-top:10px;margin-top:14px;">
+      <div class="prop-label">🖼 Ramka</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;margin-bottom:8px;">${themeBtns}</div>
+      ${showDetails ? `
+        <div class="prop-label" style="margin-top:6px;">Kolor ramki</div>
+        <input type="color" id="pf-color" value="${f.color || '#ffffff'}" />
+        ${showBg ? `
+          <div class="prop-label" style="margin-top:8px;">Kolor tła</div>
+          <input type="color" id="pf-bg" value="${f.bg || '#000000'}" />
+          <div class="prop-label" style="margin-top:6px;">Przezroczystość tła: <span id="pf-bg-alpha-val">${f.bgAlpha == null ? 80 : f.bgAlpha}</span>%</div>
+          <input type="range" id="pf-bg-alpha" min="0" max="100" value="${f.bgAlpha == null ? 80 : f.bgAlpha}" />
+        ` : ''}
+        <div class="prop-label" style="margin-top:8px;">Grubość: <span id="pf-width-val">${f.width || 3}</span> px</div>
+        <input type="range" id="pf-width" min="1" max="12" value="${f.width || 3}" />
+        <div class="prop-label" style="margin-top:6px;">Odstęp wewnętrzny: <span id="pf-pad-val">${f.padding == null ? 12 : f.padding}</span> px</div>
+        <input type="range" id="pf-pad" min="0" max="40" value="${f.padding == null ? 12 : f.padding}" />
+        <div class="prop-label" style="margin-top:6px;">Zaokrąglenie: <span id="pf-radius-val">${f.radius == null ? 10 : f.radius}</span> px</div>
+        <input type="range" id="pf-radius" min="0" max="40" value="${f.radius == null ? 10 : f.radius}" />
+      ` : ''}
+    </div>
+  `;
+}
+
+function bindFramePanelControls(item) {
+  // Helper - zapisuje pole, renderuje na żywo, opcjonalnie pushuje historię
+  const patch = (field, val, hist = false) => {
+    if (!item.frame) item.frame = { theme: 'none', color: '#ffffff', bg: '#000000', bgAlpha: 80, width: 3, padding: 12, radius: 10 };
+    item.frame[field] = val;
+    // Aktualizujemy DOM bez pełnego render() żeby zachować focus na suwaku/colorpicker
+    const el = document.querySelector(`.scene-item[data-id="${item.id}"]`);
+    if (el) {
+      const fs = frameStyleFor(item);
+      const wrap = el.querySelector('.frame-wrap');
+      if (wrap) {
+        wrap.className = 'frame-wrap ' + fs.className;
+        wrap.style.cssText = fs.style;
+      }
+    }
+    if (hist) pushHistory();
+  };
+
+  // Wybór stylu ramki = pełny render() bo zmienia całą strukturę DOM (frame-wrap pojawia/znika)
+  document.querySelectorAll('[data-pf-theme]').forEach(b => {
+    b.onclick = () => {
+      if (!item.frame) item.frame = { theme: 'none', color: '#ffffff', bg: '#000000', bgAlpha: 80, width: 3, padding: 12, radius: 10 };
+      item.frame.theme = b.dataset.pfTheme;
+      render();         // pełny render bo zmienia strukturę panelu i obiektu
+      pushHistory();
+    };
+  });
+
+  // Kolory i suwaki - liveUpdate
+  const c = document.getElementById('pf-color');
+  if (c) {
+    c.oninput = e => patch('color', e.target.value);
+    c.onchange = () => pushHistory();
+  }
+  const bg = document.getElementById('pf-bg');
+  if (bg) {
+    bg.oninput = e => patch('bg', e.target.value);
+    bg.onchange = () => pushHistory();
+  }
+  const bgAlpha = document.getElementById('pf-bg-alpha');
+  if (bgAlpha) {
+    bgAlpha.oninput = e => {
+      document.getElementById('pf-bg-alpha-val').textContent = e.target.value;
+      patch('bgAlpha', +e.target.value);
+    };
+    bgAlpha.onchange = () => pushHistory();
+  }
+  const w = document.getElementById('pf-width');
+  if (w) {
+    w.oninput = e => {
+      document.getElementById('pf-width-val').textContent = e.target.value;
+      patch('width', +e.target.value);
+    };
+    w.onchange = () => pushHistory();
+  }
+  const pad = document.getElementById('pf-pad');
+  if (pad) {
+    pad.oninput = e => {
+      document.getElementById('pf-pad-val').textContent = e.target.value;
+      patch('padding', +e.target.value);
+    };
+    pad.onchange = () => pushHistory();
+  }
+  const r = document.getElementById('pf-radius');
+  if (r) {
+    r.oninput = e => {
+      document.getElementById('pf-radius-val').textContent = e.target.value;
+      patch('radius', +e.target.value);
+    };
+    r.onchange = () => pushHistory();
+  }
+}
+
 function renderProps() {
   const c = document.getElementById('props-content');
 
@@ -2349,9 +2551,6 @@ function renderProps() {
     if (c.dataset.panel !== 'media') {
       renderMediaPanel();
       c.dataset.panel = 'media';
-    } else {
-      // DOM już zbudowany, tylko zsynchronizuj kontrolki ramki
-      bindFrameControls();
     }
     return;
   }
@@ -2552,6 +2751,8 @@ function renderProps() {
         <button class="anim-btn" id="prop-layer-down" title="Niżej (pod inne)">⬇ Niżej −</button>
       </div>
     </div>
+
+    ${buildFramePanelHTML(item)}
 
     <div class="prop-group">
       <div class="prop-label">Animacja</div>
@@ -2770,6 +2971,9 @@ function renderProps() {
     };
     propShapeh.onchange = () => pushHistory();
   }
+
+  // Panel ramki - bindowanie handlerów (kolor, grubość, padding, radius)
+  bindFramePanelControls(item);
 
   // Animacja zmienia klasę CSS na elemencie scenicznym + przycisk active w panelu — wymaga render()
   document.querySelectorAll('[data-anim]').forEach(b => {
@@ -3360,91 +3564,6 @@ function frameStyleFor(item) {
   return { className: themeClass, style };
 }
 
-// Binduje sekcję "Ramka" w panelu Media do zaznaczonego itema.
-// Wywoływana po renderMediaPanel() — DOM już istnieje.
-function bindFrameControls() {
-  const card = document.getElementById('frame-card');
-  if (!card) return;
-  const hint = document.getElementById('frame-hint');
-  const ctrls = document.getElementById('frame-controls');
-  const details = document.getElementById('frame-details');
-  const colorIn = document.getElementById('frame-color');
-  const bgWrap = document.getElementById('frame-bg-wrap');
-  const bgIn = document.getElementById('frame-bg');
-  const bgAlphaIn = document.getElementById('frame-bg-alpha');
-  const bgAlphaVal = document.getElementById('frame-bg-alpha-val');
-  const widthIn = document.getElementById('frame-width');
-  const widthVal = document.getElementById('frame-width-val');
-  const padIn = document.getElementById('frame-pad');
-  const padVal = document.getElementById('frame-pad-val');
-  const radiusIn = document.getElementById('frame-radius');
-  const radiusVal = document.getElementById('frame-radius-val');
-  const themeBtns = card.querySelectorAll('[data-frame]');
-
-  function syncUIFromItem() {
-    const item = currentItems().find(i => i.id === state.selectedId);
-    if (!item) {
-      // Brak zaznaczonego — ukryj kontrolki, pokaż podpowiedź
-      hint.style.display = 'block';
-      ctrls.style.display = 'none';
-      return;
-    }
-    hint.style.display = 'none';
-    ctrls.style.display = 'block';
-
-    const f = item.frame || { theme: 'none' };
-    themeBtns.forEach(b => b.classList.toggle('active', b.dataset.frame === (f.theme || 'none')));
-
-    if (!f.theme || f.theme === 'none') {
-      details.style.display = 'none';
-    } else {
-      details.style.display = 'block';
-      colorIn.value = f.color || '#ffffff';
-      bgIn.value = f.bg || '#000000';
-      bgAlphaIn.value = (f.bgAlpha == null ? 80 : f.bgAlpha);
-      bgAlphaVal.textContent = bgAlphaIn.value;
-      widthIn.value = f.width || 3;
-      widthVal.textContent = widthIn.value;
-      padIn.value = (f.padding == null ? 12 : f.padding);
-      padVal.textContent = padIn.value;
-      radiusIn.value = (f.radius == null ? 10 : f.radius);
-      radiusVal.textContent = radiusIn.value;
-      // Tło — niewidoczne dla "border" (sama ramka)
-      bgWrap.style.display = (f.theme === 'border') ? 'none' : 'block';
-    }
-  }
-
-  function patch(field, val) {
-    const item = currentItems().find(i => i.id === state.selectedId);
-    if (!item) { toast('Najpierw zaznacz obiekt na scenie'); return; }
-    if (!item.frame) item.frame = { theme: 'none', color: '#ffffff', bg: '#000000', bgAlpha: 80, width: 3, padding: 12, radius: 10 };
-    item.frame[field] = val;
-    render();
-    // Po render() panel media renderuje się od nowa, ale zachowujemy wybrany item
-    // dlatego musimy znów zsynchronizować UI:
-    syncUIFromItem();
-  }
-
-  themeBtns.forEach(b => {
-    b.onclick = () => { patch('theme', b.dataset.frame); pushHistory(); };
-  });
-  // Color picker i suwaki: oninput dla podglądu, change dla snapshotu (po puszczeniu)
-  colorIn.oninput = e => patch('color', e.target.value);
-  colorIn.onchange = () => pushHistory();
-  bgIn.oninput = e => patch('bg', e.target.value);
-  bgIn.onchange = () => pushHistory();
-  bgAlphaIn.oninput = e => { bgAlphaVal.textContent = e.target.value; patch('bgAlpha', +e.target.value); };
-  bgAlphaIn.onchange = () => pushHistory();
-  widthIn.oninput = e => { widthVal.textContent = e.target.value; patch('width', +e.target.value); };
-  widthIn.onchange = () => pushHistory();
-  padIn.oninput = e => { padVal.textContent = e.target.value; patch('padding', +e.target.value); };
-  padIn.onchange = () => pushHistory();
-  radiusIn.oninput = e => { radiusVal.textContent = e.target.value; patch('radius', +e.target.value); };
-  radiusIn.onchange = () => pushHistory();
-
-  syncUIFromItem();
-}
-
 // Wyciąga ID filmu z różnych formatów URL YouTube.
 // Obsługa: youtube.com/watch?v=ID, youtu.be/ID, youtube.com/shorts/ID, youtube.com/embed/ID
 function parseYoutubeId(url) {
@@ -3595,43 +3714,6 @@ function renderMediaPanel() {
       <p>Zaznacz tekst lub emotkę na scenie, a potem kliknij przycisk poniżej i wpisz adres.</p>
       <button class="btn-go" id="media-attach-link">Wybierz obiekt + dodaj link</button>
     </div>
-
-    <div class="media-card" id="frame-card">
-      <h4>🖼 Ramka dla obiektu</h4>
-      <p id="frame-hint" style="display:none;">Najpierw zaznacz obiekt na scenie, a potem wybierz styl ramki.</p>
-      <div id="frame-controls">
-        <div class="prop-label" style="margin-bottom:6px;">Styl</div>
-        <div class="frame-grid">
-          <button class="frame-btn" data-frame="none">⊘ Brak</button>
-          <button class="frame-btn" data-frame="border">▭ Ramka</button>
-          <button class="frame-btn" data-frame="filled">▣ Ramka z tłem</button>
-          <button class="frame-btn" data-frame="neon">✨ Neon</button>
-          <button class="frame-btn" data-frame="ornate">❖ Ozdobna</button>
-        </div>
-
-        <div id="frame-details" style="margin-top:10px;display:none;">
-          <div class="prop-label">Kolor ramki</div>
-          <input type="color" id="frame-color" value="#ffffff" />
-
-          <div id="frame-bg-wrap" style="margin-top:8px;">
-            <div class="prop-label">Kolor tła</div>
-            <input type="color" id="frame-bg" value="#000000" />
-            <div class="prop-label" style="margin-top:6px;">Przezroczystość tła: <span id="frame-bg-alpha-val">80</span>%</div>
-            <input type="range" id="frame-bg-alpha" min="0" max="100" value="80" />
-          </div>
-
-          <div class="prop-label" style="margin-top:8px;">Grubość: <span id="frame-width-val">3</span> px</div>
-          <input type="range" id="frame-width" min="1" max="12" value="3" />
-
-          <div class="prop-label" style="margin-top:8px;">Padding: <span id="frame-pad-val">12</span> px</div>
-          <input type="range" id="frame-pad" min="0" max="40" value="12" />
-
-          <div class="prop-label" style="margin-top:8px;">Zaokrąglenie: <span id="frame-radius-val">10</span> px</div>
-          <input type="range" id="frame-radius" min="0" max="40" value="10" />
-        </div>
-      </div>
-    </div>
-
     <div class="media-card">
       <h4>📺 Miniaturka YouTube</h4>
       <p>Wklej link do filmu (youtube.com/watch?v=... albo youtu.be/...) — pobiorę miniaturkę.</p>
@@ -3663,9 +3745,6 @@ function renderMediaPanel() {
     state.mediaPickItem = 'waiting';   // czekamy aż user kliknie obiekt na scenie
     toast('Kliknij obiekt na scenie, do którego chcesz dołączyć link');
   };
-
-  // ====== RAMKI ======
-  bindFrameControls();
 
   // ====== YouTube ======
   const ytUrlInput = document.getElementById('media-yt-url');
@@ -4832,6 +4911,159 @@ const fileHandles = {
 
 // ============================================================
 // ============================================================
+// ============================================================
+// EKSPORT PNG — aktualny poziom jako obrazek
+// ============================================================
+// Strategia: lazy-load html2canvas z CDN przy pierwszym kliknięciu.
+// Jeśli brak internetu → fallback przez natywne SVG foreignObject (gorsza jakość ale działa).
+// Eksport zawsze zawiera CAŁĄ scenę aktualnego poziomu - z tłem, rysunkiem i wszystkimi obiektami.
+// Branding (mini-klik.pl/autor) NIE jest w eksporcie - to napisy edytora, nie wynik użytkownika.
+// ============================================================
+let html2canvasLoaded = false;
+function loadHtml2Canvas() {
+  return new Promise((resolve, reject) => {
+    if (html2canvasLoaded && window.html2canvas) {
+      resolve(window.html2canvas);
+      return;
+    }
+    const script = document.createElement('script');
+    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+    script.onload = () => {
+      html2canvasLoaded = true;
+      resolve(window.html2canvas);
+    };
+    script.onerror = () => reject(new Error('Brak internetu - nie można pobrać biblioteki html2canvas'));
+    document.head.appendChild(script);
+  });
+}
+
+// Pobiera blob jako plik o podanej nazwie
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => {
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }, 100);
+}
+
+// Zapisuje blob z dialogiem "Zapisz jako..." (File System Access API)
+// Fallback: zwykłe pobieranie do "Pobrane" gdy brak API albo user anuluje
+// Zwraca:
+//   { method: 'picker', fileName: '...' } — zapisane przez dialog
+//   { method: 'download' }                — fallback
+//   null                                  — user anulował
+async function saveBlobWithPicker(blob, suggestedName, mime, acceptDesc, acceptExt) {
+  if (typeof window.showSaveFilePicker === 'function') {
+    try {
+      // Używamy wildcard MIME bo niektóre przeglądarki blokują konkretne typy
+      const handle = await window.showSaveFilePicker({
+        suggestedName,
+        types: [{
+          description: acceptDesc,
+          accept: { '*/*': [acceptExt] }
+        }]
+      });
+      const writable = await handle.createWritable();
+      await writable.write(blob);
+      await writable.close();
+      return { method: 'picker', fileName: handle.name };
+    } catch(err) {
+      if (err && err.name === 'AbortError') return null;  // user anulował
+      console.warn('Save picker failed, falling back to download:', err);
+    }
+  }
+  // Fallback - zwykłe pobranie
+  downloadBlob(blob, suggestedName);
+  return { method: 'download' };
+}
+
+async function doExportPng() {
+  toast('🖼 Generuję PNG…');
+  // Odznacz aktualny obiekt - żeby nie było ramki selekcji w eksporcie
+  const prevSelected = state.selectedId;
+  state.selectedId = null;
+  // Wyłącz tryby specjalne na czas renderowania
+  const prevDrawMode = state.drawMode;
+  state.drawMode = null;
+  // Dodaj klasę png-export-mode do <html> - chowa siatkę, ramki textboxa i inne edytorskie elementy
+  // żeby PNG zawierał TYLKO to co widz zobaczy w wyeksportowanej stronie
+  document.documentElement.classList.add('png-export-mode');
+  render();
+
+  // Daj DOM-owi chwilę na przerysowanie + zastosowanie nowych styli
+  await new Promise(r => setTimeout(r, 100));
+
+  try {
+    const html2canvas = await loadHtml2Canvas();
+    const sceneEl = document.getElementById('scene');
+    if (!sceneEl) throw new Error('Brak elementu scene');
+
+    // Aktualne logiczne wymiary sceny (z CSS variables - obsługuje też custom rozmiary)
+    const root = document.documentElement;
+    const realW = parseInt(getComputedStyle(root).getPropertyValue('--canvas-w')) || getCurrentFormat().width;
+    const realH = parseInt(getComputedStyle(root).getPropertyValue('--canvas-h')) || getCurrentFormat().height;
+    const userScale = parseFloat(getComputedStyle(root).getPropertyValue('--scene-scale')) || 1;
+
+    const canvas = await html2canvas(sceneEl, {
+      backgroundColor: null,        // szanuj tło sceny
+      useCORS: true,
+      allowTaint: false,
+      scale: 2,                     // 2× dla lepszej jakości (retina)
+      logging: false,
+      width: realW * userScale,
+      height: realH * userScale,
+      windowWidth: realW * userScale,
+      windowHeight: realH * userScale,
+    });
+
+    // Skalujemy do prawdziwych wymiarów sceny (2× dla ostrości na retinie)
+    const finalCanvas = document.createElement('canvas');
+    finalCanvas.width = realW * 2;
+    finalCanvas.height = realH * 2;
+    const ctx = finalCanvas.getContext('2d');
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(canvas, 0, 0, finalCanvas.width, finalCanvas.height);
+
+    finalCanvas.toBlob(async (blob) => {
+      if (!blob) {
+        toast('❌ Błąd generowania PNG');
+        return;
+      }
+      const pageNum = state.currentPageIndex + 1;
+      const filename = `studio-poziom-${pageNum}.png`;
+      const result = await saveBlobWithPicker(blob, filename, 'image/png', 'Obrazek PNG', '.png');
+      if (result === null) {
+        toast('Anulowano');
+      } else if (result.method === 'picker') {
+        toast('✅ Zapisano: ' + result.fileName);
+      } else {
+        toast('✅ PNG pobrany do folderu Pobrane');
+      }
+    }, 'image/png', 1.0);
+
+  } catch (err) {
+    console.error('PNG export error:', err);
+    if (err.message && err.message.includes('html2canvas')) {
+      toast('❌ Brak internetu - PNG wymaga połączenia');
+    } else {
+      toast('❌ Błąd: ' + (err.message || 'nieznany'));
+    }
+  } finally {
+    // Przywróć stan + usuń klasę png-export-mode
+    document.documentElement.classList.remove('png-export-mode');
+    state.selectedId = prevSelected;
+    state.drawMode = prevDrawMode;
+    render();
+  }
+};
+
+// ============================================================
 // PRZYCISKI TOPBAR — eksport HTML
 // "⬇ Eksportuj HTML" działa "smart":
 //   - jeśli wcześniej zapisałeś plik (mamy uchwyt) → zapisuje cicho do tego samego (jak Ctrl+S)
@@ -4839,6 +5071,37 @@ const fileHandles = {
 // W modalu jest też zawsze opcja "Zapisz jako…" (do innego pliku).
 // ============================================================
 document.getElementById('btn-export').onclick = async () => {
+  // Pokaż modal wyboru formatu
+  document.getElementById('modal-export-choose').classList.add('show');
+};
+
+document.getElementById('export-choose-cancel').onclick = () => {
+  document.getElementById('modal-export-choose').classList.remove('show');
+};
+
+// Klik w tło modala = anuluj
+document.getElementById('modal-export-choose').addEventListener('click', (e) => {
+  if (e.target.id === 'modal-export-choose') {
+    document.getElementById('modal-export-choose').classList.remove('show');
+  }
+});
+
+// Klik w kafelek formatu
+document.querySelectorAll('.export-choice').forEach(btn => {
+  btn.onclick = () => {
+    const fmt = btn.dataset.fmt;
+    document.getElementById('modal-export-choose').classList.remove('show');
+    if (fmt === 'html') {
+      // Dla HTML - jeśli mamy uchwyt do pliku, zapisuje cicho. W innym przypadku - pokazuje modal-export
+      doExportHtml();
+    } else if (fmt === 'png') {
+      doExportPng();
+    }
+  };
+});
+
+// Funkcja eksportu HTML (wyciągnięta osobno żeby można było wywołać z modalu wyboru)
+async function doExportHtml() {
   // Mamy uchwyt + przeglądarka go obsługuje → szybki zapis
   if (fileHandles.exportH) {
     try {
@@ -4848,7 +5111,6 @@ document.getElementById('btn-export').onclick = async () => {
       toast('✓ Zaktualizowano ' + fileHandles.exportH.name + '  (Ctrl+E = szybki zapis)');
       return;
     } catch(err) {
-      // Coś poszło nie tak (plik usunięty, brak uprawnień itp.) — pokaż modal
       console.warn('Quick save failed, opening dialog:', err);
       fileHandles.exportH = null;
       toast('⚠ Plik niedostępny — wybierz nowy');
@@ -4856,7 +5118,7 @@ document.getElementById('btn-export').onclick = async () => {
   }
   // Brak uchwytu lub błąd → pokaż modal "Zapisz jako…"
   document.getElementById('modal-export').classList.add('show');
-};
+}
 
 document.getElementById('export-cancel').onclick = () => {
   document.getElementById('modal-export').classList.remove('show');
