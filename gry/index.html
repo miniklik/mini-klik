@@ -2,922 +2,820 @@
 <html lang="pl">
 <head>
 <meta charset="UTF-8">
-<title>mini-klik • portal z grami</title>
+<title>Mini Przygoda Eda • mini-klik</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#fff200">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bungee&family=Outfit:wght@400;700;800;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 
 <style>
-:root {
-    --cyan: #00f7ff;
-    --pink: #ff00c8;
-    --sidebar-w: 220px;
-    --guestbook-w: 340px;
-    --topbar-h: 60px;
+:root{
+  --yellow:#fff200;
+  --black:#000;
+  --red:#ff003c;
+  --blue:#0040ff;
+  --green:#00ffaa;
+  --pink:#ff44a8;
+  --gray:#1a1a1a;
 }
 
-* { margin:0; padding:0; box-sizing:border-box; }
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{min-height:100%;overflow-x:hidden}
 
-body {
-    font-family: 'Segoe UI', Arial, sans-serif;
-    background:
-        linear-gradient(180deg,
-            #1a0d3a 0%,
-            #3d1a5a 12%,
-            #7a2a6e 22%,
-            #c94a6e 35%,
-            #ff7a3d 50%,
-            #8a2e5e 70%,
-            #2a1550 85%,
-            #0a0520 100%);
-    background-attachment: fixed;
-    color: #f5e8dc;
-    overflow-x: hidden;
+body{
+  font-family:'Outfit',sans-serif;
+  background:var(--yellow);
+  color:var(--black);
+  position:relative;
+  min-height:100vh;
 }
-
-/* Gwiazdy */
-body::before {
-    content: "";
-    position: fixed;
-    top: 0; left: 0; right: 0;
-    height: 40vh;
-    background-image:
-        radial-gradient(circle 1.5px at 10% 15%, #fff, transparent 2px),
-        radial-gradient(circle 1px at 25% 25%, #fff, transparent 2px),
-        radial-gradient(circle 2px at 40% 10%, #fff5d0, transparent 3px),
-        radial-gradient(circle 1.5px at 55% 30%, #fff, transparent 2px),
-        radial-gradient(circle 1px at 70% 12%, #fff, transparent 2px),
-        radial-gradient(circle 2px at 85% 28%, #ffe6a0, transparent 3px),
-        radial-gradient(circle 1px at 95% 18%, #fff, transparent 2px),
-        radial-gradient(circle 1.5px at 15% 35%, #fff, transparent 2px),
-        radial-gradient(circle 1px at 50% 8%, #fff, transparent 2px);
-    opacity: 0.85;
-    animation: twinkle 4s ease-in-out infinite;
-    pointer-events: none;
-    z-index: -2;
-}
-@keyframes twinkle {
-    0%, 100% { opacity: 0.85; }
-    50% { opacity: 0.4; }
+/* siatka w tle */
+body::before{
+  content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
+  background-image:
+    linear-gradient(0deg,transparent 49%,rgba(0,0,0,0.05) 50%,transparent 51%),
+    linear-gradient(90deg,transparent 49%,rgba(0,0,0,0.05) 50%,transparent 51%);
+  background-size:40px 40px
 }
 
-#spaceCanvas {
-    position: fixed;
-    top: 0; left: 0;
-    width: 100vw;
-    height: 100vh;
-    pointer-events: none;
-    z-index: -1;
+a{color:inherit;text-decoration:none}
+
+/* ===== TOP BAR ===== */
+.topbar{
+  position:sticky;top:0;z-index:100;
+  background:var(--black);color:var(--yellow);
+  border-bottom:4px solid var(--black);
+  padding:14px 24px;
+  display:flex;align-items:center;justify-content:space-between;
+  font-family:'Bungee',sans-serif;
+}
+.topbar .logo{
+  font-size:24px;letter-spacing:-1px;color:var(--yellow);
+  display:flex;align-items:center;gap:8px;
+}
+.topbar .logo .red{color:var(--red)}
+.topbar .logo .blue{color:#5ba3ff}
+.topbar-right{display:flex;align-items:center;gap:10px;font-family:'Outfit',sans-serif;font-weight:900;font-size:13px;text-transform:uppercase}
+.back-link{
+  color:var(--yellow);padding:8px 14px;border:2px solid var(--yellow);
+  transition:all .15s;letter-spacing:1px;
+}
+.back-link:hover{background:var(--yellow);color:var(--black)}
+.topbar-tagline{
+  color:var(--green);
+  font-family:'JetBrains Mono',monospace;font-size:12px;
+  letter-spacing:2px;font-weight:700;
+}
+.mobile-btn{
+  display:none;background:var(--yellow);color:var(--black);border:none;
+  padding:8px 14px;cursor:pointer;font-family:'Outfit',sans-serif;
+  font-weight:900;font-size:13px;letter-spacing:1px;text-transform:uppercase;
+}
+.mobile-btn.hamburger-toggle{font-size:20px;padding:6px 12px}
+
+/* ===== LAYOUT ===== */
+.layout{
+  position:relative;z-index:1;
+  display:grid;
+  grid-template-columns:200px minmax(0,1fr) 300px;
+  gap:0;
+  max-width:1400px;
+  margin:0 auto;
+  min-height:calc(100vh - 60px);
 }
 
-/* === GÓRNY PASEK === */
-.topbar {
-    position: sticky;
-    top: 0;
-    z-index: 100;
-    height: var(--topbar-h);
-    background: rgba(10,10,10,0.96);
-    backdrop-filter: blur(12px);
-    border-bottom: 1px solid var(--cyan);
-    padding: 0 20px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
+/* ===== SIDEBAR ===== */
+.sidebar{
+  background:var(--black);color:var(--yellow);
+  padding:32px 0;
+  border-right:4px solid var(--black);
 }
-.logo {
-    font-size: 24px;
-    font-weight: bold;
-    color: var(--cyan);
-    text-shadow: 0 0 15px var(--cyan);
-    text-decoration: none;
-    transition: text-shadow 0.2s;
+.sidebar-close{
+  display:none;position:absolute;top:14px;right:14px;
+  background:var(--yellow);color:var(--black);border:none;
+  width:36px;height:36px;font-size:22px;font-weight:900;cursor:pointer;
+  font-family:'Outfit',sans-serif;
 }
-.logo:hover {
-    text-shadow: 0 0 25px var(--cyan), 0 0 40px var(--cyan);
+.sidebar-section-title{
+  font-family:'Bungee',sans-serif;font-size:12px;letter-spacing:2px;
+  color:var(--red);padding:0 24px;margin:20px 0 12px;
 }
-.topbar-right {
-    display: flex;
-    align-items: center;
-    gap: 14px;
+.sidebar-section-title:first-of-type{margin-top:0}
+.sidebar a{
+  display:flex;align-items:center;gap:12px;
+  padding:12px 24px;
+  color:var(--yellow);
+  font-weight:700;font-size:15px;letter-spacing:0.5px;
+  transition:all .15s;
+  border-left:4px solid transparent;
+  text-transform:uppercase;
 }
-.topbar-tagline {
-    color: #aaa;
-    font-size: 0.9rem;
-    letter-spacing: 1px;
+.sidebar a:hover{
+  background:var(--yellow);color:var(--black);
+  border-left-color:var(--red);
 }
-.mobile-btn {
-    display: none;
-    background: transparent;
-    border: 1px solid #333;
-    color: #ccc;
-    padding: 7px 12px;
-    border-radius: 8px;
-    font-size: 0.85rem;
-    cursor: pointer;
-    transition: all 0.2s;
+.sidebar a.active{
+  background:var(--red);color:#fff;
+  border-left-color:var(--yellow);
 }
-.mobile-btn:hover {
-    border-color: var(--cyan);
-    color: var(--cyan);
-}
-.hamburger { font-size: 22px; line-height: 1; }
+.sidebar-icon{font-size:18px;flex-shrink:0;width:24px;text-align:center}
 
-/* === LAYOUT TRZYKOLUMNOWY === */
-.layout {
-    display: grid;
-    grid-template-columns: var(--sidebar-w) 1fr var(--guestbook-w);
-    gap: 0;
-    align-items: start;
-    min-height: calc(100vh - var(--topbar-h));
+/* ===== MAIN ===== */
+.main{
+  background:var(--yellow);
+  padding:28px 24px;
+  border-right:4px solid var(--black);
+  min-width:0;
+  overflow:hidden;
 }
 
-/* === LEWY PASEK NAWIGACJI === */
-.sidebar {
-    position: sticky;
-    top: var(--topbar-h);
-    height: calc(100vh - var(--topbar-h));
-    overflow-y: auto;
-    background: rgba(10,10,10,0.85);
-    backdrop-filter: blur(10px);
-    border-right: 1px solid #1f1f1f;
-    padding: 24px 14px;
+/* HEADER GRY */
+.game-header{
+  border-bottom:4px solid var(--black);
+  padding-bottom:20px;
+  margin-bottom:32px;
 }
-.sidebar-section-title {
-    font-size: 0.7rem;
-    color: var(--cyan);
-    letter-spacing: 2px;
-    margin: 18px 10px 10px;
-    text-transform: uppercase;
-    text-shadow: 0 0 8px var(--cyan), 0 0 14px rgba(0,247,255,0.6);
-    font-weight: 700;
+.game-header h1{
+  font-family:'Bungee',sans-serif;
+  font-size:48px;letter-spacing:-2px;line-height:0.95;
+  color:var(--black);
 }
-.sidebar-section-title:first-child { margin-top: 0; }
-.sidebar a {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 11px 14px;
-    color: #ccc;
-    text-decoration: none;
-    border-radius: 10px;
-    font-weight: 500;
-    font-size: 0.97rem;
-    transition: all 0.2s;
-    margin-bottom: 4px;
+.game-header h1::after{
+  content:'★';color:var(--red);margin-left:14px;font-size:32px;display:inline-block;animation:starSpin 4s linear infinite;
 }
-.sidebar a:hover {
-    background: rgba(0, 247, 255, 0.08);
-    color: var(--cyan);
-    transform: translateX(3px);
+@keyframes starSpin{from{transform:rotate(0)}to{transform:rotate(360deg)}}
+
+/* MARQUEE */
+.marquee{
+  background:var(--black);color:var(--yellow);padding:10px 0;margin:0 -24px 28px;
+  overflow:hidden;border-top:4px solid var(--black);border-bottom:4px solid var(--black);
 }
-.sidebar a.active {
-    background: linear-gradient(90deg, rgba(0,247,255,0.15), transparent);
-    color: var(--cyan);
-    border-left: 3px solid var(--cyan);
-    padding-left: 11px;
+.marquee-track{
+  display:flex;gap:48px;white-space:nowrap;
+  animation:marquee 25s linear infinite;
+  font-family:'Bungee',sans-serif;font-size:16px;
 }
-.sidebar a.copied {
-    background: rgba(0, 247, 255, 0.18);
-    color: var(--cyan);
-    box-shadow: inset 0 0 12px rgba(0, 247, 255, 0.25);
+.marquee-track span::before{content:'★';margin-right:48px;color:var(--red)}
+@keyframes marquee{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+
+/* SECTION */
+.section{
+  background:#fff;
+  border:4px solid var(--black);
+  padding:24px;
+  margin-bottom:24px;
+  position:relative;
+  transition:all .15s;
+  min-width:0;
 }
-.sidebar-icon {
-    font-size: 1.2rem;
-    width: 22px;
-    text-align: center;
+.section:hover{transform:translate(-3px,-3px);box-shadow:6px 6px 0 var(--black)}
+.section.player{background:#fff}
+.section.editor{background:var(--green)}
+
+.section h2{
+  font-family:'Bungee',sans-serif;font-size:22px;letter-spacing:0;
+  margin-bottom:18px;line-height:1;
+  display:flex;align-items:center;gap:10px;
 }
 
-/* === ŚRODEK === */
-.main {
-    padding: 30px 32px 40px;
-    min-width: 0; /* żeby nie rozpychało gridu */
+/* PLAYER ROW */
+.player-row{
+  display:grid;grid-template-columns:minmax(0,240px) minmax(0,1fr);gap:20px;align-items:start;
+}
+.cover-action{
+  display:block;position:relative;
+  background:var(--black);
+  border:4px solid var(--black);
+  aspect-ratio:16/10;
+  width:100%;
+  overflow:hidden;
+  transition:all .15s;
+}
+.cover-action:hover{transform:translate(-4px,-4px);box-shadow:8px 8px 0 var(--black)}
+.cover-action img{width:100%;height:100%;object-fit:cover;display:block}
+.cover-action.cover-broken{
+  display:flex;align-items:center;justify-content:center;
+  background:var(--blue);color:#fff;
+}
+.cover-play-overlay{
+  position:absolute;inset:0;
+  display:flex;align-items:center;justify-content:center;
+  font-size:80px;color:var(--yellow);
+  text-shadow:4px 4px 0 var(--black);
+  opacity:0;transition:opacity .15s;
+  font-family:'Bungee',sans-serif;
+}
+.cover-action:hover .cover-play-overlay{opacity:1}
+
+.game-desc p{
+  font-size:15px;line-height:1.5;font-weight:500;margin-bottom:10px;
+}
+.game-desc p:last-child{margin-bottom:0}
+
+/* INFO PILLS */
+.info-row{
+  display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0;
+  margin-top:24px;
+  border:4px solid var(--black);
+}
+.info-pill{
+  padding:14px 12px;
+  background:#fff;
+  border-right:4px solid var(--black);
+  text-align:left;
+  min-width:0;
+  overflow:hidden;
+}
+.info-pill:last-child{border-right:none}
+.info-pill:nth-child(1){background:var(--yellow)}
+.info-pill:nth-child(2){background:var(--red);color:#fff}
+.info-pill:nth-child(3){background:var(--blue);color:#fff}
+.pill-label{
+  display:block;font-family:'JetBrains Mono',monospace;font-size:10px;
+  letter-spacing:2px;text-transform:uppercase;font-weight:700;
+  opacity:0.7;margin-bottom:4px;
+}
+.pill-value{
+  font-family:'Bungee',sans-serif;font-size:15px;letter-spacing:0;
+  word-break:break-word;
+  display:block;
+  line-height:1.1;
+}
+.mini-controls{display:inline-flex;gap:4px;align-items:center}
+.mini-key{
+  display:inline-block;padding:3px 8px;
+  background:var(--black);color:var(--yellow);
+  font-family:'Bungee',sans-serif;font-size:13px;
+  border:2px solid var(--black);
+  min-width:24px;text-align:center;
+}
+.info-pill:nth-child(2) .mini-key,
+.info-pill:nth-child(3) .mini-key{
+  background:#fff;color:var(--black);border-color:#fff;
 }
 
-/* HERO */
-.hero {
-    position: relative;
-    overflow: hidden;
-    border-radius: 16px;
-    border: 1px solid rgba(0,247,255,0.25);
-    background: rgba(10,10,10,0.45);
-    padding: 50px 30px;
-    margin-bottom: 32px;
-    text-align: center;
+/* ===== HERO ===== */
+.hero{
+  background:var(--black);color:var(--yellow);
+  border:4px solid var(--black);
+  padding:0;
+  margin-bottom:24px;
+  position:relative;
+  overflow:hidden;
+  min-height:240px;
 }
-#heroCanvas {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    z-index: 1;
-    border-radius: 16px;
+#heroCanvas{
+  position:absolute;inset:0;width:100%;height:100%;z-index:1;
+  display:block;
 }
-.hero-content {
-    position: relative;
-    z-index: 2;
+.hero-content{
+  position:relative;z-index:2;
+  padding:40px 30px;
+  text-align:left;
 }
-.hero h1 {
-    font-size: 3rem;
-    background: linear-gradient(90deg, var(--cyan), var(--pink));
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    text-shadow: 0 0 40px rgba(0,247,255,0.6);
-    margin-bottom: 14px;
-    line-height: 1.05;
+.hero h1{
+  font-family:'Bungee',sans-serif;
+  font-size:48px;line-height:0.95;letter-spacing:-2px;
+  color:var(--yellow);
+  text-shadow:4px 4px 0 var(--red);
+  margin-bottom:14px;
 }
-.hero p {
-    font-size: 1.15rem;
-    margin-bottom: 22px;
-    text-shadow: 0 2px 8px rgba(0,0,0,0.7);
-    line-height: 1.5;
-    max-width: 620px;
-    margin-left: auto;
-    margin-right: auto;
-}
-.btn {
-    padding: 13px 36px;
-    font-size: 1.05rem;
-    border: none;
-    border-radius: 50px;
-    background: var(--cyan);
-    color: black;
-    font-weight: bold;
-    cursor: pointer;
-    box-shadow: 0 0 20px var(--cyan);
-    transition: all 0.3s;
-}
-.btn:hover {
-    transform: scale(1.06);
-    box-shadow: 0 0 35px var(--cyan);
+.hero h1 .accent{color:var(--green)}
+.hero p{
+  font-family:'Outfit',sans-serif;font-weight:700;
+  font-size:16px;line-height:1.5;
+  color:#fff;
+  max-width:520px;
+  text-shadow:2px 2px 0 var(--black);
 }
 
-/* SEKCJE w środku */
-.section {
-    margin-bottom: 32px;
-    background: rgba(10,10,10,0.55);
-    border: 1px solid #1f1f1f;
-    border-radius: 14px;
-    padding: 28px 26px;
-    backdrop-filter: blur(8px);
-}
-.section h2 {
-    color: var(--cyan);
-    font-size: 1.5rem;
-    margin-bottom: 18px;
-    display: flex;
-    align-items: center;
-    gap: 10px;
+/* ===== DEMO ROW ===== */
+.demo-row{
+  display:grid;grid-template-columns:auto minmax(0,1fr);gap:24px;align-items:start;
 }
 
-.section-intro {
-    background: linear-gradient(90deg, rgba(0,247,255,0.06), rgba(255,0,200,0.06));
-    border: 1px dashed rgba(255, 0, 200, 0.35);
-    border-radius: 10px;
-    padding: 14px 18px;
-    margin-bottom: 20px;
-    color: #ddd;
-    font-size: 0.95rem;
-    line-height: 1.6;
-    text-align: center;
+/* GAMES GRID */
+.games-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(120px,1fr));
+  gap:14px;
 }
-.section-intro b {
-    color: #fff;
-    background: rgba(255, 0, 200, 0.15);
-    padding: 1px 6px;
-    border-radius: 4px;
-    border: 1px solid rgba(255, 0, 200, 0.35);
-    font-weight: 600;
+.demo-row .games-grid{
+  grid-template-columns:repeat(2,120px);
+}
+.game-card{
+  background:#fff;
+  border:4px solid var(--black);
+  cursor:pointer;
+  overflow:hidden;
+  transition:all .15s;
+  display:flex;flex-direction:column;
+  aspect-ratio:1/1.15;
+  width:120px;
+  position:relative;
+}
+.game-card:hover{
+  transform:translate(-3px,-3px);
+  box-shadow:6px 6px 0 var(--red);
+}
+.game-card:nth-child(2n){background:var(--green)}
+.game-card:nth-child(3n){background:var(--blue)}
+.game-card img{
+  width:100%;height:80px;
+  object-fit:cover;
+  display:block;
+  border-bottom:3px solid var(--black);
+}
+.game-card .play-btn{
+  background:var(--black);color:var(--yellow);
+  border:none;
+  padding:8px;
+  font-family:'Bungee',sans-serif;
+  font-size:11px;letter-spacing:1px;
+  cursor:pointer;
+  flex:1;
+}
+.game-card:hover .play-btn{background:var(--red);color:#fff}
+
+/* DEMO INFO */
+.demo-info{
+  font-family:'Outfit',sans-serif;font-weight:600;
+  font-size:14px;line-height:1.5;color:#000;
+  min-width:0;
+}
+.demo-info p{margin-bottom:10px}
+.demo-info p:last-child{margin-bottom:0}
+.demo-info b{
+  background:var(--black);color:var(--yellow);
+  padding:1px 5px;font-weight:900;
+}
+.demo-info a{
+  color:var(--red);font-weight:900;
+  border-bottom:2px solid var(--red);
+}
+.demo-info hr{
+  border:none;border-top:3px dashed var(--black);
+  margin:14px 0;
 }
 
-/* SIATKA GIER */
-.demo-row {
-    display: flex;
-    gap: 28px;
-    align-items: flex-start;
-    flex-wrap: wrap;
+/* SECTION INTRO */
+.section-intro{
+  background:var(--yellow);
+  border:3px solid var(--black);
+  padding:14px 18px;
+  margin-bottom:18px;
+  font-family:'Outfit',sans-serif;
+  font-weight:700;font-size:14px;line-height:1.5;
+  color:#000;
 }
-.demo-row .games-grid {
-    flex-shrink: 0;
-}
-.demo-info {
-    flex: 1;
-    min-width: 220px;
-    color: #cfcfcf;
-    line-height: 1.65;
-    font-size: 0.95rem;
-    padding-top: 4px;
-}
-.demo-info > p:first-child {
-    margin-top: 0;
-}
-.demo-info h3 {
-    color: var(--cyan);
-    font-size: 1.05rem;
-    margin-bottom: 10px;
-    font-weight: 700;
-}
-.demo-info p {
-    margin-bottom: 10px;
-}
-.demo-info b {
-    color: #fff;
-    background: rgba(0, 247, 255, 0.1);
-    padding: 1px 6px;
-    border-radius: 4px;
-    border: 1px solid rgba(0, 247, 255, 0.25);
-    font-weight: 600;
+.section-intro b{
+  background:var(--black);color:var(--yellow);
+  padding:1px 5px;
 }
 
-.games-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, 124px);
-    gap: 18px;
-    justify-content: center;
+/* ===== ACCORDION ===== */
+.section details{
+  border:3px solid var(--black);
+  background:#fff;
+  overflow:hidden;
 }
-.game-card {
-    background: #111;
-    border-radius: 12px;
-    overflow: hidden;
-    transition: all 0.3s ease;
-    border: 1px solid #222;
-    text-align: center;
-    cursor: pointer;
-    aspect-ratio: 1 / 1;
-    width: 124px;
-    height: 124px;
-    padding: 1px;
-    background: transparent;
-    border: 1px solid #000;
+.section details summary{
+  padding:14px 18px;
+  font-family:'Bungee',sans-serif;font-size:15px;letter-spacing:0.5px;
+  background:var(--black);color:var(--yellow);
+  cursor:pointer;
+  list-style:none;
+  display:flex;align-items:center;gap:10px;
+  transition:background .15s;
 }
-.game-card:hover {
-    transform: translateY(-8px) scale(1.06);
-    box-shadow: 0 0 30px rgba(0, 247, 255, 0.5);
-    border-color: var(--cyan);
+.section details summary::-webkit-details-marker{display:none}
+.section details summary::after{
+  content:'▼';margin-left:auto;font-size:12px;
+  transition:transform .2s;
 }
-.game-card img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    border-radius: 10px;
+.section details[open] summary::after{transform:rotate(180deg)}
+.section details summary:hover{background:var(--red)}
+.section details > div{
+  padding:20px;
+  font-family:'Outfit',sans-serif;font-weight:500;
+  font-size:14px;line-height:1.7;color:#000;
 }
-.game-card .play-btn {
-    margin-top: 12px;
-    width: 100%;
-    padding: 11px;
-    background: var(--cyan);
-    color: black;
-    border: none;
-    border-radius: 8px;
-    font-weight: bold;
-    cursor: pointer;
-    font-size: 0.92rem;
+.section details h3{
+  font-family:'Bungee',sans-serif;
+  font-size:18px;letter-spacing:0;
+  color:var(--black);margin:18px 0 10px;
+  padding-bottom:6px;border-bottom:3px solid var(--black);
 }
-
-/* OPIS / accordion */
-.section details {
-    background: #111;
-    border-radius: 10px;
-    border: 1px solid #222;
-    overflow: hidden;
+.section details p{margin-bottom:10px}
+.section details b{
+  background:var(--yellow);color:var(--black);
+  padding:1px 5px;font-weight:900;
+  border:1px solid var(--black);
 }
-.section details summary {
-    padding: 18px 22px;
-    font-size: 1.05rem;
-    font-weight: 600;
-    color: var(--cyan);
-    cursor: pointer;
-    list-style: none;
-    display: flex;
-    align-items: center;
-    gap: 10px;
+.section details ul{margin-left:24px;margin-top:8px}
+.section details ul li{margin-bottom:6px}
+.callout{
+  background:var(--yellow);
+  border:3px solid var(--black);
+  padding:12px 16px;margin-bottom:18px;
+  font-family:'Outfit',sans-serif;font-weight:700;
+  font-size:13px;line-height:1.5;
 }
-.section details > div {
-    padding: 22px 26px;
-    line-height: 1.85;
-    color: #ccc;
-    border-top: 1px solid #222;
+.callout strong{
+  font-family:'Bungee',sans-serif;
+  display:block;font-size:14px;margin-bottom:6px;
+  color:var(--red);
 }
 
-/* === PRAWA KOLUMNA: KSIĘGA GOŚCI === */
-.guestbook-col {
-    position: sticky;
-    top: var(--topbar-h);
-    height: calc(100vh - var(--topbar-h));
-    background: rgba(10,10,10,0.85);
-    backdrop-filter: blur(10px);
-    border-left: 1px solid #1f1f1f;
-    padding: 24px 20px;
-    display: flex;
-    flex-direction: column;
+/* ===== GUESTBOOK ===== */
+.guestbook-col{
+  background:var(--black);color:var(--yellow);
+  padding:24px 18px;
+  display:flex;flex-direction:column;
+  min-width:0;
+  overflow:hidden;
 }
-.guestbook-col h2 {
-    color: var(--cyan);
-    font-size: 1.25rem;
-    margin-bottom: 6px;
-    display: flex;
-    align-items: center;
-    gap: 10px;
+.guestbook-close{
+  display:none;position:absolute;top:14px;right:14px;
+  background:var(--yellow);color:var(--black);border:none;
+  width:36px;height:36px;font-size:22px;font-weight:900;cursor:pointer;
+  font-family:'Outfit',sans-serif;
 }
-.guestbook-count {
-    color: #555;
-    font-size: 0.78rem;
-    margin-bottom: 16px;
+.guestbook-col h2{
+  font-family:'Bungee',sans-serif;font-size:20px;letter-spacing:0;
+  margin-bottom:6px;color:var(--yellow);
+  display:flex;align-items:center;gap:8px;
 }
-.comments {
-    flex: 1;
-    overflow-y: auto;
-    margin-bottom: 16px;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    padding-right: 4px;
-    scrollbar-width: thin;
-    scrollbar-color: #333 transparent;
-}
-.comments::-webkit-scrollbar { width: 6px; }
-.comments::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
-.comment {
-    background: #1a1a1a;
-    padding: 12px 14px;
-    border-radius: 10px;
-    border-left: 3px solid var(--cyan);
-    font-size: 0.88rem;
-    display: flex;
-    gap: 10px;
-    align-items: flex-start;
-    animation: fadeIn .4s ease;
-}
-.comment-avatar {
-    flex-shrink: 0;
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 0.7rem;
-    font-weight: 700;
-    letter-spacing: .5px;
-}
-.comment-body { flex: 1; min-width: 0; }
-.comment-meta {
-    display: flex;
-    align-items: baseline;
-    gap: 8px;
-    flex-wrap: wrap;
-    margin-bottom: 4px;
-}
-.comment-author {
-    font-weight: 600;
-    font-size: 0.85rem;
-}
-.comment-time { font-size: 0.68rem; color: #444; }
-.comment-text {
-    color: #ccc;
-    line-height: 1.5;
-    word-break: break-word;
-    font-size: 0.85rem;
+.guestbook-count{
+  font-family:'JetBrains Mono',monospace;font-size:11px;
+  color:var(--green);letter-spacing:1px;margin-bottom:16px;text-transform:uppercase;
 }
 
-/* Formularz w guestbook */
-.guestbook-form {
-    background: #161616;
-    border: 1px solid #2a2a2a;
-    border-radius: 10px;
-    padding: 14px;
+.comments{
+  flex:1;overflow-y:auto;
+  margin-bottom:16px;
+  display:flex;flex-direction:column;gap:10px;
+  max-height:50vh;
 }
-.guestbook-form label {
-    display: block;
-    color: #777;
-    font-size: 0.7rem;
-    letter-spacing: .5px;
-    margin-bottom: 8px;
+.comment{
+  background:#1a1a1a;border:2px solid var(--yellow);
+  padding:10px 12px;
+  display:grid;grid-template-columns:36px 1fr;gap:10px;
+  transition:transform .15s;
 }
-.guestbook-form input,
-.guestbook-form textarea {
-    width: 100%;
-    background: #1f1f1f;
-    border: 1px solid #333;
-    color: #eee;
-    padding: 10px 12px;
-    border-radius: 8px;
-    font-size: 0.88rem;
-    margin-bottom: 8px;
-    font-family: inherit;
+.comment:hover{transform:translate(-2px,-2px);box-shadow:4px 4px 0 var(--red)}
+.comment-avatar{
+  width:36px;height:36px;border-radius:0;
+  display:flex;align-items:center;justify-content:center;
+  font-family:'Bungee',sans-serif;font-size:13px;font-weight:700;
 }
-.guestbook-form textarea {
-    resize: vertical;
-    min-height: 70px;
+.comment-meta{
+  display:flex;justify-content:space-between;align-items:center;
+  margin-bottom:4px;font-size:11px;
 }
-.guestbook-form button {
-    width: 100%;
-    padding: 10px;
-    background: var(--cyan);
-    color: black;
-    border: none;
-    border-radius: 8px;
-    font-weight: bold;
-    cursor: pointer;
-    font-size: 0.88rem;
-    transition: all 0.2s;
+.comment-author{font-family:'Bungee',sans-serif;font-size:12px}
+.comment-time{
+  font-family:'JetBrains Mono',monospace;color:#888;font-size:10px;
 }
-.guestbook-form button:hover {
-    box-shadow: 0 0 18px rgba(0,247,255,0.5);
-}
-.char-count {
-    font-size: 0.7rem;
-    color: #555;
-    text-align: right;
-    margin-top: -4px;
-    margin-bottom: 6px;
+.comment-text{
+  font-size:13px;line-height:1.4;color:#eee;font-weight:500;
+  word-wrap:break-word;overflow-wrap:break-word;
 }
 
-/* === STOPKA === */
-.footer {
-    border-top: 1px solid #1a1a1a;
-    background: rgba(10,10,10,0.85);
-    backdrop-filter: blur(10px);
-    padding: 30px 20px;
-    text-align: center;
+/* GUESTBOOK FORM */
+.guestbook-form{
+  display:flex;flex-direction:column;gap:8px;
+  background:var(--yellow);color:var(--black);
+  padding:14px;border:3px solid var(--yellow);
 }
-.footer-links {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 16px;
-    flex-wrap: wrap;
-    margin-bottom: 16px;
+.guestbook-form label{
+  font-family:'Bungee',sans-serif;font-size:13px;letter-spacing:1px;
 }
-.footer-link {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 10px 20px;
-    background: #111;
-    border: 1px solid #222;
-    border-radius: 50px;
-    color: #eee;
-    text-decoration: none;
-    font-weight: 600;
-    font-size: 0.9rem;
-    transition: all .3s;
+.guestbook-form input,.guestbook-form textarea{
+  background:#fff;border:2px solid var(--black);
+  padding:8px 10px;font-family:'Outfit',sans-serif;font-size:14px;font-weight:600;
+  color:var(--black);width:100%;
 }
-.footer-link.youtube:hover {
-    border-color: #ff0000;
-    color: #ff4444;
-    box-shadow: 0 0 18px rgba(255,0,0,0.25);
+.guestbook-form textarea{
+  min-height:60px;resize:vertical;
 }
-.footer-link.coffee:hover {
-    border-color: var(--cyan);
-    color: var(--cyan);
-    box-shadow: 0 0 18px rgba(0,247,255,0.2);
+.guestbook-form input:focus,.guestbook-form textarea:focus{
+  outline:none;border-color:var(--red);box-shadow:3px 3px 0 var(--red);
 }
-.footer-link.contact:hover {
-    border-color: var(--cyan);
-    color: var(--cyan);
-    box-shadow: 0 0 18px rgba(0,247,255,0.2);
+.char-count{
+  font-family:'JetBrains Mono',monospace;font-size:10px;text-align:right;color:#555;
 }
-.footer-link.contact.copied {
-    border-color: var(--cyan);
-    color: var(--cyan);
-    background: rgba(0, 247, 255, 0.12);
-    box-shadow: 0 0 18px rgba(0,247,255,0.35);
+.guestbook-form button{
+  background:var(--black);color:var(--yellow);border:none;
+  padding:12px;font-family:'Bungee',sans-serif;font-size:15px;letter-spacing:1px;
+  cursor:pointer;transition:all .15s;
 }
-.footer-copy {
-    color: #555;
-    font-size: 0.82rem;
+.guestbook-form button:hover{
+  background:var(--red);transform:translate(-2px,-2px);box-shadow:4px 4px 0 var(--black);
+}
+.guestbook-form button:disabled{opacity:0.6;cursor:not-allowed}
+
+/* ===== FOOTER ===== */
+.footer{
+  position:relative;z-index:1;
+  background:var(--black);color:var(--yellow);
+  padding:32px 24px;border-top:4px solid var(--black);
+  margin-top:0;
+}
+.footer-links{
+  display:flex;justify-content:center;gap:32px;
+  flex-wrap:wrap;margin-bottom:16px;
+}
+.footer-link{
+  display:flex;align-items:center;gap:8px;
+  padding:10px 18px;border:2px solid var(--yellow);
+  font-family:'Bungee',sans-serif;font-size:14px;letter-spacing:1px;
+  transition:all .15s;cursor:pointer;
+}
+.footer-link:hover{
+  background:var(--yellow);color:var(--black);
+  transform:translate(-2px,-2px);box-shadow:4px 4px 0 var(--red);
+}
+.footer-link.copied{background:var(--green);color:var(--black);border-color:var(--green)}
+.footer-link svg{flex-shrink:0}
+.footer-link:hover svg{stroke:var(--black) !important}
+.footer-link:hover svg[fill="#ff0000"]{fill:var(--black)}
+.footer-copy{
+  text-align:center;font-family:'JetBrains Mono',monospace;
+  font-size:11px;letter-spacing:1px;color:var(--yellow);
+}
+.footer-copy a{color:var(--green);text-decoration:none;font-weight:700}
+
+/* ===== BACKDROP ===== */
+.backdrop{
+  display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);
+  z-index:200;
+}
+.backdrop.show{display:block}
+
+/* ============ RESPONSYWNOŚĆ ============ */
+
+/* Średnie ekrany - chowamy księgę pod drawer, sidebar zostaje */
+@media (max-width:1100px){
+  .layout{grid-template-columns:200px minmax(0,1fr)}
+  .guestbook-col{
+    position:fixed;top:0;right:0;height:100vh;width:340px;
+    z-index:300;
+    transform:translateX(100%);
+    transition:transform .3s ease;
+    overflow-y:auto;
+    border-left:4px solid var(--yellow);
+  }
+  .guestbook-col.open{transform:translateX(0)}
+  .guestbook-close{display:flex;align-items:center;justify-content:center}
+  .mobile-btn.guestbook-toggle{display:inline-flex;align-items:center;gap:6px}
+  .game-header h1{font-size:42px}
 }
 
-@keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
-
-/* === RESPONSIVE === */
-/* Średnie ekrany: zwijamy guestbook do schowka */
-@media (max-width: 1100px) {
-    :root { --guestbook-w: 0px; }
-    .layout { grid-template-columns: var(--sidebar-w) 1fr; }
-    .guestbook-col {
-        position: fixed;
-        top: 0;
-        right: 0;
-        width: 360px;
-        max-width: 90vw;
-        height: 100vh;
-        z-index: 200;
-        border-left: 1px solid #333;
-        transform: translateX(100%);
-        transition: transform 0.3s ease;
-        padding-top: 60px;
-    }
-    .guestbook-col.open { transform: translateX(0); }
-    .guestbook-close {
-        position: absolute;
-        top: 14px;
-        right: 14px;
-        background: transparent;
-        border: 1px solid #333;
-        color: #ccc;
-        width: 34px;
-        height: 34px;
-        border-radius: 50%;
-        cursor: pointer;
-        font-size: 1.2rem;
-    }
-    .mobile-btn.guestbook-toggle { display: inline-flex; align-items: center; gap: 6px; }
+/* Małe ekrany - również sidebar pod drawer */
+@media (max-width:768px){
+  .mobile-btn{display:inline-flex;align-items:center;gap:6px}
+  .layout{grid-template-columns:minmax(0,1fr)}
+  .sidebar{
+    position:fixed;top:0;left:0;height:100vh;width:280px;
+    z-index:300;
+    transform:translateX(-100%);
+    transition:transform .3s ease;
+    overflow-y:auto;
+    border-right:4px solid var(--yellow);
+  }
+  .sidebar.open{transform:translateX(0)}
+  .sidebar-close{display:flex;align-items:center;justify-content:center}
+  .main{border-right:none;padding:20px 16px}
+  .marquee{margin:0 -16px 24px}
+  .game-header h1{font-size:32px}
+  .game-header h1::after{font-size:22px}
+  .player-row{grid-template-columns:1fr;gap:16px}
+  .cover-action{aspect-ratio:16/9;max-width:100%}
+  .info-row{grid-template-columns:1fr;border:none}
+  .info-pill{border:4px solid var(--black);border-bottom:none;border-right:none}
+  .info-pill:last-child{border-bottom:4px solid var(--black)}
+  .hero h1{font-size:36px}
+  .hero-content{padding:30px 22px}
+  .demo-row{grid-template-columns:1fr;gap:18px}
+  .demo-row .games-grid{grid-template-columns:repeat(auto-fill,120px);justify-content:center}
 }
 
-/* Wąskie ekrany: zwijamy też lewy sidebar */
-@media (max-width: 768px) {
-    :root { --sidebar-w: 0px; }
-    .layout { grid-template-columns: 1fr; }
-    .sidebar {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 260px;
-        max-width: 80vw;
-        height: 100vh;
-        z-index: 200;
-        border-right: 1px solid #333;
-        transform: translateX(-100%);
-        transition: transform 0.3s ease;
-        padding-top: 60px;
-    }
-    .sidebar.open { transform: translateX(0); }
-    .sidebar-close {
-        position: absolute;
-        top: 14px;
-        right: 14px;
-        background: transparent;
-        border: 1px solid #333;
-        color: #ccc;
-        width: 34px;
-        height: 34px;
-        border-radius: 50%;
-        cursor: pointer;
-        font-size: 1.2rem;
-    }
-    .mobile-btn.hamburger-toggle { display: inline-flex; }
-    .topbar-tagline { display: none; }
-    .main { padding: 20px 16px 30px; }
-    .hero { padding: 36px 18px; }
-    .hero h1 { font-size: 2.2rem; }
-    .hero p { font-size: 1rem; }
-
-    /* Backdrop pod menu */
-    .backdrop {
-        position: fixed;
-        inset: 0;
-        background: rgba(0,0,0,0.6);
-        z-index: 150;
-        opacity: 0;
-        pointer-events: none;
-        transition: opacity 0.3s;
-    }
-    .backdrop.show {
-        opacity: 1;
-        pointer-events: auto;
-    }
-}
-
-/* Backdrop też dla średnich ekranów (guestbook drawer) */
-@media (max-width: 1100px) {
-    .backdrop {
-        position: fixed;
-        inset: 0;
-        background: rgba(0,0,0,0.6);
-        z-index: 150;
-        opacity: 0;
-        pointer-events: none;
-        transition: opacity 0.3s;
-    }
-    .backdrop.show {
-        opacity: 1;
-        pointer-events: auto;
-    }
+@media (max-width:500px){
+  .topbar{padding:10px 14px}
+  .topbar .logo{font-size:18px}
+  .back-link{display:none}
+  .main{padding:16px 12px}
+  .marquee{margin:0 -12px 18px}
+  .marquee-track{font-size:14px}
+  .game-header h1{font-size:24px;letter-spacing:-1px}
+  .section{padding:14px 12px}
+  .section h2{font-size:18px}
+  .game-desc p{font-size:14px}
+  .footer-links{gap:10px}
+  .footer-link{font-size:12px;padding:8px 12px}
+  .topbar-right{gap:6px}
+  .mobile-btn{padding:6px 10px;font-size:12px}
+  .hero h1{font-size:28px}
+  .hero-content{padding:24px 18px}
+  .hero p{font-size:14px}
+  .games-grid{grid-template-columns:repeat(auto-fill,minmax(110px,1fr))}
+  .demo-row .games-grid{grid-template-columns:repeat(2,1fr)}
+  .game-card{width:100%}
 }
 </style>
 </head>
-
 <body>
 
-<!-- TŁO KOSMICZNE -->
-<canvas id="spaceCanvas"></canvas>
-
-<!-- BACKDROP do drawerów -->
 <div class="backdrop" id="backdrop"></div>
 
 <!-- TOP BAR -->
 <header class="topbar">
-    <div style="display:flex; align-items:center; gap:12px;">
-        <button class="mobile-btn hamburger-toggle" id="hamburgerBtn" aria-label="Menu">
-            <span class="hamburger">☰</span>
-        </button>
-        <a href="https://mini-klik.pl" class="logo">🎮 mini-klik</a>
-    </div>
-    <div class="topbar-right">
-        <span class="topbar-tagline">portal z grami</span>
-        <button class="mobile-btn guestbook-toggle" id="guestbookBtn">
-            💬 Księga
-        </button>
-    </div>
+  <div style="display:flex;align-items:center;gap:12px">
+    <button class="mobile-btn hamburger-toggle" id="hamburgerBtn" aria-label="Menu">☰</button>
+    <a href="https://mini-klik.pl" class="logo">MINI<span class="red">·</span>KLIK<span class="blue">.PL</span></a>
+  </div>
+  <div class="topbar-right">
+    <span class="topbar-tagline">// PORTAL Z GRAMI</span>
+    <button class="mobile-btn guestbook-toggle" id="guestbookBtn">💬 KSIĘGA</button>
+  </div>
 </header>
 
-<!-- LAYOUT 3-KOLUMNOWY -->
 <div class="layout">
 
-    <!-- ===== LEWY SIDEBAR ===== -->
-    <aside class="sidebar" id="sidebar">
-        <button class="sidebar-close" id="sidebarClose" aria-label="Zamknij">×</button>
+  <!-- ===== LEWY SIDEBAR ===== -->
+  <aside class="sidebar" id="sidebar">
+    <button class="sidebar-close" id="sidebarClose" aria-label="Zamknij">×</button>
 
-        <div class="sidebar-section-title">Nawigacja</div>
-        <a href="#home" class="active" data-section="home">
-            <span class="sidebar-icon">🏠</span> Dom
-        </a>
-        <a href="#nowe" data-section="nowe">
-            <span class="sidebar-icon">🎮</span> Dema
-        </a>
-        <a href="#wasze-gry" data-section="wasze-gry">
-            <span class="sidebar-icon">⭐</span> Nasze gry
-        </a>
-        <a href="#opis" data-section="opis">
-            <span class="sidebar-icon">📖</span> Opis
-        </a>
+    <div class="sidebar-section-title">/ NAWIGACJA</div>
+    <a href="#home" class="active" data-section="home"><span class="sidebar-icon">🏠</span> Dom</a>
+    <a href="#nowe" data-section="nowe"><span class="sidebar-icon">🎮</span> Dema</a>
+    <a href="#wasze-gry" data-section="wasze-gry"><span class="sidebar-icon">⭐</span> Nasze gry</a>
+    <a href="#opis" data-section="opis"><span class="sidebar-icon">📖</span> Opis</a>
 
-        <div class="sidebar-section-title">Społeczność</div>
-        <a href="#" id="copyEmailBtn" class="copy-email" data-email="mini-klik@wp.pl">
-            <span class="sidebar-icon">📧</span>
-            <span class="copy-email-text">Kontakt</span>
-        </a>
-        <a href="https://www.youtube.com/@mini-klik" target="_blank">
-            <span class="sidebar-icon" style="color:#ff4444;">▶</span> YouTube
-        </a>
-        <a href="https://buycoffee.to/ramzi-studio" target="_blank">
-            <span class="sidebar-icon">☕</span> Postaw kawę
-        </a>
-    </aside>
+    <div class="sidebar-section-title">/ SPOŁECZNOŚĆ</div>
+    <a href="#" data-email="mini-klik@wp.pl">
+      <span class="sidebar-icon">📧</span>
+      <span class="copy-email-text">Kontakt</span>
+    </a>
+    <a href="https://www.youtube.com/@mini-klik" target="_blank">
+      <span class="sidebar-icon" style="color:var(--red);">▶</span> YouTube
+    </a>
+    <a href="https://buycoffee.to/ramzi-studio" target="_blank">
+      <span class="sidebar-icon">☕</span> Postaw kawę
+    </a>
+  </aside>
 
-    <!-- ===== ŚRODEK ===== -->
-    <main class="main">
+  <!-- ===== ŚRODEK ===== -->
+  <main class="main">
 
-        <!-- HERO -->
-        <section class="hero" id="home">
-            <canvas id="heroCanvas"></canvas>
-            <div class="hero-content">
-                <h1>Twórz.<br>Graj.<br>Udostępniaj.</h1>
-                <p>Portal dla miłośników i twórców małych, kreatywnych gier bez potrzeby kodowania.</p>
-            </div>
-        </section>
+    <!-- HERO -->
+    <section class="hero" id="home">
+      <canvas id="heroCanvas"></canvas>
+      <div class="hero-content">
+        <h1>TWÓRZ.<br>GRAJ.<br><span class="accent">UDOSTĘPNIAJ.</span></h1>
+        <p>Portal dla miłośników i twórców małych, kreatywnych gier — bez potrzeby kodowania.</p>
+      </div>
+    </section>
 
-        <!-- DEMA -->
-        <section class="section" id="nowe">
-            <h2>🎮 wybierz demo</h2>
-            <div class="demo-row">
-                <div class="games-grid">
+    <!-- MARQUEE -->
+    <div class="marquee">
+      <div class="marquee-track">
+        <span>GRAJ TWÓRZ EKSPLORUJ ODKRYWAJ</span>
+        <span>GRAJ TWÓRZ EKSPLORUJ ODKRYWAJ</span>
+        <span>GRAJ TWÓRZ EKSPLORUJ ODKRYWAJ</span>
+        <span>GRAJ TWÓRZ EKSPLORUJ ODKRYWAJ</span>
+      </div>
+    </div>
 
-                    <div class="game-card" onclick="window.location.href='demo3/'">
-                        <img src="images/demo3.png" alt="Demo 3">
-                        <button class="play-btn">▶ DEMO 3</button>
-                    </div>
+    <!-- DEMA -->
+    <section class="section" id="nowe">
+      <h2>🎮 WYBIERZ DEMO</h2>
+      <div class="demo-row">
+        <div class="games-grid">
+          <div class="game-card" onclick="window.location.href='demo3/'">
+            <img src="images/demo3.png" alt="Demo 3" onerror="this.style.display='none'">
+            <button class="play-btn">▶ DEMO 3</button>
+          </div>
+          <div class="game-card" onclick="window.location.href='demo4/'">
+            <img src="images/demo4.png" alt="Demo 4" onerror="this.style.display='none'">
+            <button class="play-btn">▶ DEMO 4</button>
+          </div>
+        </div>
 
-                    <div class="game-card" onclick="window.location.href='demo4/'">
-                        <img src="images/demo4.png" alt="Demo 4">
-                        <button class="play-btn">▶ DEMO 4</button>
-                    </div>
+        <div class="demo-info">
+          <p>Każda gra ma swój <b>edytor</b> i własny <b>Game Player</b> — to całkowita, wygodna nowość przy zabawie z prostymi grami.</p>
+          <p>Wczytaj demo, baw się ustawieniami, dorzuć własne pomysły — i graj od razu, bez instalowania niczego.</p>
+          <hr>
+          <p><a href="https://mini-klik.pl">mini-klik.pl</a> używa własnego silnika gry <b>mini-klik Classic</b> — stworzonego w całości w przeglądarce, <b>bez Unity</b> ani innych edytorów graficznych.</p>
+          <p>To pewnego rodzaju eksperyment — każda aplikacja waży zaledwie <b>kilka KB</b> i jest zwykłą stroną internetową, napisaną w czystym kodzie.</p>
+        </div>
+      </div>
+    </section>
 
-                </div>
+    <!-- NASZE GRY -->
+    <section class="section editor" id="wasze-gry">
+      <h2>⭐ ZAGRAJMY W NASZE GRY</h2>
 
-                <div class="demo-info">
-                    <p>Każda gra ma swój <b>edytor</b> i własny <b>Game Player</b> — to całkowita, wygodna nowość przy zabawie z prostymi grami.</p>
-                    <p>Wczytaj demo, baw się ustawieniami, dorzuć własne pomysły — i graj od razu, bez instalowania niczego.</p>
+      <p class="section-intro">
+        📤 Prześlij nam zapisany projekt <b>.json</b> swojej gry i krótki opis — najciekawsze zostaną opublikowane. Miłej zabawy! 🎮
+      </p>
 
-                    <hr style="border:none; border-top:1px dashed #333; margin:14px 0;">
+      <div class="games-grid">
+        <div class="game-card" onclick="window.location.href='demo5/'">
+          <img src="images/demo5.png" alt="Demo 5" onerror="this.style.display='none'">
+          <button class="play-btn">▶ DEMO 5</button>
+        </div>
+      </div>
+    </section>
 
-                    <p><a href="https://mini-klik.pl" style="color:var(--cyan); text-decoration:none;">mini-klik.pl</a> używa własnego silnika gry <b>mini-klik Classic</b> — stworzonego w całości w przeglądarce, <b>bez Unity</b> ani innych edytorów graficznych.</p>
-                    <p>To pewnego rodzaju eksperyment — każda aplikacja waży zaledwie <b>kilka KB</b> i jest zwykłą stroną internetową, napisaną w czystym kodzie.</p>
-                </div>
-            </div>
-        </section>
+    <!-- OPIS -->
+    <section class="section" id="opis">
+      <h2>📖 O MINI-KLIK</h2>
 
-        <!-- NASZE GRY -->
-        <section class="section" id="wasze-gry">
-            <h2>⭐ Zagrajmy w nasze gry</h2>
+      <details>
+        <summary>✨ SZCZEGÓŁY — JAK DZIAŁA EDYTOR?</summary>
+        <div>
+          <div class="callout">
+            <strong>⚡ WYMAGANIA TECHNICZNE</strong>
+            Cały projekt <b>mini-klik.pl</b> został zoptymalizowany pod przeglądarkę <b>Google Chrome</b> na komputerze stacjonarnym. Na tabletach i telefonach funkcjonalność jest ograniczona ze względu na niższą wydajność silnika renderującego w mobilnych wersjach przeglądarek. Dla najlepszego doświadczenia zalecamy Chrome na PC.
+          </div>
 
-            <p class="section-intro">
-                📤 Prześlij nam zapisany projekt <b>.json</b> swojej gry i krótki opis, a najciekawsze zostaną opublikowane. Miłej zabawy! 🎮
-            </p>
+          <h3>★ Witaj w świecie gier — mini-klik.pl 🎮</h3>
 
-            <div class="games-grid">
+          <p>Silnik mini-klik powstał z myślą o miłośnikach <b>starych, prostych gier z lat 90.</b> — tych, w których liczyła się pomysłowość, a nie grafika 4K.</p>
 
-                <div class="game-card" onclick="window.location.href='demo5/'">
-                    <img src="images/demo5.png" alt="Demo 5">
-                    <button class="play-btn">▶ DEMO 5</button>
-                </div>
+          <p>Stworzony został, by być <b>najprostszą formą rozrywki</b> — bez reklam, bez pobierania, bez instalowania. Wchodzisz na stronę, klikasz dowolną grę i grasz. Tak po prostu.</p>
 
-            </div>
-        </section>
+          <p><b>Co nas wyróżnia od innych portali?</b> To, że <b>każdą grę możesz dowolnie przerabiać</b> — dodawać własne pomysły, zmieniać wrogów, tworzyć nowe poziomy. A wszystko w prosty sposób zapisać na własnym komputerze w pliku <b>.json</b>, gotowym do ponownej edycji.</p>
 
-        <!-- OPIS -->
-        <section class="section" id="opis">
-            <h2>📖 O mini-klik</h2>
+          <p>Każdy zapisany plik <b>.json</b> możesz później otworzyć w dowolnym edytorze tekstowym lub ponownie wczytać do edytora mini-klik — i bawić się dalej. 🔄</p>
 
-            <details>
-                <summary>✨ Szczegóły — jak działa edytor mini-klik?</summary>
-                <div>
-                    <div style="background:linear-gradient(90deg, rgba(255,184,77,0.08), rgba(255,120,70,0.08)); border-left:3px solid #ffb84d; padding:14px 18px; border-radius:8px; margin-bottom:22px; font-size:0.95rem;">
-                        <strong style="color:#ffb84d;">⚡ Wymagania techniczne:</strong>
-                        <span style="color:#e8d4c0;">Cały projekt <b>mini-klik.pl</b> został zoptymalizowany pod przeglądarkę <b>Google Chrome</b> na komputerze stacjonarnym. Na tabletach i telefonach funkcjonalność jest ograniczona ze względu na niższą wydajność silnika renderującego w mobilnych wersjach przeglądarek. Dla najlepszego doświadczenia zalecamy Chrome na PC.</span>
-                    </div>
+          <h3>⚙️ Jak działa edytor?</h3>
 
-                    <h3 style="color:var(--cyan); margin-bottom:12px; font-size:1.3rem;">Witaj w świecie gier — mini-klik.pl 🎮</h3>
+          <p style="color:#666;font-size:13px;font-style:italic;margin-top:14px;">Pierwszą grę możesz stworzyć w mniej niż 10 minut. Sprawdź demo powyżej i zacznij już dziś!</p>
+        </div>
+      </details>
+    </section>
 
-                    <p style="margin-bottom:14px;">
-                        Silnik mini-klik powstał z myślą o miłośnikach <b style="color:var(--pink);">starych, prostych gier z lat 90.</b> — tych, w których liczyła się pomysłowość, a nie grafika 4K.
-                    </p>
+  </main>
 
-                    <p style="margin-bottom:14px;">
-                        Stworzony został, by być <b>najprostszą formą rozrywki</b> — bez reklam, bez pobierania, bez instalowania. Wchodzisz na stronę, klikasz dowolną grę i grasz. Tak po prostu.
-                    </p>
+  <!-- ===== PRAWA KOLUMNA: KSIĘGA GOŚCI ===== -->
+  <aside class="guestbook-col" id="guestbookCol">
+    <button class="guestbook-close" id="guestbookClose" aria-label="Zamknij">×</button>
 
-                    <p style="margin-bottom:14px;">
-                        <b style="color:var(--cyan);">Co nas wyróżnia od innych portali?</b>
-                        To, że <b>każdą grę możesz dowolnie przerabiać</b> — dodawać własne pomysły, zmieniać wrogów, tworzyć nowe poziomy. A wszystko w prosty sposób zapisać na własnym komputerze w pliku <b>.json</b>, gotowym do ponownej edycji.
-                    </p>
+    <h2>★ KSIĘGA GOŚCI</h2>
+    <p class="guestbook-count" id="commentCount">// ŁADOWANIE WPISÓW…</p>
 
-                    <p style="margin-bottom:22px;">
-                        Każdy zapisany plik <b>.json</b> możesz później otworzyć w dowolnym edytorze tekstowym lub ponownie wczytać do edytora mini-klik — i bawić się dalej. 🔄
-                    </p>
+    <div class="comments" id="comments"></div>
 
-                    <hr style="border:none; border-top:1px dashed #333; margin:22px 0;">
-
-                    <h3 style="color:var(--cyan); margin-bottom:12px; font-size:1.2rem;">⚙️ Jak działa edytor?</h3>
-
-
-                    <ul style="margin-left:22px; line-height:2; color:#aaa;">
-
-                    </ul>
-                    <p style="margin-top:20px; color:#777; font-size:0.9rem;">Pierwszą grę możesz stworzyć w mniej niż 10 minut. Sprawdź demo powyżej i zacznij już dziś!</p>
-                </div>
-            </details>
-        </section>
-
-    </main>
-
-    <!-- ===== PRAWA KOLUMNA: KSIĘGA GOŚCI ===== -->
-    <aside class="guestbook-col" id="guestbookCol">
-        <button class="guestbook-close" id="guestbookClose" aria-label="Zamknij">×</button>
-
-        <h2>
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#00f7ff" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
-            Księga Gości
-        </h2>
-        <p class="guestbook-count" id="commentCount">ładowanie wpisów…</p>
-
-        <div class="comments" id="comments"></div>
-
-        <form id="guestbookForm" class="guestbook-form">
-            <label>ZOSTAW SWÓJ ŚLAD</label>
-            <input type="text" id="name" placeholder="Twój nick / imię" required>
-            <textarea id="message" placeholder="Napisz coś o mini-klik… 🎮" required maxlength="280"
-                      oninput="document.getElementById('charCount').textContent=this.value.length+'/280'"></textarea>
-            <div class="char-count"><span id="charCount">0/280</span></div>
-            <button type="submit">📨 ZOSTAW WPIS</button>
-        </form>
-    </aside>
+    <form id="guestbookForm" class="guestbook-form">
+      <label>ZOSTAW SWÓJ ŚLAD</label>
+      <input type="text" id="name" placeholder="Twój nick / imię" required>
+      <textarea id="message" placeholder="Napisz coś o mini-klik… 🎮" required maxlength="280"
+                oninput="document.getElementById('charCount').textContent=this.value.length+'/280'"></textarea>
+      <div class="char-count"><span id="charCount">0/280</span></div>
+      <button type="submit">📨 ZOSTAW WPIS</button>
+    </form>
+  </aside>
 
 </div>
 
 <!-- STOPKA -->
 <footer class="footer">
-    <div class="footer-links">
-        <a href="#" id="copyEmailFooter" class="footer-link contact" data-email="mini-klik@wp.pl">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#00f7ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
-                <polyline points="22,6 12,13 2,6"/>
-            </svg>
-            <span class="footer-link-text">Kontakt</span>
-        </a>
-        <a href="https://www.youtube.com/@mini-klik" target="_blank" class="footer-link youtube">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="#ff0000">
-                <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
-            </svg>
-            YouTube
-        </a>
-        <a href="https://buycoffee.to/ramzi-studio" target="_blank" class="footer-link coffee">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#00f7ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M18 8h1a4 4 0 0 1 0 8h-1"/>
-                <path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/>
-                <line x1="6" y1="1" x2="6" y2="4"/>
-                <line x1="10" y1="1" x2="10" y2="4"/>
-                <line x1="14" y1="1" x2="14" y2="4"/>
-            </svg>
-            Postaw kawę
-        </a>
-    </div>
-    <p class="footer-copy">© 2026 mini-klik • zrobione z ❤️ i neonu</p>
+  <div class="footer-links">
+    <a href="#" class="footer-link contact" data-email="mini-klik@wp.pl">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+        <polyline points="22,6 12,13 2,6"/>
+      </svg>
+      <span class="footer-link-text">KONTAKT</span>
+    </a>
+    <a href="https://www.youtube.com/@mini-klik" target="_blank" class="footer-link youtube">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="#ff0000">
+        <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+      </svg>
+      YOUTUBE
+    </a>
+    <a href="https://buycoffee.to/ramzi-studio" target="_blank" class="footer-link coffee">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M18 8h1a4 4 0 0 1 0 8h-1"/>
+        <path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/>
+        <line x1="6" y1="1" x2="6" y2="4"/>
+        <line x1="10" y1="1" x2="10" y2="4"/>
+        <line x1="14" y1="1" x2="14" y2="4"/>
+      </svg>
+      KAWA
+    </a>
+  </div>
+  <p class="footer-copy">© 2026 MINI-KLIK • ZROBIONE Z ❤️ I NEONU</p>
 </footer>
 
 <script>
-// ============== DRAWERS (mobile) ==============
+// ============== DRAWERS ==============
 const sidebar = document.getElementById('sidebar');
 const guestbookCol = document.getElementById('guestbookCol');
 const backdrop = document.getElementById('backdrop');
@@ -934,14 +832,7 @@ document.getElementById('guestbookBtn').addEventListener('click', openGuestbook)
 document.getElementById('guestbookClose').addEventListener('click', closeGuestbook);
 backdrop.addEventListener('click', closeAll);
 
-// Klik w link sidebara -> zamknij drawer (mobile)
-document.querySelectorAll('.sidebar a[data-section]').forEach(a => {
-    a.addEventListener('click', () => {
-        if (window.innerWidth <= 768) closeSidebar();
-    });
-});
-
-// Kopiowanie emaila do schowka — działa dla każdego elementu z data-email
+// ============== KOPIOWANIE EMAILA ==============
 async function copyEmail(link) {
     const email = link.dataset.email;
     const textEl = link.querySelector('.copy-email-text, .footer-link-text');
@@ -950,17 +841,16 @@ async function copyEmail(link) {
 
     try {
         await navigator.clipboard.writeText(email);
-        textEl.textContent = '✓ Skopiowano!';
+        textEl.textContent = '✓ SKOPIOWANO!';
         link.classList.add('copied');
     } catch (err) {
-        // Fallback gdy clipboard niedostępny (np. http://)
         const ta = document.createElement('textarea');
         ta.value = email;
         ta.style.position = 'fixed';
         ta.style.opacity = '0';
         document.body.appendChild(ta);
         ta.select();
-        try { document.execCommand('copy'); textEl.textContent = '✓ Skopiowano!'; link.classList.add('copied'); }
+        try { document.execCommand('copy'); textEl.textContent = '✓ SKOPIOWANO!'; link.classList.add('copied'); }
         catch (e2) { textEl.textContent = email; }
         document.body.removeChild(ta);
     }
@@ -978,340 +868,168 @@ document.querySelectorAll('[data-email]').forEach(link => {
     });
 });
 
-// Aktywna sekcja w sidebar (scroll spy)
-const sections = ['home', 'nowe', 'wasze-gry', 'opis'].map(id => document.getElementById(id));
+// ============== SCROLL SPY (aktywna sekcja w sidebar) ==============
+const sectionIds = ['home', 'nowe', 'wasze-gry', 'opis'];
+const sections = sectionIds.map(id => document.getElementById(id)).filter(Boolean);
 const sidebarLinks = document.querySelectorAll('.sidebar a[data-section]');
 window.addEventListener('scroll', () => {
-    const scrollY = window.scrollY + 100;
+    const scrollY = window.scrollY + 120;
     let current = 'home';
     for (const s of sections) {
-        if (s && s.offsetTop <= scrollY) current = s.id;
+        if (s.offsetTop <= scrollY) current = s.id;
     }
     sidebarLinks.forEach(l => {
         l.classList.toggle('active', l.dataset.section === current);
     });
 });
 
-// ============== HERO CANVAS ==============
-const heroCanvas = document.getElementById('heroCanvas');
-const hctx = heroCanvas.getContext('2d');
-
-function resizeHero() {
-    const rect = heroCanvas.getBoundingClientRect();
-    heroCanvas.width = rect.width;
-    heroCanvas.height = rect.height;
-}
-resizeHero();
-window.addEventListener('resize', resizeHero);
-
-let hParticles = [];
-let hPlatforms = [];
-let hPlayer = { x: 320, y: 220, floatT: 0 };
-
-for (let i = 0; i < 50; i++) {
-    hParticles.push({ x: Math.random()*800, y: Math.random()*400, size: Math.random()*2.2 + 0.8, speed: Math.random()*0.8 + 0.3 });
-}
-for (let i = 0; i < 8; i++) {
-    hPlatforms.push({ x: Math.random() * 1200, y: 80 + Math.random() * 280, w: 100 + Math.random() * 80, speed: 0.8 + Math.random() * 0.6 });
-}
-
-function heroAnimate() {
-    hctx.clearRect(0, 0, heroCanvas.width, heroCanvas.height);
-
-    hctx.fillStyle = '#99ffff';
-    hParticles.forEach(p => {
-        p.y += p.speed;
-        if (p.y > heroCanvas.height) p.y = 0;
-        if (p.x > heroCanvas.width) p.x = 0;
-        hctx.fillRect(p.x, p.y, p.size, p.size);
+// Klik w link sidebara -> zamknij drawer (mobile)
+sidebarLinks.forEach(a => {
+    a.addEventListener('click', () => {
+        if (window.innerWidth <= 768) closeSidebar();
     });
+});
 
-    hctx.strokeStyle = '#00dddd';
-    hctx.lineWidth = 3;
-    hPlatforms.forEach(pl => {
-        pl.x -= pl.speed;
-        if (pl.x < -300) pl.x = heroCanvas.width + 300;
-        hctx.shadowBlur = 10;
-        hctx.shadowColor = '#00ffff';
-        hctx.beginPath();
-        hctx.moveTo(pl.x, pl.y);
-        hctx.lineTo(pl.x + pl.w, pl.y);
-        hctx.stroke();
-    });
-    hctx.shadowBlur = 0;
-
-    // Statek lewituje
-    hPlayer.floatT += 0.02;
-    hPlayer.x = heroCanvas.width * 0.25 + Math.sin(hPlayer.floatT) * (heroCanvas.width * 0.25);
-    hPlayer.y = heroCanvas.height * 0.55 + Math.sin(hPlayer.floatT * 0.7) * (heroCanvas.height * 0.2);
-    const tilt = Math.max(-0.25, Math.min(0.25, Math.cos(hPlayer.floatT) * 200 * 0.02 * 0.08));
-    drawSpaceshipIntro(hctx, hPlayer.x, hPlayer.y, 22, tilt, Date.now());
-
-    requestAnimationFrame(heroAnimate);
-}
-
-function drawSpaceshipIntro(c, x, y, r, tilt, time) {
-    const t = time * 0.001;
-    const hover = Math.sin(t * 2.2) * 2;
-    c.save();
-    c.translate(x, y + hover);
-    c.rotate(tilt);
-
-    const flameLen = r * 0.9 + Math.sin(t * 20) * 3;
-    const flameGrad = c.createLinearGradient(-r * 0.7, 0, -r * 0.7 - flameLen, 0);
-    flameGrad.addColorStop(0, 'rgba(255, 230, 100, 0.95)');
-    flameGrad.addColorStop(0.3, 'rgba(255, 120, 40, 0.8)');
-    flameGrad.addColorStop(0.7, 'rgba(255, 60, 30, 0.4)');
-    flameGrad.addColorStop(1, 'rgba(255, 50, 30, 0)');
-    c.fillStyle = flameGrad;
-    c.beginPath();
-    c.moveTo(-r * 0.7, -r * 0.35);
-    c.lineTo(-r * 0.7 - flameLen, 0);
-    c.lineTo(-r * 0.7, r * 0.35);
-    c.closePath();
-    c.fill();
-
-    c.fillStyle = '#2a2a3a';
-    c.fillRect(-r * 0.85, -r * 0.28, r * 0.2, r * 0.56);
-
-    const hullGrad = c.createLinearGradient(0, -r * 0.5, 0, r * 0.5);
-    hullGrad.addColorStop(0, '#f0f0f5');
-    hullGrad.addColorStop(0.5, '#b8b8c8');
-    hullGrad.addColorStop(1, '#606070');
-    c.fillStyle = hullGrad;
-    c.beginPath();
-    c.moveTo(r * 1.0, 0);
-    c.lineTo(r * 0.3, -r * 0.45);
-    c.lineTo(-r * 0.7, -r * 0.35);
-    c.lineTo(-r * 0.7, r * 0.35);
-    c.lineTo(r * 0.3, r * 0.45);
-    c.closePath();
-    c.fill();
-    c.strokeStyle = '#2a2a3a';
-    c.lineWidth = 1.3;
-    c.stroke();
-
-    c.fillStyle = '#e04a4a';
-    c.strokeStyle = '#2a2a3a';
-    c.lineWidth = 1;
-    c.beginPath();
-    c.moveTo(-r * 0.3, -r * 0.35);
-    c.lineTo(-r * 0.6, -r * 0.85);
-    c.lineTo(-r * 0.1, -r * 0.4);
-    c.closePath();
-    c.fill(); c.stroke();
-    c.beginPath();
-    c.moveTo(-r * 0.3, r * 0.35);
-    c.lineTo(-r * 0.6, r * 0.85);
-    c.lineTo(-r * 0.1, r * 0.4);
-    c.closePath();
-    c.fill(); c.stroke();
-
-    const cockpitGrad = c.createRadialGradient(r * 0.3, -r * 0.1, 1, r * 0.3, 0, r * 0.3);
-    cockpitGrad.addColorStop(0, '#a0e8ff');
-    cockpitGrad.addColorStop(0.6, '#4080c0');
-    cockpitGrad.addColorStop(1, '#0a2040');
-    c.fillStyle = cockpitGrad;
-    c.beginPath();
-    c.ellipse(r * 0.35, 0, r * 0.25, r * 0.18, 0, 0, Math.PI * 2);
-    c.fill();
-    c.strokeStyle = '#2a2a3a';
-    c.lineWidth = 1;
-    c.stroke();
-    c.fillStyle = 'rgba(255, 255, 255, 0.6)';
-    c.beginPath();
-    c.ellipse(r * 0.3, -r * 0.08, r * 0.08, r * 0.04, 0, 0, Math.PI * 2);
-    c.fill();
-
-    c.fillStyle = '#c83030';
-    c.beginPath();
-    c.moveTo(r * 1.0, 0);
-    c.lineTo(r * 0.7, -r * 0.15);
-    c.lineTo(r * 0.7, r * 0.15);
-    c.closePath();
-    c.fill();
-    c.strokeStyle = '#2a2a3a';
-    c.stroke();
-
-    c.restore();
-}
-heroAnimate();
-
-// ============== TŁO KOSMICZNE ==============
-;(function() {
-    const canvas = document.getElementById('spaceCanvas');
+// ============== HERO CANVAS - kosmiczna animacja ==============
+(function() {
+    const canvas = document.getElementById('heroCanvas');
     if (!canvas) return;
-    const ctx = canvas.getContext('2d');
+    const hctx = canvas.getContext('2d');
 
-    function resize() {
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
+    function resizeHero() {
+        const rect = canvas.getBoundingClientRect();
+        canvas.width = rect.width || 600;
+        canvas.height = rect.height || 240;
     }
-    resize();
-    window.addEventListener('resize', resize);
+    resizeHero();
+    window.addEventListener('resize', resizeHero);
 
-    const moon = {
-        cx: () => canvas.width * 0.18,
-        cy: () => canvas.height * 0.25,
-        r: () => Math.min(canvas.width, canvas.height) * 0.05
-    };
+    let particles = [];
+    let platforms = [];
+    let player = { x: 320, y: 220, floatT: 0 };
 
-    const asteroids = [];
-    for (let i = 0; i < 14; i++) {
-        asteroids.push({
-            x: Math.random() * canvas.width,
-            y: Math.random() * canvas.height * 0.7,
-            vx: (Math.random() - 0.5) * 0.3,
-            vy: (Math.random() - 0.5) * 0.15,
-            size: 4 + Math.random() * 14,
-            rotation: Math.random() * Math.PI * 2,
-            rotSpeed: (Math.random() - 0.5) * 0.015,
-            points: 6 + Math.floor(Math.random() * 4)
+    for (let i = 0; i < 60; i++) {
+        particles.push({
+            x: Math.random() * 800,
+            y: Math.random() * 400,
+            size: Math.random() * 2 + 0.6,
+            speed: Math.random() * 0.6 + 0.2
+        });
+    }
+    for (let i = 0; i < 6; i++) {
+        platforms.push({
+            x: Math.random() * 1200,
+            y: 60 + Math.random() * 200,
+            w: 80 + Math.random() * 60,
+            speed: 0.6 + Math.random() * 0.5
         });
     }
 
-    const ships = [];
-    function spawnShip() {
-        const fromLeft = Math.random() > 0.5;
-        const y = canvas.height * (0.1 + Math.random() * 0.6);
-        ships.push({
-            x: fromLeft ? -80 : canvas.width + 80,
-            y,
-            targetY: y + (Math.random() - 0.5) * 60,
-            vx: (fromLeft ? 1 : -1) * (0.3 + Math.random() * 0.4),
-            size: 0.6 + Math.random() * 1.2,
-            type: Math.floor(Math.random() * 3),
-            flame: 0,
-            fromLeft
-        });
-    }
-    for (let i = 0; i < 3; i++) {
-        spawnShip();
-        ships[ships.length - 1].x = Math.random() * canvas.width;
-    }
-    setInterval(() => { if (ships.length < 6) spawnShip(); }, 4000);
+    function drawShip(c, x, y, r, tilt, time) {
+        const t = time * 0.001;
+        const hover = Math.sin(t * 2.2) * 2;
+        c.save();
+        c.translate(x, y + hover);
+        c.rotate(tilt);
 
-    function drawMoon() {
-        const cx = moon.cx(), cy = moon.cy(), r = moon.r();
-        const glowGrad = ctx.createRadialGradient(cx, cy, r, cx, cy, r * 2.5);
-        glowGrad.addColorStop(0, 'rgba(255, 220, 160, 0.35)');
-        glowGrad.addColorStop(0.5, 'rgba(255, 180, 120, 0.1)');
-        glowGrad.addColorStop(1, 'rgba(255, 180, 120, 0)');
-        ctx.fillStyle = glowGrad;
-        ctx.beginPath(); ctx.arc(cx, cy, r * 2.5, 0, Math.PI * 2); ctx.fill();
-
-        const moonGrad = ctx.createRadialGradient(cx - r * 0.3, cy - r * 0.3, r * 0.1, cx, cy, r);
-        moonGrad.addColorStop(0, '#3a2a3a');
-        moonGrad.addColorStop(0.7, '#1a0a1a');
-        moonGrad.addColorStop(1, '#0a0510');
-        ctx.fillStyle = moonGrad;
-        ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill();
-
-        const rimGrad = ctx.createRadialGradient(cx - r * 0.4, cy - r * 0.4, r * 0.75, cx - r * 0.4, cy - r * 0.4, r * 1.05);
-        rimGrad.addColorStop(0, 'rgba(255, 120, 60, 0)');
-        rimGrad.addColorStop(0.9, 'rgba(255, 160, 80, 0.6)');
-        rimGrad.addColorStop(1, 'rgba(255, 200, 100, 0.95)');
-        ctx.fillStyle = rimGrad;
-        ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill();
-
-        ctx.fillStyle = 'rgba(10, 5, 15, 0.6)';
-        const craters = [[-0.3, 0.1, 0.15], [0.2, -0.25, 0.1], [0.05, 0.35, 0.12], [-0.15, -0.15, 0.08]];
-        for (const [dx, dy, dr] of craters) {
-            ctx.beginPath();
-            ctx.arc(cx + dx * r, cy + dy * r, dr * r, 0, Math.PI * 2);
-            ctx.fill();
-        }
-    }
-
-    function drawAsteroid(a) {
-        ctx.save(); ctx.translate(a.x, a.y); ctx.rotate(a.rotation);
-        ctx.beginPath();
-        for (let i = 0; i < a.points; i++) {
-            const angle = (i / a.points) * Math.PI * 2;
-            const variation = 0.7 + ((i * 37) % 7) * 0.05;
-            const px = Math.cos(angle) * a.size * variation;
-            const py = Math.sin(angle) * a.size * variation;
-            if (i === 0) ctx.moveTo(px, py);
-            else ctx.lineTo(px, py);
-        }
-        ctx.closePath();
-        ctx.fillStyle = '#1a0a1a'; ctx.fill();
-        ctx.strokeStyle = 'rgba(255, 140, 70, 0.7)'; ctx.lineWidth = 1.2; ctx.stroke();
-        ctx.restore();
-    }
-
-    function drawShip(s) {
-        ctx.save(); ctx.translate(s.x, s.y);
-        s.y += (s.targetY - s.y) * 0.02;
-        const sc = s.size, flip = s.fromLeft ? 1 : -1;
-        ctx.scale(sc * flip, sc);
-
-        if (s.type === 0) {
-            ctx.fillStyle = '#0a0515';
-            ctx.strokeStyle = 'rgba(255, 150, 80, 0.85)';
-            ctx.lineWidth = 0.8;
-            ctx.beginPath();
-            ctx.moveTo(12, 0); ctx.lineTo(-6, -5); ctx.lineTo(-10, 0); ctx.lineTo(-6, 5);
-            ctx.closePath(); ctx.fill(); ctx.stroke();
-            ctx.fillStyle = 'rgba(255, 100, 50, 0.8)'; ctx.fillRect(-10, -1.5, 3, 3);
-            ctx.fillStyle = 'rgba(255, 200, 100, 0.8)';
-            ctx.beginPath(); ctx.arc(4, 0, 2, 0, Math.PI * 2); ctx.fill();
-        } else if (s.type === 1) {
-            ctx.fillStyle = '#0a0515';
-            ctx.strokeStyle = 'rgba(255, 140, 70, 0.8)'; ctx.lineWidth = 0.8;
-            ctx.beginPath();
-            ctx.moveTo(18, 0); ctx.lineTo(14, -4); ctx.lineTo(-12, -4);
-            ctx.lineTo(-14, 0); ctx.lineTo(-12, 4); ctx.lineTo(14, 4);
-            ctx.closePath(); ctx.fill(); ctx.stroke();
-            ctx.fillStyle = 'rgba(255, 200, 120, 0.7)';
-            ctx.fillRect(-4, -1, 2, 2); ctx.fillRect(2, -1, 2, 2); ctx.fillRect(8, -1, 2, 2);
-            ctx.fillStyle = 'rgba(255, 80, 40, 0.9)'; ctx.fillRect(-14, -2.5, 3, 5);
-        } else {
-            ctx.fillStyle = '#0a0515';
-            ctx.strokeStyle = 'rgba(255, 160, 90, 0.9)'; ctx.lineWidth = 0.8;
-            ctx.beginPath();
-            ctx.moveTo(14, 0); ctx.lineTo(2, -3); ctx.lineTo(-8, -4);
-            ctx.lineTo(-8, 4); ctx.lineTo(2, 3);
-            ctx.closePath(); ctx.fill(); ctx.stroke();
-            ctx.fillStyle = 'rgba(255, 140, 70, 0.5)';
-            ctx.beginPath(); ctx.moveTo(-5, -4); ctx.lineTo(-2, -9); ctx.lineTo(2, -4); ctx.closePath(); ctx.fill();
-            ctx.beginPath(); ctx.moveTo(-5, 4); ctx.lineTo(-2, 9); ctx.lineTo(2, 4); ctx.closePath(); ctx.fill();
-            ctx.fillStyle = 'rgba(255, 220, 150, 0.9)';
-            ctx.beginPath(); ctx.arc(6, 0, 1.5, 0, Math.PI * 2); ctx.fill();
-        }
-
-        s.flame = (s.flame + 1) % 6;
-        const flameLen = 8 + s.flame * 0.5;
-        const flameGrad = ctx.createLinearGradient(-10, 0, -10 - flameLen, 0);
-        flameGrad.addColorStop(0, 'rgba(255, 180, 80, 0.8)');
-        flameGrad.addColorStop(0.5, 'rgba(255, 100, 50, 0.4)');
+        // płomień
+        const flameLen = r * 0.9 + Math.sin(t * 20) * 3;
+        const flameGrad = c.createLinearGradient(-r * 0.7, 0, -r * 0.7 - flameLen, 0);
+        flameGrad.addColorStop(0, 'rgba(255, 230, 100, 0.95)');
+        flameGrad.addColorStop(0.4, 'rgba(255, 100, 40, 0.8)');
         flameGrad.addColorStop(1, 'rgba(255, 50, 30, 0)');
-        ctx.fillStyle = flameGrad;
-        ctx.beginPath();
-        ctx.moveTo(-10, -1.5); ctx.lineTo(-10 - flameLen, 0); ctx.lineTo(-10, 1.5);
-        ctx.closePath(); ctx.fill();
-        ctx.restore();
+        c.fillStyle = flameGrad;
+        c.beginPath();
+        c.moveTo(-r * 0.7, -r * 0.35);
+        c.lineTo(-r * 0.7 - flameLen, 0);
+        c.lineTo(-r * 0.7, r * 0.35);
+        c.closePath();
+        c.fill();
+
+        // dysza
+        c.fillStyle = '#1a1a1a';
+        c.fillRect(-r * 0.85, -r * 0.28, r * 0.2, r * 0.56);
+
+        // kadłub
+        c.fillStyle = '#fff200';
+        c.strokeStyle = '#000';
+        c.lineWidth = 2;
+        c.beginPath();
+        c.moveTo(r * 1.0, 0);
+        c.lineTo(r * 0.3, -r * 0.45);
+        c.lineTo(-r * 0.7, -r * 0.35);
+        c.lineTo(-r * 0.7, r * 0.35);
+        c.lineTo(r * 0.3, r * 0.45);
+        c.closePath();
+        c.fill();
+        c.stroke();
+
+        // skrzydła
+        c.fillStyle = '#ff003c';
+        c.beginPath();
+        c.moveTo(-r * 0.3, -r * 0.35);
+        c.lineTo(-r * 0.6, -r * 0.85);
+        c.lineTo(-r * 0.1, -r * 0.4);
+        c.closePath();
+        c.fill(); c.stroke();
+        c.beginPath();
+        c.moveTo(-r * 0.3, r * 0.35);
+        c.lineTo(-r * 0.6, r * 0.85);
+        c.lineTo(-r * 0.1, r * 0.4);
+        c.closePath();
+        c.fill(); c.stroke();
+
+        // kokpit
+        c.fillStyle = '#0040ff';
+        c.beginPath();
+        c.ellipse(r * 0.35, 0, r * 0.25, r * 0.18, 0, 0, Math.PI * 2);
+        c.fill();
+        c.stroke();
+
+        // dziób
+        c.fillStyle = '#ff003c';
+        c.beginPath();
+        c.moveTo(r * 1.0, 0);
+        c.lineTo(r * 0.7, -r * 0.15);
+        c.lineTo(r * 0.7, r * 0.15);
+        c.closePath();
+        c.fill();
+        c.stroke();
+
+        c.restore();
     }
 
     function animate() {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        drawMoon();
-        for (const a of asteroids) {
-            a.x += a.vx; a.y += a.vy; a.rotation += a.rotSpeed;
-            if (a.x < -50) a.x = canvas.width + 50;
-            if (a.x > canvas.width + 50) a.x = -50;
-            if (a.y < -50) a.y = canvas.height + 50;
-            if (a.y > canvas.height + 50) a.y = -50;
-            drawAsteroid(a);
-        }
-        for (let i = ships.length - 1; i >= 0; i--) {
-            const s = ships[i];
-            s.x += s.vx;
-            drawShip(s);
-            if ((s.fromLeft && s.x > canvas.width + 100) || (!s.fromLeft && s.x < -100)) {
-                ships.splice(i, 1);
-            }
-        }
+        hctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // gwiazdki
+        hctx.fillStyle = '#fff200';
+        particles.forEach(p => {
+            p.y += p.speed;
+            if (p.y > canvas.height) p.y = 0;
+            if (p.x > canvas.width) p.x = 0;
+            hctx.fillRect(p.x, p.y, p.size, p.size);
+        });
+
+        // poziome linie poziomów
+        hctx.strokeStyle = '#00ffaa';
+        hctx.lineWidth = 2;
+        platforms.forEach(pl => {
+            pl.x -= pl.speed;
+            if (pl.x < -300) pl.x = canvas.width + 100;
+            hctx.beginPath();
+            hctx.moveTo(pl.x, pl.y);
+            hctx.lineTo(pl.x + pl.w, pl.y);
+            hctx.stroke();
+        });
+
+        // statek lewituje
+        player.floatT += 0.02;
+        player.x = canvas.width * 0.65 + Math.sin(player.floatT) * (canvas.width * 0.15);
+        player.y = canvas.height * 0.55 + Math.sin(player.floatT * 0.7) * (canvas.height * 0.18);
+        const tilt = Math.cos(player.floatT) * 0.15;
+        drawShip(hctx, player.x, player.y, 18, tilt, Date.now());
+
         requestAnimationFrame(animate);
     }
     animate();
@@ -1319,18 +1037,17 @@ heroAnimate();
 
 // ============== KSIĘGA GOŚCI (Firebase) ==============
 const firebaseConfig = {
-  apiKey: "AIzaSyDRR3vSfgpEmbpZz_-VldMTnTHoXRfuGKg",
-  authDomain: "ksiega-ramzi.firebaseapp.com",
-  projectId: "ksiega-ramzi",
-  storageBucket: "ksiega-ramzi.firebasestorage.app",
-  messagingSenderId: "400735142662",
-  appId: "1:400735142662:web:0b52a57f4fedf367839487"
+    apiKey: "AIzaSyDRR3vSfgpEmbpZz_-VldMTnTHoXRfuGKg",
+    authDomain: "ksiega-ramzi.firebaseapp.com",
+    projectId: "ksiega-ramzi",
+    storageBucket: "ksiega-ramzi.firebasestorage.app",
+    messagingSenderId: "400735142662",
+    appId: "1:400735142662:web:0b52a57f4fedf367839487"
 };
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
 const form = document.getElementById('guestbookForm');
-
 form.addEventListener('submit', async function(e) {
     e.preventDefault();
     const name = document.getElementById('name').value.trim();
@@ -1340,7 +1057,7 @@ form.addEventListener('submit', async function(e) {
     const btn = form.querySelector('button[type=submit]');
     btn.disabled = true;
     const oldHtml = btn.innerHTML;
-    btn.textContent = 'Wysyłanie…';
+    btn.textContent = 'WYSYŁANIE…';
 
     try {
         await db.collection("wpisy").add({
@@ -1359,12 +1076,11 @@ form.addEventListener('submit', async function(e) {
 });
 
 function avatarColor(name) {
-    const colors = ['#00f7ff','#ff00c8','#a855f7','#22d3ee','#f472b6','#34d399','#fb923c'];
+    const colors = ['#fff200','#ff003c','#0040ff','#00ffaa','#ff44a8','#ff9a3d','#a855f7'];
     let h = 0;
     for (let c of name) h = (h * 31 + c.charCodeAt(0)) % colors.length;
     return colors[h];
 }
-
 function timeAgo(ts) {
     if (!ts) return '';
     const diff = Math.floor((Date.now() - ts.toMillis()) / 1000);
@@ -1373,22 +1089,18 @@ function timeAgo(ts) {
     if (diff < 86400) return `${Math.floor(diff/3600)} godz. temu`;
     return `${Math.floor(diff/86400)} dni temu`;
 }
-
 async function loadComments() {
     const commentsDiv = document.getElementById('comments');
-    commentsDiv.innerHTML = '<p style="text-align:center;color:#444;padding:20px;font-size:0.85rem;">ładowanie…</p>';
-
+    commentsDiv.innerHTML = '<p style="text-align:center;color:#888;padding:20px;font-size:0.85rem;font-family:JetBrains Mono;">// ŁADOWANIE…</p>';
     try {
         const snapshot = await db.collection("wpisy").orderBy("created", "desc").get();
         const count = snapshot.size;
         document.getElementById('commentCount').textContent =
-            count === 0 ? 'Bądź pierwszy!' : `${count} ${count === 1 ? 'wpis' : count < 5 ? 'wpisy' : 'wpisów'}`;
-
+            count === 0 ? '// BĄDŹ PIERWSZY!' : `// ${count} ${count === 1 ? 'WPIS' : count < 5 ? 'WPISY' : 'WPISÓW'}`;
         if (count === 0) {
-            commentsDiv.innerHTML = '<p style="text-align:center;color:#444;padding:30px;font-size:0.85rem;">Brak wpisów — bądź pierwszy! 👇</p>';
+            commentsDiv.innerHTML = '<p style="text-align:center;color:#888;padding:30px;font-size:0.85rem;font-family:JetBrains Mono;">BRAK WPISÓW — BĄDŹ PIERWSZY 👇</p>';
             return;
         }
-
         commentsDiv.innerHTML = '';
         snapshot.forEach(doc => {
             const data = doc.data();
@@ -1397,14 +1109,10 @@ async function loadComments() {
             const initials = name.slice(0,2).toUpperCase();
             const color = avatarColor(name);
             const ago = timeAgo(data.created);
-
             const div = document.createElement('div');
             div.className = 'comment';
             div.innerHTML = `
-                <div class="comment-avatar"
-                     style="background:${color}22; border:2px solid ${color}; color:${color};">
-                    ${initials}
-                </div>
+                <div class="comment-avatar" style="background:${color}; color:#000;">${initials}</div>
                 <div class="comment-body">
                     <div class="comment-meta">
                         <span class="comment-author" style="color:${color};">@${name}</span>
@@ -1417,10 +1125,9 @@ async function loadComments() {
         });
     } catch (err) {
         console.error("Błąd ładowania:", err);
-        commentsDiv.innerHTML = '<p style="text-align:center;color:#f55;padding:20px;font-size:0.85rem;">Błąd ładowania wpisów.</p>';
+        commentsDiv.innerHTML = '<p style="text-align:center;color:#ff003c;padding:20px;font-size:0.85rem;font-family:JetBrains Mono;">! BŁĄD ŁADOWANIA</p>';
     }
 }
-
 loadComments();
 </script>
 
