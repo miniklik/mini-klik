@@ -873,14 +873,15 @@ footer{
   content:'📜 ';margin-right:4px;
 }
 .detail-content .nav-action{
-  margin-top:16px;text-align:center;
+  margin-top:16px;
+  display:flex;flex-wrap:wrap;gap:8px;justify-content:center;
 }
 .detail-content .nav-btn{
-  display:inline-block;
+  flex:1;min-width:160px;
   background:var(--gold);color:var(--paper-2);
   border:none;border-radius:4px;
-  padding:11px 22px;cursor:pointer;
-  font-family:'Cinzel',serif;font-size:12px;letter-spacing:1.5px;
+  padding:11px 18px;cursor:pointer;
+  font-family:'Cinzel',serif;font-size:11px;letter-spacing:1.5px;
   font-weight:600;text-transform:uppercase;
   transition:all 0.2s;
 }
@@ -888,6 +889,54 @@ footer{
   background:var(--ink);transform:translateY(-1px);
   box-shadow:0 4px 10px rgba(60,40,20,0.3);
 }
+.detail-content .nav-btn.secondary{
+  background:var(--paper-2);color:var(--gold);
+  border:1px solid var(--gold);
+}
+.detail-content .nav-btn.secondary:hover{
+  background:var(--gold);color:var(--paper-2);
+}
+.detail-content .nav-btn.active{
+  background:var(--crimson);
+  box-shadow:0 2px 10px rgba(139,32,48,0.4);
+}
+
+/* === ETYKIETKA TRASY NA MAPIE === */
+.route-label{background:transparent!important;border:none!important}
+.route-label-inner{
+  background:var(--paper-2);
+  color:var(--ink);
+  border:2px solid var(--gold);
+  border-radius:6px;
+  padding:6px 12px;
+  font-family:'Cinzel',serif;font-size:11px;letter-spacing:1px;
+  font-weight:600;
+  box-shadow:var(--shadow-md);
+  white-space:nowrap;
+  text-align:center;
+  line-height:1.4;
+}
+.route-label-inner .dystans{
+  display:block;font-size:13px;color:var(--gold);
+}
+.route-label-inner .czas{
+  display:block;font-size:10px;color:var(--ink-soft);
+  font-style:italic;font-weight:500;
+  font-family:'EB Garamond',serif;letter-spacing:0;
+}
+
+/* === KOMUNIKAT TRASY (gdy brak GPS) === */
+.route-info{
+  margin-top:12px;
+  background:var(--gold-pale);
+  border:1px solid var(--gold);
+  border-radius:4px;
+  padding:10px 14px;
+  font-family:'EB Garamond',serif;
+  font-size:13px;color:var(--ink);
+  font-style:italic;line-height:1.5;
+}
+.route-info::before{content:'💡 ';margin-right:4px}
 
 .detail-image-wrapper{
   text-align:center;padding:6px 0;
@@ -1366,8 +1415,12 @@ function otworzPlatek(klucz, akcja) {
     html += `<p>${miejsce.opis}</p>`;
     if (miejsce.historia) html += `<div class="historia">${miejsce.historia}</div>`;
     html += `<div class="nav-action">
-      <button class="nav-btn" onclick="prowadzMnie(${lat}, ${lng}, '${safeNazwa}')">🧭 Prowadź mnie</button>
+      <button class="nav-btn" onclick="pokazTraseTutaj('${klucz}')">🥾 Pokaż trasę tutaj</button>
+      <button class="nav-btn secondary" onclick="prowadzMnie(${lat}, ${lng}, '${safeNazwa}')">🧭 Otwórz w mapach</button>
     </div>`;
+    if (watchId === null) {
+      html += `<div class="route-info">Włącz GPS (📍 w lewym dolnym rogu mapy), żeby zobaczyć trasę od swojej pozycji.</div>`;
+    }
     content.innerHTML = html;
   } else if (akcja === 'zdjecie') {
     const sciezka = `img/${miejsce.klucz}.jpg`;
@@ -1430,6 +1483,146 @@ function prowadzMnie(lat, lng, nazwa) {
   }
 
   window.open(url, '_blank', 'noopener,noreferrer');
+}
+
+// ============== TRASA NA MAPIE (OSRM) ==============
+// Pobiera trasę pieszą z OSRM (open-source routing) i rysuje ją złotą linią
+// w stylu witraża na Twojej mapie Leaflet.
+let aktualnaTrasa = null;
+let aktualnaEtykietaTrasy = null;
+
+async function pokazTraseTutaj(klucz) {
+  const miejsce = miejsca.find(m => m.klucz === klucz);
+  if (!miejsce) return;
+
+  // Sprawdź czy GPS jest włączony
+  if (!userPozycja) {
+    // Spróbuj włączyć GPS automatycznie
+    if (watchId === null) {
+      togglePozycja();
+      // Pokaż info i zaczekaj aż GPS złapie pozycję
+      const info = document.querySelector('.route-info');
+      if (info) {
+        info.innerHTML = '⏳ Czekam na pozycję GPS... (zezwól na lokalizację jeśli przeglądarka pyta)';
+      }
+      // Sprawdzaj co 500ms przez 15 sekund
+      let proby = 0;
+      const interval = setInterval(() => {
+        proby++;
+        if (userPozycja) {
+          clearInterval(interval);
+          rysujTrase(miejsce);
+        } else if (proby > 30) {
+          clearInterval(interval);
+          if (info) {
+            info.innerHTML = '⚠️ Nie udało się pobrać Twojej pozycji. Sprawdź ustawienia GPS.';
+          }
+        }
+      }, 500);
+    }
+    return;
+  }
+
+  rysujTrase(miejsce);
+}
+
+async function rysujTrase(miejsce) {
+  // Wyczyść poprzednią trasę jeśli była
+  wyczyscTrase();
+
+  const start = userPozycja;
+  const [endLat, endLng] = miejsce.pozycja;
+
+  // Aktualizuj info
+  const info = document.querySelector('.route-info');
+  if (info) info.innerHTML = '⏳ Wyznaczam trasę pieszą...';
+
+  // OSRM publiczne API - foot routing (pieszo)
+  const url = `https://router.project-osrm.org/route/v1/foot/${start.lng},${start.lat};${endLng},${endLat}?overview=full&geometries=geojson`;
+
+  try {
+    const response = await fetch(url);
+    if (!response.ok) throw new Error('Błąd serwera tras');
+    const data = await response.json();
+
+    if (!data.routes || data.routes.length === 0) {
+      throw new Error('Nie znaleziono trasy');
+    }
+
+    const route = data.routes[0];
+    // GeoJSON ma współrzędne [lng,lat] - Leaflet potrzebuje [lat,lng]
+    const punkty = route.geometry.coordinates.map(c => [c[1], c[0]]);
+
+    // Narysuj linię trasy w stylu witraża
+    aktualnaTrasa = L.polyline(punkty, {
+      color: '#a04510',
+      weight: 5,
+      opacity: 0.85,
+      dashArray: '8, 6',
+      lineCap: 'round',
+      lineJoin: 'round'
+    }).addTo(mapa);
+
+    // Druga warstwa dla efektu "obwódki" (cień)
+    const cien = L.polyline(punkty, {
+      color: '#3a2818',
+      weight: 8,
+      opacity: 0.25,
+      lineCap: 'round',
+      lineJoin: 'round'
+    }).addTo(mapa);
+    aktualnaTrasa._cien = cien;
+
+    // Etykietka z dystansem i czasem (na środku trasy)
+    const srodek = punkty[Math.floor(punkty.length / 2)];
+    const dystans = formatDystans(route.distance);
+    // OSRM zwraca czas w sekundach dla foot - ale często niedoszacowany
+    // Lepiej przeliczyć przez 4 km/h spaceru
+    const minutyMarsz = Math.max(1, Math.round(route.distance / 1000 / 4 * 60));
+    const czas = minutyMarsz < 60
+      ? `~${minutyMarsz} min`
+      : `~${Math.floor(minutyMarsz/60)}h ${minutyMarsz%60}min`;
+
+    aktualnaEtykietaTrasy = L.marker(srodek, {
+      icon: L.divIcon({
+        className: 'route-label',
+        html: `<div class="route-label-inner">
+          <span class="dystans">📏 ${dystans}</span>
+          <span class="czas">🚶 ${czas} pieszo</span>
+        </div>`,
+        iconSize: [120, 50],
+        iconAnchor: [60, 25]
+      }),
+      interactive: false
+    }).addTo(mapa);
+
+    // Wycentruj mapę żeby pokazać całą trasę
+    const bounds = L.latLngBounds([start.lat, start.lng], [endLat, endLng]);
+    mapa.fitBounds(bounds, { padding: [80, 80] });
+
+    // Zaktualizuj info
+    if (info) {
+      info.innerHTML = `✓ Trasa wyznaczona — <b>${dystans}</b> · ~${czas} pieszo. <a onclick="wyczyscTrase()" style="color:var(--gold);cursor:pointer;text-decoration:underline">Ukryj trasę</a>`;
+    }
+
+  } catch (err) {
+    console.error('Route error:', err);
+    if (info) {
+      info.innerHTML = '⚠️ Nie udało się wyznaczyć trasy. Spróbuj "Otwórz w mapach".';
+    }
+  }
+}
+
+function wyczyscTrase() {
+  if (aktualnaTrasa) {
+    if (aktualnaTrasa._cien) mapa.removeLayer(aktualnaTrasa._cien);
+    mapa.removeLayer(aktualnaTrasa);
+    aktualnaTrasa = null;
+  }
+  if (aktualnaEtykietaTrasy) {
+    mapa.removeLayer(aktualnaEtykietaTrasy);
+    aktualnaEtykietaTrasy = null;
+  }
 }
 
 // === HANDLER KLIKNIĘCIA W MAPĘ ===
