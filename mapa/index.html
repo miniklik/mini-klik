@@ -1157,7 +1157,8 @@ footer{
     <!-- GRUPA 1: filtry kategorii -->
     <div class="controls-group filters" id="filters-menu">
       <span class="controls-label">Kategorie</span>
-      <button class="btn-filter active" id="btn-wszystkie" onclick="filtruj('wszystkie', this)">⭐ Wszystko</button>
+      <button class="btn-filter" id="btn-wszystkie" onclick="filtruj('wszystkie', this)">⭐ Wszystko</button>
+      <button class="btn-filter active" id="btn-wybrane" onclick="filtruj('wybrane', this)">🎯 Wybrane z listy</button>
       <button class="btn-filter" id="btn-zabytek" onclick="filtruj('zabytek', this)">🏰 Zabytki</button>
       <button class="btn-filter" id="btn-sakral" onclick="filtruj('sakral', this)">⛪ Sakralne</button>
       <button class="btn-filter" id="btn-przyroda" onclick="filtruj('przyroda', this)">🌳 Przyroda</button>
@@ -1459,7 +1460,19 @@ miejsca.forEach((miejsce) => {
     <div class="nazwa">${miejsce.nazwa}</div>
     <div class="opis">${miejsce.krotki}</div>`;
   card.onclick = () => {
-    // Klik w kartę = tylko przelot mapy do miejsca, bez otwierania niczego
+    if (trybWybrane) {
+      // Tryb "wybrane z listy" - pokaż TYLKO tę jedną pinezkę
+      // Najpierw schowaj poprzednio wybraną pinezkę
+      if (wybranyKlucz && wybranyKlucz !== miejsce.klucz) {
+        const stary = markery.find(mk => mk.miejsce.klucz === wybranyKlucz);
+        if (stary) mapa.removeLayer(stary);
+      }
+      // Pokaż obecną
+      const obecny = markery.find(mk => mk.miejsce.klucz === miejsce.klucz);
+      if (obecny) obecny.addTo(mapa);
+      wybranyKlucz = miejsce.klucz;
+    }
+    // Zawsze: przelot mapy do miejsca
     mapa.flyTo(miejsce.pozycja, 16, { duration: 1.2 });
   };
   listaEl.appendChild(card);
@@ -1727,18 +1740,36 @@ mapa.on('click', function(e) {
 });
 
 // === FILTRY KATEGORII ===
+// Stan trybu "wybrane z listy"
+let trybWybrane = false;
+let wybranyKlucz = null;
+
 function filtruj(kat, btn) {
   document.querySelectorAll('.btn-filter').forEach(b => b.classList.remove('active'));
   if (btn) btn.classList.add('active');
 
-  markery.forEach(m => {
-    if (kat === 'wszystkie' || m.kategoria === kat) m.addTo(mapa);
-    else mapa.removeLayer(m);
-  });
+  trybWybrane = (kat === 'wybrane');
 
-  document.querySelectorAll('.miejsce-card').forEach(c => {
-    c.style.display = (kat === 'wszystkie' || c.dataset.kategoria === kat) ? 'block' : 'none';
-  });
+  if (trybWybrane) {
+    // Tryb "wybrane z listy" - pusta mapa, ale lista pełna
+    markery.forEach(m => mapa.removeLayer(m));
+    // Pokaż wszystkie karty w sidebarze (turysta wybiera z pełnej listy)
+    document.querySelectorAll('.miejsce-card').forEach(c => c.style.display = 'block');
+    // Wyczyść też trasę i wybrane miejsce
+    if (typeof wyczyscTrase === 'function') wyczyscTrase();
+    wybranyKlucz = null;
+  } else {
+    // Klasyczny filtr - pokazuj markery i karty pasujące do kategorii
+    markery.forEach(m => {
+      if (kat === 'wszystkie' || m.kategoria === kat) m.addTo(mapa);
+      else mapa.removeLayer(m);
+    });
+
+    document.querySelectorAll('.miejsce-card').forEach(c => {
+      c.style.display = (kat === 'wszystkie' || c.dataset.kategoria === kat) ? 'block' : 'none';
+    });
+    wybranyKlucz = null;
+  }
 
   document.getElementById('filters-menu').classList.remove('open');
   document.getElementById('hamburger').classList.remove('open');
@@ -1971,13 +2002,7 @@ function toggleTrybTurysty() {
       zmienRozmiar('l', sizeBtnL);
     }
 
-    // 4. Pokaż wszystkie kategorie
-    const wszystkie = document.getElementById('btn-wszystkie');
-    if (wszystkie && !wszystkie.classList.contains('active')) {
-      filtruj('wszystkie', wszystkie);
-    }
-
-    // 5. Przewiń do mapy
+    // 4. Przewiń do mapy
     setTimeout(() => {
       document.getElementById('mapa').scrollIntoView({ behavior: 'smooth', block: 'start' });
     }, 200);
@@ -2219,6 +2244,20 @@ function otworzZnaleziony() {
       if (btn) zmienWidok('satelita', btn);
     }
   } catch(e) {}
+})();
+
+// === DOMYŚLNY START: tryb "Wybrane z listy" + pokaż Centrum Siedliszcza ===
+(function startCzyste() {
+  // Włącz tryb wybrane
+  trybWybrane = true;
+  // Schowaj wszystkie pinezki
+  markery.forEach(m => mapa.removeLayer(m));
+  // Pokaż TYLKO centrum
+  const centrum = markery.find(m => m.miejsce && m.miejsce.klucz === 'centrum');
+  if (centrum) {
+    centrum.addTo(mapa);
+    wybranyKlucz = 'centrum';
+  }
 })();
 
 window.addEventListener('load', () => mapa.invalidateSize());
