@@ -2328,7 +2328,8 @@ footer{
         <div style="font-size:11px;color:var(--ink-muted);margin-top:4px">Klik w mapę = dodaj<br>Klik w pinezkę → 🛠 = edytuj</div>
         <button onclick="pobierzNowyIndex()" style="background:#22c55e;font-size:11px">💾 Pobierz nowy index.html</button>
         <button id="adminExportBtn" onclick="exportujZaplanowane()" disabled style="opacity:0.5;font-size:10px">📋 Eksportuj kropki (0)</button>
-        <button class="danger" onclick="wyczyscZaplanowane()" style="font-size:10px">🗑 Wyczyść zmiany</button>
+        <button class="danger" onclick="wyczyscZaplanowane()" style="font-size:10px">🗑 Wyczyść kropki</button>
+        <button class="danger" onclick="wyczyscMiejsca()" style="font-size:10px">🗑 Wyczyść miejsca</button>
       </div>
     </div>
     <aside class="sidebar">
@@ -3472,6 +3473,35 @@ function wyczyscZaplanowane() {
   zapiszZaplanowane();
   renderujZaplanowane();
   pokazAdminListe();
+}
+
+// === Wyczyść WSZYSTKIE miejsca (z localStorage + tablica) ===
+// Po pobraniu nowego index.html cache localStorage powinien się czyścić,
+// ale gdyby zostały stare wpisy - ten przycisk czyści je manualnie.
+function wyczyscMiejsca() {
+  if (miejsca.length === 0) {
+    alert('Lista miejsc jest już pusta.');
+    return;
+  }
+  if (!confirm(`Wyczyścić wszystkie ${miejsca.length} miejsc z pamięci przeglądarki?\n\nUWAGA: To czyści TYLKO localStorage przeglądarki.\nMiejsca zapisane w pliku HTML pozostają nietknięte (wgrane na GitHub).\n\nPo wyczyszczeniu - odśwież stronę aby zobaczyć stan z pliku HTML.`)) return;
+
+  // Wyczyść tablicę
+  miejsca.length = 0;
+
+  // Wyczyść localStorage
+  try {
+    localStorage.removeItem(KEY_MIEJSCA);
+  } catch(e) {}
+
+  // Re-render mapy
+  if (typeof odswiezMiejscaNaMapie === 'function') {
+    odswiezMiejscaNaMapie();
+  }
+
+  // Aktualizuj licznik
+  pokazAdminListe();
+
+  alert('✓ Lista miejsc wyczyszczona.\n\nOdśwież stronę (F5) aby zobaczyć miejsca z pliku HTML (jeśli są).');
 }
 
 // ============== POBIERANIE NOWEGO INDEX.HTML ==============
