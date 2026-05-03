@@ -1537,6 +1537,31 @@ footer{
   box-shadow:0 2px 10px rgba(160,69,16,0.4);
 }
 
+/* === PRZYCISK WYŚRODKUJ NA MOJEJ POZYCJI (kółko na mapie obok GPS i ✨) === */
+.center-btn{
+  position:absolute;
+  bottom:14px;left:126px;
+  z-index:500;
+  width:46px;height:46px;
+  background:var(--paper-2);
+  border:2px solid var(--gold);
+  border-radius:50%;
+  cursor:pointer;
+  font-size:22px;
+  font-weight:600;
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:var(--shadow-deep);
+  transition:all 0.25s;
+  color:var(--gold);
+  font-family:inherit;
+  line-height:1;
+}
+.center-btn:hover{
+  background:var(--gold);color:var(--paper-2);
+  transform:scale(1.05);
+}
+.center-btn:active{transform:scale(0.95)}
+
 /* === WACHLARZ PŁATKÓW === */
 .platki-wrapper{
   position:absolute;top:18px;left:18px;
@@ -1624,8 +1649,9 @@ footer{
   .hamburger-btn{padding:11px 16px;min-height:44px}
   .tourist-btn{padding:11px 14px;font-size:13px;min-height:44px}
   /* Lepiej widoczne przyciski GPS i Skanera */
-  .gps-btn,.scan-btn,.hint-btn{width:52px;height:52px;font-size:22px}
+  .gps-btn,.scan-btn,.hint-btn,.center-btn{width:52px;height:52px;font-size:22px}
   .scan-btn,.hint-btn{left:80px}
+  .center-btn{left:146px}
   .gps-status{left:140px;font-size:12px;padding:7px 11px;max-width:calc(100vw - 160px)}
   /* Karty miejsc bardziej dotykowe */
   .miejsce-card{padding:16px 18px;min-height:60px}
@@ -1794,6 +1820,22 @@ footer{
     background: var(--gold);
     color: var(--paper-2);
     box-shadow: 0 4px 16px rgba(160,69,16,0.5);
+  }
+
+  /* Wyśrodkuj na mojej pozycji - PRAWY DOLNY (NAD głośnikiem GPS) */
+  .mobile-fab-center {
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 90px);
+    right: 14px;
+    width: 46px; height: 46px;
+    background: var(--paper-2);
+    border: 0.5px solid rgba(160,69,16,0.3);
+    color: var(--gold);
+    font-size: 22px;
+    font-weight: 600;
+  }
+  .mobile-fab-center:active {
+    background: var(--gold);
+    color: var(--paper-2);
   }
 
   /* GPS - PRAWY DOLNY RÓG (przesuwam istniejący .gps-btn) */
@@ -2012,6 +2054,9 @@ footer{
   .gps-btn,
   .mobile-fab-tourist {
     bottom: calc(env(safe-area-inset-bottom, 0px) + 100px) !important;
+  }
+  .mobile-fab-center {
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 168px) !important;
   }
   .hint-btn {
     bottom: calc(env(safe-area-inset-bottom, 0px) + 168px) !important;
@@ -2255,11 +2300,13 @@ footer{
     <div id="mapa">
       <button class="gps-btn" id="gpsBtn" onclick="obsluzKlikGPSlubAudio()" title="Pokaż mnie na mapie">📍</button>
       <button class="hint-btn" id="hintBtn" onclick="toggleAudioHints()" title="Pokaż gwiazdki — kropki audio w pobliżu (300m)">✨</button>
+      <button class="center-btn" id="centerBtn" onclick="wysrodkujNaMnie()" title="Wyśrodkuj mapę na mojej pozycji GPS" style="display:none">⊙</button>
 
       <!-- MOBILE FAB BUTTONS (widoczne tylko na mobile portrait dzięki CSS) -->
       <button class="mobile-fab mobile-fab-menu" id="mobileFabMenu" onclick="otworzMobilneMenu()" title="Menu">☰</button>
       <button class="mobile-fab mobile-fab-layer" id="mobileFabLayer" onclick="toggleWarstwyMobile()" title="Zmień warstwę mapy">🗺️</button>
       <button class="mobile-fab mobile-fab-tourist" id="mobileFabTourist" onclick="toggleTrybTurysty()" title="Tryb wędrowca">🥾</button>
+      <button class="mobile-fab mobile-fab-center" id="mobileFabCenter" onclick="wysrodkujNaMnie()" title="Wyśrodkuj na mojej pozycji" style="display:none">⊙</button>
 
       <div class="gps-status" id="gpsStatus"></div>
       <!-- PANEL ODTWARZANIA AUDIO -->
@@ -2485,7 +2532,7 @@ const miejsca = [
 ];
 
 const mapa = L.map('mapa', {
-  zoomControl: true,
+  zoomControl: false,
   scrollWheelZoom: true,
   attributionControl: false  // wyłączamy domyślny - dodamy własny bez flagi UA
 })
@@ -4414,10 +4461,12 @@ function toggleTrybTurysty() {
       zmienRozmiar('s', sizeBtnS);
     }
 
-    // 4. Pokaż baner audio (tylko jeśli jeszcze nie zdecydowano)
-    if (audioPrzewodnikWlaczony === false && !audioBannerPokazany) {
-      setTimeout(() => pokazBanerAudio(), 600);
-      audioBannerPokazany = true;
+    // 4. Audio przewodnik DOMYŚLNIE WŁĄCZONY (bez banera).
+    //    Turysta może wyciszyć przyciskiem 🔇 jeśli chce.
+    //    UWAGA: wywołanie wlaczAudioPrzewodnik(true) musi być w trakcie
+    //    user gesture (klik), żeby przeglądarka pozwoliła na autoplay.
+    if (!audioPrzewodnikWlaczony) {
+      wlaczAudioPrzewodnik(true);
     }
 
     // 5. Przewiń do mapy
@@ -4914,6 +4963,37 @@ document.addEventListener('keydown', (e) => {
     zamknijMobilneMenu();
   }
 });
+
+// =====================================================
+// === WYŚRODKUJ NA MOJEJ POZYCJI (Krok 6) =============
+// =====================================================
+// Płynnie przesuwa mapę żeby user był na środku.
+// Działa tylko gdy GPS jest aktywny (userPozycja !== null).
+
+function wysrodkujNaMnie() {
+  if (!userPozycja) {
+    // Bezpieczna fallback - nie powinno się stać bo przycisk się chowa,
+    // ale gdyby ktoś jakoś kliknął - małe info
+    return;
+  }
+  // Płynne wyśrodkowanie z lekkim zoomem do 16
+  const obecnyZoom = mapa.getZoom();
+  const docelowyZoom = Math.max(obecnyZoom, 16);
+  mapa.flyTo([userPozycja.lat, userPozycja.lng], docelowyZoom, { duration: 0.8 });
+}
+
+// Pokaż/ukryj przyciski wyśrodkowania w zależności od stanu GPS
+function aktualizujWidocznoscWysrodkowania() {
+  const desktop = document.getElementById('centerBtn');
+  const mobile = document.getElementById('mobileFabCenter');
+  const visible = userPozycja !== null;
+  if (desktop) desktop.style.display = visible ? '' : 'none';
+  if (mobile) mobile.style.display = visible ? '' : 'none';
+}
+
+// Sprawdzaj co sekundę czy stan GPS się zmienił
+setInterval(aktualizujWidocznoscWysrodkowania, 1000);
+aktualizujWidocznoscWysrodkowania();
 </script>
 
 </body>
