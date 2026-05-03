@@ -1530,10 +1530,12 @@ footer{
       <!-- PANEL ADMIN: licznik zaplanowanych kropek -->
       <div class="admin-list" id="adminList">
         <div class="admin-list-title">🛠 Tryb admin</div>
-        <div>Zaplanowane: <span class="admin-list-count" id="adminListCount">0</span></div>
-        <div style="font-size:11px;color:var(--ink-muted);margin-top:4px">Kliknij w mapę, aby dodać kropkę</div>
-        <button id="adminExportBtn" onclick="exportujZaplanowane()" disabled style="opacity:0.5">📋 Eksportuj kod (0)</button>
-        <button class="danger" onclick="wyczyscZaplanowane()">🗑 Wyczyść</button>
+        <div>Kropek w kodzie: <span class="admin-list-count" id="adminListCountKod">0</span></div>
+        <div>Zmiany: <span class="admin-list-count" id="adminListCount" style="color:#22c55e">0</span></div>
+        <div style="font-size:11px;color:var(--ink-muted);margin-top:4px">Kliknij w mapę = dodaj<br>Klik w fioletową = edytuj</div>
+        <button onclick="pobierzNowyIndex()" style="background:#22c55e;font-size:11px">💾 Pobierz nowy index.html</button>
+        <button id="adminExportBtn" onclick="exportujZaplanowane()" disabled style="opacity:0.5;font-size:10px">📋 Eksportuj kod (0)</button>
+        <button class="danger" onclick="wyczyscZaplanowane()" style="font-size:10px">🗑 Wyczyść zmiany</button>
       </div>
     </div>
     <aside class="sidebar">
@@ -1888,6 +1890,9 @@ function renderujKropkiAudio() {
   if (!isAdmin) return;
 
   kropkiAudio.forEach(kropka => {
+    const popupTresc = `<b>🎧 Audio #${kropka.numer}</b>${kropka.opis || ''}<em>📁 Plik: audio/${kropka.numer}.mp3<br>📏 Promień: ${kropka.promien} m</em>
+      <button class="popup-nav-btn" onclick="edytujKropke('audio', ${kropka.numer});mapa.closePopup();">✏️ Edytuj kropkę</button>`;
+
     const marker = L.marker(kropka.pozycja, {
       icon: L.divIcon({
         className: 'audio-dot-marker',
@@ -1895,13 +1900,12 @@ function renderujKropkiAudio() {
         iconSize: [32, 32],
         iconAnchor: [16, 16]
       })
-    }).bindPopup(`<b>🎧 Audio #${kropka.numer}</b>${kropka.opis}<em>📁 Plik: audio/${kropka.numer}.mp3<br>📏 Promień: ${kropka.promien} m</em>`);
+    }).bindPopup(popupTresc);
 
     marker.kropka = kropka;
     marker.addTo(mapa);
     audioMarkery.push(marker);
 
-    // Dodatkowo: rysuj okrąg promieniowy żeby widzieć strefę
     const krag = L.circle(kropka.pozycja, {
       radius: kropka.promien,
       color: '#7c3aed',
@@ -2062,6 +2066,8 @@ function pokazAdminListe() {
   if (!panel) return;
   panel.classList.toggle('visible', isAdmin);
   document.getElementById('adminListCount').textContent = zaplanowaneKropki.length;
+  const elKod = document.getElementById('adminListCountKod');
+  if (elKod) elKod.textContent = kropkiAudio.length;
   const expBtn = document.getElementById('adminExportBtn');
   if (expBtn) {
     expBtn.disabled = zaplanowaneKropki.length === 0;
@@ -2079,12 +2085,18 @@ function dajKolejnyNumer() {
 }
 
 function renderujZaplanowane() {
-  // Wyczyść stare markery
-  zaplanowaneMarkery.forEach(m => mapa.removeLayer(m));
+  // Wyczyść stare markery I kręgi
+  zaplanowaneMarkery.forEach(m => {
+    if (m._krag) mapa.removeLayer(m._krag);
+    mapa.removeLayer(m);
+  });
   zaplanowaneMarkery = [];
 
   // Narysuj nowe
   zaplanowaneKropki.forEach(kropka => {
+    const popupTresc = `<b>📌 Zaplanowana kropka #${kropka.numer}</b>${kropka.opis || '(bez opisu)'}<em>📏 Promień: ${kropka.promien} m<br>📍 ${kropka.lat.toFixed(5)}, ${kropka.lng.toFixed(5)}</em>
+      <button class="popup-nav-btn" onclick="edytujKropke('planowana', ${kropka.numer});mapa.closePopup();">✏️ Edytuj kropkę</button>`;
+
     const marker = L.marker([kropka.lat, kropka.lng], {
       icon: L.divIcon({
         className: 'kropka-planowana',
@@ -2092,7 +2104,7 @@ function renderujZaplanowane() {
         iconSize: [32, 32],
         iconAnchor: [16, 16]
       })
-    }).bindPopup(`<b>📌 Zaplanowana kropka #${kropka.numer}</b>${kropka.opis || '(bez opisu)'}<em>📏 Promień: ${kropka.promien} m<br>📍 ${kropka.lat.toFixed(5)}, ${kropka.lng.toFixed(5)}</em>`);
+    }).bindPopup(popupTresc);
 
     const krag = L.circle([kropka.lat, kropka.lng], {
       radius: kropka.promien,
@@ -2117,6 +2129,10 @@ function obsluzKlikAdmin(e) {
   // Sprawdź czy nie kliknięto w istniejący marker (Leaflet już to obsłużył)
   // Tu dochodzimy tylko jak klik był w pustą mapę
 
+  // Reset trybu edycji - to nowa kropka, nie edycja
+  edytowanaKropka = null;
+  edytowanyTyp = null;
+
   aktualnyKlik = { lat: e.latlng.lat, lng: e.latlng.lng };
 
   // Pokaż tymczasowy marker
@@ -2137,6 +2153,7 @@ function obsluzKlikAdmin(e) {
   document.getElementById('adminPromienVal').textContent = '50';
   document.getElementById('adminOpis').value = '';
   aktualizujKodKropki();
+  zaktualizujPrzyciskiHelpera();
   helper.classList.add('visible');
 }
 
@@ -2205,6 +2222,8 @@ function zamknijHelper() {
     tymczasowyMarker = null;
   }
   aktualnyKlik = null;
+  edytowanaKropka = null;
+  edytowanyTyp = null;
 }
 
 function exportujZaplanowane() {
@@ -2238,6 +2257,217 @@ function wyczyscZaplanowane() {
   zapiszZaplanowane();
   renderujZaplanowane();
   pokazAdminListe();
+}
+
+// ============== POBIERANIE NOWEGO INDEX.HTML ==============
+// Bierze obecny plik (przez fetch do samego siebie), znajduje tablicę kropkiAudio
+// i podmienia ją na NOWĄ (istniejące + zaplanowane). Zwraca plik do pobrania.
+async function pobierzNowyIndex() {
+  try {
+    // Pobierz tekst tego samego pliku
+    const response = await fetch(window.location.href.split('?')[0]);
+    if (!response.ok) throw new Error('Nie udało się odczytać pliku');
+    let tekst = await response.text();
+
+    // Połącz wszystkie kropki: istniejące z kodu + zaplanowane (sortuj po numerze)
+    const wszystkie = [
+      ...kropkiAudio.map(k => ({
+        numer: k.numer,
+        lat: k.pozycja[0],
+        lng: k.pozycja[1],
+        promien: k.promien,
+        opis: k.opis || ''
+      })),
+      ...zaplanowaneKropki
+    ];
+
+    // Usuń duplikaty po numerze (zaplanowane mają priorytet - możesz nadpisać istniejące)
+    const mapaUnik = new Map();
+    wszystkie.forEach(k => mapaUnik.set(k.numer, k));
+    const finalne = Array.from(mapaUnik.values()).sort((a, b) => a.numer - b.numer);
+
+    // Wygeneruj kod nowej tablicy
+    const linie = finalne.map(k => {
+      const opis = (k.opis || '').replace(/'/g, "\\'");
+      return `  { numer: ${k.numer}, pozycja: [${k.lat.toFixed(5)}, ${k.lng.toFixed(5)}], promien: ${k.promien}, opis: '${opis}' }`;
+    });
+    const nowaTablica = `const kropkiAudio = [\n${linie.join(',\n')}\n];`;
+
+    // Znajdź starą tablicę i podmień
+    // Regex - znajdź `const kropkiAudio = [` aż do najbliższego `];` (z uwzględnieniem zagnieżdżonych nawiasów)
+    const regex = /const\s+kropkiAudio\s*=\s*\[[\s\S]*?\n\];/;
+
+    if (!regex.test(tekst)) {
+      alert('⚠️ Nie znaleziono tablicy kropkiAudio w pliku - nie mogę dokonać podmiany.\n\nUżyj "Eksportuj kod" i wklej ręcznie.');
+      return;
+    }
+
+    tekst = tekst.replace(regex, nowaTablica);
+
+    // Stwórz blob i pobierz plik
+    const blob = new Blob([tekst], { type: 'text/html;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'index.html';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    // Po pobraniu - zaproponuj wyczyszczenie listy zaplanowanych
+    setTimeout(() => {
+      if (zaplanowaneKropki.length > 0 &&
+          confirm(`✓ Pobrano nowy index.html z ${finalne.length} kropkami audio.\n\nCzy wyczyścić listę zaplanowanych kropek? (są już w pobranym pliku)`)) {
+        zaplanowaneKropki = [];
+        zapiszZaplanowane();
+        renderujZaplanowane();
+        pokazAdminListe();
+      }
+    }, 500);
+
+  } catch (err) {
+    console.error('Błąd pobierania:', err);
+    alert('⚠️ Nie udało się pobrać pliku.\n\nUżyj "Eksportuj kod" i wklej ręcznie do index.html.\n\nBłąd: ' + err.message);
+  }
+}
+
+// ============== EDYCJA / USUWANIE ISTNIEJĄCEJ KROPKI ==============
+// W trybie admin: klik na fioletową kropkę otwiera formularz edycji
+let edytowanaKropka = null; // referencja do edytowanej kropki (z kropkiAudio lub zaplanowane)
+let edytowanyTyp = null; // 'audio' lub 'planowana'
+
+function edytujKropke(typ, numer) {
+  let kropka, lat, lng;
+  if (typ === 'audio') {
+    kropka = kropkiAudio.find(k => k.numer === numer);
+    if (!kropka) return;
+    lat = kropka.pozycja[0];
+    lng = kropka.pozycja[1];
+  } else if (typ === 'planowana') {
+    kropka = zaplanowaneKropki.find(k => k.numer === numer);
+    if (!kropka) return;
+    lat = kropka.lat;
+    lng = kropka.lng;
+  }
+
+  edytowanaKropka = kropka;
+  edytowanyTyp = typ;
+  aktualnyKlik = { lat, lng };
+
+  // Otwórz pomocnik z danymi z istniejącej kropki
+  document.getElementById('adminNumer').value = kropka.numer;
+  document.getElementById('adminPromien').value = kropka.promien;
+  document.getElementById('adminPromienVal').textContent = kropka.promien;
+  document.getElementById('adminOpis').value = kropka.opis || '';
+  aktualizujKodKropki();
+  zaktualizujPrzyciskiHelpera();
+  document.getElementById('adminHelper').classList.add('visible');
+}
+
+function zapiszEdycje() {
+  if (!edytowanaKropka || !aktualnyKlik) return;
+
+  const numer = parseInt(document.getElementById('adminNumer').value) || 1;
+  const promien = parseInt(document.getElementById('adminPromien').value) || 50;
+  const opis = document.getElementById('adminOpis').value;
+
+  if (edytowanyTyp === 'audio') {
+    // Edytujemy kropkę z kodu - zapisujemy zmiany do listy zaplanowanych
+    // (bo nie możemy zapisać do kodu, ale "Pobierz nowy index.html" to scali)
+    // Najpierw usuń tę kropkę z kropkiAudio (zostanie nadpisana przez zaplanowaną)
+    const idx = kropkiAudio.findIndex(k => k.numer === edytowanaKropka.numer);
+    if (idx >= 0) {
+      // Zaktualizuj na żywo
+      kropkiAudio[idx].pozycja = [aktualnyKlik.lat, aktualnyKlik.lng];
+      kropkiAudio[idx].promien = promien;
+      kropkiAudio[idx].opis = opis;
+      kropkiAudio[idx].numer = numer;
+    }
+    // Dodatkowo do zaplanowanych żeby trafiło do pobranego pliku
+    const istn = zaplanowaneKropki.findIndex(k => k.numer === edytowanaKropka.numer);
+    if (istn >= 0) {
+      zaplanowaneKropki[istn] = { numer, lat: aktualnyKlik.lat, lng: aktualnyKlik.lng, promien, opis };
+    } else {
+      zaplanowaneKropki.push({ numer, lat: aktualnyKlik.lat, lng: aktualnyKlik.lng, promien, opis });
+    }
+  } else if (edytowanyTyp === 'planowana') {
+    edytowanaKropka.numer = numer;
+    edytowanaKropka.lat = aktualnyKlik.lat;
+    edytowanaKropka.lng = aktualnyKlik.lng;
+    edytowanaKropka.promien = promien;
+    edytowanaKropka.opis = opis;
+  }
+
+  zapiszZaplanowane();
+
+  // Odśwież widok mapy - usuń stare i wyrenderuj wszystko
+  audioMarkery.forEach(m => {
+    if (m._krag) mapa.removeLayer(m._krag);
+    mapa.removeLayer(m);
+  });
+  audioMarkery = [];
+  renderujKropkiAudio();
+  renderujZaplanowane();
+  pokazAdminListe();
+
+  zamknijHelper();
+}
+
+function usunKropke() {
+  if (!edytowanaKropka) return;
+  if (!confirm(`Usunąć kropkę #${edytowanaKropka.numer} (${edytowanaKropka.opis || 'bez opisu'})?\n\nDo zapisania zmian musisz pobrać nowy index.html.`)) return;
+
+  if (edytowanyTyp === 'audio') {
+    const idx = kropkiAudio.findIndex(k => k.numer === edytowanaKropka.numer);
+    if (idx >= 0) kropkiAudio.splice(idx, 1);
+    // Usuń też z zaplanowanych jeśli była
+    const idxP = zaplanowaneKropki.findIndex(k => k.numer === edytowanaKropka.numer);
+    if (idxP >= 0) zaplanowaneKropki.splice(idxP, 1);
+  } else if (edytowanyTyp === 'planowana') {
+    const idx = zaplanowaneKropki.findIndex(k => k.numer === edytowanaKropka.numer);
+    if (idx >= 0) zaplanowaneKropki.splice(idx, 1);
+  }
+
+  zapiszZaplanowane();
+
+  audioMarkery.forEach(m => {
+    if (m._krag) mapa.removeLayer(m._krag);
+    mapa.removeLayer(m);
+  });
+  audioMarkery = [];
+  renderujKropkiAudio();
+  renderujZaplanowane();
+  pokazAdminListe();
+
+  zamknijHelper();
+}
+
+function zaktualizujPrzyciskiHelpera() {
+  const wTrybieEdycji = edytowanaKropka !== null;
+  const t = document.getElementById('adminHelper').querySelector('h3');
+  const sub = document.getElementById('adminHelper').querySelector('.admin-subtitle');
+  const akcje = document.getElementById('adminHelper').querySelector('.actions');
+
+  if (wTrybieEdycji) {
+    t.innerHTML = `Edytuj kropkę #${edytowanaKropka.numer}`;
+    sub.textContent = edytowanyTyp === 'audio'
+      ? 'Edytujesz kropkę z kodu. Zmiany zapiszą się do pobranego pliku.'
+      : 'Edytujesz zaplanowaną kropkę.';
+    akcje.innerHTML = `
+      <button onclick="zapiszEdycje()">💾 Zapisz zmiany</button>
+      <button class="secondary" style="background:rgba(239,68,68,0.1);color:var(--crimson);border-color:var(--crimson)" onclick="usunKropke()">🗑 Usuń</button>
+      <button class="secondary" onclick="zamknijHelper()">✕ Anuluj</button>
+    `;
+  } else {
+    t.innerHTML = 'Nowa kropka audio';
+    sub.textContent = 'Lokalizacja zapisana z kliknięcia w mapę. Możesz teraz ustawić promień i opis.';
+    akcje.innerHTML = `
+      <button onclick="kopiujKodKropki()" id="adminCopyBtn">📋 Kopiuj kod</button>
+      <button onclick="planujKolejna()">➕ Dodaj kolejną</button>
+      <button class="secondary" onclick="zamknijHelper()">✕ Zamknij</button>
+    `;
+  }
 }
 
 // Aktywuj pomocnik tylko w trybie admin
