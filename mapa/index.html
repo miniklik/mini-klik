@@ -15,7 +15,7 @@
 
 <style>
 :root{
-  --mapa-h:65vh;
+  --mapa-h:45vh;
   --paper:#f5efe2;
   --paper-2:#fff8eb;
   --paper-3:#f0e6d0;
@@ -290,6 +290,16 @@ h1 em{font-style:italic;color:var(--gold);font-weight:400}
 }
 .gps-btn:hover{background:var(--gold);color:var(--paper-2);transform:scale(1.05)}
 .gps-btn.active{background:var(--gold);color:var(--paper-2)}
+.gps-btn.muted{
+  background:var(--paper-2);
+  color:var(--ink-muted);
+  border-color:var(--ink-muted);
+  opacity:0.75;
+}
+.gps-btn.muted:hover{
+  background:var(--ink-muted);
+  color:var(--paper-2);
+}
 .gps-btn.szukam{animation:pulseGold 1.2s ease-in-out infinite}
 @keyframes pulseGold{
   0%,100%{box-shadow:var(--shadow-deep)}
@@ -1492,8 +1502,8 @@ footer{
 
     <!-- GRUPA 2: widok mapy -->
     <div class="controls-group view-toggle">
-      <button class="btn-view active" id="btn-mapa" onclick="zmienWidok('mapa', this)">🗺️ Mapa</button>
-      <button class="btn-view" id="btn-satelita" onclick="zmienWidok('satelita', this)">🛰️ Satelita</button>
+      <button class="btn-view active" id="btn-mapa" onclick="zmienWidok('mapa', this)" title="OpenStreetMap - mapa drogowa">🗺️ Mapa</button>
+      <button class="btn-view" id="btn-satelita" onclick="zmienWidok('satelita', this)" title="Geoportal - ortofotomapa, zdjęcia z lotu">🛰️ Satelita</button>
     </div>
 
     <div class="controls-divider"></div>
@@ -1501,8 +1511,8 @@ footer{
     <!-- GRUPA 3: rozmiar mapy -->
     <div class="controls-group size-toggle">
       <span class="controls-label">Rozmiar</span>
-      <button class="btn-size" id="btn-size-s" onclick="zmienRozmiar('s', this)" title="Mała mapa">📐</button>
-      <button class="btn-size active" id="btn-size-m" onclick="zmienRozmiar('m', this)" title="Średnia mapa">📏</button>
+      <button class="btn-size active" id="btn-size-s" onclick="zmienRozmiar('s', this)" title="Mała mapa">📐</button>
+      <button class="btn-size" id="btn-size-m" onclick="zmienRozmiar('m', this)" title="Średnia mapa">📏</button>
       <button class="btn-size" id="btn-size-l" onclick="zmienRozmiar('l', this)" title="Duża mapa">📊</button>
     </div>
 
@@ -1515,7 +1525,7 @@ footer{
 
   <div class="layout">
     <div id="mapa">
-      <button class="gps-btn" id="gpsBtn" onclick="togglePozycja()" title="Pokaż mnie na mapie">📍</button>
+      <button class="gps-btn" id="gpsBtn" onclick="obsluzKlikGPSlubAudio()" title="Pokaż mnie na mapie">📍</button>
       <button class="scan-btn" id="scanBtn" onclick="otworzSkaner()" title="Skanuj kod QR">📷</button>
       <div class="gps-status" id="gpsStatus"></div>
       <!-- PANEL ODTWARZANIA AUDIO -->
@@ -1702,15 +1712,33 @@ const miejsca = [
     historia: 'Nazwa od rodu Korybutów. Pierwsze wzmianki z 1564 roku — wsie Siedliszcze Korybutowe i Siedliszcze Episkopales.' }
 ];
 
-const mapa = L.map('mapa', { zoomControl: true, scrollWheelZoom: true })
+const mapa = L.map('mapa', {
+  zoomControl: true,
+  scrollWheelZoom: true,
+  attributionControl: false  // wyłączamy domyślny - dodamy własny bez flagi UA
+})
   .setView([51.1980, 23.1600], 13);
 
-const warstwaKlasyczna = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  attribution: '© OpenStreetMap', maxZoom: 19
-}).addTo(mapa);
+// Własny attribution - bez "Leaflet" i bez ukraińskiej flagi
+L.control.attribution({ prefix: false }).addTo(mapa);
 
-const warstwaSatelita = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-  attribution: '© Esri', maxZoom: 19
+// === WARSTWY MAPY ===
+// Dwie warstwy: OpenStreetMap (drogowa) + Geoportal (ortofotomapa Polska)
+
+// 1. KLASYCZNA - OpenStreetMap (mapa drogowa)
+const warstwaKlasyczna = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '© <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>',
+  maxZoom: 19
+}).addTo(mapa);  // domyślna
+
+// 2. SATELITARNA - Geoportal Ortofotomapa (polskie zdjęcia z lotu)
+const warstwaSatelita = L.tileLayer.wms('https://mapy.geoportal.gov.pl/wss/service/PZGIK/ORTO/WMS/StandardResolution', {
+  layers: 'Raster',
+  format: 'image/jpeg',
+  transparent: false,
+  version: '1.3.0',
+  maxZoom: 20,
+  attribution: '© <a href="https://www.geoportal.gov.pl/" target="_blank">Geoportal Ortofotomapa</a> · GUGiK'
 });
 
 // Kolor markera zależnie od kategorii
@@ -1859,22 +1887,20 @@ miejsca.forEach((miejsce) => {
 // Aby dodać nową kropkę: skopiuj jeden obiekt, zmień numer, pozycję i promień.
 // Plik MP3 wgraj do folderu audio/ jako {numer}.mp3 (np. audio/1.mp3)
 const kropkiAudio = [
-  { numer: 1, pozycja: [51.19430, 23.16280], promien: 30, opis: 'Kościół Matki Bożej' },
-  { numer: 2, pozycja: [51.19760, 23.17290], promien: 50, opis: 'Pałac Węglińskich' },
-  { numer: 3, pozycja: [51.19480, 23.16380], promien: 40, opis: 'Centrum / Rynek' },
-  { numer: 4, pozycja: [51.19540, 23.16560], promien: 25, opis: 'Stary młyn' },
-  { numer: 5, pozycja: [51.18240, 23.17420], promien: 20, opis: 'Kapliczka Lubelska' },
-  { numer: 6, pozycja: [51.19840, 23.15690], promien: 20, opis: 'Kapliczka Szpitalna' },
-  { numer: 7, pozycja: [51.18950, 23.16380], promien: 25, opis: 'Stare Krzyże' },
-  { numer: 8, pozycja: [51.23170, 23.19200], promien: 30, opis: 'Kaplica Dobromyśl' },
-  { numer: 9, pozycja: [51.17030, 23.14340], promien: 30, opis: 'Kaplica Anusin' },
-  { numer: 10, pozycja: [51.20970, 23.17330], promien: 40, opis: 'Zamczysko' },
-  { numer: 11, pozycja: [51.17400, 23.08620], promien: 50, opis: 'Chojno Nowe' },
-  { numer: 12, pozycja: [51.20490, 23.22830], promien: 40, opis: 'Mogilnica' },
-  { numer: 13, pozycja: [51.22780, 23.14180], promien: 50, opis: 'Zalew Majdan' },
-  { numer: 14, pozycja: [51.19630, 23.16030], promien: 25, opis: 'Urząd Miejski' },
-  { numer: 15, pozycja: [51.19173, 23.16968], promien: 25, opis: 'dom' },
-  { numer: 16, pozycja: [51.19221, 23.17003], promien: 25, opis: '' }
+  { numer: 1,  pozycja: [51.1943, 23.1628], promien: 30, opis: 'Kościół Matki Bożej' },
+  { numer: 2,  pozycja: [51.1976, 23.1729], promien: 50, opis: 'Pałac Węglińskich' },
+  { numer: 3,  pozycja: [51.1948, 23.1638], promien: 40, opis: 'Centrum / Rynek' },
+  { numer: 4,  pozycja: [51.1954, 23.1656], promien: 25, opis: 'Stary młyn' },
+  { numer: 5,  pozycja: [51.1824, 23.1742], promien: 20, opis: 'Kapliczka Lubelska' },
+  { numer: 6,  pozycja: [51.1984, 23.1569], promien: 20, opis: 'Kapliczka Szpitalna' },
+  { numer: 7,  pozycja: [51.1895, 23.1638], promien: 25, opis: 'Stare Krzyże' },
+  { numer: 8,  pozycja: [51.2317, 23.1920], promien: 30, opis: 'Kaplica Dobromyśl' },
+  { numer: 9,  pozycja: [51.1703, 23.1434], promien: 30, opis: 'Kaplica Anusin' },
+  { numer: 10, pozycja: [51.2097, 23.1733], promien: 40, opis: 'Zamczysko' },
+  { numer: 11, pozycja: [51.1740, 23.0862], promien: 50, opis: 'Chojno Nowe' },
+  { numer: 12, pozycja: [51.2049, 23.2283], promien: 40, opis: 'Mogilnica' },
+  { numer: 13, pozycja: [51.2278, 23.1418], promien: 50, opis: 'Zalew Majdan' },
+  { numer: 14, pozycja: [51.1963, 23.1603], promien: 25, opis: 'Urząd Miejski' }
 ];
 
 // Tryb administratora - włącza się przez ?admin=1 w URL
@@ -1882,10 +1908,17 @@ const isAdmin = new URLSearchParams(window.location.search).get('admin') === '1'
 
 // Stan przewodnika audio
 let audioPrzewodnikWlaczony = false;
+let audioWyciszony = false; // toggle 'głośnik' w trybie wędrowca - audio NIE odtwarza się jak wyciszone
 let audioMarkery = []; // markery kropek audio (Leaflet)
-let audioOdtworzone = new Set(); // numery które już zostały odtworzone w tej sesji
 let aktualneAudio = null; // aktualnie odtwarzany Audio()
 let aktualnaKropkaAudio = null; // aktualnie odtwarzana kropka
+
+// NOWA LOGIKA: śledzimy w jakiej strefie jest turysta TERAZ
+// - wStrefieKropki: numer kropki w której turysta jest aktualnie (lub null)
+// - kropkaJestOdtwarzana: zbiór numerów które aktualnie grają lub zagrały TYM RAZEM
+//   (czyli: po wejściu w strefę odtworzono. Wyjście ze strefy resetuje.)
+let wStrefieKropki = null;
+let kropkaJestOdtwarzana = new Set();
 
 // Renderuj kropki audio na mapie (widoczne tylko dla administratora)
 function renderujKropkiAudio() {
@@ -1921,23 +1954,54 @@ function renderujKropkiAudio() {
   });
 }
 
-// Sprawdza pozycję GPS względem kropek audio - wywoływane przy każdej aktualizacji GPS
+// Sprawdza pozycję GPS względem kropek audio
+// Logika: gdy turysta WCHODZI w strefę (wcześniej był poza) - odtwarzaj
+// Gdy WYCHODZI ze strefy - resetuj flagę żeby przy powrocie zagrało znowu
 function sprawdzKropkiAudio() {
   if (!audioPrzewodnikWlaczony || !userPozycja) return;
+  if (audioWyciszony) return; // wyciszony - nie odtwarzaj nic nowego
+
+  // Znajdź najbliższą kropkę w strefie
+  let najblizszaWStrefie = null;
+  let najmniejszaOdleglosc = Infinity;
 
   for (const kropka of kropkiAudio) {
-    if (audioOdtworzone.has(kropka.numer)) continue; // już odtworzone w tej sesji
-
     const odl = dystans(
       userPozycja.lat, userPozycja.lng,
       kropka.pozycja[0], kropka.pozycja[1]
     );
 
-    if (odl <= kropka.promien) {
-      odtworzKropke(kropka);
-      break; // odtwarzaj jedną na raz
+    if (odl <= kropka.promien && odl < najmniejszaOdleglosc) {
+      najblizszaWStrefie = kropka;
+      najmniejszaOdleglosc = odl;
     }
   }
+
+  // Reset flag dla kropek z których wyszliśmy
+  // (jeśli jakaś kropka jest "odtwarzana" ale my nie jesteśmy w niej - usuń z setu)
+  for (const numer of Array.from(kropkaJestOdtwarzana)) {
+    const kropka = kropkiAudio.find(k => k.numer === numer);
+    if (!kropka) {
+      kropkaJestOdtwarzana.delete(numer);
+      continue;
+    }
+    const odl = dystans(
+      userPozycja.lat, userPozycja.lng,
+      kropka.pozycja[0], kropka.pozycja[1]
+    );
+    // Margines 5m żeby unikać "drgania" na granicy strefy
+    if (odl > kropka.promien + 5) {
+      kropkaJestOdtwarzana.delete(numer);
+    }
+  }
+
+  // Jeśli jesteśmy w strefie kropki która jeszcze nie zagrała tym razem - graj
+  if (najblizszaWStrefie && !kropkaJestOdtwarzana.has(najblizszaWStrefie.numer)) {
+    odtworzKropke(najblizszaWStrefie);
+  }
+
+  // Aktualizuj wStrefieKropki
+  wStrefieKropki = najblizszaWStrefie ? najblizszaWStrefie.numer : null;
 }
 
 function odtworzKropke(kropka) {
@@ -1970,12 +2034,12 @@ function odtworzKropke(kropka) {
   player.classList.add('visible');
 
   aktualneAudio.play().then(() => {
-    audioOdtworzone.add(kropka.numer);
+    kropkaJestOdtwarzana.add(kropka.numer);
   }).catch(err => {
     console.warn('Audio play failed:', err);
     document.getElementById('audioInfo').innerHTML =
       `#${kropka.numer} · ${kropka.opis}<br><small style="color:var(--crimson)">⚠️ Brak pliku audio/${kropka.numer}.mp3</small>`;
-    audioOdtworzone.add(kropka.numer); // żeby nie próbować ciągle
+    kropkaJestOdtwarzana.add(kropka.numer); // żeby nie próbować ciągle
   });
 
   aktualneAudio.onended = () => {
@@ -2025,6 +2089,7 @@ function pokazBanerAudio() {
 function wlaczAudioPrzewodnik(wlacz) {
   document.getElementById('audioBanner').classList.remove('visible');
   audioPrzewodnikWlaczony = wlacz;
+  audioWyciszony = false;
 
   if (wlacz) {
     // Ważne: pierwszą interakcją z audio musi być user gesture
@@ -2034,6 +2099,77 @@ function wlaczAudioPrzewodnik(wlacz) {
       test.volume = 0.01;
       test.play().catch(() => {});
     } catch(e) {}
+
+    // Zaktualizuj wygląd przycisku GPS (zmienia się w 🔊 audio toggle)
+    aktualizujPrzyciskGPS();
+
+    // Jeśli turysta JUŻ stoi w strefie kropki - zagraj od razu po krótkiej zwłoce
+    // (czeka aż user gesture zostanie uznany przez przeglądarkę)
+    setTimeout(() => {
+      if (userPozycja) sprawdzKropkiAudio();
+    }, 300);
+  } else {
+    aktualizujPrzyciskGPS();
+  }
+}
+
+// === DYNAMICZNY PRZYCISK 📍 GPS / 🔊 AUDIO ===
+// W trybie wędrowca z audio: przycisk staje się głośnikiem (toggle wycisz/odcisz)
+// Poza trybem wędrowca: zwykły przycisk GPS
+function obsluzKlikGPSlubAudio() {
+  // W trybie wędrowca z audio - przycisk steruje audio
+  if (trybTurysta && audioPrzewodnikWlaczony) {
+    audioWyciszony = !audioWyciszony;
+    aktualizujPrzyciskGPS();
+
+    if (audioWyciszony) {
+      // Zatrzymaj aktualnie grające
+      if (aktualneAudio) {
+        aktualneAudio.pause();
+      }
+    } else {
+      // Wznów lub sprawdź czy jest coś do zagrania w obecnej pozycji
+      if (aktualneAudio && aktualneAudio.paused && aktualnaKropkaAudio) {
+        aktualneAudio.play().catch(() => {});
+      } else if (userPozycja) {
+        sprawdzKropkiAudio();
+      }
+    }
+  } else {
+    // Normalna funkcja - włącz/wyłącz GPS
+    togglePozycja();
+  }
+}
+
+function aktualizujPrzyciskGPS() {
+  const btn = document.getElementById('gpsBtn');
+  if (!btn) return;
+
+  if (trybTurysta && audioPrzewodnikWlaczony) {
+    // Tryb głośnika
+    btn.classList.remove('szukam', 'error');
+    if (audioWyciszony) {
+      btn.textContent = '🔇';
+      btn.classList.remove('active');
+      btn.classList.add('muted');
+      btn.title = 'Audio wyciszone — kliknij, aby włączyć';
+    } else {
+      btn.textContent = '🔊';
+      btn.classList.add('active');
+      btn.classList.remove('muted');
+      btn.title = 'Audio włączone — kliknij, aby wyciszyć';
+    }
+  } else {
+    // Tryb GPS
+    btn.classList.remove('muted');
+    btn.title = 'Pokaż mnie na mapie';
+    if (watchId !== null) {
+      btn.textContent = '📍';
+      btn.classList.add('active');
+    } else {
+      btn.textContent = '📍';
+      btn.classList.remove('active');
+    }
   }
 }
 
@@ -3010,10 +3146,10 @@ function toggleTrybTurysty() {
     // 2. Zwiń akordeon z opisem
     document.getElementById('info-accordion').classList.remove('open');
 
-    // 3. Powiększ mapę
-    const sizeBtnL = document.getElementById('btn-size-l');
-    if (sizeBtnL && !sizeBtnL.classList.contains('active')) {
-      zmienRozmiar('l', sizeBtnL);
+    // 3. Ustaw małą mapę (tak chciał właściciel projektu)
+    const sizeBtnS = document.getElementById('btn-size-s');
+    if (sizeBtnS && !sizeBtnS.classList.contains('active')) {
+      zmienRozmiar('s', sizeBtnS);
     }
 
     // 4. Pokaż baner audio (tylko jeśli jeszcze nie zdecydowano)
@@ -3033,12 +3169,16 @@ function toggleTrybTurysty() {
     if (watchId !== null) togglePozycja();
     // Wyłącz audio przy wyjściu z trybu
     audioPrzewodnikWlaczony = false;
+    audioWyciszony = false;
     if (aktualneAudio) {
       aktualneAudio.pause();
       aktualneAudio = null;
     }
     document.getElementById('audioPlayer').classList.remove('visible');
   }
+
+  // Zaktualizuj przycisk GPS (zmienia się w 🔊 lub z powrotem w 📍)
+  aktualizujPrzyciskGPS();
 }
 let audioBannerPokazany = false;
 
@@ -3251,25 +3391,15 @@ function otworzZnaleziony() {
 }
 
 (function loadPreferences() {
-  const isMobile = window.matchMedia('(max-width: 900px)').matches;
-
   try {
-    const savedSize = localStorage.getItem('mapa-rozmiar');
-
-    if (isMobile) {
-      const btn = document.getElementById('btn-size-s');
-      if (btn) zmienRozmiar('s', btn);
-    } else {
-      if (savedSize && rozmiary[savedSize]) {
-        const btn = document.getElementById('btn-size-' + savedSize);
-        if (btn) zmienRozmiar(savedSize, btn);
-      }
-    }
+    // Zawsze startuj z małą mapą - tak chciał właściciel projektu
+    const btn = document.getElementById('btn-size-s');
+    if (btn) zmienRozmiar('s', btn);
 
     const savedView = localStorage.getItem('mapa-widok');
     if (savedView === 'satelita') {
-      const btn = document.getElementById('btn-satelita');
-      if (btn) zmienWidok('satelita', btn);
+      const btnSat = document.getElementById('btn-satelita');
+      if (btnSat) zmienWidok('satelita', btnSat);
     }
   } catch(e) {}
 })();
