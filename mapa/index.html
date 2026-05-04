@@ -3,6 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<!-- Anti-cache: zapobiegaj cache'owaniu starych wersji w przeglądarce -->
+<!-- Po wgraniu nowego index.html użytkownicy zobaczą nowości w kilka sekund -->
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+
 <title>Moja miejscowość — Siedliszcze · mini-klik.pl</title>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
@@ -2410,6 +2417,7 @@ footer{
       <!-- SKANER QR - z czytelnym tekstem -->
       <div class="menu-stack" style="margin-top:18px">
         <button onclick="otworzSkaner();zamknijMobilneMenu()">📷 Czytaj kod QR</button>
+        <button onclick="odswiezStrone()">🔄 Odśwież stronę</button>
       </div>
     </div>
   </div>
@@ -2548,7 +2556,6 @@ footer{
 
 <script>
 const miejsca = [
-
 ];
 
 const mapa = L.map('mapa', {
@@ -2851,9 +2858,6 @@ renderujMiejscaNaMapie();
 // Aby dodać nową kropkę: skopiuj jeden obiekt, zmień numer, pozycję i promień.
 // Plik MP3 wgraj do folderu audio/ jako {numer}.mp3 (np. audio/1.mp3)
 const kropkiAudio = [
-  { numer: 1, pozycja: [51.19202, 23.17038], promien: 50, opis: '' },
-  { numer: 2, pozycja: [51.19435, 23.16436], promien: 50, opis: '' },
-  { numer: 3, pozycja: [51.19453, 23.16068], promien: 50, opis: '' }
 ];
 
 // Stan przewodnika audio
@@ -5046,6 +5050,32 @@ function aktualizujWidocznoscWysrodkowania() {
 // Sprawdzaj co sekundę czy stan GPS się zmienił
 setInterval(aktualizujWidocznoscWysrodkowania, 1000);
 aktualizujWidocznoscWysrodkowania();
+
+// =====================================================
+// === ODŚWIEŻ STRONĘ Z POMINIĘCIEM CACHE ==============
+// =====================================================
+// Wymusza pełny refresh - przydatne gdy wgrałeś nową wersję
+// na GitHub i chcesz natychmiast zobaczyć zmiany.
+// Dodaje timestamp do URL żeby ominąć każdy poziom cache.
+function odswiezStrone() {
+  // Pokaż użytkownikowi że coś robimy
+  const btn = event?.target;
+  if (btn) {
+    btn.textContent = '⏳ Odświeżam...';
+    btn.disabled = true;
+  }
+
+  // Wyczyść cache opisów markdown żeby ponownie się załadowały
+  if (typeof cacheOpisow === 'object') {
+    Object.keys(cacheOpisow).forEach(k => delete cacheOpisow[k]);
+  }
+
+  // Hard reload z timestamp - żeby ominąć WSZYSTKIE poziomy cache
+  // (przeglądarka, Cloudflare/CDN, GitHub Pages)
+  const url = new URL(window.location.href);
+  url.searchParams.set('_t', Date.now());
+  window.location.href = url.toString();
+}
 </script>
 
 </body>
