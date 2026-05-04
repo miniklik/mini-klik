@@ -2556,7 +2556,7 @@ footer{
 
 <script>
 const miejsca = [
-  { klucz: 'ok', nazwa: 'ok', pozycja: [51.1819, 23.1847], ikona: '🏛️', kategoria: 'zabytek' }
+  { klucz: 'bagno', nazwa: 'bagno', pozycja: [51.1932, 23.1706], ikona: '🏛️', kategoria: 'zabytek' }
 ];
 
 const mapa = L.map('mapa', {
@@ -2859,8 +2859,8 @@ renderujMiejscaNaMapie();
 // Aby dodać nową kropkę: skopiuj jeden obiekt, zmień numer, pozycję i promień.
 // Plik MP3 wgraj do folderu audio/ jako {numer}.mp3 (np. audio/1.mp3)
 const kropkiAudio = [
-  { numer: 1, pozycja: [51.14670, 23.43446], promien: 50, opis: '' },
-  { numer: 2, pozycja: [51.17062, 23.31270], promien: 50, opis: '' }
+  { numer: 1, pozycja: [51.19214, 23.16971], promien: 20, opis: '' },
+  { numer: 2, pozycja: [51.19167, 23.16987], promien: 20, opis: '' }
 ];
 
 // Stan przewodnika audio
@@ -4409,6 +4409,8 @@ function pokazPozycje(pos) {
   const lng = pos.coords.longitude;
   const dokladnosc = pos.coords.accuracy;
 
+  // Pierwszy fix - kasuj komunikat "Szukam satelitów"
+  const pierwszyFix = !userPozycja;
   userPozycja = { lat, lng };
 
   if (!userMarker) {
@@ -4424,6 +4426,11 @@ function pokazPozycje(pos) {
     userMarker.setLatLng([lat, lng]);
   }
 
+  // Po znalezieniu pozycji - schowaj komunikat "Szukam satelitów..."
+  if (pierwszyFix) {
+    gpsStatus.classList.remove('visible');
+  }
+
   // Usuń tylko stany szukania/błędu - aktualizacja przycisku w zależności od trybu
   gpsBtn.classList.remove('szukam', 'error');
   // Aktualizuj wygląd przycisku - sam zdecyduje czy 📍 czy 🔊 w zależności od trybu
@@ -4437,23 +4444,40 @@ function pokazPozycje(pos) {
 }
 
 function bladPozycji(err) {
+  // Jeśli userPozycja już istnieje - mamy starszy fix, błąd to tylko chwilowa utrata sygnału
+  // Nie alarmuj turysty - GPS sam się wznowi
+  if (userPozycja) {
+    return;
+  }
+
   gpsBtn.classList.remove('szukam', 'active', 'muted');
   gpsBtn.classList.add('error');
   gpsBtn.textContent = '⚠️';
 
   let msg = 'Nie udało się pobrać pozycji';
-  if (err.code === 1) msg = 'Odmówiono dostępu do lokalizacji';
-  else if (err.code === 2) msg = 'Pozycja niedostępna';
-  else if (err.code === 3) msg = 'Przekroczono czas oczekiwania';
+  let podpowiedz = 'Sprawdź czy GPS i pozwolenia są włączone';
+
+  if (err.code === 1) {
+    msg = 'Odmówiono dostępu do lokalizacji';
+    podpowiedz = 'Włącz uprawnienia GPS w ustawieniach przeglądarki';
+  }
+  else if (err.code === 2) {
+    msg = 'Pozycja niedostępna';
+    podpowiedz = 'GPS nie odbiera sygnału. Wyjdź na otwartą przestrzeń';
+  }
+  else if (err.code === 3) {
+    msg = 'GPS nie znalazł satelitów';
+    podpowiedz = 'Wyjdź na zewnątrz, z dala od budynków i drzew. Może to potrwać minutę.';
+  }
 
   gpsStatus.classList.add('visible');
-  gpsStatus.innerHTML = `<span class="ikona-stat">⚠️</span> ${msg}<div class="czas">Sprawdź czy GPS i pozwolenia są włączone</div>`;
+  gpsStatus.innerHTML = `<span class="ikona-stat">⚠️</span> ${msg}<div class="czas">${podpowiedz}</div>`;
 
   setTimeout(() => {
     gpsBtn.classList.remove('error');
     // Wróć do prawidłowej ikony (🔊 lub 📍 w zależności od trybu)
     aktualizujPrzyciskGPS();
-  }, 3000);
+  }, 5000);
 }
 
 function togglePozycja() {
@@ -4483,14 +4507,21 @@ function togglePozycja() {
   gpsBtn.classList.add('szukam');
   gpsBtn.textContent = '⏳';
 
+  // Pokaż przyjazny komunikat ładowania
+  gpsStatus.classList.add('visible');
+  gpsStatus.innerHTML = '<span class="ikona-stat">📡</span> Szukam satelitów GPS...<div class="czas">To może potrwać kilkadziesiąt sekund. Wyjdź na otwartą przestrzeń dla najlepszego sygnału.</div>';
+
   // watchPosition - ciągła aktualizacja
+  // WYSOKA DOKŁADNOŚĆ ONLY - dla turystyki potrzebujemy precyzji do ~5m
+  // (strefy kropek mają 20-50m, niedokładność 100m = niemożność trafienia)
+  // Timeout 60s - GPS satelitarny potrzebuje czasu na pierwszy fix
   watchId = navigator.geolocation.watchPosition(
     pokazPozycje,
     bladPozycji,
     {
-      enableHighAccuracy: true,
-      maximumAge: 5000,
-      timeout: 15000
+      enableHighAccuracy: true,  // tylko prawdziwy GPS satelitarny
+      maximumAge: 5000,           // pozycje starsze niż 5s = świeże szukanie
+      timeout: 60000              // 60 sekund na pierwszy fix
     }
   );
 }
