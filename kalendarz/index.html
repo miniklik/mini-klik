@@ -2471,13 +2471,16 @@ footer{
     color: var(--paper-2);
   }
 
-  /* GPS - PRAWY DOLNY RÓG (przesuwam istniejący .gps-btn) */
+  /* NAWIGACJA + WYŚRODKUJ - wycentrowane obok siebie na dole mapy.
+     Wcześniej były w rogach - kolidowały z listą radaru "W zasięgu".
+     Teraz: 🧭 lewo od środka, ⊙ prawo od środka. Prześwit przez rogi. */
   .gps-btn {
     position: absolute !important;
     bottom: calc(env(safe-area-inset-bottom, 0px) + 22px) !important;
-    right: 14px !important;
-    left: auto !important;
+    left: 50% !important;
+    right: auto !important;
     top: auto !important;
+    transform: translateX(calc(-100% - 6px)) !important;
     width: 50px !important;
     height: 50px !important;
     border-radius: 50% !important;
@@ -2490,6 +2493,19 @@ footer{
   .gps-btn.active {
     background: var(--gold) !important;
     color: var(--paper-2) !important;
+  }
+
+  /* Center-btn (⊙ wyśrodkuj) - tuż obok 🧭, prawo od środka */
+  .center-btn {
+    position: absolute !important;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 22px) !important;
+    left: 50% !important;
+    right: auto !important;
+    top: auto !important;
+    transform: translateX(6px) !important;
+    width: 50px !important;
+    height: 50px !important;
+    z-index: 600;
   }
 
   /* Gwiazdki ✨ - LEWY DOLNY RÓG (nad trybem wędrowca) */
@@ -2684,12 +2700,11 @@ footer{
   /* Mapa - rezerwujemy miejsce na bottom sheet (80px = wysokość mini) */
   /* Ale ponieważ bottom sheet jest fixed, mapa może być pełnoekranowa */
   /* Jednak GPS i FAB-y dolne muszą być WYŻEJ niż bottom sheet mini */
+  /* center-btn ląduje obok gps-btn (oba wycentrowane), więc też podnoszę */
   .gps-btn,
+  .center-btn,
   .mobile-fab-tourist {
     bottom: calc(env(safe-area-inset-bottom, 0px) + 100px) !important;
-  }
-  .mobile-fab-center {
-    bottom: calc(env(safe-area-inset-bottom, 0px) + 168px) !important;
   }
   .hint-btn {
     bottom: calc(env(safe-area-inset-bottom, 0px) + 168px) !important;
@@ -3056,11 +3071,6 @@ footer{
       <button class="btn-size" id="btn-size-l" onclick="zmienRozmiar('l', this)" title="Duża mapa">📊</button>
     </div>
 
-    <div class="controls-divider"></div>
-
-    <!-- TRYB TURYSTY / NAWIGACJA (desktop, pasek górny) -->
-    <button class="tourist-btn" id="touristBtn" onclick="toggleNawigacja()" title="Włącz nawigację - GPS + audio + fioletowe kropki">🥾 Tryb turysty</button>
-
   </div>
 
   <!-- ============================================================
@@ -3091,13 +3101,11 @@ footer{
   <div class="layout">
     <div id="mapa">
       <button class="gps-btn" id="gpsBtn" onclick="obsluzKlikGPSlubAudio()" title="Włącz nawigację (GPS + audio + fioletowe kropki)">🧭</button>
-      <button class="hint-btn" id="hintBtn" onclick="toggleAudioHints()" title="Pokaż gwiazdki — kropki audio w pobliżu (300m)">✨</button>
       <button class="center-btn" id="centerBtn" onclick="wysrodkujNaMnie()" title="Wyśrodkuj mapę na mojej pozycji GPS" style="display:none">⊙</button>
 
       <!-- MOBILE FAB BUTTONS (widoczne tylko na mobile portrait dzięki CSS) -->
       <button class="mobile-fab mobile-fab-menu" id="mobileFabMenu" onclick="otworzMobilneMenu()" title="Menu">☰</button>
       <button class="mobile-fab mobile-fab-layer" id="mobileFabLayer" onclick="toggleWarstwyMobile()" title="Zmień warstwę mapy">🗺️</button>
-      <button class="mobile-fab mobile-fab-tourist" id="mobileFabTourist" onclick="toggleNawigacja()" title="Włącz nawigację">🥾</button>
       <button class="mobile-fab mobile-fab-center" id="mobileFabCenter" onclick="wysrodkujNaMnie()" title="Wyśrodkuj na mojej pozycji" style="display:none">⊙</button>
 
       <div class="gps-status" id="gpsStatus"></div>
@@ -3974,55 +3982,19 @@ function wlaczAudioPrzewodnik(wlacz) {
 
 // === DYNAMICZNY PRZYCISK 📍 GPS / 🔊 AUDIO ===
 // W trybie wędrowca z audio: przycisk staje się głośnikiem (toggle wycisz/odcisz)
-// Poza trybem wędrowca: zwykły przycisk GPS
+// Główny przycisk 🧭 - włącza/wyłącza nawigację (GPS + radar + audio przewodnik).
+// Audio podczas nawigacji włącza/wyłącza użytkownik klikając ▶ na liście radaru,
+// ten przycisk NIE steruje audio.
 function obsluzKlikGPSlubAudio() {
-  // W trybie wędrowca z audio - przycisk steruje audio
-  if (trybTurysta && audioPrzewodnikWlaczony) {
-    audioWyciszony = !audioWyciszony;
-    aktualizujPrzyciskGPS();
-
-    if (audioWyciszony) {
-      // Zatrzymaj aktualnie grające
-      if (aktualneAudio) {
-        aktualneAudio.pause();
-      }
-    } else {
-      // Wznów lub sprawdź czy jest coś do zagrania w obecnej pozycji
-      if (aktualneAudio && aktualneAudio.paused && aktualnaKropkaAudio) {
-        aktualneAudio.play().catch(() => {});
-      } else if (userPozycja) {
-        sprawdzKropkiAudio();
-      }
-    }
-  } else if (trybTurysta) {
-    // Tryb wędrowca włączony, ale audio jakoś nie wystartowało - wyłącz nawigację
-    wylaczNawigacje();
-  } else {
-    // Nawigacja wyłączona - włącz całość (GPS + audio + radar + fioletowe kropki)
-    wlaczNawigacje();
-  }
+  toggleNawigacja();
 }
 
 function aktualizujPrzyciskGPS() {
   const btn = document.getElementById('gpsBtn');
   if (!btn) return;
 
-  if (trybTurysta && audioPrzewodnikWlaczony) {
-    // Tryb głośnika - audio aktywne
-    btn.classList.remove('szukam', 'error');
-    if (audioWyciszony) {
-      btn.textContent = '🔇';
-      btn.classList.remove('active');
-      btn.classList.add('muted');
-      btn.title = 'Audio wyciszone — kliknij, aby włączyć';
-    } else {
-      btn.textContent = '🔊';
-      btn.classList.add('active');
-      btn.classList.remove('muted');
-      btn.title = 'Audio włączone — kliknij, aby wyciszyć';
-    }
-  } else if (trybTurysta) {
-    // Tryb wędrowca włączony bez audio - pokaż jako aktywną nawigację
+  if (trybTurysta) {
+    // Nawigacja włączona - przycisk pokazuje "wyłącz"
     btn.classList.remove('muted', 'szukam', 'error');
     btn.classList.add('active');
     btn.textContent = '🛑';
@@ -4031,7 +4003,7 @@ function aktualizujPrzyciskGPS() {
     // DOMYŚLNIE: nawigacja wyłączona - kompas zachęca do uruchomienia
     btn.classList.remove('muted', 'active', 'szukam', 'error');
     btn.textContent = '🧭';
-    btn.title = 'Włącz nawigację (GPS + audio + fioletowe kropki)';
+    btn.title = 'Włącz nawigację';
   }
 }
 
@@ -4052,14 +4024,14 @@ function toggleAudioHints() {
   const btn = document.getElementById('hintBtn');
 
   if (audioHintsAktywne) {
-    btn.classList.add('active');
+    if (btn) btn.classList.add('active');
     odswiezAudioHints();
     // Jeśli nie ma jeszcze pozycji GPS - włącz GPS
     if (!userPozycja && watchId === null) {
       togglePozycja();
     }
   } else {
-    btn.classList.remove('active');
+    if (btn) btn.classList.remove('active');
     usunAudioHints();
   }
 }
