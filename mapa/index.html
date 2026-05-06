@@ -4855,8 +4855,11 @@ function wyczyscMiejsca() {
 // i podmienia ją na NOWĄ (istniejące + zaplanowane). Zwraca plik do pobrania.
 async function pobierzNowyIndex() {
   try {
-    // Pobierz tekst tego samego pliku
-    const response = await fetch(window.location.href.split('?')[0]);
+    // Pobierz tekst tego samego pliku - z timestampem i no-cache żeby ominąć
+    // cache przeglądarki, Cloudflare, Netlify CDN itp. (bez tego ryzykujemy
+    // że pobierzemy starą wersję pliku bez najnowszych funkcji).
+    const adresZrodla = window.location.href.split('?')[0] + '?_=' + Date.now();
+    const response = await fetch(adresZrodla, { cache: 'no-store' });
     if (!response.ok) throw new Error('Nie udało się odczytać pliku');
     let tekst = await response.text();
 
@@ -4994,6 +4997,60 @@ async function pobierzNowyIndex() {
       );
     }
 
+    // ===== TABLICA rysunkiZakodowane =====
+    // Wszystkie rysunki (zakodowane + robocze z localStorage) zapisujemy
+    // do nowego pliku jako pełną tablicę. Po wgraniu na serwer wszyscy je zobaczą.
+    let liczbaWbudowanychRys = 0;
+    let regexZnaleziony = false;
+    try {
+      const linieRys = rysunki.map(r => {
+        const kolor = (r.kolor || '#a04510').replace(/'/g, "\\'");
+        if (r.typ === 'linia' && Array.isArray(r.punkty)) {
+          const pkt = r.punkty.map(p => `[${p[0].toFixed(6)}, ${p[1].toFixed(6)}]`).join(', ');
+          return `  { typ: 'linia', kolor: '${kolor}', punkty: [${pkt}] }`;
+        }
+        if (r.typ === 'kolo' && Array.isArray(r.srodek)) {
+          return `  { typ: 'kolo', kolor: '${kolor}', srodek: [${r.srodek[0].toFixed(6)}, ${r.srodek[1].toFixed(6)}], promien: ${Math.round(r.promien)} }`;
+        }
+        if (r.typ === 'tekst' && Array.isArray(r.pozycja)) {
+          const tresc = (r.tresc || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, '\\n').replace(/\r/g, '');
+          return `  { typ: 'tekst', kolor: '${kolor}', pozycja: [${r.pozycja[0].toFixed(6)}, ${r.pozycja[1].toFixed(6)}], tresc: '${tresc}' }`;
+        }
+        return null;
+      }).filter(x => x !== null);
+
+      liczbaWbudowanychRys = linieRys.length;
+      const nowaTablicaRys = `// === RYSUNKI:START === (nie usuwaj tego komentarza - znacznik dla auto-eksportu)\nconst rysunkiZakodowane = [\n${linieRys.join(',\n')}\n];\n// === RYSUNKI:END ===`;
+
+      console.log('[Rysunki] W pamięci:', rysunki.length, '| Do wbudowania:', liczbaWbudowanychRys);
+
+      // Znajdź OSTATNIE wystąpienie markerów - bo pierwsze to szablon w tej
+      // właśnie funkcji (template string wyżej), drugie/ostatnie to prawdziwa
+      // deklaracja tablicy. Używamy lastIndexOf zamiast regex żeby uniknąć
+      // pomyłki z samym sobą.
+      const markerStart = '// === RYSUNKI:START ===';
+      const markerEnd = '// === RYSUNKI:END ===';
+      const idxStart = tekst.lastIndexOf(markerStart);
+      const idxEnd = tekst.lastIndexOf(markerEnd);
+      regexZnaleziony = (idxStart !== -1 && idxEnd !== -1 && idxEnd > idxStart);
+      if (regexZnaleziony) {
+        tekst = tekst.substring(0, idxStart) + nowaTablicaRys + tekst.substring(idxEnd + markerEnd.length);
+        console.log('[Rysunki] OK - tablica podmieniona w pliku.');
+      } else {
+        console.warn('[Rysunki] UWAGA: nie znaleziono markerów RYSUNKI:START/END w pobranym pliku źródłowym! ' +
+                     'Plik na serwerze może być starą wersją bez modułu rysowania. ' +
+                     'Wgraj najpierw plik z modułem rysowania, potem rysuj i pobieraj nowe wersje.');
+        if (liczbaWbudowanychRys > 0) {
+          alert('⚠️ UWAGA: Masz ' + liczbaWbudowanychRys + ' rysunków w pamięci, ale plik na serwerze ' +
+                'nie zawiera jeszcze modułu rysowania. Rysunki NIE zostały wbudowane w pobierany plik.\n\n' +
+                'Co zrobić: wgraj najpierw aktualną wersję index.html (z modułem rysowania) na serwer, ' +
+                'potem rysuj i klikaj "Pobierz nowy index.html" — wtedy rysunki zostaną wbudowane.');
+        }
+      }
+    } catch (errRys) {
+      console.warn('[Rysunki] Nie udało się zaktualizować tablicy rysunków:', errRys);
+    }
+
     // Stwórz blob i pobierz plik
     const blob = new Blob([tekst], { type: 'text/html;charset=utf-8' });
     const url = URL.createObjectURL(blob);
@@ -5008,8 +5065,9 @@ async function pobierzNowyIndex() {
     // Po pobraniu - zaproponuj wyczyszczenie listy zaplanowanych + zmian miejsc
     setTimeout(() => {
       const ileZmian = zaplanowaneKropki.length;
+      const ileRys = rysunki.length;
       if (ileZmian > 0 &&
-          confirm(`✓ Pobrano nowy index.html z ${finalne.length} kropkami audio i ${miejsca.length} miejscami.\n\nCzy wyczyścić listę zaplanowanych kropek? (są już w pobranym pliku)`)) {
+          confirm(`✓ Pobrano nowy index.html z ${finalne.length} kropkami audio, ${miejsca.length} miejscami i ${ileRys} rysunkami.\n\nCzy wyczyścić listę zaplanowanych kropek? (są już w pobranym pliku)`)) {
         zaplanowaneKropki = [];
         zapiszZaplanowane();
         renderujZaplanowane();
@@ -5022,6 +5080,8 @@ async function pobierzNowyIndex() {
       // Wyczyść cache opisu strony (jest już w pobranym pliku)
       try { localStorage.removeItem(KEY_OPIS_STRONY_TYTUL); } catch(e) {}
       try { localStorage.removeItem(KEY_OPIS_STRONY_TRESC); } catch(e) {}
+      // Wyczyść robocze rysunki - są już w pobranym pliku jako rysunkiZakodowane
+      try { localStorage.removeItem(STORAGE_KEY_RYSUNKI); } catch(e) {}
     }, 500);
 
   } catch (err) {
@@ -6782,8 +6842,10 @@ aktualizujPanelRadaru();
 // Wgrywasz na Netlify -> wszyscy widzą rysunki.
 // =====================================================================
 
+// === RYSUNKI:START === (nie usuwaj tego komentarza - znacznik dla auto-eksportu)
 const rysunkiZakodowane = [
 ];
+// === RYSUNKI:END ===
 
 // --- Stan rysowania ---
 let trybRysowaniaWlaczony = false;
@@ -7095,7 +7157,7 @@ function wyczyscWszystkieRysunki() {
     alert('Nie ma żadnych rysunków do usunięcia.');
     return;
   }
-  if (!confirm('Usunąć wszystkie rysunki (' + rysunki.length + ' szt.)? Tej operacji nie można cofnąć.')) {
+  if (!confirm('Usunąć wszystkie rysunki (' + rysunki.length + ' szt.)?\n\nUWAGA: usunięte zostaną zarówno publiczne (z pliku) jak i twoje robocze.\nŻeby zmiana była widoczna dla wszystkich, kliknij potem "💾 Pobierz nowy index.html" i wgraj plik na serwer.')) {
     return;
   }
   rysunki = [];
