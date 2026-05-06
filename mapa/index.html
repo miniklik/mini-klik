@@ -3058,8 +3058,8 @@ footer{
 
     <div class="controls-divider"></div>
 
-    <!-- TRYB TURYSTY -->
-    <button class="tourist-btn" id="touristBtn" onclick="toggleTrybTurysty()" title="Tryb turysty - GPS + sortowanie po dystansie">🥾 Tryb turysty</button>
+    <!-- TRYB TURYSTY / NAWIGACJA (desktop, pasek górny) -->
+    <button class="tourist-btn" id="touristBtn" onclick="toggleNawigacja()" title="Włącz nawigację - GPS + audio + fioletowe kropki">🥾 Tryb turysty</button>
 
   </div>
 
@@ -3090,14 +3090,14 @@ footer{
 
   <div class="layout">
     <div id="mapa">
-      <button class="gps-btn" id="gpsBtn" onclick="obsluzKlikGPSlubAudio()" title="Pokaż mnie na mapie">📍</button>
+      <button class="gps-btn" id="gpsBtn" onclick="obsluzKlikGPSlubAudio()" title="Włącz nawigację (GPS + audio + fioletowe kropki)">🧭</button>
       <button class="hint-btn" id="hintBtn" onclick="toggleAudioHints()" title="Pokaż gwiazdki — kropki audio w pobliżu (300m)">✨</button>
       <button class="center-btn" id="centerBtn" onclick="wysrodkujNaMnie()" title="Wyśrodkuj mapę na mojej pozycji GPS" style="display:none">⊙</button>
 
       <!-- MOBILE FAB BUTTONS (widoczne tylko na mobile portrait dzięki CSS) -->
       <button class="mobile-fab mobile-fab-menu" id="mobileFabMenu" onclick="otworzMobilneMenu()" title="Menu">☰</button>
       <button class="mobile-fab mobile-fab-layer" id="mobileFabLayer" onclick="toggleWarstwyMobile()" title="Zmień warstwę mapy">🗺️</button>
-      <button class="mobile-fab mobile-fab-tourist" id="mobileFabTourist" onclick="toggleTrybTurysty()" title="Tryb wędrowca">🥾</button>
+      <button class="mobile-fab mobile-fab-tourist" id="mobileFabTourist" onclick="toggleNawigacja()" title="Włącz nawigację">🥾</button>
       <button class="mobile-fab mobile-fab-center" id="mobileFabCenter" onclick="wysrodkujNaMnie()" title="Wyśrodkuj na mojej pozycji" style="display:none">⊙</button>
 
       <div class="gps-status" id="gpsStatus"></div>
@@ -3395,7 +3395,9 @@ footer{
 
 <script>
 const miejsca = [
-
+  { klucz: 'bagno', nazwa: 'bagno', pozycja: [51.1932, 23.1706], ikona: '🏛️', kategoria: 'zabytek' },
+  { klucz: 'rej', nazwa: 'Rej', pozycja: [51.1407, 23.2695], ikona: '🏛️', kategoria: 'zabytek', tytul: 'Rej-okolica', opis: 'ok dobra to jest małą historia rejowca - dobra', tytulSrodek: true, tytulDuzy: true },
+  { klucz: 'cos-tam', nazwa: 'coś tam', pozycja: [51.2655, 23.1380], ikona: '🏛️', kategoria: 'przyroda', tytul: 'rtrtrtrt', opis: 'rrggrgr\ng\nerg\nergergergergrgefgr' }
 ];
 
 const mapa = L.map('mapa', {
@@ -3628,10 +3630,7 @@ async function otworzPlatek(klucz, akcja) {
       <button class="nav-btn" onclick="pokazTraseTutaj('${klucz}')">🥾 Pokaż trasę tutaj</button>
       <button class="nav-btn secondary" onclick="prowadzMnie(${lat}, ${lng}, '${safeNazwa}')">🧭 Otwórz w mapach</button>
     </div>`;
-
-    if (watchId === null) {
-      html += `<div class="route-info">Włącz GPS (📍 w lewym dolnym rogu mapy), żeby zobaczyć trasę od swojej pozycji.</div>`;
-    }
+    // Komunikat o włączaniu GPS usunięty - obie funkcje robią to teraz automatycznie.
 
     content.innerHTML = html;
     return; // panel już otwarty wyżej
@@ -3716,7 +3715,12 @@ renderujMiejscaNaMapie();
 // Aby dodać nową kropkę: skopiuj jeden obiekt, zmień numer, pozycję i promień.
 // Plik MP3 wgraj do folderu audio/ jako {numer}.mp3 (np. audio/1.mp3)
 const kropkiAudio = [
-
+  { numer: 1, pozycja: [51.12157, 23.25558], promien: 5000, opis: '' },
+  { numer: 2, pozycja: [51.13592, 23.29555], promien: 5000, opis: '' },
+  { numer: 3, pozycja: [51.09450, 23.24886], promien: 50, opis: '' },
+  { numer: 4, pozycja: [51.19033, 23.16110], promien: 5000, opis: '' },
+  { numer: 5, pozycja: [51.20562, 23.20216], promien: 5000, opis: '' },
+  { numer: 6, pozycja: [51.18494, 23.19873], promien: 5000, opis: '' }
 ];
 
 // Stan przewodnika audio
@@ -3996,9 +4000,12 @@ function obsluzKlikGPSlubAudio() {
         sprawdzKropkiAudio();
       }
     }
+  } else if (trybTurysta) {
+    // Tryb wędrowca włączony, ale audio jakoś nie wystartowało - wyłącz nawigację
+    wylaczNawigacje();
   } else {
-    // Normalna funkcja - włącz/wyłącz GPS
-    togglePozycja();
+    // Nawigacja wyłączona - włącz całość (GPS + audio + radar + fioletowe kropki)
+    wlaczNawigacje();
   }
 }
 
@@ -4007,7 +4014,7 @@ function aktualizujPrzyciskGPS() {
   if (!btn) return;
 
   if (trybTurysta && audioPrzewodnikWlaczony) {
-    // Tryb głośnika
+    // Tryb głośnika - audio aktywne
     btn.classList.remove('szukam', 'error');
     if (audioWyciszony) {
       btn.textContent = '🔇';
@@ -4020,17 +4027,17 @@ function aktualizujPrzyciskGPS() {
       btn.classList.remove('muted');
       btn.title = 'Audio włączone — kliknij, aby wyciszyć';
     }
+  } else if (trybTurysta) {
+    // Tryb wędrowca włączony bez audio - pokaż jako aktywną nawigację
+    btn.classList.remove('muted', 'szukam', 'error');
+    btn.classList.add('active');
+    btn.textContent = '🛑';
+    btn.title = 'Wyłącz nawigację';
   } else {
-    // Tryb GPS
-    btn.classList.remove('muted');
-    btn.title = 'Pokaż mnie na mapie';
-    if (watchId !== null) {
-      btn.textContent = '📍';
-      btn.classList.add('active');
-    } else {
-      btn.textContent = '📍';
-      btn.classList.remove('active');
-    }
+    // DOMYŚLNIE: nawigacja wyłączona - kompas zachęca do uruchomienia
+    btn.classList.remove('muted', 'active', 'szukam', 'error');
+    btn.textContent = '🧭';
+    btn.title = 'Włącz nawigację (GPS + audio + fioletowe kropki)';
   }
 }
 
@@ -5535,6 +5542,12 @@ if (isAdmin) {
 
 // === NAWIGACJA — otwiera natywne mapy telefonu ===
 function prowadzMnie(lat, lng, nazwa) {
+  // Włącz nawigację jeśli wyłączona - żeby gdy user wróci z Google Maps
+  // miał już aktywne audio, fioletowe kropki i radar.
+  if (!trybTurysta) {
+    wlaczNawigacje();
+  }
+
   // Wykryj system - na iOS użyj Apple Maps, na innych Google Maps
   const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
 
@@ -5562,13 +5575,13 @@ async function pokazTraseTutaj(klucz) {
 
   // Sprawdź czy GPS jest włączony
   if (!userPozycja) {
-    // Spróbuj włączyć GPS automatycznie
-    if (watchId === null) {
-      togglePozycja();
+    // Spróbuj włączyć NAWIGACJĘ automatycznie (GPS + audio + radar + fioletowe kropki)
+    if (!trybTurysta) {
+      wlaczNawigacje();
       // Pokaż info i zaczekaj aż GPS złapie pozycję
       const info = document.querySelector('.route-info');
       if (info) {
-        info.innerHTML = '⏳ Czekam na pozycję GPS... (zezwól na lokalizację jeśli przeglądarka pyta)';
+        info.innerHTML = '⏳ Włączam nawigację... (zezwól na lokalizację jeśli przeglądarka pyta)';
       }
       // Sprawdzaj co 500ms przez 15 sekund
       let proby = 0;
@@ -6115,8 +6128,10 @@ function toggleTrybTurysty() {
   const btn = document.getElementById('touristBtn');
 
   if (trybTurysta) {
-    btn.classList.add('active');
-    btn.textContent = '🥾 Wyjdź z trybu';
+    if (btn) {
+      btn.classList.add('active');
+      btn.textContent = '🥾 Wyjdź z trybu';
+    }
 
     // 1. Włącz GPS jeśli nie włączony
     if (watchId === null) togglePozycja();
@@ -6143,8 +6158,10 @@ function toggleTrybTurysty() {
       document.getElementById('mapa').scrollIntoView({ behavior: 'smooth', block: 'start' });
     }, 200);
   } else {
-    btn.classList.remove('active');
-    btn.textContent = '🥾 Tryb turysty';
+    if (btn) {
+      btn.classList.remove('active');
+      btn.textContent = '🥾 Tryb turysty';
+    }
     // Wyłącz GPS
     if (watchId !== null) togglePozycja();
     // Wyłącz audio przy wyjściu z trybu
@@ -6157,8 +6174,34 @@ function toggleTrybTurysty() {
     document.getElementById('audioPlayer').classList.remove('visible');
   }
 
-  // Zaktualizuj przycisk GPS (zmienia się w 🔊 lub z powrotem w 📍)
+  // Zaktualizuj przycisk GPS (zmienia się w 🔊 lub z powrotem w 📍/🧭)
   aktualizujPrzyciskGPS();
+}
+
+// =====================================================================
+// === NAWIGACJA - WSPÓLNY PRZYCISK ====================================
+// =====================================================================
+// Zamiast dwóch oddzielnych przycisków (📍 GPS + 🥾 Tryb turysty)
+// jest jeden 🧭 "Włącz nawigację" który robi obie rzeczy naraz.
+// Ten sam efekt dają też przyciski "Pokaż trasę tutaj" i "Otwórz w Mapach"
+// w popupie miejsca - klikając je włączasz nawigację automatycznie.
+// =====================================================================
+
+function wlaczNawigacje() {
+  // Jeśli już włączona - nic nie rób
+  if (trybTurysta) return;
+  // toggleTrybTurysty obsługuje wszystko: GPS, audio, fioletowe kropki, radar.
+  toggleTrybTurysty();
+}
+
+function wylaczNawigacje() {
+  if (!trybTurysta) return;
+  toggleTrybTurysty();
+}
+
+function toggleNawigacja() {
+  if (trybTurysta) wylaczNawigacje();
+  else wlaczNawigacje();
 }
 let audioBannerPokazany = false;
 
@@ -6843,7 +6886,14 @@ aktualizujPanelRadaru();
 
 // === RYSUNKI:START === (nie usuwaj tego komentarza - znacznik dla auto-eksportu)
 const rysunkiZakodowane = [
-
+  { typ: 'kolo', kolor: '#1041a2', srodek: [51.138080, 23.139679], promien: 687 },
+  { typ: 'kolo', kolor: '#1041a2', srodek: [51.166104, 23.161652], promien: 883 },
+  { typ: 'kolo', kolor: '#1041a2', srodek: [51.190664, 23.237183], promien: 575 },
+  { typ: 'kolo', kolor: '#1041a2', srodek: [51.197556, 23.315460], promien: 1158 },
+  { typ: 'kolo', kolor: '#1041a2', srodek: [51.175585, 23.399918], promien: 17537 },
+  { typ: 'kolo', kolor: '#1041a2', srodek: [51.252073, 22.564819], promien: 12910 },
+  { typ: 'linia', kolor: '#1041a2', punkty: [[51.252349, 22.651886], [51.245466, 23.453888]] },
+  { typ: 'tekst', kolor: '#1041a2', pozycja: [51.230318, 22.867493], tresc: 'ale daliśmy do pieca' }
 ];
 // === RYSUNKI:END ===
 
