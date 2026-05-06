@@ -1686,6 +1686,10 @@ footer{
   box-shadow:0 6px 20px rgba(60,40,20,0.25),0 2px 6px rgba(60,40,20,0.15);
   display:none;
   max-width:220px;
+  /* Wysokość ograniczona do widocznej części okna - jeśli przyciski + rozwinięte
+     edytory się nie mieszczą, panel scrolluje wewnątrz zamiast wystawać pod ramkę */
+  max-height:calc(100vh - 28px);
+  overflow-y:auto;
   /* Łap wszystkie kliknięcia żeby nie przelatywały do mapy pod spodem */
   pointer-events:auto;
 }
@@ -1715,6 +1719,21 @@ footer{
   flex:1;
   min-height:120px;
   margin-bottom:8px;
+}
+
+/* Tryb pełnoekranowy edytora kategorii - analogicznie jak dla opisu strony */
+.admin-list.edytuje-kategorie > *:not(#kategorieEdytor){
+  display:none !important;
+}
+.admin-list.edytuje-kategorie{
+  max-height:90vh;
+  max-width:340px;
+  overflow-y:auto;
+  padding:14px;
+}
+.admin-list.edytuje-kategorie #kategorieEdytor{
+  display:block !important;
+  margin:0;
 }
 .admin-list .admin-list-title{
   font-family:'Cinzel',serif;font-size:10px;
@@ -1955,6 +1974,43 @@ footer{
 .radar-item-btn.gra{
   background:var(--gold);
   color:var(--paper-2);
+}
+
+/* Pasek auto-odsłuchu nad listą kropek */
+.radar-auto-bar{
+  padding:10px 14px;
+  background:var(--paper-2);
+  border-top:1px solid rgba(160,69,16,0.15);
+  display:flex;
+  justify-content:center;
+}
+.radar-auto-btn{
+  width:100%;
+  background:var(--paper-3);
+  border:1.5px solid var(--gold);
+  color:var(--gold);
+  border-radius:4px;
+  padding:10px 14px;
+  font-size:13px;
+  font-family:'Cinzel', serif;
+  letter-spacing:1px;
+  cursor:pointer;
+  transition:all 0.15s;
+  -webkit-tap-highlight-color:transparent;
+  font-weight:500;
+}
+.radar-auto-btn:hover{background:var(--gold);color:var(--paper-2)}
+.radar-auto-btn:active{transform:scale(0.98)}
+.radar-auto-btn.aktywny{
+  background:#7c3aed;
+  border-color:#7c3aed;
+  color:#fff;
+  animation:pulseAuto 1.6s ease-in-out infinite;
+}
+.radar-auto-btn.aktywny:hover{background:#6b2fd9}
+@keyframes pulseAuto{
+  0%, 100%{box-shadow:0 0 0 0 rgba(124,58,237,0.4)}
+  50%{box-shadow:0 0 0 6px rgba(124,58,237,0)}
 }
 
 /* Mobile - panel na całą szerokość */
@@ -3173,6 +3229,36 @@ footer{
           <p class="nazwa-edytor-info">Pogrubianie: <code>**tekst**</code>. Akapity rozdziel pustą linią.</p>
         </div>
 
+        <button id="kategorieBtn" onclick="otworzEdytorKategorii()" style="background:#a04510;font-size:11px">🏷️ Nazwy kategorii</button>
+
+        <!-- Rozwijana ramka edycji kategorii -->
+        <div class="nazwa-edytor" id="kategorieEdytor">
+          <label class="nazwa-edytor-label" style="margin-bottom:8px">Edytuj nazwy i ikony zakładek (klucze techniczne pozostają takie same):</label>
+
+          <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px">
+            <input type="text" id="katIkona_zabytek" maxlength="4" style="width:48px;text-align:center;font-size:18px" placeholder="🏰">
+            <input type="text" id="katNazwa_zabytek" maxlength="30" style="flex:1" placeholder="Zabytki">
+          </div>
+          <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px">
+            <input type="text" id="katIkona_sakral" maxlength="4" style="width:48px;text-align:center;font-size:18px" placeholder="⛪">
+            <input type="text" id="katNazwa_sakral" maxlength="30" style="flex:1" placeholder="Sakralne">
+          </div>
+          <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px">
+            <input type="text" id="katIkona_przyroda" maxlength="4" style="width:48px;text-align:center;font-size:18px" placeholder="🌳">
+            <input type="text" id="katNazwa_przyroda" maxlength="30" style="flex:1" placeholder="Przyroda">
+          </div>
+          <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px">
+            <input type="text" id="katIkona_urzad" maxlength="4" style="width:48px;text-align:center;font-size:18px" placeholder="🏛️">
+            <input type="text" id="katNazwa_urzad" maxlength="30" style="flex:1" placeholder="Instytucje">
+          </div>
+
+          <div class="nazwa-edytor-akcje" style="margin-top:10px">
+            <button class="nazwa-zapisz" onclick="zapiszKategorie()">✓ Zapisz</button>
+            <button class="nazwa-anuluj" onclick="zamknijEdytorKategorii()">Anuluj</button>
+          </div>
+          <p class="nazwa-edytor-info">Wpisz emoji w lewe pole, nazwę w prawe. Klucz techniczny (np. <code>zabytek</code>) zostaje — wszystkie miejsca w tej kategorii zachowują przypisanie. Zmiany trwałe po pobraniu nowego index.html.</p>
+        </div>
+
         <button onclick="toggleRysowanie()" id="btnRysowanie" style="font-size:10px;background:#3a6a4a;color:#fff;border-color:#3a6a4a">🎨 Rysuj na mapie</button>
         <button class="danger" onclick="wyczyscMiejsca()" style="font-size:10px">🗑 Wyczyść miejsca</button>
       </div>
@@ -3401,6 +3487,93 @@ footer{
 </div>
 
 <script>
+// =====================================================================
+// === KATEGORIE - edytowalne nazwy i ikony ============================
+// =====================================================================
+// Klucze ('zabytek', 'sakral', 'przyroda', 'urzad') są STAŁE - nie da się
+// ich zmienić, bo siedzą w danych miejsc. Można jednak dowolnie zmienić
+// `nazwa` (np. "Zabytki" -> "Restauracje") i `ikona` (np. 🏰 -> 🍕).
+// Edycja w trybie admin: przycisk "🏷️ Nazwy kategorii" -> modal -> zapis
+// do localStorage. "Pobierz nowy index.html" wbudowuje na stałe w plik.
+// =====================================================================
+
+// === KATEGORIE:START === (nie usuwaj tego komentarza - znacznik dla auto-eksportu)
+const kategorieDomyslne = {
+  zabytek:  { ikona: '🏰',  nazwa: 'Zabytki' },
+  sakral:   { ikona: '⛪',  nazwa: 'Sakralne' },
+  przyroda: { ikona: '🌳',  nazwa: 'Przyroda' },
+  urzad:    { ikona: '🏛️', nazwa: 'Instytucje' }
+};
+// === KATEGORIE:END ===
+
+// W trybie admin localStorage może nadpisać te wartości (do czasu eksportu pliku).
+// Goście zawsze widzą `kategorieDomyslne` (nie mają localStorage z edycjami admina).
+let kategorie = (function() {
+  try {
+    // UWAGA: const isAdmin jest deklarowane niżej, więc tu czytamy URL bezpośrednio
+    const adminTeraz = new URLSearchParams(window.location.search).get('admin') === '1';
+    if (adminTeraz) {
+      const robocze = localStorage.getItem('kategorie_robocze_v1');
+      if (robocze) {
+        const dane = JSON.parse(robocze);
+        // Zlewamy z domyślnymi - jeśli admin nie zmienił wszystkich, brakujące biorą domyślne
+        return Object.assign({}, JSON.parse(JSON.stringify(kategorieDomyslne)), dane);
+      }
+    }
+  } catch (e) {}
+  // Klonujemy żeby modyfikacje nie ruszały kategorieDomyslne
+  return JSON.parse(JSON.stringify(kategorieDomyslne));
+})();
+
+// Pomocnik: zwraca etykietę kategorii np. "Zabytki" albo "Restauracje" w zależności od edycji
+function nazwaKategorii(klucz) {
+  return (kategorie[klucz] && kategorie[klucz].nazwa) || klucz || '';
+}
+function ikonaKategorii(klucz) {
+  return (kategorie[klucz] && kategorie[klucz].ikona) || '📍';
+}
+
+// Aktualizuje WSZYSTKIE miejsca w UI gdzie pojawiają się nazwy/ikony kategorii.
+// Wywoływane przy starcie i po każdej edycji w modalu.
+function zastosujKategorie() {
+  // 1. Przyciski filtrów - pasek górny desktop
+  const mapaPrzyciskow = {
+    'btn-zabytek':  'zabytek',
+    'btn-sakral':   'sakral',
+    'btn-przyroda': 'przyroda',
+    'btn-urzad':    'urzad'
+  };
+  for (const [id, klucz] of Object.entries(mapaPrzyciskow)) {
+    const btn = document.getElementById(id);
+    if (btn) btn.textContent = ikonaKategorii(klucz) + ' ' + nazwaKategorii(klucz);
+  }
+
+  // 2. Mobilne menu - przyciski filtrów
+  document.querySelectorAll('#menuFiltryKategorii button[onclick*="filtruj"]').forEach(btn => {
+    const onclickAttr = btn.getAttribute('onclick') || '';
+    const m = onclickAttr.match(/filtruj\(['"]([^'"]+)['"]/);
+    if (m && kategorie[m[1]]) {
+      const klucz = m[1];
+      btn.textContent = ikonaKategorii(klucz) + ' ' + nazwaKategorii(klucz);
+    }
+  });
+
+  // 3. Dropdown w formularzu edycji miejsca
+  const select = document.getElementById('miejsceKategoria');
+  if (select) {
+    for (const opt of select.options) {
+      if (kategorie[opt.value]) {
+        opt.textContent = ikonaKategorii(opt.value) + ' ' + nazwaKategorii(opt.value);
+      }
+    }
+  }
+
+  // 4. Karty miejsc w sidebar i markery - odświeżają się przez przerysowanie list
+  if (typeof renderujMiejscaNaMapie === 'function') {
+    try { renderujMiejscaNaMapie(); } catch (e) {}
+  }
+}
+
 const miejsca = [
   { klucz: 'bagno', nazwa: 'bagno', pozycja: [51.1932, 23.1706], ikona: '🏛️', kategoria: 'zabytek' }
 ];
@@ -3685,7 +3858,7 @@ function renderujMiejscaNaMapie() {
     card.className = 'miejsce-card';
     card.dataset.kategoria = miejsce.kategoria;
     card.dataset.klucz = miejsce.klucz;
-    const kategoriaLabel = {sakral:'Sakralne', zabytek:'Zabytek', przyroda:'Przyroda', urzad:'Instytucja'}[miejsce.kategoria] || '';
+    const kategoriaLabel = nazwaKategorii(miejsce.kategoria);
     card.innerHTML = `<span class="ikona">${miejsce.ikona}</span>
       <div class="nazwa">${miejsce.nazwa}</div>
       <div class="opis">${miejsce.krotki || kategoriaLabel}</div>`;
@@ -3712,6 +3885,10 @@ function renderujMiejscaNaMapie() {
 // Pierwszy render - przy starcie
 renderujMiejscaNaMapie();
 
+// Zastosuj zapisane edycje kategorii (jeśli admin ma roboczą wersję w localStorage,
+// albo gdy plik ma już zedytowane kategorieDomyslne w kodzie - i tak odświeżamy UI)
+zastosujKategorie();
+
 // ============== KROPKI AUDIO ==============
 // Punkty na mapie które po zbliżeniu się GPS turysty odpalają nagranie MP3.
 // Niezależne od pinezek miejsc - administrator widzi je tylko z parametrem ?admin=1.
@@ -3730,6 +3907,23 @@ let audioWyciszony = false; // toggle 'głośnik' w trybie wędrowca - audio NIE
 let audioMarkery = []; // markery kropek audio (Leaflet)
 let aktualneAudio = null; // aktualnie odtwarzany Audio()
 let aktualnaKropkaAudio = null; // aktualnie odtwarzana kropka
+
+// =====================================================================
+// === AUTO-ODSŁUCH (playlist mode) ====================================
+// =====================================================================
+// Tryb "leci po kolei z listy w nieskończoność".
+// Klik 🔁 nad listą radaru -> startuje pętlę:
+// pierwsza z listy -> kolejna -> kolejna -> ... -> pierwsza znowu (loop).
+// W trakcie:
+//   - Lista się aktualizuje (wjeżdżasz/wyjeżdżasz ze stref) - to OK,
+//     następna kropka brana jest z BIEŻĄCEJ listy.
+//   - Wpadnie nowa do listy -> dołączy do kolejki naturalnie.
+//   - Wypadnie z listy -> jak kolejka do niej dojdzie, pomijamy.
+//   - Lista pusta -> cisza, ale tryb dalej aktywny. Wjedziesz w nową
+//     strefę -> zacznie grać.
+// Wyłącza się przez: klik 🛑 na panelu, klik ręczny ▶ na innej kropce,
+// wyłączenie nawigacji.
+let autoOdsluchAktywny = false;
 
 // NOWA LOGIKA: śledzimy w jakiej strefie jest turysta TERAZ
 // - wStrefieKropki: numer kropki w której turysta jest aktualnie (lub null)
@@ -4347,6 +4541,90 @@ function zapiszOpisStrony() {
     }, 900);
   } else {
     zamknijEdytorOpisuStrony();
+  }
+}
+
+// =====================================================================
+// === EDYTOR KATEGORII ================================================
+// =====================================================================
+
+function otworzEdytorKategorii() {
+  const edytor = document.getElementById('kategorieEdytor');
+  const btn = document.getElementById('kategorieBtn');
+  const panel = document.getElementById('adminList');
+  if (!edytor) return;
+
+  // Wczytaj aktualne wartości do pól
+  for (const klucz of ['zabytek', 'sakral', 'przyroda', 'urzad']) {
+    const ikonaInput = document.getElementById('katIkona_' + klucz);
+    const nazwaInput = document.getElementById('katNazwa_' + klucz);
+    if (ikonaInput) ikonaInput.value = ikonaKategorii(klucz);
+    if (nazwaInput) nazwaInput.value = nazwaKategorii(klucz);
+  }
+
+  edytor.classList.add('visible');
+  if (btn) btn.style.display = 'none';
+  // Tryb pełnoekranowy panelu - chowa pozostałe przyciski, pokazuje tylko edytor
+  if (panel) panel.classList.add('edytuje-kategorie');
+}
+
+function zamknijEdytorKategorii() {
+  const edytor = document.getElementById('kategorieEdytor');
+  const btn = document.getElementById('kategorieBtn');
+  const panel = document.getElementById('adminList');
+  if (edytor) edytor.classList.remove('visible');
+  if (btn) btn.style.display = '';
+  // Wyjdź z trybu pełnoekranowego - przywróć resztę panelu
+  if (panel) panel.classList.remove('edytuje-kategorie');
+}
+
+function zapiszKategorie() {
+  const nowe = {};
+  let bladPusta = false;
+
+  for (const klucz of ['zabytek', 'sakral', 'przyroda', 'urzad']) {
+    const ikona = (document.getElementById('katIkona_' + klucz)?.value || '').trim();
+    const nazwa = (document.getElementById('katNazwa_' + klucz)?.value || '').trim();
+    if (!nazwa) {
+      bladPusta = true;
+      break;
+    }
+    // Jeśli ikona pusta - bierz domyślną
+    nowe[klucz] = {
+      ikona: ikona || (kategorieDomyslne[klucz] && kategorieDomyslne[klucz].ikona) || '📍',
+      nazwa: nazwa
+    };
+  }
+
+  if (bladPusta) {
+    alert('⚠️ Wszystkie kategorie muszą mieć nazwę. Ikona może być pusta (weźmie domyślną).');
+    return;
+  }
+
+  // Aktualizuj globalny obiekt
+  kategorie = nowe;
+
+  // Zapisz do localStorage
+  try {
+    localStorage.setItem('kategorie_robocze_v1', JSON.stringify(nowe));
+  } catch(e) {}
+
+  // Odśwież UI
+  zastosujKategorie();
+
+  // Wizualne potwierdzenie
+  const btn = document.querySelector('#kategorieEdytor .nazwa-zapisz');
+  if (btn) {
+    const original = btn.innerHTML;
+    btn.innerHTML = '✓ Zapisano!';
+    btn.classList.add('zapisany');
+    setTimeout(() => {
+      btn.innerHTML = original;
+      btn.classList.remove('zapisany');
+      zamknijEdytorKategorii();
+    }, 900);
+  } else {
+    zamknijEdytorKategorii();
   }
 }
 
@@ -4995,17 +5273,19 @@ async function pobierzNowyIndex() {
 
       console.log('[Rysunki] W pamięci:', rysunki.length, '| Do wbudowania:', liczbaWbudowanychRys);
 
-      // Znajdź OSTATNIE wystąpienie markerów - bo pierwsze to szablon w tej
-      // właśnie funkcji (template string wyżej), drugie/ostatnie to prawdziwa
-      // deklaracja tablicy. Używamy lastIndexOf zamiast regex żeby uniknąć
-      // pomyłki z samym sobą.
-      const markerStart = '// === RYSUNKI:START ===';
-      const markerEnd = '// === RYSUNKI:END ===';
-      const idxStart = tekst.lastIndexOf(markerStart);
-      const idxEnd = tekst.lastIndexOf(markerEnd);
-      regexZnaleziony = (idxStart !== -1 && idxEnd !== -1 && idxEnd > idxStart);
+      // Znajdź marker stojący NA POCZĄTKU LINII - prawdziwą deklarację, nie
+      // template string wewnątrz tej funkcji (template ma `\n` przed sobą,
+      // więc nie zaczyna się na początku linii w pliku źródłowym).
+      // Regex /^\/\/ === RYSUNKI:START ===/m wymusza początek linii.
+      const realStartRegexR = /^\/\/ === RYSUNKI:START ===.*$/m;
+      const realEndRegexR = /^\/\/ === RYSUNKI:END ===.*$/m;
+      const matchStartR = tekst.match(realStartRegexR);
+      const matchEndR = tekst.match(realEndRegexR);
+      regexZnaleziony = !!(matchStartR && matchEndR && matchEndR.index > matchStartR.index);
       if (regexZnaleziony) {
-        tekst = tekst.substring(0, idxStart) + nowaTablicaRys + tekst.substring(idxEnd + markerEnd.length);
+        const idxStart = matchStartR.index;
+        const idxEnd = matchEndR.index + matchEndR[0].length;
+        tekst = tekst.substring(0, idxStart) + nowaTablicaRys + tekst.substring(idxEnd);
         console.log('[Rysunki] OK - tablica podmieniona w pliku.');
       } else {
         console.warn('[Rysunki] UWAGA: nie znaleziono markerów RYSUNKI:START/END w pobranym pliku źródłowym! ' +
@@ -5020,6 +5300,43 @@ async function pobierzNowyIndex() {
       }
     } catch (errRys) {
       console.warn('[Rysunki] Nie udało się zaktualizować tablicy rysunków:', errRys);
+    }
+
+    // ===== KATEGORIE (nazwy + ikony zakładek) =====
+    // Wbudowujemy aktualne kategorie (po edycjach admina) na stałe w plik HTML.
+    // Mechanizm identyczny jak dla rysunków - markery KATEGORIE:START/END.
+    // UWAGA: szukamy markeru który stoi NA POCZĄTKU LINII (nie wewnątrz template
+    // stringa - tam są poprzedzone `\n`). To eliminuje fałszywe trafienie w
+    // szablon w tej samej funkcji generującej.
+    try {
+      const linieKat = [];
+      for (const klucz of ['zabytek', 'sakral', 'przyroda', 'urzad']) {
+        const k = kategorie[klucz] || kategorieDomyslne[klucz];
+        if (!k) continue;
+        const ikona = (k.ikona || '📍').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+        const nazwa = (k.nazwa || klucz).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+        const padding = ' '.repeat(Math.max(0, 8 - klucz.length));
+        linieKat.push(`  ${klucz}:${padding}{ ikona: '${ikona}', nazwa: '${nazwa}' }`);
+      }
+      const nowaTablicaKat = `// === KATEGORIE:START === (nie usuwaj tego komentarza - znacznik dla auto-eksportu)\nconst kategorieDomyslne = {\n${linieKat.join(',\n')}\n};\n// === KATEGORIE:END ===`;
+
+      // Znajdź marker stojący na początku linii - czyli prawdziwą deklarację,
+      // nie template string wewnątrz funkcji (ten jest poprzedzony backsashem n).
+      // Regex /^\/\/ === KATEGORIE:START ===/m wymusza początek linii.
+      const realStartRegex = /^\/\/ === KATEGORIE:START ===.*$/m;
+      const realEndRegex = /^\/\/ === KATEGORIE:END ===.*$/m;
+      const matchStart = tekst.match(realStartRegex);
+      const matchEnd = tekst.match(realEndRegex);
+      if (matchStart && matchEnd && matchEnd.index > matchStart.index) {
+        const idxStartKat = matchStart.index;
+        const idxEndKat = matchEnd.index + matchEnd[0].length;
+        tekst = tekst.substring(0, idxStartKat) + nowaTablicaKat + tekst.substring(idxEndKat);
+        console.log('[Kategorie] OK - tablica podmieniona w pliku.');
+      } else {
+        console.warn('[Kategorie] Nie znaleziono markerów KATEGORIE:START/END na początku linii - pomijam.');
+      }
+    } catch (errKat) {
+      console.warn('[Kategorie] Nie udało się zaktualizować kategorii:', errKat);
     }
 
     // Stwórz blob i pobierz plik
@@ -5053,6 +5370,8 @@ async function pobierzNowyIndex() {
       try { localStorage.removeItem(KEY_OPIS_STRONY_TRESC); } catch(e) {}
       // Wyczyść robocze rysunki - są już w pobranym pliku jako rysunkiZakodowane
       try { localStorage.removeItem(STORAGE_KEY_RYSUNKI); } catch(e) {}
+      // Wyczyść robocze kategorie - są już w pobranym pliku jako kategorieDomyslne
+      try { localStorage.removeItem('kategorie_robocze_v1'); } catch(e) {}
     }, 500);
 
   } catch (err) {
@@ -6132,6 +6451,8 @@ function toggleTrybTurysty() {
     // Wyłącz audio przy wyjściu z trybu
     audioPrzewodnikWlaczony = false;
     audioWyciszony = false;
+    // Wyłącz auto-odsłuch (gdyby był aktywny)
+    autoOdsluchAktywny = false;
     if (aktualneAudio) {
       aktualneAudio.pause();
       aktualneAudio = null;
@@ -6723,12 +7044,45 @@ function aktualizujPanelRadaru() {
   const count = kropkiWZasiegu ? kropkiWZasiegu.size : 0;
   counter.textContent = count;
 
-  if (count === 0) {
+  // Panel widoczny gdy: są kropki w zasięgu LUB auto-odsłuch aktywny
+  // (żeby user mógł zatrzymać auto nawet jak wyjechał ze stref)
+  if (count === 0 && !autoOdsluchAktywny) {
     panel.classList.remove('visible', 'expanded');
     lista.innerHTML = '';
     return;
   }
   panel.classList.add('visible');
+
+  // Jeśli auto włączone i nic nie gra - spróbuj wystartować
+  // (np. właśnie wjechaliśmy w nową strefę po pustym polu)
+  if (autoOdsluchAktywny && count > 0 &&
+      (!aktualneAudio || aktualneAudio.paused || aktualneAudio.ended)) {
+    // Defer żeby nie wpaść w rekurencję - aktualizujPanelRadaru woła się
+    // z odtworzKropkeAuto przez onplay/onended.
+    setTimeout(startAutoJesliCzeka, 0);
+  }
+
+  // Render HTML
+  lista.innerHTML = '';
+
+  // ===== Pasek auto-odsłuchu (nad listą) =====
+  // Pokazuje się zawsze gdy panel widoczny, niezależnie czy lista pełna
+  const pasekAuto = document.createElement('div');
+  pasekAuto.className = 'radar-auto-bar';
+  const btnAuto = document.createElement('button');
+  btnAuto.className = 'radar-auto-btn' + (autoOdsluchAktywny ? ' aktywny' : '');
+  btnAuto.onclick = toggleAutoOdsluch;
+  if (autoOdsluchAktywny) {
+    if (count > 0) {
+      btnAuto.innerHTML = '⏹️ Zatrzymaj auto-odsłuch';
+    } else {
+      btnAuto.innerHTML = '⏸ Auto-odsłuch (czekam na strefę)';
+    }
+  } else {
+    btnAuto.innerHTML = '🔁 Odsłuchaj wszystkie po kolei';
+  }
+  pasekAuto.appendChild(btnAuto);
+  lista.appendChild(pasekAuto);
 
   // Buduj listę pozycji (od najbliższej do najdalszej)
   const wpisy = [];
@@ -6743,8 +7097,7 @@ function aktualizujPanelRadaru() {
   }
   wpisy.sort((a, b) => a.odl - b.odl);
 
-  // Render HTML - bez używania innerHTML z user content (escapuję)
-  lista.innerHTML = '';
+  // Render pozycji
   for (const { kropka } of wpisy) {
     const item = document.createElement('div');
     item.className = 'radar-item';
@@ -6785,10 +7138,124 @@ function aktualizujPanelRadaru() {
   }
 }
 
-// Kliknięcie [▶ / ⏸] na wpisie listy radaru
+// =====================================================================
+// === AUTO-ODSŁUCH - funkcje =========================================
+// =====================================================================
+
+// Zwraca uporządkowaną listę kropek W ZASIĘGU (najbliższa najpierw).
+// Używana zarówno przez panel radaru jak i auto-odsłuch żeby grać "z listy".
+function pobierzListeWZasiegu() {
+  if (!kropkiWZasiegu || kropkiWZasiegu.size === 0) return [];
+  const wpisy = [];
+  for (const numer of kropkiWZasiegu) {
+    const k = kropkiAudio.find(kk => kk.numer === numer);
+    if (!k) continue;
+    let odl = 0;
+    if (userPozycja) {
+      odl = dystans(userPozycja.lat, userPozycja.lng, k.pozycja[0], k.pozycja[1]);
+    }
+    wpisy.push({ kropka: k, odl });
+  }
+  wpisy.sort((a, b) => a.odl - b.odl);
+  return wpisy.map(w => w.kropka);
+}
+
+// Włącza/wyłącza tryb auto-odsłuchu. Klik na przycisk 🔁 w panelu radaru.
+function toggleAutoOdsluch() {
+  if (autoOdsluchAktywny) {
+    // Wyłącz - przerwij audio i resetuj stan
+    autoOdsluchAktywny = false;
+    if (aktualneAudio) {
+      aktualneAudio.pause();
+    }
+    aktualizujPanelRadaru();
+    return;
+  }
+
+  // Włącz - znajdź pierwszą z listy i startuj
+  const lista = pobierzListeWZasiegu();
+  if (lista.length === 0) {
+    // Pusta lista - włącz tryb i tak (czeka na pierwszą strefę)
+    autoOdsluchAktywny = true;
+    aktualizujPanelRadaru();
+    return;
+  }
+
+  autoOdsluchAktywny = true;
+  // Pierwsza z listy
+  kropkaJestOdtwarzana.delete(lista[0].numer);
+  odtworzKropkeAuto(lista[0]);
+  aktualizujPanelRadaru();
+}
+
+// Odtwarza kropkę w trybie auto - wpina onended który wybiera następną.
+// Różni się od zwykłego odtworzKropke tym, że NIE wyłącza autoOdsluchAktywny
+// po skończeniu - przeciwnie, leci do kolejnej.
+function odtworzKropkeAuto(kropka) {
+  odtworzKropke(kropka);
+  if (!aktualneAudio) return;
+
+  // Wpinamy się w onended bez zerwania istniejących hooków
+  const oldOnended = aktualneAudio.onended;
+  aktualneAudio.onended = (e) => {
+    if (oldOnended) oldOnended.call(aktualneAudio, e);
+    // Jeśli auto dalej aktywne - leć do następnej z aktualnej listy
+    if (autoOdsluchAktywny) {
+      nastepneWAuto(kropka.numer);
+    }
+    aktualizujPanelRadaru();
+  };
+}
+
+// Znajduje następną kropkę po `poprzedniNumer` w aktualnej liście w zasięgu.
+// Loop: po ostatniej wraca do pierwszej. Jeśli lista pusta - tryb dalej
+// aktywny ale audio nie gra (czeka aż wjedziesz w jakąś strefę).
+function nastepneWAuto(poprzedniNumer) {
+  const lista = pobierzListeWZasiegu();
+  if (lista.length === 0) {
+    // Lista pusta - cisza, ale tryb aktywny dalej.
+    // Wjedziesz w nową strefę -> sprawdzKropkiAudio wywoła startAutoJesliCzeka.
+    return;
+  }
+
+  // Znajdź index poprzedniej w aktualnej liście. Jeśli jej już nie ma
+  // (wypadła z zasięgu) - bierzemy pierwszą z listy.
+  const idxPoprzedniej = lista.findIndex(k => k.numer === poprzedniNumer);
+  let nastepnaIdx;
+  if (idxPoprzedniej === -1) {
+    // Poprzedniej nie ma na liście - zaczynamy od pierwszej
+    nastepnaIdx = 0;
+  } else {
+    // Loop - po ostatniej wraca do pierwszej
+    nastepnaIdx = (idxPoprzedniej + 1) % lista.length;
+  }
+
+  const nastepna = lista[nastepnaIdx];
+  kropkaJestOdtwarzana.delete(nastepna.numer);
+  odtworzKropkeAuto(nastepna);
+}
+
+// Wywoływana z sprawdzKropkiAudio gdy lista się zmienia.
+// Jeśli auto aktywne ale nic nie gra (np. po przejechaniu pustego pola
+// teraz wjechaliśmy w strefę) - startuje pierwszą z listy.
+function startAutoJesliCzeka() {
+  if (!autoOdsluchAktywny) return;
+  // Jeśli już coś gra i nie skończyło - nic nie robimy
+  if (aktualneAudio && !aktualneAudio.paused && !aktualneAudio.ended) return;
+
+  const lista = pobierzListeWZasiegu();
+  if (lista.length === 0) return;
+
+  // Wystartuj pierwszą z listy
+  kropkaJestOdtwarzana.delete(lista[0].numer);
+  odtworzKropkeAuto(lista[0]);
+}
+
+
 // Logika: nowe audio przerywa stare. Pauza tylko jeśli klikamy AKTUALNIE grające.
 function radarKlikOdtworz(kropka) {
-  // Jeśli ta sama kropka już gra - pauza/wznów
+  // Jeśli ta sama kropka już gra - pauza/wznów (nie ruszamy trybu auto -
+  // pauza w trakcie auto-odsłuchu po prostu wstrzymuje, klik znów wznowi)
   if (aktualnaKropkaAudio && aktualnaKropkaAudio.numer === kropka.numer && aktualneAudio) {
     if (aktualneAudio.paused) {
       aktualneAudio.play();
@@ -6799,8 +7266,13 @@ function radarKlikOdtworz(kropka) {
     return;
   }
 
+  // Inna kropka klikana ręcznie - przejmujemy kontrolę.
+  // Wyłączamy auto-odsłuch (zgodnie z założeniem: ręczny klik = manual mode)
+  if (autoOdsluchAktywny) {
+    autoOdsluchAktywny = false;
+  }
+
   // Inna kropka - odtwórz (odtworzKropke automatycznie zatrzyma poprzednie)
-  // Reset flagi żeby zagrało od początku
   kropkaJestOdtwarzana.delete(kropka.numer);
   odtworzKropke(kropka);
 
