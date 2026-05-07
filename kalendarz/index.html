@@ -2251,6 +2251,18 @@ footer{
 }
 .center-btn:active{transform:scale(0.95)}
 
+/* Auto-center aktywny - przycisk pulsuje, użytkownik wie że mapa "śledzi" */
+.center-btn.sledzi,
+.mobile-fab-center.sledzi{
+  background:var(--gold);
+  color:var(--paper-2);
+  animation:pulseSledzi 1.6s ease-in-out infinite;
+}
+@keyframes pulseSledzi{
+  0%, 100%{box-shadow:0 0 0 0 rgba(160,69,16,0.5)}
+  50%{box-shadow:0 0 0 8px rgba(160,69,16,0)}
+}
+
 /* === WACHLARZ PŁATKÓW === */
 .platki-wrapper{
   position:absolute;top:18px;left:18px;
@@ -3678,6 +3690,39 @@ const mapa = L.map('mapa', {
 
 // Własny attribution - bez "Leaflet" i bez ukraińskiej flagi
 L.control.attribution({ prefix: false }).addTo(mapa);
+
+// =====================================================================
+// === Detekcja "user przeciągnął mapę palcem" - wyłącza auto-center ===
+// =====================================================================
+// Gdy user palcem/myszką przesunie mapę, traktujemy to jako wyjście
+// z trybu śledzenia. Mapa zostaje tam gdzie ją puścił, nie wraca już
+// do pozycji GPS dopóki user nie kliknie ⊙.
+// Flaga `mapaProgramowoPrzesuwana` chroni przed false-positives gdy
+// to MY przesuwamy mapę (panTo przy auto-center).
+mapa.on('dragstart', () => {
+  if (!mapaProgramowoPrzesuwana && autoCenterAktywny) {
+    autoCenterAktywny = false;
+    aktualizujPrzyciskCenter();
+  }
+});
+// Zoom kółkiem/szczypaniem nie wyłącza auto-center - zoom jest niezależny od pozycji.
+// Auto-center utrzymuje user W ŚRODKU mapy niezależnie od poziomu zoom.
+
+// Aktualizuje wygląd przycisku ⊙ Wyśrodkuj.
+// Gdy auto-center aktywny -> pulsuje (śledzenie aktywne).
+// Gdy nieaktywny ale GPS włączony -> normalny wygląd "wezwanie do akcji".
+function aktualizujPrzyciskCenter() {
+  const desktop = document.getElementById('centerBtn');
+  const mobile = document.getElementById('mobileFabCenter');
+  for (const btn of [desktop, mobile]) {
+    if (!btn) continue;
+    if (autoCenterAktywny) {
+      btn.classList.add('sledzi');
+    } else {
+      btn.classList.remove('sledzi');
+    }
+  }
+}
 
 // Tryb administratora - włącza się przez ?admin=1 w URL (DEKLAROWANE WYSOKO bo wiele funkcji od tego zależy)
 const isAdmin = new URLSearchParams(window.location.search).get('admin') === '1';
@@ -6271,6 +6316,18 @@ let userMarker = null;
 let userPozycja = null;
 let watchId = null;
 
+// =====================================================================
+// === AUTO-CENTROWANIE MAPY (jak w nawigacji samochodowej) ===========
+// =====================================================================
+// Gdy true - mapa płynnie podąża za pozycją GPS, użytkownik zawsze w środku.
+// Gdy user RĘCZNIE przeciągnie mapę (zaznaczył dragstart) - flaga = false,
+// auto-center wyłączony. Klik ⊙ Wyśrodkuj -> flaga znowu true, mapa wraca.
+// Włączane razem z GPS, wyłączane gdy GPS wyłączony.
+let autoCenterAktywny = false;
+// Flaga "mapa właśnie sama się przesuwa" - żeby moveend nie traktował tego
+// jak przeciągnięcia przez usera.
+let mapaProgramowoPrzesuwana = false;
+
 const gpsBtn = document.getElementById('gpsBtn');
 const gpsStatus = document.getElementById('gpsStatus');
 
@@ -6355,10 +6412,21 @@ function pokazPozycje(pos) {
       <b>Tu jesteś</b>
       <em>📍 Dokładność: ${Math.round(dokladnosc)} m</em>
     `);
-    // Wycentruj mapę na użytkowniku przy pierwszym fixie
+    // Pierwszy fix - wycentruj mapę na userze (auto-center startuje aktywny)
+    mapaProgramowoPrzesuwana = true;
     mapa.flyTo([lat, lng], 15, { duration: 1.5 });
+    setTimeout(() => { mapaProgramowoPrzesuwana = false; }, 1700);
   } else {
     userMarker.setLatLng([lat, lng]);
+    // Auto-center: mapa płynnie podąża za userem.
+    // Jeśli user przeciągnął mapę palcem - autoCenterAktywny=false i NIC NIE
+    // RUSZAMY (mapa zostaje gdzie user ją zostawił, dopóki nie kliknie ⊙).
+    if (autoCenterAktywny) {
+      mapaProgramowoPrzesuwana = true;
+      mapa.panTo([lat, lng], { animate: true, duration: 0.8 });
+      // Po zakończeniu animacji odznacz programowe przesuwanie
+      setTimeout(() => { mapaProgramowoPrzesuwana = false; }, 900);
+    }
   }
 
   // Po znalezieniu pozycji - schowaj komunikat "Szukam satelitów..."
@@ -6429,6 +6497,9 @@ function togglePozycja() {
       userMarker = null;
     }
     userPozycja = null;
+    // Wyłącz auto-center razem z GPS
+    autoCenterAktywny = false;
+    aktualizujPrzyciskCenter();
     gpsBtn.classList.remove('active', 'szukam');
     gpsBtn.textContent = '📍';
     gpsStatus.classList.remove('visible');
@@ -6436,6 +6507,11 @@ function togglePozycja() {
     document.querySelectorAll('.miejsce-card .dystans').forEach(d => d.remove());
     return;
   }
+
+  // Włącz auto-center przy starcie GPS - mapa będzie podążać za userem.
+  // (Wyłączy się automatycznie gdy user przeciągnie mapę palcem.)
+  autoCenterAktywny = true;
+  aktualizujPrzyciskCenter();
 
   if (!navigator.geolocation) {
     gpsStatus.classList.add('visible');
@@ -7069,10 +7145,17 @@ function wysrodkujNaMnie() {
     // ale gdyby ktoś jakoś kliknął - małe info
     return;
   }
+  // Włącz auto-center - od teraz mapa będzie podążać za userem.
+  // (Wyłączy się znowu gdy user przeciągnie mapę palcem.)
+  autoCenterAktywny = true;
+  aktualizujPrzyciskCenter();
+
   // Płynne wyśrodkowanie z lekkim zoomem do 16
   const obecnyZoom = mapa.getZoom();
   const docelowyZoom = Math.max(obecnyZoom, 16);
+  mapaProgramowoPrzesuwana = true;
   mapa.flyTo([userPozycja.lat, userPozycja.lng], docelowyZoom, { duration: 0.8 });
+  setTimeout(() => { mapaProgramowoPrzesuwana = false; }, 1000);
 }
 
 // Pokaż/ukryj przyciski wyśrodkowania w zależności od stanu GPS
