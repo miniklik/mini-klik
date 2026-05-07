@@ -2251,6 +2251,18 @@ footer{
 }
 .center-btn:active{transform:scale(0.95)}
 
+/* Auto-center aktywny - przycisk pulsuje, użytkownik wie że mapa "śledzi" */
+.center-btn.sledzi,
+.mobile-fab-center.sledzi{
+  background:var(--gold);
+  color:var(--paper-2);
+  animation:pulseSledzi 1.6s ease-in-out infinite;
+}
+@keyframes pulseSledzi{
+  0%, 100%{box-shadow:0 0 0 0 rgba(160,69,16,0.5)}
+  50%{box-shadow:0 0 0 8px rgba(160,69,16,0)}
+}
+
 /* === WACHLARZ PŁATKÓW === */
 .platki-wrapper{
   position:absolute;top:18px;left:18px;
@@ -2529,23 +2541,24 @@ footer{
     color: var(--paper-2);
   }
 
-  /* NAWIGACJA + WYŚRODKUJ - wycentrowane obok siebie na dole mapy.
-     Wcześniej były w rogach - kolidowały z listą radaru "W zasięgu".
-     Teraz: 🧭 lewo od środka, ⊙ prawo od środka. Prześwit przez rogi. */
+  /* NAWIGACJA + WYŚRODKUJ - wycentrowane obok siebie NA GÓRZE mapy.
+     Wcześniej były na dole - kolidowały z listą radaru "W zasięgu"
+     gdy lista miała 3+ kropek i sięgała w dół ekranu.
+     Teraz: górna belka zajęta - hamburger lewo, mapa prawo, 🧭 + ⊙ środek. */
   .gps-btn {
     position: absolute !important;
-    bottom: calc(env(safe-area-inset-bottom, 0px) + 22px) !important;
+    top: 14px !important;
+    bottom: auto !important;
     left: 50% !important;
     right: auto !important;
-    top: auto !important;
     transform: translateX(calc(-100% - 6px)) !important;
-    width: 50px !important;
-    height: 50px !important;
+    width: 46px !important;
+    height: 46px !important;
     border-radius: 50% !important;
     box-shadow: 0 3px 12px rgba(0,0,0,0.25) !important;
     border: 0.5px solid rgba(160,69,16,0.3) !important;
     background: var(--paper-2) !important;
-    font-size: 22px !important;
+    font-size: 20px !important;
     z-index: 600;
   }
   .gps-btn.active {
@@ -2553,16 +2566,16 @@ footer{
     color: var(--paper-2) !important;
   }
 
-  /* Center-btn (⊙ wyśrodkuj) - tuż obok 🧭, prawo od środka */
+  /* Center-btn (⊙ wyśrodkuj) - tuż obok 🧭, prawo od środka góry */
   .center-btn {
     position: absolute !important;
-    bottom: calc(env(safe-area-inset-bottom, 0px) + 22px) !important;
+    top: 14px !important;
+    bottom: auto !important;
     left: 50% !important;
     right: auto !important;
-    top: auto !important;
     transform: translateX(6px) !important;
-    width: 50px !important;
-    height: 50px !important;
+    width: 46px !important;
+    height: 46px !important;
     z-index: 600;
   }
 
@@ -2757,10 +2770,7 @@ footer{
 
   /* Mapa - rezerwujemy miejsce na bottom sheet (80px = wysokość mini) */
   /* Ale ponieważ bottom sheet jest fixed, mapa może być pełnoekranowa */
-  /* Jednak GPS i FAB-y dolne muszą być WYŻEJ niż bottom sheet mini */
-  /* center-btn ląduje obok gps-btn (oba wycentrowane), więc też podnoszę */
-  .gps-btn,
-  .center-btn,
+  /* gps-btn i center-btn są teraz NA GÓRZE - tu zostaje tylko mobile-fab-tourist */
   .mobile-fab-tourist {
     bottom: calc(env(safe-area-inset-bottom, 0px) + 100px) !important;
   }
@@ -3682,6 +3692,39 @@ const mapa = L.map('mapa', {
 // Własny attribution - bez "Leaflet" i bez ukraińskiej flagi
 L.control.attribution({ prefix: false }).addTo(mapa);
 
+// =====================================================================
+// === Detekcja "user przeciągnął mapę palcem" - wyłącza auto-center ===
+// =====================================================================
+// Gdy user palcem/myszką przesunie mapę, traktujemy to jako wyjście
+// z trybu śledzenia. Mapa zostaje tam gdzie ją puścił, nie wraca już
+// do pozycji GPS dopóki user nie kliknie ⊙.
+// Flaga `mapaProgramowoPrzesuwana` chroni przed false-positives gdy
+// to MY przesuwamy mapę (panTo przy auto-center).
+mapa.on('dragstart', () => {
+  if (!mapaProgramowoPrzesuwana && autoCenterAktywny) {
+    autoCenterAktywny = false;
+    aktualizujPrzyciskCenter();
+  }
+});
+// Zoom kółkiem/szczypaniem nie wyłącza auto-center - zoom jest niezależny od pozycji.
+// Auto-center utrzymuje user W ŚRODKU mapy niezależnie od poziomu zoom.
+
+// Aktualizuje wygląd przycisku ⊙ Wyśrodkuj.
+// Gdy auto-center aktywny -> pulsuje (śledzenie aktywne).
+// Gdy nieaktywny ale GPS włączony -> normalny wygląd "wezwanie do akcji".
+function aktualizujPrzyciskCenter() {
+  const desktop = document.getElementById('centerBtn');
+  const mobile = document.getElementById('mobileFabCenter');
+  for (const btn of [desktop, mobile]) {
+    if (!btn) continue;
+    if (autoCenterAktywny) {
+      btn.classList.add('sledzi');
+    } else {
+      btn.classList.remove('sledzi');
+    }
+  }
+}
+
 // Tryb administratora - włącza się przez ?admin=1 w URL (DEKLAROWANE WYSOKO bo wiele funkcji od tego zależy)
 const isAdmin = new URLSearchParams(window.location.search).get('admin') === '1';
 
@@ -3993,10 +4036,10 @@ zastosujKategorie();
 const kropkiAudio = [
   { numer: 1, pozycja: [51.19508, 23.16374], promien: 140, opis: '' },
   { numer: 2, pozycja: [51.19379, 23.16507], promien: 2130, opis: '' },
-  { numer: 3, pozycja: [51.17370, 23.26709], promien: 1530, opis: '' },
+  { numer: 3, pozycja: [51.17011, 23.12526], promien: 480, opis: '' },
   { numer: 4, pozycja: [51.15699, 23.35407], promien: 1020, opis: '' },
-  { numer: 5, pozycja: [51.15584, 23.39789], promien: 2490, opis: '' },
-  { numer: 6, pozycja: [51.19378, 23.32919], promien: 5000, opis: '' },
+  { numer: 5, pozycja: [51.14336, 23.05766], promien: 170, opis: '' },
+  { numer: 6, pozycja: [51.14290, 23.11098], promien: 160, opis: '' },
   { numer: 7, pozycja: [51.19264, 23.17216], promien: 2990, opis: '' }
 ];
 
@@ -4023,6 +4066,12 @@ let aktualnaKropkaAudio = null; // aktualnie odtwarzana kropka
 // Wyłącza się przez: klik 🛑 na panelu, klik ręczny ▶ na innej kropce,
 // wyłączenie nawigacji.
 let autoOdsluchAktywny = false;
+
+// Zbiór numerów kropek odtworzonych w tej sesji auto-odsłuchu.
+// Po przejściu przez całą listę nie loopujemy - czekamy na nowe kropki
+// (te które wjadą w zasięg później). User może kliknąć 🔁 ponownie żeby
+// zresetować sesję i odtworzyć aktualną listę od nowa.
+let autoSesjaOdsluchane = new Set();
 
 // NOWA LOGIKA: śledzimy w jakiej strefie jest turysta TERAZ
 // - wStrefieKropki: numer kropki w której turysta jest aktualnie (lub null)
@@ -6275,6 +6324,18 @@ let userMarker = null;
 let userPozycja = null;
 let watchId = null;
 
+// =====================================================================
+// === AUTO-CENTROWANIE MAPY (jak w nawigacji samochodowej) ===========
+// =====================================================================
+// Gdy true - mapa płynnie podąża za pozycją GPS, użytkownik zawsze w środku.
+// Gdy user RĘCZNIE przeciągnie mapę (zaznaczył dragstart) - flaga = false,
+// auto-center wyłączony. Klik ⊙ Wyśrodkuj -> flaga znowu true, mapa wraca.
+// Włączane razem z GPS, wyłączane gdy GPS wyłączony.
+let autoCenterAktywny = false;
+// Flaga "mapa właśnie sama się przesuwa" - żeby moveend nie traktował tego
+// jak przeciągnięcia przez usera.
+let mapaProgramowoPrzesuwana = false;
+
 const gpsBtn = document.getElementById('gpsBtn');
 const gpsStatus = document.getElementById('gpsStatus');
 
@@ -6359,10 +6420,21 @@ function pokazPozycje(pos) {
       <b>Tu jesteś</b>
       <em>📍 Dokładność: ${Math.round(dokladnosc)} m</em>
     `);
-    // Wycentruj mapę na użytkowniku przy pierwszym fixie
+    // Pierwszy fix - wycentruj mapę na userze (auto-center startuje aktywny)
+    mapaProgramowoPrzesuwana = true;
     mapa.flyTo([lat, lng], 15, { duration: 1.5 });
+    setTimeout(() => { mapaProgramowoPrzesuwana = false; }, 1700);
   } else {
     userMarker.setLatLng([lat, lng]);
+    // Auto-center: mapa płynnie podąża za userem.
+    // Jeśli user przeciągnął mapę palcem - autoCenterAktywny=false i NIC NIE
+    // RUSZAMY (mapa zostaje gdzie user ją zostawił, dopóki nie kliknie ⊙).
+    if (autoCenterAktywny) {
+      mapaProgramowoPrzesuwana = true;
+      mapa.panTo([lat, lng], { animate: true, duration: 0.8 });
+      // Po zakończeniu animacji odznacz programowe przesuwanie
+      setTimeout(() => { mapaProgramowoPrzesuwana = false; }, 900);
+    }
   }
 
   // Po znalezieniu pozycji - schowaj komunikat "Szukam satelitów..."
@@ -6433,6 +6505,9 @@ function togglePozycja() {
       userMarker = null;
     }
     userPozycja = null;
+    // Wyłącz auto-center razem z GPS
+    autoCenterAktywny = false;
+    aktualizujPrzyciskCenter();
     gpsBtn.classList.remove('active', 'szukam');
     gpsBtn.textContent = '📍';
     gpsStatus.classList.remove('visible');
@@ -6440,6 +6515,11 @@ function togglePozycja() {
     document.querySelectorAll('.miejsce-card .dystans').forEach(d => d.remove());
     return;
   }
+
+  // Włącz auto-center przy starcie GPS - mapa będzie podążać za userem.
+  // (Wyłączy się automatycznie gdy user przeciągnie mapę palcem.)
+  autoCenterAktywny = true;
+  aktualizujPrzyciskCenter();
 
   if (!navigator.geolocation) {
     gpsStatus.classList.add('visible');
@@ -7073,10 +7153,17 @@ function wysrodkujNaMnie() {
     // ale gdyby ktoś jakoś kliknął - małe info
     return;
   }
+  // Włącz auto-center - od teraz mapa będzie podążać za userem.
+  // (Wyłączy się znowu gdy user przeciągnie mapę palcem.)
+  autoCenterAktywny = true;
+  aktualizujPrzyciskCenter();
+
   // Płynne wyśrodkowanie z lekkim zoomem do 16
   const obecnyZoom = mapa.getZoom();
   const docelowyZoom = Math.max(obecnyZoom, 16);
+  mapaProgramowoPrzesuwana = true;
   mapa.flyTo([userPozycja.lat, userPozycja.lng], docelowyZoom, { duration: 0.8 });
+  setTimeout(() => { mapaProgramowoPrzesuwana = false; }, 1000);
 }
 
 // Pokaż/ukryj przyciski wyśrodkowania w zależności od stanu GPS
@@ -7171,15 +7258,25 @@ function aktualizujPanelRadaru() {
   const btnAuto = document.createElement('button');
   btnAuto.className = 'radar-auto-btn' + (autoOdsluchAktywny ? ' aktywny' : '');
   btnAuto.onclick = toggleAutoOdsluch;
-  if (autoOdsluchAktywny) {
-    if (count > 0) {
-      btnAuto.innerHTML = '⏹️ Zatrzymaj auto-odsłuch';
-    } else {
-      btnAuto.innerHTML = '⏸ Auto-odsłuch (czekam na strefę)';
-    }
-  } else {
+
+  // Trzy stany przycisku zależnie od sytuacji:
+  // 1. Auto wyłączone -> proponuj włączenie
+  // 2. Auto włączone i AUDIO GRA -> proponuj wyłączenie
+  // 3. Auto włączone ale CISZA (cała lista odsłuchana albo czekamy na strefę)
+  //    -> proponuj odtworzenie listy znowu (klik resetuje sesję i gra od nowa)
+  const cosGra = aktualneAudio && !aktualneAudio.paused && !aktualneAudio.ended;
+  if (!autoOdsluchAktywny) {
     btnAuto.innerHTML = '🔁 Odsłuchaj wszystkie po kolei';
+  } else if (cosGra) {
+    btnAuto.innerHTML = '⏹️ Zatrzymaj auto-odsłuch';
+  } else if (count > 0) {
+    // Lista jest, ale wszystko już zagrane w tej sesji - klik = odtwórz znowu
+    btnAuto.innerHTML = '🔁 Odtwórz listę jeszcze raz';
+  } else {
+    // Lista pusta - czekamy aż wjedziesz w strefę
+    btnAuto.innerHTML = '⏸ Auto-odsłuch (czekam na strefę)';
   }
+
   pasekAuto.appendChild(btnAuto);
   lista.appendChild(pasekAuto);
 
@@ -7260,37 +7357,65 @@ function pobierzListeWZasiegu() {
 }
 
 // Włącza/wyłącza tryb auto-odsłuchu. Klik na przycisk 🔁 w panelu radaru.
+// Logika dwustanowa:
+//   - Wyłączony       -> klik włącza, startuje od najbliższej, sesja resetowana.
+//   - Włączony (gra)  -> klik wyłącza całość.
+//   - Włączony (cisza, bo wszystko z listy odsłuchane) -> klik resetuje sesję
+//     i odtwarza listę od nowa (user wraca do tych samych kropek).
 function toggleAutoOdsluch() {
   if (autoOdsluchAktywny) {
-    // Wyłącz - przerwij audio i resetuj stan
-    autoOdsluchAktywny = false;
-    if (aktualneAudio) {
-      aktualneAudio.pause();
+    // Czy aktualnie gra audio?
+    const cosGra = aktualneAudio && !aktualneAudio.paused && !aktualneAudio.ended;
+    if (cosGra) {
+      // Coś gra - klik wyłącza całość
+      autoOdsluchAktywny = false;
+      autoSesjaOdsluchane.clear();
+      if (aktualneAudio) {
+        aktualneAudio.pause();
+      }
+      aktualizujPanelRadaru();
+      return;
     }
+    // Tryb aktywny ale cisza (przejechaliśmy listę) -> reset sesji,
+    // zaczynamy od początku aktualnej listy
+    autoSesjaOdsluchane.clear();
+    const lista = pobierzListeWZasiegu();
+    if (lista.length === 0) {
+      // Dalej nic w zasięgu - po prostu odśwież panel
+      aktualizujPanelRadaru();
+      return;
+    }
+    odtworzKropkeAuto(lista[0]);
     aktualizujPanelRadaru();
     return;
   }
 
-  // Włącz - znajdź pierwszą z listy i startuj
+  // Tryb wyłączony - włączamy od zera
+  autoOdsluchAktywny = true;
+  autoSesjaOdsluchane.clear();
+
   const lista = pobierzListeWZasiegu();
   if (lista.length === 0) {
     // Pusta lista - włącz tryb i tak (czeka na pierwszą strefę)
-    autoOdsluchAktywny = true;
     aktualizujPanelRadaru();
     return;
   }
 
-  autoOdsluchAktywny = true;
   // Pierwsza z listy
-  kropkaJestOdtwarzana.delete(lista[0].numer);
   odtworzKropkeAuto(lista[0]);
   aktualizujPanelRadaru();
 }
 
 // Odtwarza kropkę w trybie auto - wpina onended który wybiera następną.
 // Różni się od zwykłego odtworzKropke tym, że NIE wyłącza autoOdsluchAktywny
-// po skończeniu - przeciwnie, leci do kolejnej.
+// po skończeniu - przeciwnie, leci do kolejnej (jeśli jest nieodsłuchana).
 function odtworzKropkeAuto(kropka) {
+  // Zaznacz że ta kropka została odtworzona w tej sesji - nie zagra ponownie
+  // dopóki nie zresetujemy sesji (przez ponowny klik 🔁 albo wyłączenie/włączenie).
+  autoSesjaOdsluchane.add(kropka.numer);
+
+  // Reset flagi żeby kropka mogła zagrać teraz
+  kropkaJestOdtwarzana.delete(kropka.numer);
   odtworzKropke(kropka);
   if (!aktualneAudio) return;
 
@@ -7298,56 +7423,53 @@ function odtworzKropkeAuto(kropka) {
   const oldOnended = aktualneAudio.onended;
   aktualneAudio.onended = (e) => {
     if (oldOnended) oldOnended.call(aktualneAudio, e);
-    // Jeśli auto dalej aktywne - leć do następnej z aktualnej listy
+    // Jeśli auto dalej aktywne - leć do następnej NIEODSŁUCHANEJ z aktualnej listy
     if (autoOdsluchAktywny) {
-      nastepneWAuto(kropka.numer);
+      nastepneWAuto();
     }
     aktualizujPanelRadaru();
   };
 }
 
-// Znajduje następną kropkę po `poprzedniNumer` w aktualnej liście w zasięgu.
-// Loop: po ostatniej wraca do pierwszej. Jeśli lista pusta - tryb dalej
-// aktywny ale audio nie gra (czeka aż wjedziesz w jakąś strefę).
-function nastepneWAuto(poprzedniNumer) {
+// Znajduje następną kropkę w aktualnej liście W ZASIĘGU, która jeszcze NIE
+// została odsłuchana w tej sesji. Jeśli wszystkie z listy odsłuchane lub
+// lista pusta - cisza, ale tryb dalej aktywny. User wjedzie w nową strefę
+// (do listy wpadnie nowa kropka której nie ma w sesji) -> zagra ona.
+function nastepneWAuto() {
   const lista = pobierzListeWZasiegu();
   if (lista.length === 0) {
-    // Lista pusta - cisza, ale tryb aktywny dalej.
-    // Wjedziesz w nową strefę -> sprawdzKropkiAudio wywoła startAutoJesliCzeka.
+    // Lista pusta - cisza (tryb dalej aktywny)
     return;
   }
 
-  // Znajdź index poprzedniej w aktualnej liście. Jeśli jej już nie ma
-  // (wypadła z zasięgu) - bierzemy pierwszą z listy.
-  const idxPoprzedniej = lista.findIndex(k => k.numer === poprzedniNumer);
-  let nastepnaIdx;
-  if (idxPoprzedniej === -1) {
-    // Poprzedniej nie ma na liście - zaczynamy od pierwszej
-    nastepnaIdx = 0;
-  } else {
-    // Loop - po ostatniej wraca do pierwszej
-    nastepnaIdx = (idxPoprzedniej + 1) % lista.length;
+  // Pierwsza kropka z listy która jeszcze nie była odtworzona w tej sesji
+  const nastepna = lista.find(k => !autoSesjaOdsluchane.has(k.numer));
+  if (!nastepna) {
+    // Wszystkie z listy już odsłuchane w tej sesji - cisza, czekamy na nowe
+    // kropki (gdy wjedziesz w nową strefę, dołączy do listy i to ona zagra).
+    return;
   }
 
-  const nastepna = lista[nastepnaIdx];
-  kropkaJestOdtwarzana.delete(nastepna.numer);
   odtworzKropkeAuto(nastepna);
 }
 
-// Wywoływana z sprawdzKropkiAudio gdy lista się zmienia.
-// Jeśli auto aktywne ale nic nie gra (np. po przejechaniu pustego pola
-// teraz wjechaliśmy w strefę) - startuje pierwszą z listy.
+// Wywoływana z aktualizujPanelRadaru gdy lista się zmienia.
+// Jeśli auto aktywne ale nic nie gra (np. wjechaliśmy w nową strefę po
+// pustym polu, lub wjechała nowa kropka której nie odsłuchaliśmy w tej
+// sesji) - startuje pierwszą NIEODSŁUCHANĄ z listy.
 function startAutoJesliCzeka() {
   if (!autoOdsluchAktywny) return;
-  // Jeśli już coś gra i nie skończyło - nic nie robimy
+  // Jeśli już coś gra - nic nie robimy
   if (aktualneAudio && !aktualneAudio.paused && !aktualneAudio.ended) return;
 
   const lista = pobierzListeWZasiegu();
   if (lista.length === 0) return;
 
-  // Wystartuj pierwszą z listy
-  kropkaJestOdtwarzana.delete(lista[0].numer);
-  odtworzKropkeAuto(lista[0]);
+  // Pierwsza nieodsłuchana w tej sesji
+  const doOdtworzenia = lista.find(k => !autoSesjaOdsluchane.has(k.numer));
+  if (!doOdtworzenia) return;
+
+  odtworzKropkeAuto(doOdtworzenia);
 }
 
 
@@ -7422,9 +7544,7 @@ aktualizujPanelRadaru();
 
 // === RYSUNKI:START === (nie usuwaj tego komentarza - znacznik dla auto-eksportu)
 const rysunkiZakodowane = [
-  { typ: 'kolo', kolor: '#104fa2', srodek: [51.206828, 23.225372], promien: 652 },
-  { typ: 'tekst', kolor: '#104fa2', pozycja: [51.196185, 23.223999], tresc: 'Droga do chełma' },
-  { typ: 'linia', kolor: '#104fa2', punkty: [[51.258520, 23.066895], [51.248211, 23.237869], [51.138541, 23.271515], [51.151026, 23.458969]] }
+
 ];
 // === RYSUNKI:END ===
 
