@@ -3247,6 +3247,123 @@ footer{
   margin:18px 0;
 }
 
+/* =========================================================
+   === SZUFLADKA "Wykryto audio" - wsuwana z prawej =========
+   =========================================================
+   Mała kompaktowa karta która wsuwa się z prawej strony ekranu
+   (mobile) gdy user pierwszy raz w sesji nawigacji wjedzie w
+   strefę audio. Dwa przyciski ON/OFF. Po kliku znika.
+   Pokazujemy TYLKO mobile - na desktop nie ma sensu (tam i tak
+   inny use case, bardziej "edytor" niż "kierowca").
+*/
+#szufladaWykryto {
+  display: none;
+  position: fixed;
+  top: 50%;
+  right: 14px;
+  transform: translateY(-50%) translateX(120%);
+  z-index: 9500;
+  background: linear-gradient(180deg, var(--paper-2) 0%, var(--paper-3) 100%);
+  border: 2px solid var(--gold);
+  border-radius: 12px;
+  padding: 14px 16px;
+  box-shadow:
+    0 8px 24px rgba(60, 40, 20, 0.28),
+    0 2px 6px rgba(60, 40, 20, 0.18);
+  width: 200px;
+  max-width: calc(100vw - 28px);
+  font-family: 'EB Garamond', serif;
+  color: var(--ink);
+  transition: transform 0.45s cubic-bezier(0.34, 1.30, 0.64, 1), opacity 0.3s;
+  opacity: 0;
+}
+@media (max-width: 1024px) and (pointer: coarse) {
+  #szufladaWykryto {
+    display: block;
+  }
+}
+#szufladaWykryto.visible {
+  transform: translateY(-50%) translateX(0);
+  opacity: 1;
+}
+.sw-tytul {
+  font-family: 'Cinzel', serif;
+  font-size: 14px;
+  letter-spacing: 1.5px;
+  color: var(--gold);
+  text-align: center;
+  margin-bottom: 4px;
+  font-weight: 600;
+}
+.sw-podtytul {
+  font-size: 12px;
+  color: var(--ink-muted);
+  text-align: center;
+  font-style: italic;
+  margin-bottom: 12px;
+  line-height: 1.35;
+}
+.sw-przyciski {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+.sw-btn {
+  flex: 1;
+  padding: 10px 0;
+  border-radius: 8px;
+  font-family: 'Cinzel', serif;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 2px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: all 0.15s;
+  border: 2px solid;
+}
+.sw-on {
+  background: var(--gold);
+  border-color: var(--gold);
+  color: var(--paper-2);
+  box-shadow: 0 2px 5px rgba(160, 69, 16, 0.25);
+}
+.sw-on:active {
+  transform: scale(0.94);
+  box-shadow: 0 1px 2px rgba(160, 69, 16, 0.2);
+}
+.sw-off {
+  background: transparent;
+  border-color: var(--ink-muted);
+  color: var(--ink);
+}
+.sw-off:active {
+  transform: scale(0.94);
+  background: rgba(60, 40, 20, 0.08);
+}
+
+/* Tryb nocny - ciemny pergamin "przy świecy" */
+html.tryb-noc #szufladaWykryto {
+  background: linear-gradient(180deg, #2d1f15, #1f1510) !important;
+  border-color: #d4a574 !important;
+  color: #f5e8c8 !important;
+}
+html.tryb-noc .sw-tytul {
+  color: #d4a574 !important;
+}
+html.tryb-noc .sw-podtytul {
+  color: rgba(245, 232, 200, 0.7) !important;
+}
+html.tryb-noc .sw-on {
+  background: #d4a574 !important;
+  border-color: #d4a574 !important;
+  color: #1a1410 !important;
+}
+html.tryb-noc .sw-off {
+  background: transparent !important;
+  border-color: rgba(245, 232, 200, 0.4) !important;
+  color: #f5e8c8 !important;
+}
+
 /* Aktywacja: telefon w landscape */
 @media (max-width: 1024px) and (pointer: coarse) and (orientation: landscape) {
   #obrocTelefon{
@@ -3437,6 +3554,21 @@ footer{
 </style>
 </head>
 <body>
+
+<!-- ============================================================
+     === SZUFLADKA "WYKRYTO AUDIO" (mobile, pierwsze wejście) ===
+     ============================================================
+     Pojawia się TYLKO RAZ na sesję nawigacji - przy pierwszym
+     wjechaniu w jakąkolwiek strefę audio. User wybiera ON/OFF.
+     -->
+<div id="szufladaWykryto" role="dialog" aria-label="Wykryto audio">
+  <div class="sw-tytul">🎧 Wykryto audio</div>
+  <div class="sw-podtytul">Włączyć automatyczne odtwarzanie?</div>
+  <div class="sw-przyciski">
+    <button type="button" class="sw-btn sw-on" onclick="decyzjaSzuflady('on')">ON</button>
+    <button type="button" class="sw-btn sw-off" onclick="decyzjaSzuflady('off')">OFF</button>
+  </div>
+</div>
 
 <!-- ============================================================
      === WYMUSZENIE PIONOWEJ ORIENTACJI (mobile landscape) =====
@@ -4500,6 +4632,55 @@ let autoOdsluchAktywny = false;
 // zresetować sesję i odtworzyć aktualną listę od nowa.
 let autoSesjaOdsluchane = new Set();
 
+// =====================================================================
+// === SZUFLADKA "Wykryto audio" - pierwsze wejście w strefę audio =====
+// =====================================================================
+// Cel UX: gdy user pierwszy raz w sesji nawigacji wjedzie w jakąkolwiek
+// strefę fioletową, z prawej strony wysuwa się mała szufladka:
+//   "🎧 Wykryto audio   [ON]   [OFF]"
+// ON  -> włącza auto-odsłuch (jakby klik 🔁 "Odsłuchaj wszystkie")
+// OFF -> auto-odsłuch zostaje wyłączony, radar działa normalnie z manualnym ▶
+// Pojawia się TYLKO RAZ na sesję nawigacji (Wariant A).
+// Reset przy wyłączeniu nawigacji 🧭 - następne włączenie znowu zapyta.
+let pierwszeWykrycieZapytane = false;
+
+// Pokazuje szufladkę z prawej strony z pytaniem ON/OFF dla audio.
+function pokazSzufladkeWykryto() {
+  const szuflada = document.getElementById('szufladaWykryto');
+  if (!szuflada) return;
+  szuflada.classList.add('visible');
+  // Auto-zamknięcie po 12 sekundach jako "OFF" jeśli user nie zdecyduje
+  // (żeby szuflada nie wisiała wiecznie - to mała pułapka UX)
+  clearTimeout(window._szufladaTimeout);
+  window._szufladaTimeout = setTimeout(() => {
+    if (szuflada.classList.contains('visible')) {
+      decyzjaSzuflady('off');
+    }
+  }, 12000);
+}
+
+function zamknijSzufladkeWykryto() {
+  const szuflada = document.getElementById('szufladaWykryto');
+  if (!szuflada) return;
+  szuflada.classList.remove('visible');
+  clearTimeout(window._szufladaTimeout);
+}
+
+// Reakcja na klik ON/OFF w szufladce.
+//   'on'  -> włącz auto-odsłuch (start playlisty z aktualnej listy w zasięgu)
+//   'off' -> tylko zamknij, audio NIE leci automatycznie, radar nadal aktywny
+function decyzjaSzuflady(wybor) {
+  pierwszeWykrycieZapytane = true;
+  zamknijSzufladkeWykryto();
+  if (wybor === 'on') {
+    // Symulujemy klik 🔁 - włącza auto-odsłuch i startuje pierwszą z listy
+    if (!autoOdsluchAktywny) {
+      toggleAutoOdsluch();
+    }
+  }
+  // 'off' nic nie robi poza zamknięciem - radar dalej działa, manualne ▶ aktywne
+}
+
 // NOWA LOGIKA: śledzimy w jakiej strefie jest turysta TERAZ
 // - wStrefieKropki: numer kropki w której turysta jest aktualnie (lub null)
 // - kropkaJestOdtwarzana: zbiór numerów które aktualnie grają lub zagrały TYM RAZEM
@@ -4601,11 +4782,17 @@ function sprawdzKropkiAudio() {
     }
   }
 
-  // 2. Wykryj NOWE wejścia - wibracja jednorazowa
+  // 2. Wykryj NOWE wejścia - wibracja jednorazowa + szufladka "Wykryto audio"
+  //    (tylko PIERWSZY raz w sesji nawigacji)
   for (const numer of aktualneKropki) {
     if (!wibrowaneStrefy.has(numer)) {
       if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
       wibrowaneStrefy.add(numer);
+      // Pierwsze wejście w jakąkolwiek strefę w tej sesji nawigacji?
+      // Pokaż szufladkę z propozycją włączenia auto-odsłuchu.
+      if (!pierwszeWykrycieZapytane && !autoOdsluchAktywny) {
+        pokazSzufladkeWykryto();
+      }
     }
   }
 
@@ -7126,6 +7313,10 @@ function toggleTrybTurysty() {
     audioWyciszony = false;
     // Wyłącz auto-odsłuch (gdyby był aktywny)
     autoOdsluchAktywny = false;
+    // Reset flagi szufladki "wykryto audio" - następne włączenie nawigacji
+    // znowu zapyta użytkownika gdy wjedzie w pierwszą strefę.
+    pierwszeWykrycieZapytane = false;
+    zamknijSzufladkeWykryto();
     if (aktualneAudio) {
       aktualneAudio.pause();
       aktualneAudio = null;
