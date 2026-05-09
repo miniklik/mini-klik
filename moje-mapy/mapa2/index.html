@@ -3394,6 +3394,19 @@ html.tryb-noc .sw-off {
     background:#1a1410 !important;
   }
 
+  /* ROZJAŚNIENIE CIEMNYCH KAFELKÓW MAPY W TRYBIE NOCNYM
+     CartoDB Dark Matter sama w sobie jest BARDZO ciemna - jadąc nocą
+     ulice prawie niewidoczne. Stosujemy CSS filter który zachowuje
+     "ciemny styl" ale rozjaśnia szare odcienie żeby drogi i miasta
+     były wyraźnie widoczne. Działa TYLKO gdy aktywny jest tryb 'mapa'
+     (klasa .mapa-tryb-droga na <html>), NIE dla satelity.
+     Filter aplikujemy tylko na .leaflet-tile-pane - markery, popupy
+     i UI Leafleta zostają nietknięte. */
+  html.tryb-noc.mapa-tryb-droga .leaflet-tile-pane {
+    filter: brightness(1.55) contrast(0.92) saturate(1.15);
+    -webkit-filter: brightness(1.55) contrast(0.92) saturate(1.15);
+  }
+
   /* Panele kontrolne (FAB-y) - ciemne tło, jaśniejszy tekst */
   html.tryb-noc .mobile-fab,
   html.tryb-noc .gps-btn,
@@ -4149,7 +4162,7 @@ function zastosujKategorie() {
 }
 
 const miejsca = [
-  { klucz: 'cos-tam', nazwa: 'coś tam', pozycja: [51.1879, 23.1858], ikona: '🏛️', kategoria: 'zabytek' }
+
 ];
 
 const mapa = L.map('mapa', {
@@ -4600,7 +4613,6 @@ zastosujKategorie();
 // Aby dodać nową kropkę: skopiuj jeden obiekt, zmień numer, pozycję i promień.
 // Plik MP3 wgraj do folderu audio/ jako {numer}.mp3 (np. audio/1.mp3)
 const kropkiAudio = [
-  { numer: 1, pozycja: [51.19839, 23.18479], promien: 2570, opis: '' }
 ];
 
 // Stan przewodnika audio
@@ -6956,6 +6968,8 @@ function zmienWidok(typ, btn) {
   if (typ === 'satelita') {
     // Satelita wygląda OK w noc i dzień - zawsze ta sama warstwa
     warstwaSatelita.addTo(mapa);
+    // Usuń klasę 'mapa-tryb-droga' - filter rozjaśniający NIE dotyka satelity
+    document.documentElement.classList.remove('mapa-tryb-droga');
   } else {
     // Mapa drogowa - wybierz wariant zależny od trybu nocnego
     if (czyTerazNoc()) {
@@ -6963,6 +6977,8 @@ function zmienWidok(typ, btn) {
     } else {
       warstwaKlasyczna.addTo(mapa);
     }
+    // Dodaj klasę - tylko dla widoku 'mapa drogowa' filter w nocy rozjaśnia
+    document.documentElement.classList.add('mapa-tryb-droga');
   }
 
   try { localStorage.setItem('mapa-widok', typ); } catch(e){}
@@ -7570,6 +7586,9 @@ function otworzZnaleziony() {
     if (savedView === 'satelita') {
       const btnSat = document.getElementById('btn-satelita');
       if (btnSat) zmienWidok('satelita', btnSat);
+    } else {
+      // Domyślnie - mapa drogowa. Dodajemy klasę dla filtra w trybie nocnym.
+      document.documentElement.classList.add('mapa-tryb-droga');
     }
   } catch(e) {}
 })();
