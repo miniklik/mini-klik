@@ -1973,10 +1973,21 @@ footer{
 }
 #radarCount{font-size:14px;color:var(--ink)}
 .radar-arrow{
-  color:var(--ink-muted);
-  font-size:11px;
-  transition:transform 0.3s;
+  color:var(--gold);
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  width:24px;
+  height:24px;
+  border:1.5px solid var(--gold);
+  border-radius:6px;
+  background:rgba(255,255,255,0.04);
+  transition:transform 0.3s, background 0.2s, color 0.2s;
   flex-shrink:0;
+}
+.radar-mini:hover .radar-arrow{
+  background:var(--gold);
+  color:var(--paper-2);
 }
 .radar-panel.expanded .radar-arrow{transform:rotate(180deg)}
 
@@ -3933,7 +3944,7 @@ html.tryb-noc .sw-off {
         <div class="radar-mini" id="radarMini" onclick="toggleRadarPanel()">
           <span class="radar-icon">📡</span>
           <span class="radar-mini-text">W zasięgu: <span id="radarCount">0</span></span>
-          <span class="radar-arrow" id="radarArrow">▼</span>
+          <span class="radar-arrow" id="radarArrow" aria-hidden="true"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></span>
         </div>
         <div class="radar-lista" id="radarLista"></div>
       </div>
@@ -4311,6 +4322,36 @@ html.tryb-noc .sw-off {
 
 <script>
 // =====================================================================
+// === JEDNORAZOWY RESET DANYCH ========================================
+// =====================================================================
+// Ten blok wykonuje się TYLKO RAZ - przy pierwszym otwarciu tego pliku.
+// Czyści wszystkie zapisane dane mapy (miejsca, kropki, hasło, rysunki,
+// nazwę strony, opis, kategorie) żeby edytor był idealnie czysty.
+// Po wyczyszczeniu ustawia flagę i nigdy więcej nie kasuje danych usera.
+// =====================================================================
+(function() {
+  const FLAGA_RESETU = '_edytor_zresetowany_v1';
+  try {
+    if (!localStorage.getItem(FLAGA_RESETU)) {
+      const klucze_do_usuniecia = [
+        'admin-miejsca',
+        'admin-kropki-zaplanowane',
+        'admin-nazwa-strony',
+        'admin-opis-strony-tytul',
+        'admin-opis-strony-tresc',
+        'kategorie_robocze_v1',
+        'admin_haslo_hash_v1',
+        'rysunki_mapy_v1'
+      ];
+      for (const k of klucze_do_usuniecia) {
+        try { localStorage.removeItem(k); } catch(e) {}
+      }
+      localStorage.setItem(FLAGA_RESETU, '1');
+    }
+  } catch(e) {}
+})();
+
+// =====================================================================
 // === KATEGORIE - edytowalne nazwy i ikony ============================
 // =====================================================================
 // Klucze ('zabytek', 'sakral', 'przyroda', 'urzad') są STAŁE - nie da się
@@ -4398,13 +4439,8 @@ function zastosujKategorie() {
 }
 
 const miejsca = [
-  { klucz: 'ok', nazwa: 'ok', pozycja: [51.1925, 23.2284], ikona: '👰', kategoria: 'zabytek', tytul: 'to jest strefa niebezpieczna', opis: 'tu latają UFO' },
-  { klucz: 'bagno', nazwa: 'bagno', pozycja: [51.2107, 23.2254], ikona: '🏛️', kategoria: 'zabytek' },
-  { klucz: '1', nazwa: '1', pozycja: [51.2542, 23.3251], ikona: '🏛️', kategoria: 'zabytek' },
-  { klucz: '2', nazwa: '2', pozycja: [51.1460, 22.8963], ikona: '🏛️', kategoria: 'zabytek' },
-  { klucz: '3', nazwa: '3', pozycja: [51.0676, 23.1202], ikona: '🏛️', kategoria: 'zabytek' },
-  { klucz: '5', nazwa: '5', pozycja: [51.0529, 22.8840], ikona: '🏛️', kategoria: 'zabytek' },
-  { klucz: '6', nazwa: '6', pozycja: [51.1201, 23.0272], ikona: '🏛️', kategoria: 'zabytek' }
+  { klucz: 'bagno', nazwa: 'bagno', pozycja: [51.1892, 23.1573], ikona: '🏛️', kategoria: 'zabytek' },
+  { klucz: 'ok', nazwa: 'ok', pozycja: [51.1797, 23.2013], ikona: '🏛️', kategoria: 'przyroda', tytul: 'ok', opis: 'ok', tytulSrodek: true, tytulDuzy: true }
 ];
 
 const mapa = L.map('mapa', {
@@ -4455,7 +4491,7 @@ function aktualizujPrzyciskCenter() {
 // W edytorze: pusty string => każdy z ?admin=1 wchodzi od razu (edytor zawsze otwarty).
 // W gotowym pliku: hash SHA-256 hasła => wymaga wpisania go w popupie.
 // === HASLO_ADMINA:START ===
-const HASLO_ADMINA_HASH = '03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4';
+const HASLO_ADMINA_HASH = '0ffe1abd1a08215353c233d6e009613e95eec4253832a761af28ff37ac5a150c';
 // === HASLO_ADMINA:END ===
 
 // Funkcja licząca SHA-256 z tekstu (zwraca hex). Używana do porównywania haseł.
@@ -4769,6 +4805,31 @@ async function pobierzOpisMiejsca(klucz) {
   }
 }
 
+// Próbuje wczytać zdjęcie w kolejnych formatach: jpg -> png -> jpeg -> webp -> placeholder.
+// Wywoływana z onerror tagu <img>. Atrybut data-prob trzyma aktualnie sprawdzane rozszerzenie.
+function probujKolejneRozszerzenieZdjecia(img) {
+  const klucz = img.dataset.klucz;
+  const obecne = img.dataset.prob;
+  const kolejnosc = ['jpg', 'png', 'jpeg', 'webp'];
+  const idx = kolejnosc.indexOf(obecne);
+
+  if (idx >= 0 && idx < kolejnosc.length - 1) {
+    const nastepne = kolejnosc[idx + 1];
+    img.dataset.prob = nastepne;
+    img.src = 'img/' + klucz + '.' + nastepne;
+    return;
+  }
+
+  // Wyczerpaliśmy wszystkie rozszerzenia - placeholder
+  if (img.parentElement) {
+    img.parentElement.innerHTML =
+      '<div class="detail-image-placeholder">' +
+        '<span class="ikona-big">📷</span>' +
+        '<em>Zdjęcie nie zostało jeszcze dodane.<br>Wgraj plik <code>img/' + klucz + '.jpg</code> lub <code>img/' + klucz + '.png</code> do repo.</em>' +
+      '</div>';
+  }
+}
+
 async function otworzPlatek(klucz, akcja) {
   const miejsce = miejsca.find(m => m.klucz === klucz);
   if (!miejsce) return;
@@ -4845,10 +4906,11 @@ async function otworzPlatek(klucz, akcja) {
     content.innerHTML = html;
     return; // panel już otwarty wyżej
   } else if (akcja === 'zdjecie') {
-    const sciezka = `img/${miejsce.klucz}.jpg`;
+    const klucz = miejsce.klucz;
+    const safeNazwa = (miejsce.nazwa || '').replace(/"/g,'&quot;');
     content.innerHTML = `<div class="detail-image-wrapper">
-      <img src="${sciezka}" alt="${miejsce.nazwa}"
-        onerror="this.parentElement.innerHTML='<div class=\\'detail-image-placeholder\\'><span class=\\'ikona-big\\'>📷</span><em>Zdjęcie nie zostało jeszcze dodane.<br>Wgraj plik <code>img/${miejsce.klucz}.jpg</code> do repo.</em></div>'">
+      <img src="img/${klucz}.jpg" alt="${safeNazwa}" data-klucz="${klucz}" data-prob="jpg"
+        onerror="probujKolejneRozszerzenieZdjecia(this)">
     </div>`;
   }
 
@@ -4929,9 +4991,8 @@ zastosujKategorie();
 // Aby dodać nową kropkę: skopiuj jeden obiekt, zmień numer, pozycję i promień.
 // Plik MP3 wgraj do folderu audio/ jako {numer}.mp3 (np. audio/1.mp3)
 const kropkiAudio = [
-  { numer: 1, pozycja: [51.19336, 23.16488], promien: 4130, opis: '' },
-  { numer: 2, pozycja: [51.13865, 23.01347], promien: 5000, opis: '' },
-  { numer: 3, pozycja: [51.17285, 23.24130], promien: 5000, opis: '' }
+  { numer: 1, pozycja: [51.19512, 23.16426], promien: 5000, opis: '' },
+  { numer: 3, pozycja: [51.19576, 23.17387], promien: 5000, opis: '' }
 ];
 
 // Stan przewodnika audio
@@ -8784,9 +8845,7 @@ aktualizujPanelRadaru();
 
 // === RYSUNKI:START === (nie usuwaj tego komentarza - znacznik dla auto-eksportu)
 const rysunkiZakodowane = [
-  { typ: 'kolo', kolor: '#a04510', srodek: [51.263513, 22.561249], promien: 9967 },
-  { typ: 'kolo', kolor: '#a04510', srodek: [51.308993, 22.883972], promien: 3530 },
-  { typ: 'linia', kolor: '#a04510', punkty: [[51.231393, 22.875732], [51.233970, 23.100952], [51.061832, 23.213562], [51.014381, 23.080353], [51.185836, 22.921051], [51.184116, 22.801575], [51.095449, 22.801575], [51.086831, 22.960876], [51.008338, 22.955383], [51.004021, 22.665619], [51.205612, 22.723297], [51.230534, 22.867493]] }
+
 ];
 // === RYSUNKI:END ===
 
