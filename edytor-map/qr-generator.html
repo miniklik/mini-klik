@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>🔲 Generator kodów QR</title>
+
+<!-- Biblioteka qrcode.js (lekka, sprawdzona, offline po pobraniu) -->
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+
+<style>
+  /* === MOTYW: papier + złoto, spójny z edytorem map === */
+  :root{
+    --paper:#f5edd6;
+    --paper-2:#fdf6e3;
+    --paper-3:#f0e4c4;
+    --ink:#3a2614;
+    --ink-soft:#5a3e25;
+    --ink-muted:#8a7152;
+    --gold:#a04510;
+    --gold-light:#c25a18;
+    --gold-pale:#e8d4a8;
+    --crimson:#7a1a26;
+    --shadow-deep:0 10px 30px rgba(60,40,20,0.3);
+  }
+
+  *{box-sizing:border-box}
+  body{
+    margin:0;padding:20px;
+    min-height:100vh;
+    font-family:'EB Garamond','Times New Roman',serif;
+    background:linear-gradient(135deg,#e8dab5 0%,#d4c397 50%,#e8dab5 100%);
+    display:flex;align-items:center;justify-content:center;
+    color:var(--ink);
+  }
+
+  .karta{
+    width:100%;max-width:520px;
+    background:linear-gradient(180deg,var(--paper-2),var(--paper-3));
+    border:2px solid var(--gold);
+    border-radius:8px;
+    padding:36px 32px;
+    box-shadow:var(--shadow-deep);
+    position:relative;
+  }
+  /* Złote rogi-akcenty */
+  .karta::before,.karta::after{
+    content:'';position:absolute;width:30px;height:30px;
+    border:2px solid var(--gold);
+  }
+  .karta::before{top:10px;left:10px;border-right:none;border-bottom:none}
+  .karta::after{bottom:10px;right:10px;border-left:none;border-top:none}
+
+  h1{
+    margin:0 0 6px;
+    font-family:'Cinzel','Georgia',serif;
+    color:var(--gold);
+    font-size:24px;
+    letter-spacing:2px;
+    text-align:center;
+  }
+  .podtytul{
+    text-align:center;
+    color:var(--ink-soft);
+    font-style:italic;
+    margin-bottom:24px;
+    font-size:14px;
+  }
+
+  label{
+    display:block;
+    font-size:12px;
+    color:var(--ink-soft);
+    margin:14px 0 5px;
+    font-weight:600;
+    letter-spacing:0.5px;
+    text-transform:uppercase;
+  }
+
+  input[type="text"]{
+    width:100%;
+    padding:12px 14px;
+    font-size:15px;
+    font-family:'EB Garamond',serif;
+    border:1.5px solid var(--ink-muted);
+    border-radius:5px;
+    background:#fffefa;
+    color:var(--ink);
+    outline:none;
+    transition:border-color 0.2s,box-shadow 0.2s;
+  }
+  input[type="text"]:focus{
+    border-color:var(--gold);
+    box-shadow:0 0 0 3px var(--gold-pale);
+  }
+
+  .row{
+    display:flex;gap:10px;flex-wrap:wrap;
+    margin-top:18px;
+  }
+  button{
+    flex:1;min-width:140px;
+    padding:13px 22px;
+    font-size:14px;
+    font-family:'Cinzel',serif;
+    font-weight:600;
+    letter-spacing:1.5px;
+    text-transform:uppercase;
+    border:none;border-radius:5px;
+    cursor:pointer;
+    transition:all 0.2s ease;
+  }
+  .btn-generuj{
+    background:var(--gold);color:#fff;
+    box-shadow:0 2px 6px rgba(160,69,16,0.3);
+  }
+  .btn-generuj:hover{
+    background:var(--gold-light);
+    transform:translateY(-1px);
+    box-shadow:0 4px 10px rgba(160,69,16,0.4);
+  }
+  .btn-generuj:active{transform:translateY(0)}
+  .btn-pobierz{
+    background:#27ae60;color:#fff;
+    box-shadow:0 2px 6px rgba(39,174,96,0.3);
+  }
+  .btn-pobierz:hover{
+    background:#229954;
+    transform:translateY(-1px);
+  }
+  .btn-pobierz:disabled,.btn-pobierz[disabled]{
+    background:#bbb;cursor:not-allowed;
+    box-shadow:none;transform:none;
+  }
+
+  /* Wybór rozmiaru */
+  .rozmiar-wybor{
+    display:flex;gap:8px;margin-top:6px;
+  }
+  .rozmiar-wybor label{
+    flex:1;
+    margin:0;
+    padding:8px;
+    text-align:center;
+    background:var(--paper);
+    border:1px solid var(--ink-muted);
+    border-radius:4px;
+    cursor:pointer;
+    font-size:11px;
+    text-transform:none;
+    letter-spacing:0;
+    color:var(--ink);
+    transition:all 0.2s;
+  }
+  .rozmiar-wybor label:hover{background:var(--paper-2)}
+  .rozmiar-wybor input[type="radio"]{display:none}
+  .rozmiar-wybor input[type="radio"]:checked + label,
+  .rozmiar-wybor label.aktywne{
+    background:var(--gold);
+    color:#fff;
+    border-color:var(--gold);
+    font-weight:600;
+  }
+
+  /* Sekcja wyświetlania QR */
+  .qr-box{
+    margin-top:24px;
+    padding:24px;
+    background:#fff;
+    border:2px dashed var(--gold-pale);
+    border-radius:6px;
+    text-align:center;
+    min-height:180px;
+    display:flex;align-items:center;justify-content:center;
+    flex-direction:column;
+  }
+  .qr-box.pusty{
+    color:var(--ink-muted);
+    font-style:italic;
+    font-size:14px;
+  }
+  .qr-box #qrcode{
+    display:inline-block;
+  }
+  .qr-box #qrcode img,.qr-box #qrcode canvas{
+    display:block;
+    margin:0 auto;
+  }
+  .qr-info{
+    margin-top:10px;
+    font-size:11px;
+    color:var(--ink-muted);
+    word-break:break-all;
+    max-width:100%;
+  }
+
+  .err{
+    margin-top:8px;
+    color:var(--crimson);
+    font-size:13px;
+    font-weight:600;
+    min-height:18px;
+    text-align:center;
+  }
+
+  .stopka{
+    margin-top:20px;
+    text-align:center;
+    font-size:11px;
+    color:var(--ink-muted);
+    font-style:italic;
+    line-height:1.5;
+  }
+  .stopka code{
+    background:var(--paper);
+    padding:1px 5px;
+    border-radius:3px;
+    font-size:10px;
+  }
+
+  @media (max-width:480px){
+    .karta{padding:24px 18px}
+    h1{font-size:20px}
+    .row{flex-direction:column}
+    button{min-width:0}
+  }
+</style>
+</head>
+<body>
+
+<div class="karta">
+  <h1>🔲 Generator QR</h1>
+  <p class="podtytul">Wklej adres strony — pobierz kod QR jako obrazek PNG</p>
+
+  <label for="adres">Adres strony (URL):</label>
+  <input type="text" id="adres" placeholder="https://mini-klik.pl/moja-mapa/" autocomplete="off">
+
+  <label>Rozmiar kodu:</label>
+  <div class="rozmiar-wybor">
+    <input type="radio" name="rozmiar" id="r-small" value="256">
+    <label for="r-small">Mały<br><span style="font-size:10px;opacity:0.7">256 px</span></label>
+
+    <input type="radio" name="rozmiar" id="r-medium" value="512" checked>
+    <label for="r-medium">Średni<br><span style="font-size:10px;opacity:0.7">512 px</span></label>
+
+    <input type="radio" name="rozmiar" id="r-large" value="1024">
+    <label for="r-large">Duży<br><span style="font-size:10px;opacity:0.7">1024 px</span></label>
+  </div>
+
+  <div class="row">
+    <button class="btn-generuj" onclick="generuj()">🔲 Generuj kod</button>
+    <button class="btn-pobierz" id="btnPobierz" onclick="pobierz()" disabled>💾 Pobierz PNG</button>
+  </div>
+
+  <div class="err" id="blad"></div>
+
+  <div class="qr-box pusty" id="qrBox">
+    Tu pojawi się kod QR po wygenerowaniu
+  </div>
+  <div class="qr-info" id="qrInfo"></div>
+
+  <div class="stopka">
+    Wskazówka: dla map gminnych używaj adresu <strong>bez</strong> <code>?admin=1</code><br>
+    QR ma prowadzić mieszkańca do publicznej strony, nie do trybu administratora.
+  </div>
+</div>
+
+<script>
+let aktualnyURL = '';
+let aktualnyRozmiar = 512;
+
+function generuj() {
+  const input = document.getElementById('adres');
+  const blad = document.getElementById('blad');
+  const qrBox = document.getElementById('qrBox');
+  const qrInfo = document.getElementById('qrInfo');
+  const btnPobierz = document.getElementById('btnPobierz');
+
+  let url = input.value.trim();
+  blad.textContent = '';
+
+  if (!url) {
+    blad.textContent = '⚠️ Wpisz adres strony';
+    return;
+  }
+
+  // Jeśli ktoś wpisał bez https://, dodajemy automatycznie
+  if (!/^https?:\/\//i.test(url) && !/^[a-z]+:\/\//i.test(url)) {
+    url = 'https://' + url;
+    input.value = url;
+  }
+
+  // Pobierz wybrany rozmiar
+  const wybrany = document.querySelector('input[name="rozmiar"]:checked');
+  aktualnyRozmiar = parseInt(wybrany.value, 10);
+
+  // Wyczyść poprzedni QR
+  qrBox.innerHTML = '<div id="qrcode"></div>';
+  qrBox.classList.remove('pusty');
+
+  try {
+    new QRCode(document.getElementById("qrcode"), {
+      text: url,
+      width: aktualnyRozmiar,
+      height: aktualnyRozmiar,
+      colorDark: "#000000",
+      colorLight: "#ffffff",
+      correctLevel: QRCode.CorrectLevel.H  // wysoki poziom korekcji błędów
+    });
+
+    aktualnyURL = url;
+    btnPobierz.disabled = false;
+    qrInfo.textContent = '🔗 ' + url;
+
+    // Skalowanie wygenerowanego obrazka do max 320px na ekranie
+    // (sam plik PNG zachowuje pełny rozmiar do pobrania)
+    setTimeout(() => {
+      const img = qrBox.querySelector('img, canvas');
+      if (img) {
+        img.style.maxWidth = '320px';
+        img.style.maxHeight = '320px';
+        img.style.width = 'auto';
+        img.style.height = 'auto';
+      }
+    }, 50);
+
+  } catch (e) {
+    blad.textContent = '❌ Błąd generowania: ' + e.message;
+    qrBox.classList.add('pusty');
+    qrBox.innerHTML = 'Tu pojawi się kod QR po wygenerowaniu';
+    btnPobierz.disabled = true;
+  }
+}
+
+function pobierz() {
+  const qrBox = document.getElementById('qrcode');
+  if (!qrBox) {
+    document.getElementById('blad').textContent = '⚠️ Najpierw wygeneruj kod';
+    return;
+  }
+
+  // qrcodejs może użyć canvas lub img - sprawdzamy oba
+  let dataUrl;
+  const canvas = qrBox.querySelector('canvas');
+  const img = qrBox.querySelector('img');
+
+  if (canvas) {
+    dataUrl = canvas.toDataURL('image/png');
+  } else if (img) {
+    dataUrl = img.src;
+  } else {
+    document.getElementById('blad').textContent = '⚠️ Brak kodu do pobrania';
+    return;
+  }
+
+  // Bezpieczna nazwa pliku z URL
+  let nazwa = aktualnyURL
+    .replace(/^https?:\/\//i, '')
+    .replace(/[^a-z0-9._-]/gi, '_')
+    .replace(/_+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .slice(0, 50);
+
+  if (!nazwa) nazwa = 'qr-code';
+
+  const a = document.createElement('a');
+  a.href = dataUrl;
+  a.download = `qr-${nazwa}.png`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+}
+
+// Enter w polu adres = generuj
+document.getElementById('adres').addEventListener('keydown', e => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    generuj();
+  }
+});
+
+// Auto-fokus na pole adres przy starcie
+window.addEventListener('load', () => {
+  document.getElementById('adres').focus();
+});
+</script>
+
+</body>
+</html>
