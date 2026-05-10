@@ -949,6 +949,24 @@ footer{
 .detail-content .opis-tekst p{margin:0 0 14px}
 .detail-content .opis-tekst p:last-child{margin-bottom:0}
 
+/* Klikalne linki w opisach miejsc (np. do YouTube) */
+.detail-content .opis-link{
+  display:inline-block;
+  color:var(--crimson);
+  font-weight:600;
+  text-decoration:none;
+  border-bottom:1px solid var(--gold-pale);
+  padding:2px 4px;
+  border-radius:3px;
+  transition:all 0.2s;
+  word-break:break-all;
+}
+.detail-content .opis-link:hover{
+  background:var(--gold-pale);
+  color:var(--gold);
+  border-bottom-color:var(--gold);
+}
+
 .detail-content .opis-md{
   font-family:'EB Garamond',serif;color:var(--ink);
   line-height:1.7;font-size:16px;
@@ -4771,7 +4789,7 @@ async function otworzPlatek(klucz, akcja) {
       if (maOpis) {
         const akapity = miejsce.opis.split(/\n\s*\n/).map(a => a.trim()).filter(a => a);
         const akapityHTML = akapity.map(a =>
-          `<p>${escapeHTML(a).replace(/\n/g, '<br>')}</p>`
+          `<p>${linkifyHTML(a).replace(/\n/g, '<br>')}</p>`
         ).join('');
         html += `<div class="opis-tekst">${akapityHTML}</div>`;
       }
@@ -6021,6 +6039,31 @@ function escapeHTML(s) {
   return (s || '').replace(/[&<>"']/g, c => ({
     '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
   }[c]));
+}
+
+// Bezpieczna zamiana tekstu na HTML z klikalnymi linkami.
+// Najpierw escapuje (bezpieczeństwo), potem zamienia URL-e na <a target="_blank">.
+// Wspiera: http://, https://, www. (które dostają domyślnie https://).
+// Linki YouTube dostają specjalną ikonkę 🎬 dla wygody.
+function linkifyHTML(s) {
+  // 1. Bezpieczne escapowanie HTML
+  const escaped = escapeHTML(s || '');
+
+  // 2. Wykrywanie URL-i.
+  // Łapiemy: http(s)://... oraz www.... (bez schematu).
+  // Granica linku: spacja, koniec linii, niektóre znaki interpunkcyjne na końcu.
+  const regex = /(\b(?:https?:\/\/|www\.)[^\s<>"']+[^\s<>"'.,;:!?)\]}])/gi;
+
+  return escaped.replace(regex, (match) => {
+    // Dodaj https:// jeśli zaczyna się od www.
+    const href = match.startsWith('www.') ? 'https://' + match : match;
+
+    // Sprawdź czy to YouTube - dla nich dodajemy ikonkę 🎬
+    const jestYT = /(?:youtube\.com\/|youtu\.be\/)/i.test(match);
+    const ikonka = jestYT ? '🎬 ' : '🔗 ';
+
+    return `<a href="${href}" target="_blank" rel="noopener noreferrer" class="opis-link">${ikonka}${match}</a>`;
+  });
 }
 
 function zapiszOpisRoboczo() {
