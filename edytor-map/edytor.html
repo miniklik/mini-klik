@@ -1204,12 +1204,37 @@ footer{
   font-size:13px;font-style:italic;opacity:0.85;
 }
 .admin-choose .cancel-link{
-  display:inline-block;margin-top:14px;
-  color:var(--ink-muted);font-size:12px;
-  text-decoration:underline;cursor:pointer;
-  font-style:italic;
+  display:block;
+  margin:18px auto 0;
+  padding:11px 28px;
+  width:fit-content;min-width:200px;
+  text-align:center;
+  background:linear-gradient(180deg,var(--paper-2),var(--paper-3));
+  border:1.5px solid var(--ink-muted);
+  border-radius:5px;
+  color:var(--ink);
+  font-family:'Cinzel',serif;
+  font-size:14px;
+  font-weight:600;
+  letter-spacing:1.5px;
+  text-transform:uppercase;
+  text-decoration:none;
+  font-style:normal;
+  cursor:pointer;
+  transition:all 0.2s ease;
+  box-shadow:0 2px 4px rgba(0,0,0,0.08);
 }
-.admin-choose .cancel-link:hover{color:var(--crimson)}
+.admin-choose .cancel-link:hover{
+  color:var(--crimson);
+  border-color:var(--crimson);
+  background:var(--paper);
+  transform:translateY(-1px);
+  box-shadow:0 3px 8px rgba(120,30,40,0.15);
+}
+.admin-choose .cancel-link:active{
+  transform:translateY(0);
+  box-shadow:0 1px 2px rgba(0,0,0,0.1);
+}
 
 /* === POMOCNIK DODAWANIA KROPEK (admin only) === */
 .admin-helper{
@@ -3825,7 +3850,6 @@ html.tryb-noc .sw-off {
 
   <div class="opcje">
     <button onclick="otworzZnaleziony()">↗ Otwórz link</button>
-    <button class="secondary" onclick="kontynuujSkanowanie()">📷 Skanuj kolejny</button>
   </div>
   <a class="small-link" onclick="zamknijWynik()">Zamknij — wróć do mapy</a>
 </div>
@@ -3920,9 +3944,7 @@ html.tryb-noc .sw-off {
         <div class="radar-mini" id="radarMini" onclick="toggleRadarPanel()">
           <span class="radar-icon">📡</span>
           <span class="radar-mini-text">W zasięgu: <span id="radarCount">0</span></span>
-          <span class="radar-arrow" id="radarArrow" aria-hidden="true">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-          </span>
+          <span class="radar-arrow" id="radarArrow" aria-hidden="true"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></span>
         </div>
         <div class="radar-lista" id="radarLista"></div>
       </div>
@@ -4178,7 +4200,7 @@ html.tryb-noc .sw-off {
   <!-- EDYTOR MIEJSCA (tryb admin) -->
   <div class="admin-helper" id="miejsceHelper">
     <h3 id="miejsceHelperTytul">Nowe miejsce</h3>
-    <p class="admin-subtitle">Wpisz nazwę, wybierz kategorię i ikonę. Dodaj tytuł i opis, a po pobraniu pliku — wgraj zdjęcie do folderu <code>img/</code> (format <code>.jpg</code> lub <code>.png</code>).</p>
+    <p class="admin-subtitle">Wpisz nazwę, wybierz kategorię i ikonę. Dodaj tytuł i opis, a po pobraniu pliku — wgraj zdjęcie do folderu <code>img/</code>.</p>
 
     <div class="form-row">
       <label>Nazwa:</label>
@@ -4300,6 +4322,36 @@ html.tryb-noc .sw-off {
 
 <script>
 // =====================================================================
+// === JEDNORAZOWY RESET DANYCH ========================================
+// =====================================================================
+// Ten blok wykonuje się TYLKO RAZ - przy pierwszym otwarciu tego pliku.
+// Czyści wszystkie zapisane dane mapy (miejsca, kropki, hasło, rysunki,
+// nazwę strony, opis, kategorie) żeby edytor był idealnie czysty.
+// Po wyczyszczeniu ustawia flagę i nigdy więcej nie kasuje danych usera.
+// =====================================================================
+(function() {
+  const FLAGA_RESETU = '_edytor_zresetowany_v1';
+  try {
+    if (!localStorage.getItem(FLAGA_RESETU)) {
+      const klucze_do_usuniecia = [
+        'admin-miejsca',
+        'admin-kropki-zaplanowane',
+        'admin-nazwa-strony',
+        'admin-opis-strony-tytul',
+        'admin-opis-strony-tresc',
+        'kategorie_robocze_v1',
+        'admin_haslo_hash_v1',
+        'rysunki_mapy_v1'
+      ];
+      for (const k of klucze_do_usuniecia) {
+        try { localStorage.removeItem(k); } catch(e) {}
+      }
+      localStorage.setItem(FLAGA_RESETU, '1');
+    }
+  } catch(e) {}
+})();
+
+// =====================================================================
 // === KATEGORIE - edytowalne nazwy i ikony ============================
 // =====================================================================
 // Klucze ('zabytek', 'sakral', 'przyroda', 'urzad') są STAŁE - nie da się
@@ -4311,7 +4363,7 @@ html.tryb-noc .sw-off {
 
 // === KATEGORIE:START === (nie usuwaj tego komentarza - znacznik dla auto-eksportu)
 const kategorieDomyslne = {
-  zabytek: { ikona: '🏰', nazwa: 'Zabytki' },
+  zabytek: { ikona: '👰', nazwa: 'Zabytki' },
   sakral:  { ikona: '⛪', nazwa: 'Sakralne' },
   przyroda:{ ikona: '🌳', nazwa: 'Przyroda' },
   urzad:   { ikona: '🏛️', nazwa: 'Instytucje' }
@@ -4387,7 +4439,13 @@ function zastosujKategorie() {
 }
 
 const miejsca = [
-
+  { klucz: 'ok', nazwa: 'ok', pozycja: [51.1925, 23.2284], ikona: '👰', kategoria: 'zabytek', tytul: 'to jest strefa niebezpieczna', opis: 'tu latają UFO' },
+  { klucz: 'bagno', nazwa: 'bagno', pozycja: [51.2107, 23.2254], ikona: '🏛️', kategoria: 'zabytek' },
+  { klucz: '1', nazwa: '1', pozycja: [51.2542, 23.3251], ikona: '🏛️', kategoria: 'zabytek' },
+  { klucz: '2', nazwa: '2', pozycja: [51.1460, 22.8963], ikona: '🏛️', kategoria: 'zabytek' },
+  { klucz: '3', nazwa: '3', pozycja: [51.0676, 23.1202], ikona: '🏛️', kategoria: 'zabytek' },
+  { klucz: '5', nazwa: '5', pozycja: [51.0529, 22.8840], ikona: '🏛️', kategoria: 'zabytek' },
+  { klucz: '6', nazwa: '6', pozycja: [51.1201, 23.0272], ikona: '🏛️', kategoria: 'zabytek' }
 ];
 
 const mapa = L.map('mapa', {
@@ -4438,7 +4496,7 @@ function aktualizujPrzyciskCenter() {
 // W edytorze: pusty string => każdy z ?admin=1 wchodzi od razu (edytor zawsze otwarty).
 // W gotowym pliku: hash SHA-256 hasła => wymaga wpisania go w popupie.
 // === HASLO_ADMINA:START ===
-const HASLO_ADMINA_HASH = '';
+const HASLO_ADMINA_HASH = '03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4';
 // === HASLO_ADMINA:END ===
 
 // Funkcja licząca SHA-256 z tekstu (zwraca hex). Używana do porównywania haseł.
@@ -4752,30 +4810,28 @@ async function pobierzOpisMiejsca(klucz) {
   }
 }
 
-// Próbuje wczytać zdjęcie miejsca w kolejnych formatach: jpg → png → placeholder.
-// Wywoływana z atrybutu onerror tagu <img>. Po nieudanym .jpg dostaje element img,
-// podmienia src na .png, a gdy i tego brak — wstawia placeholder z informacją.
+// Próbuje wczytać zdjęcie w kolejnych formatach: jpg -> png -> jpeg -> webp -> placeholder.
+// Wywoływana z onerror tagu <img>. Atrybut data-prob trzyma aktualnie sprawdzane rozszerzenie.
 function probujKolejneRozszerzenieZdjecia(img) {
   const klucz = img.dataset.klucz;
   const obecne = img.dataset.prob;
   const kolejnosc = ['jpg', 'png', 'jpeg', 'webp'];
   const idx = kolejnosc.indexOf(obecne);
 
-  if (idx < kolejnosc.length - 1) {
-    // Spróbuj kolejnego rozszerzenia
+  if (idx >= 0 && idx < kolejnosc.length - 1) {
     const nastepne = kolejnosc[idx + 1];
     img.dataset.prob = nastepne;
-    img.src = `img/${klucz}.${nastepne}`;
+    img.src = 'img/' + klucz + '.' + nastepne;
     return;
   }
 
-  // Wyczerpaliśmy wszystkie rozszerzenia - pokazuj placeholder
+  // Wyczerpaliśmy wszystkie rozszerzenia - placeholder
   if (img.parentElement) {
     img.parentElement.innerHTML =
-      `<div class="detail-image-placeholder">
-        <span class="ikona-big">📷</span>
-        <em>Zdjęcie nie zostało jeszcze dodane.<br>Wgraj plik <code>img/${klucz}.jpg</code> lub <code>img/${klucz}.png</code> do repo.</em>
-      </div>`;
+      '<div class="detail-image-placeholder">' +
+        '<span class="ikona-big">📷</span>' +
+        '<em>Zdjęcie nie zostało jeszcze dodane.<br>Wgraj plik <code>img/' + klucz + '.jpg</code> lub <code>img/' + klucz + '.png</code> do repo.</em>' +
+      '</div>';
   }
 }
 
@@ -4856,7 +4912,7 @@ async function otworzPlatek(klucz, akcja) {
     return; // panel już otwarty wyżej
   } else if (akcja === 'zdjecie') {
     const klucz = miejsce.klucz;
-    const safeNazwa = (miejsce.nazwa || '').replace(/'/g,"&#39;").replace(/"/g,'&quot;');
+    const safeNazwa = (miejsce.nazwa || '').replace(/"/g,'&quot;');
     content.innerHTML = `<div class="detail-image-wrapper">
       <img src="img/${klucz}.jpg" alt="${safeNazwa}" data-klucz="${klucz}" data-prob="jpg"
         onerror="probujKolejneRozszerzenieZdjecia(this)">
@@ -4940,6 +4996,9 @@ zastosujKategorie();
 // Aby dodać nową kropkę: skopiuj jeden obiekt, zmień numer, pozycję i promień.
 // Plik MP3 wgraj do folderu audio/ jako {numer}.mp3 (np. audio/1.mp3)
 const kropkiAudio = [
+  { numer: 1, pozycja: [51.19336, 23.16488], promien: 4130, opis: '' },
+  { numer: 2, pozycja: [51.13865, 23.01347], promien: 5000, opis: '' },
+  { numer: 3, pozycja: [51.17285, 23.24130], promien: 5000, opis: '' }
 ];
 
 // Stan przewodnika audio
@@ -8038,21 +8097,6 @@ function zamknijSkaner() {
   document.getElementById('scanModal').classList.remove('visible');
 }
 
-function kontynuujSkanowanie() {
-  zamknijWynik();
-  // Skaner jeszcze otwarty, więc wystarczy go restartować
-  setTimeout(() => {
-    if (qrScanner) {
-      qrScanner.start(
-        { facingMode: "environment" },
-        { fps: 10, qrbox: { width: 250, height: 250 }, aspectRatio: 1.0 },
-        onScanSuccess,
-        onScanError
-      ).catch(err => console.error("Restart failed:", err));
-    }
-  }, 200);
-}
-
 // ============== MODAL WYNIKU ==============
 function pokazWynik(url) {
   const modal = document.getElementById('resultModal');
@@ -8807,7 +8851,9 @@ aktualizujPanelRadaru();
 
 // === RYSUNKI:START === (nie usuwaj tego komentarza - znacznik dla auto-eksportu)
 const rysunkiZakodowane = [
-
+  { typ: 'kolo', kolor: '#a04510', srodek: [51.263513, 22.561249], promien: 9967 },
+  { typ: 'kolo', kolor: '#a04510', srodek: [51.308993, 22.883972], promien: 3530 },
+  { typ: 'linia', kolor: '#a04510', punkty: [[51.231393, 22.875732], [51.233970, 23.100952], [51.061832, 23.213562], [51.014381, 23.080353], [51.185836, 22.921051], [51.184116, 22.801575], [51.095449, 22.801575], [51.086831, 22.960876], [51.008338, 22.955383], [51.004021, 22.665619], [51.205612, 22.723297], [51.230534, 22.867493]] }
 ];
 // === RYSUNKI:END ===
 
