@@ -1735,6 +1735,21 @@ footer{
   display:block !important;
   margin:0;
 }
+
+/* Tryb pełnoekranowy ramki HASŁA admina - analogicznie do kategorii */
+.admin-list.edytuje-haslo > *:not(#hasloEdytor){
+  display:none !important;
+}
+.admin-list.edytuje-haslo{
+  max-height:90vh;
+  max-width:340px;
+  overflow-y:auto;
+  padding:14px;
+}
+.admin-list.edytuje-haslo #hasloEdytor{
+  display:block !important;
+  margin:0;
+}
 .admin-list .admin-list-title{
   font-family:'Cinzel',serif;font-size:10px;
   color:#7c3aed;letter-spacing:1.5px;
@@ -3961,7 +3976,7 @@ html.tryb-noc .sw-off {
 
         <button id="hasloAdminBtn" onclick="otworzEdytorHasla()" style="background:#a04510;font-size:11px">🔐 Hasło admina</button>
 
-        <!-- Rozwijana ramka ustawiania hasła admina (używa stylu .nazwa-edytor) -->
+        <!-- Rozwijana ramka ustawiania hasła admina (tryb pełnoekranowy panelu) -->
         <div class="nazwa-edytor" id="hasloEdytor">
           <div class="haslo-status brak" id="hasloStatus">⚠️ Hasło nie ustawione</div>
 
@@ -3969,33 +3984,33 @@ html.tryb-noc .sw-off {
             <label class="nazwa-edytor-label">Nowe hasło (min. 4 znaki):</label>
             <input type="password" id="hasloInput1" maxlength="100" placeholder="Wpisz hasło">
             <label class="nazwa-edytor-label">Powtórz hasło:</label>
-            <input type="password" id="hasloInput2" maxlength="100" placeholder="Wpisz to samo">
+            <input type="password" id="hasloInput2" maxlength="100" placeholder="Wpisz to samo hasło">
             <div class="haslo-err-mini" id="hasloErr"></div>
             <div class="haslo-akcje">
-              <button class="btn-ust" onclick="ustawHasloAdmina()">✓ Ustaw</button>
+              <button class="btn-ust" onclick="ustawHasloAdmina()">✓ Ustaw hasło</button>
               <button class="btn-anuluj" onclick="zamknijEdytorHasla()">Anuluj</button>
             </div>
           </div>
 
           <div id="hasloSekcjaZmien" style="display:none">
             <label class="nazwa-edytor-label">Stare hasło:</label>
-            <input type="password" id="hasloStare" maxlength="100" placeholder="Aktualne">
+            <input type="password" id="hasloStare" maxlength="100" placeholder="Aktualne hasło">
             <label class="nazwa-edytor-label">Nowe hasło:</label>
             <input type="password" id="hasloNowe1" maxlength="100" placeholder="Nowe hasło">
             <label class="nazwa-edytor-label">Powtórz nowe:</label>
-            <input type="password" id="hasloNowe2" maxlength="100" placeholder="To samo nowe">
+            <input type="password" id="hasloNowe2" maxlength="100" placeholder="To samo nowe hasło">
             <div class="haslo-err-mini" id="hasloErr2"></div>
             <div class="haslo-akcje">
-              <button class="btn-zmien" onclick="zmienHasloAdmina()">✓ Zmień</button>
-              <button class="btn-usun" onclick="usunHasloAdmina()">🗑 Usuń</button>
+              <button class="btn-zmien" onclick="zmienHasloAdmina()">✓ Zmień hasło</button>
+              <button class="btn-usun" onclick="usunHasloAdmina()">🗑 Usuń hasło</button>
               <button class="btn-anuluj" onclick="zamknijEdytorHasla()">Anuluj</button>
             </div>
           </div>
 
           <p class="haslo-info-mini">
-            🔒 SHA-256, zapisany w generowanym pliku.<br>
-            Po pobraniu — każdy z <code>?admin=1</code> musi je podać.<br>
-            <strong>Zapamiętaj — nie da się odzyskać.</strong>
+            🔒 Hasło zostanie zaszyfrowane (SHA-256) i zapisane w generowanym pliku index.html.<br>
+            Po pobraniu pliku każdy kto wpisze <code>?admin=1</code> będzie musiał podać to hasło.<br>
+            <strong>Zapamiętaj hasło — nie da się go odzyskać, można tylko ustawić nowe.</strong>
           </p>
         </div>
 
@@ -5713,6 +5728,8 @@ async function _haslo_sha256_lokalne(tekst) {
 
 function otworzEdytorHasla() {
   const ed = document.getElementById('hasloEdytor');
+  const btn = document.getElementById('hasloAdminBtn');
+  const panel = document.getElementById('adminList');
   const status = document.getElementById('hasloStatus');
   const sekcjaUstaw = document.getElementById('hasloSekcjaUstaw');
   const sekcjaZmien = document.getElementById('hasloSekcjaZmien');
@@ -5742,10 +5759,19 @@ function otworzEdytorHasla() {
   }
 
   ed.classList.add('visible');
+  if (btn) btn.style.display = 'none';
+  // Tryb pełnoekranowy panelu - chowa pozostałe przyciski, pokazuje tylko ramkę hasła
+  if (panel) panel.classList.add('edytuje-haslo');
 }
 
 function zamknijEdytorHasla() {
-  document.getElementById('hasloEdytor').classList.remove('visible');
+  const ed = document.getElementById('hasloEdytor');
+  const btn = document.getElementById('hasloAdminBtn');
+  const panel = document.getElementById('adminList');
+  if (ed) ed.classList.remove('visible');
+  if (btn) btn.style.display = '';
+  // Wyjdź z trybu pełnoekranowego - przywróć resztę panelu
+  if (panel) panel.classList.remove('edytuje-haslo');
 }
 
 async function ustawHasloAdmina() {
