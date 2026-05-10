@@ -1204,37 +1204,12 @@ footer{
   font-size:13px;font-style:italic;opacity:0.85;
 }
 .admin-choose .cancel-link{
-  display:block;
-  margin:18px auto 0;
-  padding:11px 28px;
-  width:fit-content;min-width:200px;
-  text-align:center;
-  background:linear-gradient(180deg,var(--paper-2),var(--paper-3));
-  border:1.5px solid var(--ink-muted);
-  border-radius:5px;
-  color:var(--ink);
-  font-family:'Cinzel',serif;
-  font-size:14px;
-  font-weight:600;
-  letter-spacing:1.5px;
-  text-transform:uppercase;
-  text-decoration:none;
-  font-style:normal;
-  cursor:pointer;
-  transition:all 0.2s ease;
-  box-shadow:0 2px 4px rgba(0,0,0,0.08);
+  display:inline-block;margin-top:14px;
+  color:var(--ink-muted);font-size:12px;
+  text-decoration:underline;cursor:pointer;
+  font-style:italic;
 }
-.admin-choose .cancel-link:hover{
-  color:var(--crimson);
-  border-color:var(--crimson);
-  background:var(--paper);
-  transform:translateY(-1px);
-  box-shadow:0 3px 8px rgba(120,30,40,0.15);
-}
-.admin-choose .cancel-link:active{
-  transform:translateY(0);
-  box-shadow:0 1px 2px rgba(0,0,0,0.1);
-}
+.admin-choose .cancel-link:hover{color:var(--crimson)}
 
 /* === POMOCNIK DODAWANIA KROPEK (admin only) === */
 .admin-helper{
@@ -1973,10 +1948,21 @@ footer{
 }
 #radarCount{font-size:14px;color:var(--ink)}
 .radar-arrow{
-  color:var(--ink-muted);
-  font-size:11px;
-  transition:transform 0.3s;
+  color:var(--gold);
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  width:24px;
+  height:24px;
+  border:1.5px solid var(--gold);
+  border-radius:6px;
+  background:rgba(255,255,255,0.04);
+  transition:transform 0.3s, background 0.2s, color 0.2s;
   flex-shrink:0;
+}
+.radar-mini:hover .radar-arrow{
+  background:var(--gold);
+  color:var(--paper-2);
 }
 .radar-panel.expanded .radar-arrow{transform:rotate(180deg)}
 
@@ -3839,6 +3825,7 @@ html.tryb-noc .sw-off {
 
   <div class="opcje">
     <button onclick="otworzZnaleziony()">↗ Otwórz link</button>
+    <button class="secondary" onclick="kontynuujSkanowanie()">📷 Skanuj kolejny</button>
   </div>
   <a class="small-link" onclick="zamknijWynik()">Zamknij — wróć do mapy</a>
 </div>
@@ -3933,7 +3920,9 @@ html.tryb-noc .sw-off {
         <div class="radar-mini" id="radarMini" onclick="toggleRadarPanel()">
           <span class="radar-icon">📡</span>
           <span class="radar-mini-text">W zasięgu: <span id="radarCount">0</span></span>
-          <span class="radar-arrow" id="radarArrow">▼</span>
+          <span class="radar-arrow" id="radarArrow" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </span>
         </div>
         <div class="radar-lista" id="radarLista"></div>
       </div>
@@ -4189,7 +4178,7 @@ html.tryb-noc .sw-off {
   <!-- EDYTOR MIEJSCA (tryb admin) -->
   <div class="admin-helper" id="miejsceHelper">
     <h3 id="miejsceHelperTytul">Nowe miejsce</h3>
-    <p class="admin-subtitle">Wpisz nazwę, wybierz kategorię i ikonę. Dodaj tytuł i opis, a po pobraniu pliku — wgraj zdjęcie do folderu <code>img/</code>.</p>
+    <p class="admin-subtitle">Wpisz nazwę, wybierz kategorię i ikonę. Dodaj tytuł i opis, a po pobraniu pliku — wgraj zdjęcie do folderu <code>img/</code> (format <code>.jpg</code> lub <code>.png</code>).</p>
 
     <div class="form-row">
       <label>Nazwa:</label>
@@ -4763,6 +4752,33 @@ async function pobierzOpisMiejsca(klucz) {
   }
 }
 
+// Próbuje wczytać zdjęcie miejsca w kolejnych formatach: jpg → png → placeholder.
+// Wywoływana z atrybutu onerror tagu <img>. Po nieudanym .jpg dostaje element img,
+// podmienia src na .png, a gdy i tego brak — wstawia placeholder z informacją.
+function probujKolejneRozszerzenieZdjecia(img) {
+  const klucz = img.dataset.klucz;
+  const obecne = img.dataset.prob;
+  const kolejnosc = ['jpg', 'png', 'jpeg', 'webp'];
+  const idx = kolejnosc.indexOf(obecne);
+
+  if (idx < kolejnosc.length - 1) {
+    // Spróbuj kolejnego rozszerzenia
+    const nastepne = kolejnosc[idx + 1];
+    img.dataset.prob = nastepne;
+    img.src = `img/${klucz}.${nastepne}`;
+    return;
+  }
+
+  // Wyczerpaliśmy wszystkie rozszerzenia - pokazuj placeholder
+  if (img.parentElement) {
+    img.parentElement.innerHTML =
+      `<div class="detail-image-placeholder">
+        <span class="ikona-big">📷</span>
+        <em>Zdjęcie nie zostało jeszcze dodane.<br>Wgraj plik <code>img/${klucz}.jpg</code> lub <code>img/${klucz}.png</code> do repo.</em>
+      </div>`;
+  }
+}
+
 async function otworzPlatek(klucz, akcja) {
   const miejsce = miejsca.find(m => m.klucz === klucz);
   if (!miejsce) return;
@@ -4839,10 +4855,11 @@ async function otworzPlatek(klucz, akcja) {
     content.innerHTML = html;
     return; // panel już otwarty wyżej
   } else if (akcja === 'zdjecie') {
-    const sciezka = `img/${miejsce.klucz}.jpg`;
+    const klucz = miejsce.klucz;
+    const safeNazwa = (miejsce.nazwa || '').replace(/'/g,"&#39;").replace(/"/g,'&quot;');
     content.innerHTML = `<div class="detail-image-wrapper">
-      <img src="${sciezka}" alt="${miejsce.nazwa}"
-        onerror="this.parentElement.innerHTML='<div class=\\'detail-image-placeholder\\'><span class=\\'ikona-big\\'>📷</span><em>Zdjęcie nie zostało jeszcze dodane.<br>Wgraj plik <code>img/${miejsce.klucz}.jpg</code> do repo.</em></div>'">
+      <img src="img/${klucz}.jpg" alt="${safeNazwa}" data-klucz="${klucz}" data-prob="jpg"
+        onerror="probujKolejneRozszerzenieZdjecia(this)">
     </div>`;
   }
 
@@ -8019,6 +8036,21 @@ function zamknijSkaner() {
     qrScanner.stop().catch(() => {});
   }
   document.getElementById('scanModal').classList.remove('visible');
+}
+
+function kontynuujSkanowanie() {
+  zamknijWynik();
+  // Skaner jeszcze otwarty, więc wystarczy go restartować
+  setTimeout(() => {
+    if (qrScanner) {
+      qrScanner.start(
+        { facingMode: "environment" },
+        { fps: 10, qrbox: { width: 250, height: 250 }, aspectRatio: 1.0 },
+        onScanSuccess,
+        onScanError
+      ).catch(err => console.error("Restart failed:", err));
+    }
+  }, 200);
 }
 
 // ============== MODAL WYNIKU ==============
