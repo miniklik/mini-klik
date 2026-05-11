@@ -4402,7 +4402,9 @@ function zastosujKategorie() {
 }
 
 const miejsca = [
-  { klucz: 'ok', nazwa: 'ok', pozycja: [51.1830, 23.1531], ikona: '🏛️', kategoria: 'zabytek' }
+  { klucz: 'bagno', nazwa: 'bagno', pozycja: [51.1510, 22.8705], ikona: '🏛️', kategoria: 'zabytek' },
+  { klucz: 'cos-tam', nazwa: 'coś tam', pozycja: [51.0912, 22.9673], ikona: '🏛️', kategoria: 'zabytek' },
+  { klucz: 'ok', nazwa: 'ok', pozycja: [51.2061, 23.1343], ikona: '🏛️', kategoria: 'zabytek' }
 ];
 
 const mapa = L.map('mapa', {
@@ -4861,7 +4863,14 @@ function renderujMiejscaNaMapie() {
         wybranyKlucz = miejsce.klucz;
       }
       // Zawsze: przelot mapy do miejsca
+      // Pauzujemy auto-centrowanie żeby mapa nie wróciła na usera za chwilę.
+      // GPS śledzi dalej, marker usera się rusza, dystanse się liczą - tylko
+      // mapa zostaje na wybranym miejscu dopóki user nie kliknie przycisku ⊙.
+      autoCenterAktywny = false;
+      mapaProgramowoPrzesuwana = true;
       mapa.flyTo(miejsce.pozycja, 16, { duration: 1.2 });
+      setTimeout(() => { mapaProgramowoPrzesuwana = false; }, 1300);
+      aktualizujPrzyciskCenter();
     };
     listaEl.appendChild(card);
   });
@@ -4882,11 +4891,11 @@ zastosujKategorie();
 // Aby dodać nową kropkę: skopiuj jeden obiekt, zmień numer, pozycję i promień.
 // Plik MP3 wgraj do folderu audio/ jako {numer}.mp3 (np. audio/1.mp3)
 const kropkiAudio = [
-  { numer: 1, pozycja: [51.18990, 23.16989], promien: 280, opis: '' },
-  { numer: 2, pozycja: [51.18330, 23.17425], promien: 430, opis: '' },
-  { numer: 2, pozycja: [51.17631, 23.17786], promien: 500, opis: '' },
-  { numer: 2, pozycja: [51.17432, 23.16138], promien: 290, opis: '' },
-  { numer: 2, pozycja: [51.17292, 23.14344], promien: 50, opis: '' }
+  { numer: 1, pozycja: [51.13739, 23.09779], promien: 5000, opis: '' },
+  { numer: 1, pozycja: [51.13222, 22.94467], promien: 5000, opis: '' },
+  { numer: 2, pozycja: [51.19183, 23.15825], promien: 880, opis: '' },
+  { numer: 2, pozycja: [51.17873, 23.20299], promien: 50, opis: '' },
+  { numer: 3, pozycja: [51.19699, 23.18211], promien: 1500, opis: '' }
 ];
 
 // Stan przewodnika audio
@@ -7700,8 +7709,13 @@ function obsluzParametrUrl() {
   aktualneMiejsceQR = miejsce;
 
   // Wycentruj mapę na miejscu (po małej zwłoce, by Leaflet zdążył się załadować)
+  // Pauzujemy auto-centrowanie - mapa zostaje na zeskanowanym miejscu.
+  autoCenterAktywny = false;
+  aktualizujPrzyciskCenter();
   setTimeout(() => {
+    mapaProgramowoPrzesuwana = true;
     mapa.flyTo(miejsce.pozycja, 17, { duration: 1.5 });
+    setTimeout(() => { mapaProgramowoPrzesuwana = false; }, 1600);
 
     // Podświetl pinezkę pulsem
     const m = markery.find(mk => mk.miejsce.klucz === klucz);
@@ -8051,7 +8065,13 @@ function syncListaMobile() {
         if (obecny) obecny.addTo(mapa);
         wybranyKlucz = miejsce.klucz;
       }
+      // Pauzujemy auto-centrowanie - GPS śledzi dalej, ale mapa zostaje
+      // na wybranym miejscu dopóki user nie kliknie przycisku ⊙.
+      autoCenterAktywny = false;
+      mapaProgramowoPrzesuwana = true;
       mapa.flyTo(miejsce.pozycja, 16, { duration: 1.2 });
+      setTimeout(() => { mapaProgramowoPrzesuwana = false; }, 1300);
+      aktualizujPrzyciskCenter();
       // Zwiń bottom sheet po wyborze (na mobile)
       ustawStanBottomSheet('mini');
     };
@@ -8577,9 +8597,7 @@ aktualizujPanelRadaru();
 
 // === RYSUNKI:START === (nie usuwaj tego komentarza - znacznik dla auto-eksportu)
 const rysunkiZakodowane = [
-  { typ: 'kolo', kolor: '#a04510', srodek: [51.188480, 23.147730], promien: 1047 },
-  { typ: 'kolo', kolor: '#a04510', srodek: [51.180360, 23.166956], promien: 407 },
-  { typ: 'tekst', kolor: '#a04510', pozycja: [51.180468, 23.187555], tresc: 'Marynin' }
+
 ];
 // === RYSUNKI:END ===
 
