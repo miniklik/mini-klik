@@ -1242,6 +1242,33 @@ footer{
   background: var(--gold-light);
 }
 
+/* ========== PULSATOR AUDIO (publiczny tryb GPS) ==========
+   Pojawia się gdy turysta jest w odległości <=400m od ukrytej kropki audio.
+   Wersja "falowanie wody" - 3 okręgi rozchodzące się w fazach,
+   bez stałego punktu w środku. Większy rozmiar - lepiej widoczny. */
+.audio-pulsator-wrapper {
+  position: relative;
+  width: 60px;
+  height: 60px;
+  pointer-events: none; /* żeby nie blokował klikania mapy pod spodem */
+}
+.audio-pulsator-fala {
+  position: absolute;
+  inset: 0;
+  border: 2.5px solid rgba(124,58,237,0.85);
+  border-radius: 50%;
+  opacity: 0;
+  animation: audioPulsatorFalaWody 3.2s ease-out infinite;
+}
+.audio-pulsator-fala.f2 { animation-delay: 1.06s; }
+.audio-pulsator-fala.f3 { animation-delay: 2.13s; }
+@keyframes audioPulsatorFalaWody {
+  0%   { transform: scale(0.15); opacity: 0;   border-width: 3px; }
+  15%  { opacity: 0.85; }
+  60%  { opacity: 0.4;  border-width: 2px; }
+  100% { transform: scale(1.0);  opacity: 0;   border-width: 1px; }
+}
+
 .audio-dot{
   width:20px;height:20px;
   background:linear-gradient(135deg,#a78bfa,#7c3aed);
@@ -5112,6 +5139,13 @@ let audioMarkery = []; // markery kropek audio (Leaflet)
 let aktualneAudio = null; // aktualnie odtwarzany Audio()
 let aktualnaKropkaAudio = null; // aktualnie odtwarzana kropka
 
+// ===== PULSATORY (publiczny tryb GPS) =====
+// Pojawiają się gdy turysta jest w odległości <=400m od kropki audio,
+// ale jeszcze NIE w jej strefie. Jeden pulsator na numer (jeśli wiele segmentów,
+// pulsuje tylko ten najbliższy).
+const PULSATOR_PROMIEN_M = 400;     // próg widoczności pulsatora
+let pulsatoryAudio = new Map();      // numer -> { marker, segIdx } (Leaflet markery)
+
 // =====================================================================
 // === AUTO-ODSŁUCH (playlist mode) ====================================
 // =====================================================================
@@ -5238,6 +5272,7 @@ function edytujKropkePoIdx(idx) {
   edytowanaKropka = kropka;
   edytowanyTyp = 'audio';
   aktualnyKlik = { lat: kropka.pozycja[0], lng: kropka.pozycja[1] };
+  aktualnyPokazFale = kropka.pokazFale === true;
 
   document.getElementById('adminNumer').value = kropka.numer;
   document.getElementById('adminPromien').value = kropka.promien;
@@ -5258,6 +5293,7 @@ function edytujZaplanowanaPoIdx(idx) {
   edytowanaKropka = kropka;
   edytowanyTyp = 'planowana';
   aktualnyKlik = { lat: kropka.lat, lng: kropka.lng };
+  aktualnyPokazFale = kropka.pokazFale === true;
 
   document.getElementById('adminNumer').value = kropka.numer;
   document.getElementById('adminPromien').value = kropka.promien;
@@ -5362,6 +5398,87 @@ function sprawdzKropkiAudio() {
 
   // 7. Aktualizuj nowy panel "W zasięgu"
   aktualizujPanelRadaru();
+
+  // 8. Pulsatory - "tu coś jest, podejdź" (w promieniu 400m, ale poza strefą)
+  aktualizujPulsatoryAudio();
+}
+
+// ============================================================
+// PULSATORY AUDIO - "tu coś jest, podejdź bliżej"
+// ============================================================
+// Logika:
+//   - Każda kropka audio o NUMERZE N może mieć segmenty (wiele kropek z N)
+//   - Pulsator pokazuje się przy NAJBLIŻSZYM segmencie tego numeru
+//   - Pulsator NIE pokazuje się gdy user jest W strefie tej kropki
+//     (bo wtedy gra audio i fala nie ma sensu)
+//   - Pulsator NIE pokazuje się gdy nawigacja wyłączona (audioPrzewodnikWlaczony=false)
+//   - Niezależnie od trybu admin/turysta - widoczny zawsze (admin też widzi)
+function aktualizujPulsatoryAudio() {
+  // Jeśli nawigacja wyłączona lub brak GPS - usuń wszystkie pulsatory
+  if (!audioPrzewodnikWlaczony || !userPozycja) {
+    pulsatoryAudio.forEach(({ marker }) => mapa.removeLayer(marker));
+    pulsatoryAudio.clear();
+    return;
+  }
+
+  // Dla każdego unikalnego numeru znajdź najbliższy segment
+  const najblizszePerNumer = new Map(); // numer -> { kropka, odl }
+  for (const k of kropkiAudio) {
+    const odl = dystans(userPozycja.lat, userPozycja.lng, k.pozycja[0], k.pozycja[1]);
+    const dotychczas = najblizszePerNumer.get(k.numer);
+    if (!dotychczas || odl < dotychczas.odl) {
+      najblizszePerNumer.set(k.numer, { kropka: k, odl });
+    }
+  }
+
+  // Buduj zestaw numerów które MAJĄ mieć pulsator
+  const aktywneNumery = new Set();
+  for (const [numer, { kropka, odl }] of najblizszePerNumer) {
+    // Warunek: w zasięgu 400m ALE nie w strefie audio (poza promieniem strefy)
+    // Dodatkowo: kropka musi mieć pokazFale === true (admin świadomie włączył).
+    // Domyślnie wyłączone - widoczne miejsca nie potrzebują fali, tylko tajemnicze.
+    if (kropka.pokazFale === true && odl <= PULSATOR_PROMIEN_M && odl > kropka.promien) {
+      aktywneNumery.add(numer);
+    }
+  }
+
+  // Usuń pulsatory dla numerów które już NIE powinny być aktywne
+  for (const [numer, { marker }] of pulsatoryAudio) {
+    if (!aktywneNumery.has(numer)) {
+      mapa.removeLayer(marker);
+      pulsatoryAudio.delete(numer);
+    }
+  }
+
+  // Dodaj/zaktualizuj pulsatory dla aktywnych numerów
+  for (const numer of aktywneNumery) {
+    const { kropka } = najblizszePerNumer.get(numer);
+    const istniejacy = pulsatoryAudio.get(numer);
+
+    if (istniejacy) {
+      // Już istnieje - sprawdź czy pozycja się nie zmieniła (inny segment najbliżej?)
+      const lat = kropka.pozycja[0], lng = kropka.pozycja[1];
+      const aktLatLng = istniejacy.marker.getLatLng();
+      if (Math.abs(aktLatLng.lat - lat) > 1e-6 || Math.abs(aktLatLng.lng - lng) > 1e-6) {
+        istniejacy.marker.setLatLng([lat, lng]);
+      }
+    } else {
+      // Nowy pulsator
+      const marker = L.marker(kropka.pozycja, {
+        icon: L.divIcon({
+          className: 'audio-pulsator-marker',
+          html: '<div class="audio-pulsator-wrapper"><div class="audio-pulsator-fala"></div><div class="audio-pulsator-fala f2"></div><div class="audio-pulsator-fala f3"></div></div>',
+          iconSize: [60, 60],
+          iconAnchor: [30, 30]
+        }),
+        interactive: false,  // klik przechodzi przez pulsator do mapy
+        keyboard: false,
+        zIndexOffset: -100   // pod innymi markerami
+      });
+      marker.addTo(mapa);
+      pulsatoryAudio.set(numer, { marker });
+    }
+  }
 }
 
 function odtworzKropke(kropka) {
@@ -5614,10 +5731,16 @@ function odswiezAudioHints() {
 // ============== POMOCNIK ADMIN: TWORZENIE KROPEK ==============
 // W trybie admin: klik w pustą mapę otwiera popup z gotowym kodem do skopiowania.
 // Kropki "zaplanowane" są zapamiętywane w localStorage i widoczne na zielono na mapie.
-let zaplanowaneKropki = []; // { numer, lat, lng, promien, opis }
+let zaplanowaneKropki = []; // { numer, lat, lng, promien, opis, pokazFale }
 let tymczasowyMarker = null; // marker pokazujący gdzie kliknąłeś
 let aktualnyKlik = null; // { lat, lng } ostatniego kliknięcia
 let zaplanowaneMarkery = []; // markery na mapie dla zaplanowanych kropek
+
+// Stan przycisku "🌊 Fala: TAK/NIE" w edytorze kropki audio.
+// false = nie pokazuj fali zbliżania przy tej kropce (kropka widoczna, np. pomnik).
+// true  = pokazuj falę gdy turysta jest 0-400m (kropka tajemnicza, np. ukryta kapliczka).
+// Domyślnie false - user świadomie włącza dla "tajemniczych" miejsc.
+let aktualnyPokazFale = false;
 
 const KEY_ZAPLANOWANE = 'admin-kropki-zaplanowane';
 
@@ -6252,6 +6375,7 @@ function obsluzKlikAdmin(e) {
   edytowanyTyp = null;
   edytowaneMiejsce = null;
   edytowanyMiejsceIdx = -1;
+  aktualnyPokazFale = false;  // nowa kropka - fala domyślnie wyłączona
 
   aktualnyKlik = { lat: e.latlng.lat, lng: e.latlng.lng };
 
@@ -6365,6 +6489,32 @@ function kopiujKodKropki() {
   });
 }
 
+// =====================================================================
+// === PRZEŁĄCZNIK "🌊 Pokaż falę zbliżania" w edytorze kropki audio ===
+// =====================================================================
+// Toggle - zmienia aktualnyPokazFale (true/false) i odświeża wygląd przycisku.
+// Stan zapisuje się przy planujKolejna / zapiszEdycje do obiektu kropki.
+function togglePokazFale() {
+  aktualnyPokazFale = !aktualnyPokazFale;
+  odswiezPrzyciskFali();
+}
+
+function odswiezPrzyciskFali() {
+  const btn = document.getElementById('adminFalaBtn');
+  if (!btn) return;
+  if (aktualnyPokazFale) {
+    btn.textContent = '🌊 Fala: TAK';
+    btn.style.background = '#16a34a';
+    btn.style.color = '#fff';
+    btn.title = 'Tajemnicze miejsce - turysta widzi fioletowe fale gdy podejdzie na 400m. Klik = wyłącz.';
+  } else {
+    btn.textContent = '🌊 Fala: NIE';
+    btn.style.background = '';
+    btn.style.color = '';
+    btn.title = 'Miejsce widoczne - bez efektu fali. Klik = włącz (dla tajemniczych miejsc).';
+  }
+}
+
 function planujKolejna() {
   // Zapisz aktualną do listy zaplanowanych
   if (!aktualnyKlik) return;
@@ -6377,7 +6527,8 @@ function planujKolejna() {
     lat: aktualnyKlik.lat,
     lng: aktualnyKlik.lng,
     promien: promien,
-    opis: opis
+    opis: opis,
+    pokazFale: aktualnyPokazFale
   });
   zapiszZaplanowane();
   renderujZaplanowane();
@@ -6480,7 +6631,8 @@ async function pobierzNowyIndex() {
         lat: k.pozycja[0],
         lng: k.pozycja[1],
         promien: k.promien,
-        opis: k.opis || ''
+        opis: k.opis || '',
+        pokazFale: k.pokazFale === true
       })),
       ...zaplanowaneKropki
     ];
@@ -6493,7 +6645,9 @@ async function pobierzNowyIndex() {
     // Wygeneruj kod nowej tablicy kropek audio
     const linie = finalne.map(k => {
       const opis = (k.opis || '').replace(/'/g, "\\'");
-      return `  { numer: ${k.numer}, pozycja: [${k.lat.toFixed(5)}, ${k.lng.toFixed(5)}], promien: ${k.promien}, opis: '${opis}' }`;
+      // pokazFale dodajemy TYLKO gdy true (oszczędność miejsca; brak pola = false)
+      const fala = k.pokazFale === true ? ', pokazFale: true' : '';
+      return `  { numer: ${k.numer}, pozycja: [${k.lat.toFixed(5)}, ${k.lng.toFixed(5)}], promien: ${k.promien}, opis: '${opis}'${fala} }`;
     });
     const nowaTablicaKropek = `const kropkiAudio = [\n${linie.join(',\n')}\n];`;
 
@@ -6794,6 +6948,7 @@ function zapiszEdycje() {
       kropkiAudio[idx].promien = promien;
       kropkiAudio[idx].opis = opis;
       kropkiAudio[idx].numer = numer;
+      kropkiAudio[idx].pokazFale = aktualnyPokazFale;
     }
     // Dodatkowo do zaplanowanych żeby trafiło do pobranego pliku.
     // Klucz identyfikujący wpis w zaplanowanych = referencja na obiekt
@@ -6801,9 +6956,9 @@ function zapiszEdycje() {
     // dla segmentów tej samej strefy.
     const istn = zaplanowaneKropki.findIndex(k => k.__ref === edytowanaKropka);
     if (istn >= 0) {
-      zaplanowaneKropki[istn] = { numer, lat: aktualnyKlik.lat, lng: aktualnyKlik.lng, promien, opis, __ref: edytowanaKropka };
+      zaplanowaneKropki[istn] = { numer, lat: aktualnyKlik.lat, lng: aktualnyKlik.lng, promien, opis, pokazFale: aktualnyPokazFale, __ref: edytowanaKropka };
     } else {
-      zaplanowaneKropki.push({ numer, lat: aktualnyKlik.lat, lng: aktualnyKlik.lng, promien, opis, __ref: edytowanaKropka });
+      zaplanowaneKropki.push({ numer, lat: aktualnyKlik.lat, lng: aktualnyKlik.lng, promien, opis, pokazFale: aktualnyPokazFale, __ref: edytowanaKropka });
     }
   } else if (edytowanyTyp === 'planowana') {
     edytowanaKropka.numer = numer;
@@ -6811,6 +6966,7 @@ function zapiszEdycje() {
     edytowanaKropka.lng = aktualnyKlik.lng;
     edytowanaKropka.promien = promien;
     edytowanaKropka.opis = opis;
+    edytowanaKropka.pokazFale = aktualnyPokazFale;
   }
 
   zapiszZaplanowane();
@@ -6869,18 +7025,21 @@ function zaktualizujPrzyciskiHelpera() {
       ? 'Edytujesz kropkę z kodu. Zmiany zapiszą się do pobranego pliku.'
       : 'Edytujesz zaplanowaną kropkę.';
     akcje.innerHTML = `
+      <button onclick="togglePokazFale()" id="adminFalaBtn" title="Przełącz falę zbliżania">🌊 Fala: NIE</button>
       <button onclick="zapiszEdycje()">💾 Zapisz zmiany</button>
       <button class="secondary" style="background:rgba(239,68,68,0.1);color:var(--crimson);border-color:var(--crimson)" onclick="usunKropke()">🗑 Usuń</button>
       <button class="secondary" onclick="zamknijHelper()">✕ Anuluj</button>
     `;
+    odswiezPrzyciskFali();
   } else {
     t.innerHTML = 'Nowa kropka audio';
     sub.textContent = 'Lokalizacja zapisana z kliknięcia w mapę. Możesz teraz ustawić promień i opis.';
     akcje.innerHTML = `
-      <button onclick="kopiujKodKropki()" id="adminCopyBtn">📋 Kopiuj kod</button>
+      <button onclick="togglePokazFale()" id="adminFalaBtn" title="Przełącz falę zbliżania">🌊 Fala: NIE</button>
       <button onclick="planujKolejna()">➕ Dodaj kolejną</button>
       <button class="secondary" onclick="zamknijHelper()">✕ Zamknij</button>
     `;
+    odswiezPrzyciskFali();
   }
 }
 
@@ -7866,6 +8025,8 @@ function toggleTrybTurysty() {
       aktualneAudio = null;
     }
     document.getElementById('audioPlayer').classList.remove('visible');
+    // Usuń wszystkie pulsatory - nie pokazujemy ich w trybie zwykłym
+    if (typeof aktualizujPulsatoryAudio === 'function') aktualizujPulsatoryAudio();
   }
 
   // Zaktualizuj przycisk GPS (zmienia się w 🔊 lub z powrotem w 📍/🧭)
