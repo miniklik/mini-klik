@@ -1102,6 +1102,146 @@ footer{
 
 /* === KROPKI AUDIO (widoczne tylko w trybie admin) === */
 .audio-dot-marker{background:transparent!important;border:none!important}
+/* ========== MODAL PICKER EMOJI (do wyboru ikony miejsca) ========== */
+.emoji-modal-backdrop {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.7);
+  display: none;
+  align-items: center; justify-content: center;
+  z-index: 10000;
+}
+.emoji-modal-backdrop.show { display: flex; }
+.emoji-modal {
+  background: var(--paper-2);
+  border: 2px solid var(--gold);
+  border-radius: 10px;
+  padding: 18px;
+  max-width: 720px;
+  width: 92%;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.7);
+}
+.emoji-modal h2 {
+  margin: 0 0 12px 0;
+  font-size: 16px;
+  color: var(--gold);
+  font-family: 'Cinzel', serif;
+}
+.emoji-modal-search {
+  width: 100%;
+  background: var(--paper-3);
+  border: 1px solid var(--paper-4);
+  border-radius: 6px;
+  padding: 10px 12px;
+  color: var(--ink);
+  font-size: 14px;
+  margin-bottom: 12px;
+  font-family: inherit;
+}
+.emoji-modal-search:focus {
+  outline: none;
+  border-color: var(--gold);
+}
+.emoji-modal-tabs {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+  border-bottom: 1px solid var(--paper-4);
+  padding-bottom: 8px;
+}
+.emoji-tab {
+  background: var(--paper-3);
+  border: 1px solid var(--paper-4);
+  color: var(--ink-muted);
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: all 0.12s;
+  font-family: inherit;
+}
+.emoji-tab:hover {
+  background: var(--paper-4);
+  color: var(--ink);
+}
+.emoji-tab.active {
+  background: var(--gold);
+  border-color: var(--gold);
+  color: var(--paper-2);
+  font-weight: 700;
+}
+.emoji-modal-grid {
+  flex: 1;
+  overflow-y: auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(44px, 1fr));
+  gap: 4px;
+  padding: 4px;
+  max-height: 60vh;
+}
+.emoji-grid-btn {
+  height: 44px;
+  font-size: 22px;
+  background: var(--paper-3);
+  border: 1px solid var(--paper-4);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.12s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+.emoji-grid-btn:hover {
+  background: var(--gold);
+  transform: scale(1.1);
+}
+.emoji-modal-empty {
+  text-align: center;
+  color: var(--ink-muted);
+  padding: 40px 20px;
+  font-size: 13px;
+  grid-column: 1 / -1;
+}
+.emoji-modal-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  justify-content: flex-end;
+}
+.emoji-modal-close-btn {
+  background: var(--paper-3);
+  border: 1px solid var(--paper-4);
+  color: var(--ink);
+  padding: 8px 18px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: inherit;
+}
+.emoji-modal-close-btn:hover {
+  background: var(--paper-4);
+}
+/* Przycisk otwierający picker - obok pola ikony */
+.btn-otworz-picker {
+  margin-left: 8px;
+  background: var(--gold);
+  color: var(--paper-2);
+  border: none;
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  white-space: nowrap;
+}
+.btn-otworz-picker:hover {
+  background: var(--gold-light);
+}
+
 .audio-dot{
   width:20px;height:20px;
   background:linear-gradient(135deg,#a78bfa,#7c3aed);
@@ -4165,7 +4305,10 @@ html.tryb-noc .sw-off {
 
     <div class="form-row">
       <label>Ikona:</label>
-      <input type="text" id="miejsceIkona" placeholder="emoji np. ⛪ 🏰 🌳 🕯️ 🏛️" maxlength="6">
+      <div style="display:flex;align-items:center;gap:6px;flex:1">
+        <input type="text" id="miejsceIkona" placeholder="emoji np. ⛪ 🏰 🌳 🕯️ 🏛️" maxlength="6" style="flex:1">
+        <button type="button" class="btn-otworz-picker" onclick="otworzPickerEmoji()">🎨 Wybierz…</button>
+      </div>
     </div>
 
     <div class="form-row">
@@ -4323,6 +4466,78 @@ html.tryb-noc .sw-off {
 // Edycja w trybie admin: przycisk "🏷️ Nazwy kategorii" -> modal -> zapis
 // do localStorage. "Pobierz nowy index.html" wbudowuje na stałe w plik.
 // =====================================================================
+
+// ============================================================
+// BIBLIOTEKA EMOJI DO PICKERA IKON MIEJSC (z Studio animacji)
+// 10 kategorii, kilkaset emoji. Wszystko Unicode - zero wagi pliku.
+// ============================================================
+const EMOJI_LIBRARY = {
+  'Podroze': '🚗 🚕 🚙 🚌 🚎 🏎 🚓 🚑 🚒 🚐 🛻 🚚 🚛 🚜 🦯 🦽 🦼 🛴 🚲 🛵 🏍 🛺 🚨 🚔 🚍 🚘 🚖 🚡 🚠 🚟 🚃 🚋 🚞 🚝 🚄 🚅 🚈 🚂 🚆 🚇 🚊 🚉 ✈️ 🛫 🛬 🛩 💺 🛰 🚀 🛸 🚁 🛶 ⛵ 🚤 🛥 🛳 ⛴ 🚢 ⚓ ⛽ 🚧 🚦 🚥 🚏 🗺 🗿 🗽 🗼 🏰 🏯 🏟 🎡 🎢 🎠 ⛲ ⛱ 🏖 🏝 🏜 🌋 ⛰ 🏔 🗻 🏕 ⛺ 🛖 🏠 🏡 🏘 🏚 🏗 🏭 🏢 🏬 🏣 🏤 🏥 🏦 🏨 🏪 🏫 🏩 💒 🏛 ⛪ 🕌 🕍 🛕 🕋 ⛩'.split(' '),
+  'Natura': '🌵 🎄 🌲 🌳 🌴 🪵 🌱 🌿 ☘️ 🍀 🎍 🪴 🎋 🍃 🍂 🍁 🍄 🐚 🪨 🌾 💐 🌷 🌹 🥀 🌺 🌸 🌼 🌻 🌞 🌝 🌛 🌜 🌚 🌕 🌖 🌗 🌘 🌑 🌒 🌓 🌔 🌙 🌎 🌍 🌏 🪐 💫 ⭐ 🌟 ✨ ⚡ ☄️ 💥 🔥 🌪 🌈 ☀️ 🌤 ⛅ 🌥 ☁️ 🌦 🌧 ⛈ 🌩 🌨 ❄️ ☃️ ⛄ 🌬 💨 💧 💦 ☔ ☂️ 🌊 🌫'.split(' '),
+  'Jedzenie': '🍏 🍎 🍐 🍊 🍋 🍌 🍉 🍇 🍓 🫐 🍈 🍒 🍑 🥭 🍍 🥥 🥝 🍅 🍆 🥑 🥦 🥬 🥒 🌶 🫑 🌽 🥕 🫒 🧄 🧅 🥔 🍠 🥐 🥯 🍞 🥖 🥨 🧀 🥚 🍳 🧈 🥞 🧇 🥓 🥩 🍗 🍖 🦴 🌭 🍔 🍟 🍕 🥪 🥙 🧆 🌮 🌯 🫔 🥗 🥘 🫕 🥫 🍝 🍜 🍲 🍛 🍣 🍱 🥟 🦪 🍤 🍙 🍚 🍘 🍥 🥠 🥮 🍢 🍡 🍧 🍨 🍦 🥧 🧁 🍰 🎂 🍮 🍭 🍬 🍫 🍿 🍩 🍪 🌰 🥜 🍯 🥛 🍼 🫖 ☕ 🍵 🧃 🥤 🧋 🍶 🍺 🍻 🥂 🍷 🥃 🍸 🍹 🧉 🍾 🧊 🥄 🍴 🍽 🥣 🥡 🥢 🧂'.split(' '),
+  'Aktywnosci': '⚽ 🏀 🏈 ⚾ 🥎 🎾 🏐 🏉 🥏 🎱 🪀 🏓 🏸 🏒 🏑 🥍 🏏 🪃 🥅 ⛳ 🪁 🏹 🎣 🤿 🥊 🥋 🎽 🛹 🛼 🛷 ⛸ 🥌 🎿 ⛷ 🏂 🪂 🏋 🤼 🤸 ⛹ 🤺 🤾 🏌 🏇 🧘 🏄 🏊 🤽 🚣 🧗 🚵 🚴 🏆 🥇 🥈 🥉 🏅 🎖 🏵 🎗 🎫 🎟 🎪 🤹 🎭 🩰 🎨 🎬 🎤 🎧 🎼 🎹 🥁 🪘 🎷 🎺 🪗 🎸 🪕 🎻 🎲 ♟ 🎯 🎳 🎮 🎰 🧩'.split(' '),
+  'Zwierzeta': '🐶 🐱 🐭 🐹 🐰 🦊 🐻 🐼 🐻‍❄️ 🐨 🐯 🦁 🐮 🐷 🐽 🐸 🐵 🙈 🙉 🙊 🐒 🐔 🐧 🐦 🐤 🐣 🐥 🦆 🦅 🦉 🦇 🐺 🐗 🐴 🦄 🐝 🪱 🐛 🦋 🐌 🐞 🐜 🪰 🪲 🪳 🦟 🦗 🕷 🕸 🦂 🐢 🐍 🦎 🦖 🦕 🐙 🦑 🦐 🦞 🦀 🐡 🐠 🐟 🐬 🐳 🐋 🦈 🐊 🐅 🐆 🦓 🦍 🦧 🦣 🐘 🦛 🦏 🐪 🐫 🦒 🦘 🦬 🐃 🐂 🐄 🐎 🐖 🐏 🐑 🦙 🐐 🦌 🐕 🐩 🦮 🐕‍🦺 🐈 🐈‍⬛ 🪶 🐓 🦃 🦤 🦚 🦜 🦢 🦩 🕊 🐇 🦝 🦨 🦡 🦫 🦦 🦥 🐁 🐀 🐿 🦔'.split(' '),
+  'Symbole': '❤️ 🧡 💛 💚 💙 💜 🖤 🤍 🤎 💔 ❣️ 💕 💞 💓 💗 💖 💘 💝 💟 ☮️ ✝️ ☪️ 🕉 ☸️ ✡️ 🔯 🕎 ☯️ ☦️ 🛐 ⛎ ❌ ⭕ 🛑 ⛔ 📛 🚫 💯 💢 ♨️ 🚷 🚯 🚳 🚱 🔞 📵 🚭 ❗ ❕ ❓ ❔ ‼️ ⁉️ 🔅 🔆 〽️ ⚠️ 🚸 🔱 ⚜️ 🔰 ♻️ ✅ 🈯 💹 ❇️ ✳️ ❎ 🌐 💠 🌀 💤 🏧 🚾 ♿ 🅿️ 🛗 🚹 🚺 🚼 ⚧ 🚻 🚮 🎦 📶 ℹ️ ➕ ➖ ➗ ✖️ 🟰 ♾ 💲 💱 ™️ ©️ ®️ ✔️ ☑️ 🔘 🔴 🟠 🟡 🟢 🔵 🟣 ⚫ ⚪ 🟤'.split(' '),
+  'Obiekty': '⌚ 📱 📲 💻 ⌨️ 🖥 🖨 🖱 🖲 🕹 🗜 💽 💾 💿 📀 📼 📷 📸 📹 🎥 📽 🎞 📞 ☎️ 📟 📠 📺 📻 🎙 🎚 🎛 🧭 ⏱ ⏲ ⏰ 🕰 ⌛ ⏳ 📡 🔋 🔌 💡 🔦 🕯 🪔 🧯 🛢 💸 💵 💴 💶 💷 🪙 💰 💳 💎 ⚖️ 🪜 🧰 🪛 🔧 🔨 ⚒ 🛠 ⛏ 🪚 🔩 ⚙️ 🪤 🧱 ⛓ 🧲 🔫 💣 🧨 🪓 🔪 🗡 ⚔️ 🛡 🚬 ⚰️ 🪦 ⚱️ 🏺 🔮 📿 🧿 💈 ⚗️ 🔭 🔬 🕳 🩹 🩺 💊 💉 🩸 🧬 🦠 🧫 🧪 🌡 🧹 🪠 🧺 🧻 🚽 🚰 🚿 🛁 🛀 🧼 🪥 🪒 🧽 🪣 🧴 🛎 🔑 🗝 🚪 🪑 🛋 🛏 🛌 🧸 🪆 🖼 🪞 🪟 🛍 🛒 🎁 🎈 🎏 🎀 🪄 🪅 🎊 🎉 🎎 🏮 🎐 🧧 ✉️ 📩 📨 📧 💌 📥 📤 📦 🏷 🪧 📪 📫 📬 📭 📮 📯 📜 📃 📄 📑 🧾 📊 📈 📉 🗒 🗓 📆 📅 🗑 📇 🗃 🗳 🗄 📋 📁 📂 🗂 🗞 📰 📓 📔 📒 📕 📗 📘 📙 📚 📖 🔖 🧷 🔗 📎 🖇 📐 📏 🧮 📌 📍 ✂️ 🖊 🖋 ✒️ 🖌 🖍 📝 ✏️ 🔍 🔎 🔏 🔐 🔒 🔓'.split(' '),
+  'Twarze': '😀 😃 😄 😁 😆 😅 🤣 😂 🙂 🙃 😉 😊 😇 🥰 😍 🤩 😘 ☺️ 😋 😛 😜 🤪 😝 🤗 🤭 🤫 🤔 😐 😑 😏 😒 🙄 😬 🤥 😌 😔 😪 🤤 😴 😷 🤒 🤕 🤢 🤮 🤧 🥵 🥶 🥴 😵 🤯 🤠 🥳 🥸 😎 🤓 🧐 😕 😟 🙁 ☹️ 😮 😯 😲 😳 🥺 😨 😰 😥 😢 😭 😱 😖 😣 😞 😓 😩 😫 🥱 😤 😡 😠 🤬 😈 👿 💀 ☠️ 💩 🤡 👹 👺 👻 👽 👾 🤖'.split(' '),
+  'Gesty': '👋 🤚 🖐 ✋ 🖖 👌 🤌 🤏 ✌️ 🤞 🤟 🤘 🤙 👈 👉 👆 🖕 👇 ☝️ 👍 👎 ✊ 👊 🤛 🤜 👏 🙌 👐 🤲 🤝 🙏 ✍️ 💅 🤳 💪 🦾 🦿 🦵 🦶 👂 🦻 👃 🧠 🫀 🫁 🦷 🦴 👀 👁 👅 👄 💋'.split(' '),
+  'Ludzie': '👶 🧒 👦 👧 🧑 👱 👨 🧔 👩 🧓 👴 👵 🙍 🙎 🙅 🙆 💁 🙋 🧏 🙇 🤦 🤷 👮 🕵 💂 🥷 👷 🤴 👸 👳 👲 🧕 🤵 👰 🤰 🤱 👼 🎅 🤶 🦸 🦹 🧙 🧚 🧛 🧜 🧝 🧞 🧟'.split(' ')
+};
+const ALL_EMOJIS = Object.values(EMOJI_LIBRARY).flat();
+
+// Słownik polskich nazw do wyszukiwania (uproszczony, bez ogonków)
+const EMOJI_NAMES = {
+  '🏰':'zamek warownia twierdza','⛪':'kosciol kaplica','🕌':'meczet','🕍':'synagoga','🛕':'swiatynia','⛩':'brama torii','🏛':'instytucja muzeum kolumny',
+  '💒':'kosciol slub','🏯':'zamek japonski','🗼':'wieza','🗽':'wolnosc','🏟':'stadion arena','🎡':'diabelski mlyn','🎢':'kolejka rollercoaster',
+  '🌋':'wulkan','⛰':'gora','🏔':'szczyt','🗻':'gora fuji','🏕':'kemping ognisko','⛺':'namiot','🛖':'chata',
+  '🏠':'dom','🏡':'domek','🏘':'osiedle','🏚':'ruina','🏗':'budowa','🏭':'fabryka','🏥':'szpital','🏦':'bank',
+  '🏪':'sklep','🏫':'szkola','🏩':'hotel','🏨':'hotel','🏬':'centrum handlowe','🏢':'biurowiec',
+  '⛲':'fontanna','⛱':'parasol plaza','🏖':'plaza','🏝':'wyspa','🏜':'pustynia','🌊':'morze fala',
+  '🚗':'samochod auto','🚕':'taxi','🚙':'suv','🚌':'autobus','🚓':'policja','🚑':'karetka','🚒':'straz','🏎':'wyscig',
+  '✈':'samolot','🚁':'helikopter','🛸':'ufo','🚲':'rower','🚀':'rakieta','🛶':'kajak','⛵':'zaglowka','🚂':'pociag',
+  '🌵':'kaktus','🎄':'choinka','🌲':'sosna','🌳':'drzewo','🌴':'palma','🌱':'sadzonka','🌿':'rosliny','☘️':'koniczyna','🍀':'czterolistna',
+  '🌷':'tulipan','🌹':'roza','🌺':'hibiskus','🌸':'sakura kwiat wisni','🌼':'stokrotka','🌻':'slonecznik','💐':'bukiet',
+  '🍄':'grzyb','🐚':'muszla','🪨':'kamien skala','🌾':'klosy','🍂':'liscie jesien','🍁':'lisc klonu','🍃':'lisc',
+  '☀':'slonce','🌙':'ksiezyc','⭐':'gwiazda','🌟':'gwiazda blysk','✨':'iskry','⚡':'piorun','🌈':'tecza',
+  '🌧':'deszcz','❄':'snieg sniezynka','☃':'balwan','💧':'kropla','🔥':'ogien plomien','💥':'wybuch',
+  '🍎':'jablko','🍊':'pomarancza','🍋':'cytryna','🍌':'banan','🍉':'arbuz','🍇':'winogrona','🍓':'truskawka','🍒':'wisnie',
+  '🍑':'brzoskwinia','🥭':'mango','🍍':'ananas','🥝':'kiwi','🍅':'pomidor','🍆':'baklazan','🥑':'awokado','🥦':'brokul','🥒':'ogorek',
+  '🌽':'kukurydza','🥕':'marchew','🥔':'ziemniak','🌶':'papryczka','🍞':'chleb','🥖':'bagieta','🥐':'rogalik','🧀':'ser',
+  '🍔':'hamburger','🍟':'frytki','🌭':'hotdog','🍕':'pizza','🥪':'kanapka','🌮':'taco','🍝':'makaron','🍜':'zupa ramen','🍲':'zupa','🍛':'curry',
+  '🍣':'sushi','🥟':'pierogi','🍱':'bento','🍤':'krewetki','🍿':'popcorn','🍩':'paczek donut','🍪':'ciastko','🎂':'tort','🍰':'ciasto','🧁':'muffinka',
+  '🍫':'czekolada','🍬':'cukierek','🍭':'lizak','🍯':'miod','☕':'kawa','🍵':'herbata','🥤':'napoj','🍺':'piwo','🍷':'wino','🥂':'szampan','🍸':'koktajl',
+  '⚽':'pilka futbol','🏀':'koszykowka','🏈':'futbol amerykanski','⚾':'baseball','🎾':'tenis','🏐':'siatkowka','🏉':'rugby','🏓':'ping pong','🏸':'badminton',
+  '🥊':'boks','🥋':'judo karate','🥇':'medal zloty','🥈':'medal srebrny','🥉':'medal brazowy','🏆':'puchar trofeum','🏅':'medal',
+  '🎯':'tarcza cel','🎳':'kregle','🎮':'gra konsola','🎰':'kasyno','🎨':'paleta sztuka','🎭':'maska teatr','🎬':'klaps film','🎤':'mikrofon karaoke',
+  '🎧':'sluchawki','🎸':'gitara','🎹':'pianino','🥁':'beben','🎷':'saksofon','🎺':'trabka','🎻':'skrzypce','🎼':'nuty','🎵':'nuta','🎶':'muzyka',
+  '⛳':'golf','🎣':'wedkarstwo','🤿':'nurkowanie','🎿':'narty','🏂':'snowboard','🛹':'deskorolka','🏄':'surfing','🏊':'plywanie','🚴':'rower','🚵':'rower gorski',
+  '🐶':'pies','🐱':'kot','🐭':'mysz','🐹':'chomik','🐰':'krolik','🦊':'lis','🐻':'mis niedzwiedz','🐼':'panda','🐨':'koala','🐯':'tygrys','🦁':'lew',
+  '🐮':'krowa','🐷':'swinia','🐸':'zaba','🐵':'malpa','🐔':'kura','🐧':'pingwin','🦆':'kaczka','🦅':'orzel','🦉':'sowa','🦇':'nietoperz','🐺':'wilk',
+  '🐴':'kon','🦄':'jednorozec','🐝':'pszczola','🦋':'motyl','🐌':'slimak','🐞':'biedronka','🐢':'zolw','🐍':'waz','🦎':'jaszczurka','🐙':'osmiornica',
+  '🐟':'ryba','🐠':'rybka','🐳':'wieloryb','🐬':'delfin','🦈':'rekin','🦀':'krab','🦐':'krewetka','🐊':'krokodyl','🐘':'slon','🦒':'zyrafa','🦓':'zebra',
+  '🦌':'jelen','🐗':'dzik','🐎':'kon','🐑':'owca','🐐':'koza','🐕':'pies','🐈':'kot','🐓':'kogut','🦃':'indyk','🕊':'golebica',
+  '❤️':'serce milosc','🧡':'pomaranczowe serce','💛':'zolte serce','💚':'zielone serce','💙':'niebieskie serce','💜':'fioletowe serce','🖤':'czarne serce',
+  '💔':'zlamane serce','💕':'serca','💖':'serce blyszczace','💝':'serce wstazka','💟':'serce ozdoba',
+  '✝':'krzyz','☪':'polksiezyc','✡':'gwiazda dawida','☮':'pokoj','☯':'yin yang','🔯':'gwiazda szesciokatna','🛐':'modlitwa','♈':'baran zodiak',
+  '⚠️':'uwaga ostrzezenie','⛔':'stop zakaz','🚫':'zakaz','🚭':'zakaz palenia','📵':'wylacz telefon','🚷':'zakaz przejscia','♿':'niepelnosprawni',
+  '🅿':'parking','🚻':'toalety','🚹':'meska','🚺':'damska','🚼':'dzieci','🚾':'WC','🛗':'winda','🏧':'bankomat',
+  '✅':'zaznaczone ok','❌':'krzyzyk x','❗':'wykrzyknik','❓':'pytajnik','💯':'sto procent','🔴':'czerwone kolo','🟠':'pomaranczowe kolo',
+  '🟡':'zolte kolo','🟢':'zielone kolo','🔵':'niebieskie kolo','🟣':'fioletowe kolo','⚫':'czarne kolo','⚪':'biale kolo',
+  '📱':'telefon','💻':'laptop','⌨️':'klawiatura','🖥':'komputer','🖨':'drukarka','💾':'dyskietka','💿':'plyta','📷':'aparat','📹':'kamera','📺':'telewizor',
+  '☎️':'telefon stacjonarny','📞':'sluchawka','📡':'antena satelita','⏰':'budzik','⌚':'zegarek','🔋':'bateria','🔌':'wtyczka','💡':'zarowka',
+  '🔦':'latarka','🕯':'swieca','💰':'pieniadze','💵':'dolar','💎':'diament','💳':'karta','🧰':'narzedzia','🔧':'klucz','🔨':'mlotek',
+  '⚙️':'kolo zebate','🔫':'pistolet','💣':'bomba','🔪':'noz','🛡':'tarcza','⚔':'mecze','🏺':'wazon','🔮':'kula krysztal',
+  '💊':'tabletka','💉':'strzykawka','🩺':'stetoskop','🧬':'dna','🔬':'mikroskop','🔭':'teleskop','🌡':'termometr',
+  '🛏':'lozko','🛋':'sofa','🪑':'krzeslo','🚪':'drzwi','🪟':'okno','🚽':'toaleta','🛁':'wanna','🚿':'prysznic',
+  '🎁':'prezent','🎈':'balon','🎉':'impreza konfetti','🎊':'fajerwerki','🎂':'tort urodzinowy','🎀':'kokarda',
+  '✉️':'list email','📩':'wiadomosc','📦':'paczka','📫':'skrzynka','📜':'zwoj','📋':'lista','📊':'wykres','📅':'kalendarz',
+  '📚':'ksiazki','📖':'ksiazka','📝':'notatka','✏':'olowek','✒':'pioro','🖋':'wieczne pioro','📌':'pinezka','📍':'pinezka czerwona',
+  '🔍':'lupa szukaj','🔒':'zamek klodka','🔑':'klucz','🗝':'klucz stary','📎':'spinacz','🖼':'obraz ramka','🎨':'paleta',
+  '😀':'usmiech buzia twarz wesoly','😍':'serca milosc zakochany','🥳':'impreza party','😎':'okulary cool','🤔':'mysli','😢':'placz smutny',
+  '😡':'zlosc','💀':'czaszka','👻':'duch','👽':'kosmita','🤖':'robot',
+  '👍':'kciuk gora','👎':'kciuk dol','👏':'oklaski brawa','🙏':'modlitwa dziekuje','💪':'biceps sila','🤝':'uscisk dloni','👋':'machanie',
+  '👶':'dziecko niemowle','👨':'mezczyzna','👩':'kobieta','👴':'staruszek dziadek','👵':'staruszka babcia','👼':'aniol','🎅':'mikolaj'
+};
 
 // === KATEGORIE:START === (nie usuwaj tego komentarza - znacznik dla auto-eksportu)
 const kategorieDomyslne = {
@@ -8962,9 +9177,115 @@ function importujRysunki(event) {
   event.target.value = '';
 }
 
+// ============================================================
+// PICKER EMOJI - wybór ikony miejsca (z biblioteki Studio animacji)
+// Po kliknięciu emotki -> wstawia ją do pola miejsceIkona i zamyka.
+// Wyszukiwarka filtruje po polskich nazwach (EMOJI_NAMES).
+// ============================================================
+let _pickerCategory = 'Wszystkie';
+
+function _pickerRenderGrid(emojis) {
+  const grid = document.getElementById('emojiModalGrid');
+  grid.innerHTML = '';
+  if (!emojis || emojis.length === 0) {
+    grid.innerHTML = '<div class="emoji-modal-empty">Nic nie znaleziono. Spróbuj innego słowa.</div>';
+    return;
+  }
+  // Limit dla wydajności
+  const slice = emojis.slice(0, 600);
+  slice.forEach(em => {
+    const btn = document.createElement('button');
+    btn.className = 'emoji-grid-btn';
+    btn.textContent = em;
+    btn.title = EMOJI_NAMES[em] || '';
+    btn.onclick = () => {
+      // Wstaw emotkę do pola ikony miejsca
+      const input = document.getElementById('miejsceIkona');
+      if (input) {
+        input.value = em;
+        // Trigger event 'input' żeby ewentualne listenery zadziałały
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+      }
+      zamknijPickerEmoji();
+    };
+    grid.appendChild(btn);
+  });
+}
+
+function _pickerRenderTabs() {
+  const tabsBox = document.getElementById('emojiTabs');
+  tabsBox.innerHTML = '';
+  const cats = ['Wszystkie', ...Object.keys(EMOJI_LIBRARY)];
+  cats.forEach(cat => {
+    const tab = document.createElement('button');
+    tab.className = 'emoji-tab' + (cat === _pickerCategory ? ' active' : '');
+    tab.textContent = cat;
+    tab.onclick = () => {
+      _pickerCategory = cat;
+      document.getElementById('emojiSearch').value = '';
+      _pickerRenderTabs();
+      const list = cat === 'Wszystkie' ? ALL_EMOJIS : EMOJI_LIBRARY[cat];
+      _pickerRenderGrid(list);
+    };
+    tabsBox.appendChild(tab);
+  });
+}
+
+function otworzPickerEmoji() {
+  document.getElementById('emojiSearch').value = '';
+  _pickerCategory = 'Wszystkie';
+  _pickerRenderTabs();
+  _pickerRenderGrid(ALL_EMOJIS);
+  document.getElementById('emojiModalBackdrop').classList.add('show');
+  // Auto-focus na wyszukiwarce po krótkiej chwili
+  setTimeout(() => {
+    const s = document.getElementById('emojiSearch');
+    if (s) s.focus();
+  }, 50);
+}
+
+function zamknijPickerEmoji() {
+  document.getElementById('emojiModalBackdrop').classList.remove('show');
+}
+
+// Wyszukiwanie - filtruje po polskich nazwach z EMOJI_NAMES
+document.getElementById('emojiSearch').oninput = function() {
+  const q = this.value.trim().toLowerCase();
+  if (!q) {
+    const list = _pickerCategory === 'Wszystkie' ? ALL_EMOJIS : EMOJI_LIBRARY[_pickerCategory];
+    _pickerRenderGrid(list);
+    return;
+  }
+  const matches = ALL_EMOJIS.filter(em => {
+    const name = (EMOJI_NAMES[em] || '').toLowerCase();
+    return name.includes(q);
+  });
+  _pickerRenderGrid(matches);
+};
+
+// Escape zamyka picker
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && document.getElementById('emojiModalBackdrop').classList.contains('show')) {
+    zamknijPickerEmoji();
+  }
+});
+
 // --- Start: wczytaj zapisane rysunki przy ładowaniu strony ---
 inicjalizujRysunki();
 </script>
+
+<!-- MODAL PICKER EMOJI - wybór ikony miejsca -->
+<div class="emoji-modal-backdrop" id="emojiModalBackdrop" onclick="if(event.target===this)zamknijPickerEmoji()">
+  <div class="emoji-modal">
+    <h2>🎨 Wybierz ikonę miejsca</h2>
+    <input type="text" class="emoji-modal-search" id="emojiSearch" placeholder="🔍 Szukaj... (np. kosciol, drzewo, kawa, samolot)" />
+    <div class="emoji-modal-tabs" id="emojiTabs"></div>
+    <div class="emoji-modal-grid" id="emojiModalGrid"></div>
+    <div class="emoji-modal-row">
+      <button class="emoji-modal-close-btn" onclick="zamknijPickerEmoji()">Zamknij</button>
+    </div>
+  </div>
+</div>
 
 </body>
 </html>
