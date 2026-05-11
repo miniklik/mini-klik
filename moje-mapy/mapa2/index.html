@@ -949,6 +949,24 @@ footer{
 .detail-content .opis-tekst p{margin:0 0 14px}
 .detail-content .opis-tekst p:last-child{margin-bottom:0}
 
+/* Klikalne linki w opisach miejsc (np. do YouTube) */
+.detail-content .opis-link{
+  display:inline-block;
+  color:var(--crimson);
+  font-weight:600;
+  text-decoration:none;
+  border-bottom:1px solid var(--gold-pale);
+  padding:2px 4px;
+  border-radius:3px;
+  transition:all 0.2s;
+  word-break:break-all;
+}
+.detail-content .opis-link:hover{
+  background:var(--gold-pale);
+  color:var(--gold);
+  border-bottom-color:var(--gold);
+}
+
 .detail-content .opis-md{
   font-family:'EB Garamond',serif;color:var(--ink);
   line-height:1.7;font-size:16px;
@@ -1186,12 +1204,37 @@ footer{
   font-size:13px;font-style:italic;opacity:0.85;
 }
 .admin-choose .cancel-link{
-  display:inline-block;margin-top:14px;
-  color:var(--ink-muted);font-size:12px;
-  text-decoration:underline;cursor:pointer;
-  font-style:italic;
+  display:block;
+  margin:18px auto 0;
+  padding:11px 28px;
+  width:fit-content;min-width:200px;
+  text-align:center;
+  background:linear-gradient(180deg,var(--paper-2),var(--paper-3));
+  border:1.5px solid var(--ink-muted);
+  border-radius:5px;
+  color:var(--ink);
+  font-family:'Cinzel',serif;
+  font-size:14px;
+  font-weight:600;
+  letter-spacing:1.5px;
+  text-transform:uppercase;
+  text-decoration:none;
+  font-style:normal;
+  cursor:pointer;
+  transition:all 0.2s ease;
+  box-shadow:0 2px 4px rgba(0,0,0,0.08);
 }
-.admin-choose .cancel-link:hover{color:var(--crimson)}
+.admin-choose .cancel-link:hover{
+  color:var(--crimson);
+  border-color:var(--crimson);
+  background:var(--paper);
+  transform:translateY(-1px);
+  box-shadow:0 3px 8px rgba(120,30,40,0.15);
+}
+.admin-choose .cancel-link:active{
+  transform:translateY(0);
+  box-shadow:0 1px 2px rgba(0,0,0,0.1);
+}
 
 /* === POMOCNIK DODAWANIA KROPEK (admin only) === */
 .admin-helper{
@@ -1735,6 +1778,7 @@ footer{
   display:block !important;
   margin:0;
 }
+
 .admin-list .admin-list-title{
   font-family:'Cinzel',serif;font-size:10px;
   color:#7c3aed;letter-spacing:1.5px;
@@ -1782,7 +1826,8 @@ footer{
   margin-bottom:5px;font-weight:600;
   text-transform:uppercase;
 }
-.nazwa-edytor input[type="text"]{
+.nazwa-edytor input[type="text"],
+.nazwa-edytor input[type="password"]{
   width:100%;
   background:#fffefa;
   border:1px solid rgba(160,69,16,0.4);
@@ -1794,7 +1839,8 @@ footer{
   margin-bottom:8px;
   transition:all 0.2s;
 }
-.nazwa-edytor input[type="text"]:focus{
+.nazwa-edytor input[type="text"]:focus,
+.nazwa-edytor input[type="password"]:focus{
   outline:none;
   border-color:var(--gold);
   background:#fff;
@@ -1913,10 +1959,21 @@ footer{
 }
 #radarCount{font-size:14px;color:var(--ink)}
 .radar-arrow{
-  color:var(--ink-muted);
-  font-size:11px;
-  transition:transform 0.3s;
+  color:var(--gold);
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  width:24px;
+  height:24px;
+  border:1.5px solid var(--gold);
+  border-radius:6px;
+  background:rgba(255,255,255,0.04);
+  transition:transform 0.3s, background 0.2s, color 0.2s;
   flex-shrink:0;
+}
+.radar-mini:hover .radar-arrow{
+  background:var(--gold);
+  color:var(--paper-2);
 }
 .radar-panel.expanded .radar-arrow{transform:rotate(180deg)}
 
@@ -3394,19 +3451,6 @@ html.tryb-noc .sw-off {
     background:#1a1410 !important;
   }
 
-  /* ROZJAŚNIENIE CIEMNYCH KAFELKÓW MAPY W TRYBIE NOCNYM
-     CartoDB Dark Matter sama w sobie jest BARDZO ciemna - jadąc nocą
-     ulice prawie niewidoczne. Stosujemy CSS filter który zachowuje
-     "ciemny styl" ale rozjaśnia szare odcienie żeby drogi i miasta
-     były wyraźnie widoczne. Działa TYLKO gdy aktywny jest tryb 'mapa'
-     (klasa .mapa-tryb-droga na <html>), NIE dla satelity.
-     Filter aplikujemy tylko na .leaflet-tile-pane - markery, popupy
-     i UI Leafleta zostają nietknięte. */
-  html.tryb-noc.mapa-tryb-droga .leaflet-tile-pane {
-    filter: brightness(1.55) contrast(0.92) saturate(1.15);
-    -webkit-filter: brightness(1.55) contrast(0.92) saturate(1.15);
-  }
-
   /* Panele kontrolne (FAB-y) - ciemne tło, jaśniejszy tekst */
   html.tryb-noc .mobile-fab,
   html.tryb-noc .gps-btn,
@@ -3564,6 +3608,156 @@ html.tryb-noc .sw-off {
     min-width:0 !important;
   }
 }
+
+/* === POPUP WPROWADZANIA HASŁA ADMINA (na gotowych mapach) === */
+/* Pokazuje się gdy ktoś wejdzie z ?admin=1 a w pliku jest ustawiony hash */
+.admin-haslo-popup{
+  position:fixed;inset:0;
+  background:rgba(60,40,20,0.55);
+  backdrop-filter:blur(4px);
+  z-index:99999;
+  display:none;
+  align-items:center;justify-content:center;
+  font-family:'EB Garamond',serif;
+}
+.admin-haslo-popup.visible{display:flex}
+.admin-haslo-box{
+  background:linear-gradient(180deg,var(--paper-2),var(--paper-3));
+  border:2px solid var(--gold);
+  border-radius:8px;
+  padding:30px 36px;
+  max-width:400px;width:92%;
+  box-shadow:var(--shadow-deep);
+  position:relative;
+  text-align:center;
+}
+.admin-haslo-box::before,.admin-haslo-box::after{
+  content:'';position:absolute;width:24px;height:24px;
+  border:2px solid var(--gold);
+}
+.admin-haslo-box::before{top:8px;left:8px;border-right:none;border-bottom:none}
+.admin-haslo-box::after{bottom:8px;right:8px;border-left:none;border-top:none}
+.admin-haslo-box h3{
+  font-family:'Cinzel',serif;
+  color:var(--gold);
+  font-size:20px;
+  margin-bottom:8px;
+  letter-spacing:1px;
+}
+.admin-haslo-box .info{
+  color:var(--ink-soft);
+  font-size:14px;
+  margin-bottom:18px;
+  font-style:italic;
+}
+.admin-haslo-box input[type="password"]{
+  width:100%;
+  padding:12px 14px;
+  font-size:16px;
+  font-family:'EB Garamond',serif;
+  border:1.5px solid var(--ink-muted);
+  border-radius:5px;
+  background:var(--paper-2);
+  color:var(--ink);
+  outline:none;
+  transition:border-color 0.2s;
+  text-align:center;
+  letter-spacing:2px;
+}
+.admin-haslo-box input[type="password"]:focus{
+  border-color:var(--gold);
+  box-shadow:0 0 0 3px var(--gold-pale);
+}
+.admin-haslo-box .err{
+  color:var(--crimson);
+  font-size:13px;
+  margin-top:10px;
+  min-height:18px;
+  font-weight:600;
+}
+.admin-haslo-box .akcje{
+  display:flex;gap:10px;
+  margin-top:14px;
+  justify-content:center;
+}
+.admin-haslo-box button{
+  padding:10px 22px;
+  font-size:14px;
+  font-family:'Cinzel',serif;
+  letter-spacing:1px;
+  border:none;border-radius:5px;
+  cursor:pointer;
+  transition:all 0.2s;
+}
+.admin-haslo-box .btn-ok{
+  background:var(--gold);color:#fff;
+}
+.admin-haslo-box .btn-ok:hover{
+  background:var(--gold-light);
+  transform:translateY(-1px);
+}
+.admin-haslo-box .btn-cancel{
+  background:var(--paper-3);color:var(--ink);
+  border:1px solid var(--ink-muted);
+}
+.admin-haslo-box .btn-cancel:hover{
+  background:var(--paper);
+}
+
+/* === RAMKA USTAWIANIA HASŁA W EDYTORZE === */
+/* Bazowy styl bierze z .nazwa-edytor (jak Nazwa strony, Opis, Kategorie). */
+/* Tu tylko dodatki: kolorowe statusy, czerwone błędy, mały tekst pomocy. */
+.haslo-status{
+  font-size:10px;
+  padding:5px 7px;
+  border-radius:3px;
+  margin-bottom:7px;
+  line-height:1.3;
+}
+.haslo-status.ustawione{
+  background:#d4edda;color:#155724;
+  border-left:3px solid #27ae60;
+}
+.haslo-status.brak{
+  background:#fff3cd;color:#856404;
+  border-left:3px solid #f39c12;
+}
+.haslo-akcje{
+  display:flex;gap:4px;flex-wrap:wrap;
+  margin-top:6px;
+}
+.haslo-akcje button{
+  padding:5px 9px;
+  font-size:11px;
+  border:none;border-radius:3px;
+  cursor:pointer;
+  font-family:'EB Garamond',serif;
+  flex:1;min-width:60px;
+}
+.haslo-akcje .btn-ust{background:#27ae60;color:#fff}
+.haslo-akcje .btn-ust:hover{background:#229954}
+.haslo-akcje .btn-zmien{background:var(--gold);color:#fff}
+.haslo-akcje .btn-zmien:hover{background:var(--gold-light)}
+.haslo-akcje .btn-usun{background:var(--crimson);color:#fff}
+.haslo-akcje .btn-usun:hover{background:#7a1a26}
+.haslo-akcje .btn-anuluj{
+  background:var(--paper-3);color:var(--ink);
+  border:1px solid var(--ink-muted);
+}
+.haslo-info-mini{
+  font-size:10px;
+  color:var(--ink-muted);
+  font-style:italic;
+  margin-top:6px;
+  line-height:1.3;
+}
+.haslo-err-mini{
+  color:var(--crimson);
+  font-size:11px;
+  margin:3px 0;
+  min-height:14px;
+  font-weight:600;
+}
 </style>
 </head>
 <body>
@@ -3642,7 +3836,6 @@ html.tryb-noc .sw-off {
 
   <div class="opcje">
     <button onclick="otworzZnaleziony()">↗ Otwórz link</button>
-    <button class="secondary" onclick="kontynuujSkanowanie()">📷 Skanuj kolejny</button>
   </div>
   <a class="small-link" onclick="zamknijWynik()">Zamknij — wróć do mapy</a>
 </div>
@@ -3737,7 +3930,7 @@ html.tryb-noc .sw-off {
         <div class="radar-mini" id="radarMini" onclick="toggleRadarPanel()">
           <span class="radar-icon">📡</span>
           <span class="radar-mini-text">W zasięgu: <span id="radarCount">0</span></span>
-          <span class="radar-arrow" id="radarArrow">▼</span>
+          <span class="radar-arrow" id="radarArrow" aria-hidden="true"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></span>
         </div>
         <div class="radar-lista" id="radarLista"></div>
       </div>
@@ -4075,6 +4268,53 @@ html.tryb-noc .sw-off {
 
 <script>
 // =====================================================================
+// === JEDNORAZOWY RESET DANYCH ========================================
+// =====================================================================
+// Ten blok wykonuje się TYLKO RAZ - przy pierwszym otwarciu tego pliku.
+// Czyści wszystkie zapisane dane mapy (miejsca, kropki, hasło, rysunki,
+// nazwę strony, opis, kategorie) żeby edytor był idealnie czysty.
+// Po wyczyszczeniu ustawia flagę i nigdy więcej nie kasuje danych usera.
+// =====================================================================
+// =====================================================================
+// === WYMUSZONY RESET HASŁA (jednorazowy, po usunięciu funkcji hasła) =
+// =====================================================================
+// Funkcja hasła została usunięta z edytora. Stare hasła które kiedyś
+// zostały zapisane w localStorage tej przeglądarki muszą zniknąć,
+// żeby nie wracały magicznie do generowanych plików.
+// =====================================================================
+(function() {
+  const FLAGA = '_haslo_wypierdolone_v1';
+  try {
+    if (!localStorage.getItem(FLAGA)) {
+      try { localStorage.removeItem('admin_haslo_hash_v1'); } catch(e) {}
+      try { sessionStorage.removeItem('admin_haslo_ok'); } catch(e) {}
+      localStorage.setItem(FLAGA, '1');
+    }
+  } catch(e) {}
+})();
+
+(function() {
+  const FLAGA_RESETU = '_edytor_zresetowany_v1';
+  try {
+    if (!localStorage.getItem(FLAGA_RESETU)) {
+      const klucze_do_usuniecia = [
+        'admin-miejsca',
+        'admin-kropki-zaplanowane',
+        'admin-nazwa-strony',
+        'admin-opis-strony-tytul',
+        'admin-opis-strony-tresc',
+        'kategorie_robocze_v1',
+        'rysunki_mapy_v1'
+      ];
+      for (const k of klucze_do_usuniecia) {
+        try { localStorage.removeItem(k); } catch(e) {}
+      }
+      localStorage.setItem(FLAGA_RESETU, '1');
+    }
+  } catch(e) {}
+})();
+
+// =====================================================================
 // === KATEGORIE - edytowalne nazwy i ikony ============================
 // =====================================================================
 // Klucze ('zabytek', 'sakral', 'przyroda', 'urzad') są STAŁE - nie da się
@@ -4086,7 +4326,7 @@ html.tryb-noc .sw-off {
 
 // === KATEGORIE:START === (nie usuwaj tego komentarza - znacznik dla auto-eksportu)
 const kategorieDomyslne = {
-  zabytek: { ikona: '🏰', nazwa: 'Zabytki' },
+  zabytek: { ikona: '👰', nazwa: 'Zabytki' },
   sakral:  { ikona: '⛪', nazwa: 'Sakralne' },
   przyroda:{ ikona: '🌳', nazwa: 'Przyroda' },
   urzad:   { ikona: '🏛️', nazwa: 'Instytucje' }
@@ -4162,7 +4402,9 @@ function zastosujKategorie() {
 }
 
 const miejsca = [
-
+  { klucz: 'bagno', nazwa: 'bagno', pozycja: [51.1510, 22.8705], ikona: '🏛️', kategoria: 'zabytek' },
+  { klucz: 'cos-tam', nazwa: 'coś tam', pozycja: [51.0912, 22.9673], ikona: '🏛️', kategoria: 'zabytek' },
+  { klucz: 'ok', nazwa: 'ok', pozycja: [51.2061, 23.1343], ikona: '🏛️', kategoria: 'zabytek' }
 ];
 
 const mapa = L.map('mapa', {
@@ -4208,8 +4450,11 @@ function aktualizujPrzyciskCenter() {
   }
 }
 
-// Tryb administratora - włącza się przez ?admin=1 w URL (DEKLAROWANE WYSOKO bo wiele funkcji od tego zależy)
-const isAdmin = new URLSearchParams(window.location.search).get('admin') === '1';
+// === TRYB ADMINA ===
+// Włącza się przez ?admin=1 w URL. Bez hasła, bez popupów - po prostu URL decyduje.
+// Edytor zawsze otwarty dla każdego kto wpisze ?admin=1.
+const _chce_admina = new URLSearchParams(window.location.search).get('admin') === '1';
+let isAdmin = _chce_admina;
 
 // === WARSTWY MAPY ===
 // Dwie warstwy: OpenStreetMap (drogowa) + Geoportal (ortofotomapa Polska)
@@ -4453,6 +4698,31 @@ async function pobierzOpisMiejsca(klucz) {
   }
 }
 
+// Próbuje wczytać zdjęcie w kolejnych formatach: jpg -> png -> jpeg -> webp -> placeholder.
+// Wywoływana z onerror tagu <img>. Atrybut data-prob trzyma aktualnie sprawdzane rozszerzenie.
+function probujKolejneRozszerzenieZdjecia(img) {
+  const klucz = img.dataset.klucz;
+  const obecne = img.dataset.prob;
+  const kolejnosc = ['jpg', 'png', 'jpeg', 'webp'];
+  const idx = kolejnosc.indexOf(obecne);
+
+  if (idx >= 0 && idx < kolejnosc.length - 1) {
+    const nastepne = kolejnosc[idx + 1];
+    img.dataset.prob = nastepne;
+    img.src = 'img/' + klucz + '.' + nastepne;
+    return;
+  }
+
+  // Wyczerpaliśmy wszystkie rozszerzenia - placeholder
+  if (img.parentElement) {
+    img.parentElement.innerHTML =
+      '<div class="detail-image-placeholder">' +
+        '<span class="ikona-big">📷</span>' +
+        '<em>Zdjęcie nie zostało jeszcze dodane.<br>Wgraj plik <code>img/' + klucz + '.jpg</code> lub <code>img/' + klucz + '.png</code> do repo.</em>' +
+      '</div>';
+  }
+}
+
 async function otworzPlatek(klucz, akcja) {
   const miejsce = miejsca.find(m => m.klucz === klucz);
   if (!miejsce) return;
@@ -4503,7 +4773,7 @@ async function otworzPlatek(klucz, akcja) {
       if (maOpis) {
         const akapity = miejsce.opis.split(/\n\s*\n/).map(a => a.trim()).filter(a => a);
         const akapityHTML = akapity.map(a =>
-          `<p>${escapeHTML(a).replace(/\n/g, '<br>')}</p>`
+          `<p>${linkifyHTML(a).replace(/\n/g, '<br>')}</p>`
         ).join('');
         html += `<div class="opis-tekst">${akapityHTML}</div>`;
       }
@@ -4529,10 +4799,11 @@ async function otworzPlatek(klucz, akcja) {
     content.innerHTML = html;
     return; // panel już otwarty wyżej
   } else if (akcja === 'zdjecie') {
-    const sciezka = `img/${miejsce.klucz}.jpg`;
+    const klucz = miejsce.klucz;
+    const safeNazwa = (miejsce.nazwa || '').replace(/"/g,'&quot;');
     content.innerHTML = `<div class="detail-image-wrapper">
-      <img src="${sciezka}" alt="${miejsce.nazwa}"
-        onerror="this.parentElement.innerHTML='<div class=\\'detail-image-placeholder\\'><span class=\\'ikona-big\\'>📷</span><em>Zdjęcie nie zostało jeszcze dodane.<br>Wgraj plik <code>img/${miejsce.klucz}.jpg</code> do repo.</em></div>'">
+      <img src="img/${klucz}.jpg" alt="${safeNazwa}" data-klucz="${klucz}" data-prob="jpg"
+        onerror="probujKolejneRozszerzenieZdjecia(this)">
     </div>`;
   }
 
@@ -4592,7 +4863,14 @@ function renderujMiejscaNaMapie() {
         wybranyKlucz = miejsce.klucz;
       }
       // Zawsze: przelot mapy do miejsca
+      // Pauzujemy auto-centrowanie żeby mapa nie wróciła na usera za chwilę.
+      // GPS śledzi dalej, marker usera się rusza, dystanse się liczą - tylko
+      // mapa zostaje na wybranym miejscu dopóki user nie kliknie przycisku ⊙.
+      autoCenterAktywny = false;
+      mapaProgramowoPrzesuwana = true;
       mapa.flyTo(miejsce.pozycja, 16, { duration: 1.2 });
+      setTimeout(() => { mapaProgramowoPrzesuwana = false; }, 1300);
+      aktualizujPrzyciskCenter();
     };
     listaEl.appendChild(card);
   });
@@ -4613,6 +4891,11 @@ zastosujKategorie();
 // Aby dodać nową kropkę: skopiuj jeden obiekt, zmień numer, pozycję i promień.
 // Plik MP3 wgraj do folderu audio/ jako {numer}.mp3 (np. audio/1.mp3)
 const kropkiAudio = [
+  { numer: 1, pozycja: [51.13739, 23.09779], promien: 5000, opis: '' },
+  { numer: 1, pozycja: [51.13222, 22.94467], promien: 5000, opis: '' },
+  { numer: 2, pozycja: [51.19183, 23.15825], promien: 880, opis: '' },
+  { numer: 2, pozycja: [51.17873, 23.20299], promien: 50, opis: '' },
+  { numer: 3, pozycja: [51.19699, 23.18211], promien: 1500, opis: '' }
 ];
 
 // Stan przewodnika audio
@@ -4748,6 +5031,26 @@ function edytujKropkePoIdx(idx) {
   edytowanaKropka = kropka;
   edytowanyTyp = 'audio';
   aktualnyKlik = { lat: kropka.pozycja[0], lng: kropka.pozycja[1] };
+
+  document.getElementById('adminNumer').value = kropka.numer;
+  document.getElementById('adminPromien').value = kropka.promien;
+  const tekstPromien = kropka.promien >= 1000 ? (kropka.promien / 1000).toFixed(1).replace('.', ',') + ' km' : kropka.promien + ' m';
+  document.getElementById('adminPromienVal').textContent = tekstPromien;
+  document.getElementById('adminOpis').value = kropka.opis || '';
+  aktualizujKodKropki();
+  zaktualizujPrzyciskiHelpera();
+  document.getElementById('adminHelper').classList.add('visible');
+}
+
+// Edycja kropki ZAPLANOWANEJ po indeksie w tablicy zaplanowaneKropki
+// (numer nie jest unikalny - wiele zaplanowanych kropek może mieć ten sam
+// numer jako segmenty jednej strefy).
+function edytujZaplanowanaPoIdx(idx) {
+  const kropka = zaplanowaneKropki[idx];
+  if (!kropka) return;
+  edytowanaKropka = kropka;
+  edytowanyTyp = 'planowana';
+  aktualnyKlik = { lat: kropka.lat, lng: kropka.lng };
 
   document.getElementById('adminNumer').value = kropka.numer;
   document.getElementById('adminPromien').value = kropka.promien;
@@ -5463,9 +5766,9 @@ function renderujZaplanowane() {
   zaplanowaneMarkery = [];
 
   // Narysuj nowe
-  zaplanowaneKropki.forEach(kropka => {
+  zaplanowaneKropki.forEach((kropka, idx) => {
     const popupTresc = `<b>📌 Zaplanowana kropka #${kropka.numer}</b>${kropka.opis || '(bez opisu)'}<em>📏 Promień: ${kropka.promien} m<br>📍 ${kropka.lat.toFixed(5)}, ${kropka.lng.toFixed(5)}</em>
-      <button class="popup-nav-btn" onclick="edytujKropke('planowana', ${kropka.numer});mapa.closePopup();">✏️ Edytuj kropkę</button>`;
+      <button class="popup-nav-btn" onclick="edytujZaplanowanaPoIdx(${idx});mapa.closePopup();">✏️ Edytuj kropkę</button>`;
 
     const marker = L.marker([kropka.lat, kropka.lng], {
       icon: L.divIcon({
@@ -5595,6 +5898,31 @@ function escapeHTML(s) {
   return (s || '').replace(/[&<>"']/g, c => ({
     '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
   }[c]));
+}
+
+// Bezpieczna zamiana tekstu na HTML z klikalnymi linkami.
+// Najpierw escapuje (bezpieczeństwo), potem zamienia URL-e na <a target="_blank">.
+// Wspiera: http://, https://, www. (które dostają domyślnie https://).
+// Linki YouTube dostają specjalną ikonkę 🎬 dla wygody.
+function linkifyHTML(s) {
+  // 1. Bezpieczne escapowanie HTML
+  const escaped = escapeHTML(s || '');
+
+  // 2. Wykrywanie URL-i.
+  // Łapiemy: http(s)://... oraz www.... (bez schematu).
+  // Granica linku: spacja, koniec linii, niektóre znaki interpunkcyjne na końcu.
+  const regex = /(\b(?:https?:\/\/|www\.)[^\s<>"']+[^\s<>"'.,;:!?)\]}])/gi;
+
+  return escaped.replace(regex, (match) => {
+    // Dodaj https:// jeśli zaczyna się od www.
+    const href = match.startsWith('www.') ? 'https://' + match : match;
+
+    // Sprawdź czy to YouTube - dla nich dodajemy ikonkę 🎬
+    const jestYT = /(?:youtube\.com\/|youtu\.be\/)/i.test(match);
+    const ikonka = jestYT ? '🎬 ' : '🔗 ';
+
+    return `<a href="${href}" target="_blank" rel="noopener noreferrer" class="opis-link">${ikonka}${match}</a>`;
+  });
 }
 
 function zapiszOpisRoboczo() {
@@ -5950,10 +6278,10 @@ async function pobierzNowyIndex() {
       ...zaplanowaneKropki
     ];
 
-    // Usuń duplikaty po numerze (zaplanowane mają priorytet - możesz nadpisać istniejące)
-    const mapaUnik = new Map();
-    wszystkie.forEach(k => mapaUnik.set(k.numer, k));
-    const finalne = Array.from(mapaUnik.values()).sort((a, b) => a.numer - b.numer);
+    // UWAGA: Wiele kropek może mieć ten sam `numer` (segmenty tej samej strefy
+    // dla nieregularnych obszarów - np. duży park otoczony 3 fioletowymi
+    // kółkami #5, wszystkie odpalają audio/5.mp3). NIE deduplikujemy po numerze!
+    const finalne = wszystkie.slice().sort((a, b) => a.numer - b.numer);
 
     // Wygeneruj kod nowej tablicy kropek audio
     const linie = finalne.map(k => {
@@ -6968,8 +7296,6 @@ function zmienWidok(typ, btn) {
   if (typ === 'satelita') {
     // Satelita wygląda OK w noc i dzień - zawsze ta sama warstwa
     warstwaSatelita.addTo(mapa);
-    // Usuń klasę 'mapa-tryb-droga' - filter rozjaśniający NIE dotyka satelity
-    document.documentElement.classList.remove('mapa-tryb-droga');
   } else {
     // Mapa drogowa - wybierz wariant zależny od trybu nocnego
     if (czyTerazNoc()) {
@@ -6977,8 +7303,6 @@ function zmienWidok(typ, btn) {
     } else {
       warstwaKlasyczna.addTo(mapa);
     }
-    // Dodaj klasę - tylko dla widoku 'mapa drogowa' filter w nocy rozjaśnia
-    document.documentElement.classList.add('mapa-tryb-droga');
   }
 
   try { localStorage.setItem('mapa-widok', typ); } catch(e){}
@@ -7385,8 +7709,13 @@ function obsluzParametrUrl() {
   aktualneMiejsceQR = miejsce;
 
   // Wycentruj mapę na miejscu (po małej zwłoce, by Leaflet zdążył się załadować)
+  // Pauzujemy auto-centrowanie - mapa zostaje na zeskanowanym miejscu.
+  autoCenterAktywny = false;
+  aktualizujPrzyciskCenter();
   setTimeout(() => {
+    mapaProgramowoPrzesuwana = true;
     mapa.flyTo(miejsce.pozycja, 17, { duration: 1.5 });
+    setTimeout(() => { mapaProgramowoPrzesuwana = false; }, 1600);
 
     // Podświetl pinezkę pulsem
     const m = markery.find(mk => mk.miejsce.klucz === klucz);
@@ -7508,21 +7837,6 @@ function zamknijSkaner() {
   document.getElementById('scanModal').classList.remove('visible');
 }
 
-function kontynuujSkanowanie() {
-  zamknijWynik();
-  // Skaner jeszcze otwarty, więc wystarczy go restartować
-  setTimeout(() => {
-    if (qrScanner) {
-      qrScanner.start(
-        { facingMode: "environment" },
-        { fps: 10, qrbox: { width: 250, height: 250 }, aspectRatio: 1.0 },
-        onScanSuccess,
-        onScanError
-      ).catch(err => console.error("Restart failed:", err));
-    }
-  }, 200);
-}
-
 // ============== MODAL WYNIKU ==============
 function pokazWynik(url) {
   const modal = document.getElementById('resultModal');
@@ -7586,9 +7900,6 @@ function otworzZnaleziony() {
     if (savedView === 'satelita') {
       const btnSat = document.getElementById('btn-satelita');
       if (btnSat) zmienWidok('satelita', btnSat);
-    } else {
-      // Domyślnie - mapa drogowa. Dodajemy klasę dla filtra w trybie nocnym.
-      document.documentElement.classList.add('mapa-tryb-droga');
     }
   } catch(e) {}
 })();
@@ -7754,7 +8065,13 @@ function syncListaMobile() {
         if (obecny) obecny.addTo(mapa);
         wybranyKlucz = miejsce.klucz;
       }
+      // Pauzujemy auto-centrowanie - GPS śledzi dalej, ale mapa zostaje
+      // na wybranym miejscu dopóki user nie kliknie przycisku ⊙.
+      autoCenterAktywny = false;
+      mapaProgramowoPrzesuwana = true;
       mapa.flyTo(miejsce.pozycja, 16, { duration: 1.2 });
+      setTimeout(() => { mapaProgramowoPrzesuwana = false; }, 1300);
+      aktualizujPrzyciskCenter();
       // Zwiń bottom sheet po wyborze (na mobile)
       ustawStanBottomSheet('mini');
     };
