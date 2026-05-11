@@ -4860,7 +4860,14 @@ function renderujMiejscaNaMapie() {
         wybranyKlucz = miejsce.klucz;
       }
       // Zawsze: przelot mapy do miejsca
+      // Pauzujemy auto-centrowanie żeby mapa nie wróciła na usera za chwilę.
+      // GPS śledzi dalej, marker usera się rusza, dystanse się liczą - tylko
+      // mapa zostaje na wybranym miejscu dopóki user nie kliknie przycisku ⊙.
+      autoCenterAktywny = false;
+      mapaProgramowoPrzesuwana = true;
       mapa.flyTo(miejsce.pozycja, 16, { duration: 1.2 });
+      setTimeout(() => { mapaProgramowoPrzesuwana = false; }, 1300);
+      aktualizujPrzyciskCenter();
     };
     listaEl.appendChild(card);
   });
@@ -7694,8 +7701,13 @@ function obsluzParametrUrl() {
   aktualneMiejsceQR = miejsce;
 
   // Wycentruj mapę na miejscu (po małej zwłoce, by Leaflet zdążył się załadować)
+  // Pauzujemy auto-centrowanie - mapa zostaje na zeskanowanym miejscu.
+  autoCenterAktywny = false;
+  aktualizujPrzyciskCenter();
   setTimeout(() => {
+    mapaProgramowoPrzesuwana = true;
     mapa.flyTo(miejsce.pozycja, 17, { duration: 1.5 });
+    setTimeout(() => { mapaProgramowoPrzesuwana = false; }, 1600);
 
     // Podświetl pinezkę pulsem
     const m = markery.find(mk => mk.miejsce.klucz === klucz);
@@ -8045,7 +8057,13 @@ function syncListaMobile() {
         if (obecny) obecny.addTo(mapa);
         wybranyKlucz = miejsce.klucz;
       }
+      // Pauzujemy auto-centrowanie - GPS śledzi dalej, ale mapa zostaje
+      // na wybranym miejscu dopóki user nie kliknie przycisku ⊙.
+      autoCenterAktywny = false;
+      mapaProgramowoPrzesuwana = true;
       mapa.flyTo(miejsce.pozycja, 16, { duration: 1.2 });
+      setTimeout(() => { mapaProgramowoPrzesuwana = false; }, 1300);
+      aktualizujPrzyciskCenter();
       // Zwiń bottom sheet po wyborze (na mobile)
       ustawStanBottomSheet('mini');
     };
