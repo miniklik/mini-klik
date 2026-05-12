@@ -13,7 +13,10 @@
 <title>Nazwa strony · mini-klik.pl</title>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css"/>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -1102,6 +1105,62 @@ footer{
 
 /* === KROPKI AUDIO (widoczne tylko w trybie admin) === */
 .audio-dot-marker{background:transparent!important;border:none!important}
+/* ====================================================================
+ * MARKER CLUSTERING - styling klastrów w stylu mini-klika
+ * Klastry pojawiają się gdy mapa ma >= 50 punktów (warunkowo).
+ * Mała: do 19 punktów | Średnia: 20-99 | Duża: 100+
+ * Paleta gold/sepia żeby pasowała do reszty edytora.
+ * ==================================================================== */
+.miniklik-cluster-wrapper {
+  background: transparent !important;
+  border: none !important;
+}
+.miniklik-cluster {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-family: 'Cinzel', serif;
+  font-weight: 700;
+  color: #2d1810;
+  border: 2px solid #fff;
+  box-shadow: 0 3px 12px rgba(60, 40, 20, 0.5), inset 0 0 0 1px rgba(255,255,255,0.4);
+  cursor: pointer;
+  transition: transform 0.15s;
+  width: 100%;
+  height: 100%;
+}
+.miniklik-cluster:hover {
+  transform: scale(1.1);
+}
+.miniklik-cluster-small {
+  background: linear-gradient(135deg, #f5d889, #d4a84a);
+  font-size: 13px;
+}
+.miniklik-cluster-medium {
+  background: linear-gradient(135deg, #e8b85c, #c08a2e);
+  font-size: 15px;
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.4);
+}
+.miniklik-cluster-large {
+  background: linear-gradient(135deg, #c2410c, #9a2f08);
+  font-size: 17px;
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+}
+/* Wyłączamy domyślną otoczkę klastra (jasnoniebieska) bo brzydka */
+.marker-cluster-small,
+.marker-cluster-medium,
+.marker-cluster-large {
+  background-color: transparent !important;
+}
+.marker-cluster-small div,
+.marker-cluster-medium div,
+.marker-cluster-large div {
+  background-color: transparent !important;
+}
+
 /* ========== MODAL PICKER EMOJI (do wyboru ikony miejsca) ========== */
 .emoji-modal-backdrop {
   position: fixed; inset: 0;
@@ -5061,12 +5120,56 @@ function zamknijDetail() {
 const markery = [];
 const listaEl = document.getElementById('lista-miejsc');
 
+// =====================================================================
+// MARKER CLUSTERING - warunkowe włączenie powyżej 50 punktów
+// Pomaga przy dużych mapach (regionalnych, wojewódzkich, ogólnopolskich).
+// Mała mapa lokalna -> bez klastrów (jak teraz)
+// Duża mapa -> klastry pomagają zobaczyć całość
+// =====================================================================
+const LICZBA_PUNKTOW_PROG = 50; // próg włączenia clusteringu
+let clusterGroup = null;        // L.markerClusterGroup() lub null
+let uzywamClusteringu = false;  // true gdy aktualnie używamy klastrów
+
+function _utworzClusterGroup() {
+  // Inicjalizuje warstwę klastrów ze stylem dopasowanym do palety mini-klika
+  return L.markerClusterGroup({
+    maxClusterRadius: 60,            // mniejsze klastry niż domyślne (80)
+    spiderfyOnMaxZoom: true,         // przy max zoomie - rozsuń klastery jak pajączek
+    showCoverageOnHover: false,      // bez pokazywania bounding boxa (zaciemnia mapę)
+    zoomToBoundsOnClick: true,       // klik w klaster -> zoom na zawartość
+    disableClusteringAtZoom: 16,     // od zoom 16 (ulica) wszystko widać osobno
+    iconCreateFunction: function(cluster) {
+      const count = cluster.getChildCount();
+      // Rozmiar i kolor klastra zależny od liczby punktów (mini-klik gold/crimson)
+      let size = 'small', wh = 36;
+      if (count >= 100) { size = 'large'; wh = 52; }
+      else if (count >= 20) { size = 'medium'; wh = 44; }
+      return L.divIcon({
+        html: '<div class="miniklik-cluster miniklik-cluster-' + size + '"><span>' + count + '</span></div>',
+        className: 'miniklik-cluster-wrapper',
+        iconSize: L.point(wh, wh)
+      });
+    }
+  });
+}
+
 function renderujMiejscaNaMapie() {
-  // Usuń stare markery z mapy
+  // Usuń stare markery (zarówno z klastra jak i bezpośrednio z mapy)
+  if (clusterGroup) {
+    try { mapa.removeLayer(clusterGroup); } catch(e) {}
+    clusterGroup.clearLayers();
+    clusterGroup = null;
+  }
   markery.forEach(m => {
     try { mapa.removeLayer(m); } catch(e) {}
   });
   markery.length = 0;
+
+  // Decyzja: clustering czy nie?
+  uzywamClusteringu = (miejsca.length >= LICZBA_PUNKTOW_PROG);
+  if (uzywamClusteringu) {
+    clusterGroup = _utworzClusterGroup();
+  }
 
   // Wyczyść listę
   if (listaEl) listaEl.innerHTML = '';
@@ -5075,7 +5178,13 @@ function renderujMiejscaNaMapie() {
   miejsca.forEach((miejsce) => {
     const marker = L.marker(miejsce.pozycja, {
       icon: ikonaSpecjalna(miejsce.ikona, miejsce.klucz, miejsce.kategoria)
-    }).addTo(mapa);
+    });
+    // Dodanie zależy od trybu
+    if (uzywamClusteringu) {
+      clusterGroup.addLayer(marker);
+    } else {
+      marker.addTo(mapa);
+    }
     marker.kategoria = miejsce.kategoria;
     marker.miejsce = miejsce;
     markery.push(marker);
@@ -5094,11 +5203,23 @@ function renderujMiejscaNaMapie() {
         // Najpierw schowaj poprzednio wybraną pinezkę
         if (wybranyKlucz && wybranyKlucz !== miejsce.klucz) {
           const stary = markery.find(mk => mk.miejsce.klucz === wybranyKlucz);
-          if (stary) mapa.removeLayer(stary);
+          if (stary) {
+            if (uzywamClusteringu && clusterGroup) {
+              clusterGroup.removeLayer(stary);
+            } else {
+              mapa.removeLayer(stary);
+            }
+          }
         }
         // Pokaż obecną
         const obecny = markery.find(mk => mk.miejsce.klucz === miejsce.klucz);
-        if (obecny) obecny.addTo(mapa);
+        if (obecny) {
+          if (uzywamClusteringu && clusterGroup) {
+            clusterGroup.addLayer(obecny);
+          } else {
+            obecny.addTo(mapa);
+          }
+        }
         wybranyKlucz = miejsce.klucz;
       }
       // Zawsze: przelot mapy do miejsca
@@ -5113,6 +5234,11 @@ function renderujMiejscaNaMapie() {
     };
     listaEl.appendChild(card);
   });
+
+  // Po dodaniu wszystkich markerów - jeśli używamy klastrów, dodaj warstwę do mapy
+  if (uzywamClusteringu && clusterGroup) {
+    mapa.addLayer(clusterGroup);
+  }
 }
 
 // Pierwszy render - przy starcie
@@ -7261,7 +7387,13 @@ function odswiezMiejscaNaMapie() {
   // Re-aplikuj filtr (np. 'wybrane' / 'wszystko')
   if (trybWybrane && wybranyKlucz) {
     markery.forEach(m => {
-      if (m.miejsce.klucz !== wybranyKlucz) mapa.removeLayer(m);
+      if (m.miejsce.klucz !== wybranyKlucz) {
+        if (uzywamClusteringu && clusterGroup) {
+          clusterGroup.removeLayer(m);
+        } else {
+          mapa.removeLayer(m);
+        }
+      }
     });
   }
 
@@ -7625,9 +7757,25 @@ function filtruj(kat, btn) {
 
   trybWybrane = (kat === 'wybrane');
 
+  // Helper: dodaj/usuń marker zgodnie z trybem klastrowania
+  function pokazMarker(m) {
+    if (uzywamClusteringu && clusterGroup) {
+      clusterGroup.addLayer(m);
+    } else {
+      m.addTo(mapa);
+    }
+  }
+  function ukryjMarker(m) {
+    if (uzywamClusteringu && clusterGroup) {
+      clusterGroup.removeLayer(m);
+    } else {
+      mapa.removeLayer(m);
+    }
+  }
+
   if (trybWybrane) {
     // Tryb "wybrane z listy" - pusta mapa, ale lista pełna
-    markery.forEach(m => mapa.removeLayer(m));
+    markery.forEach(m => ukryjMarker(m));
     // Pokaż wszystkie karty w sidebarze (turysta wybiera z pełnej listy)
     document.querySelectorAll('.miejsce-card').forEach(c => c.style.display = 'block');
     // Wyczyść też trasę i wybrane miejsce
@@ -7636,8 +7784,8 @@ function filtruj(kat, btn) {
   } else {
     // Klasyczny filtr - pokazuj markery i karty pasujące do kategorii
     markery.forEach(m => {
-      if (kat === 'wszystkie' || m.kategoria === kat) m.addTo(mapa);
-      else mapa.removeLayer(m);
+      if (kat === 'wszystkie' || m.kategoria === kat) pokazMarker(m);
+      else ukryjMarker(m);
     });
 
     document.querySelectorAll('.miejsce-card').forEach(c => {
@@ -8281,8 +8429,16 @@ function otworzZnaleziony() {
   if (centrum) {
     // Mamy centrum - włącz tryb wybrane i pokaż tylko centrum
     trybWybrane = true;
-    markery.forEach(m => mapa.removeLayer(m));
-    centrum.addTo(mapa);
+    if (uzywamClusteringu && clusterGroup) {
+      // W klastrowanym trybie - usuwamy wszystkie inne markery z klastra
+      markery.forEach(m => {
+        if (m !== centrum) clusterGroup.removeLayer(m);
+      });
+      // centrum jest już w klastrze
+    } else {
+      markery.forEach(m => mapa.removeLayer(m));
+      centrum.addTo(mapa);
+    }
     wybranyKlucz = 'centrum';
   }
   // Inaczej - zostaw wszystko widoczne (markery domyślnie są na mapie)
@@ -8427,10 +8583,22 @@ function syncListaMobile() {
       if (trybWybrane) {
         if (wybranyKlucz && wybranyKlucz !== miejsce.klucz) {
           const stary = markery.find(mk => mk.miejsce.klucz === wybranyKlucz);
-          if (stary) mapa.removeLayer(stary);
+          if (stary) {
+            if (uzywamClusteringu && clusterGroup) {
+              clusterGroup.removeLayer(stary);
+            } else {
+              mapa.removeLayer(stary);
+            }
+          }
         }
         const obecny = markery.find(mk => mk.miejsce.klucz === miejsce.klucz);
-        if (obecny) obecny.addTo(mapa);
+        if (obecny) {
+          if (uzywamClusteringu && clusterGroup) {
+            clusterGroup.addLayer(obecny);
+          } else {
+            obecny.addTo(mapa);
+          }
+        }
         wybranyKlucz = miejsce.klucz;
       }
       // Pauzujemy auto-centrowanie - GPS śledzi dalej, ale mapa zostaje
