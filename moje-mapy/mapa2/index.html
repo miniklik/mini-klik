@@ -1106,6 +1106,111 @@ footer{
 /* === KROPKI AUDIO (widoczne tylko w trybie admin) === */
 .audio-dot-marker{background:transparent!important;border:none!important}
 
+/* EDYTOR-GRA: DUŻA pinezka START - widoczna dla turysty żeby wiedział gdzie zacząć grę.
+ * Pulsuje czerwonym blaskiem, przyciąga uwagę z daleka.
+ * Pojawia się tylko gdy etap = 0 (przed rozpoczęciem gry).
+ * To samo dla META - pojawia się po odkryciu wszystkich tajemnic. */
+.gra-pinezka-start-marker,
+.gra-pinezka-meta-marker {
+  background: transparent !important;
+  border: none !important;
+  overflow: visible !important;
+}
+.gra-pinezka-start {
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  background: radial-gradient(circle at 30% 30%, #fca5a5, #dc2626);
+  border: 3px solid #fff;
+  border-radius: 50%;
+  box-shadow:
+    0 0 0 2px #dc2626,
+    0 4px 16px rgba(220, 38, 38, 0.6),
+    0 0 30px rgba(220, 38, 38, 0.4);
+  cursor: pointer;
+  animation: gra-puls-start 1.8s ease-in-out infinite;
+  position: relative;
+}
+@keyframes gra-puls-start {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow:
+      0 0 0 2px #dc2626,
+      0 4px 16px rgba(220, 38, 38, 0.6),
+      0 0 30px rgba(220, 38, 38, 0.4);
+  }
+  50% {
+    transform: scale(1.08);
+    box-shadow:
+      0 0 0 2px #dc2626,
+      0 4px 22px rgba(220, 38, 38, 0.8),
+      0 0 50px rgba(220, 38, 38, 0.6);
+  }
+}
+.gra-pinezka-start-label {
+  position: absolute;
+  top: 46px;
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  background: linear-gradient(135deg, #dc2626, #991b1b);
+  color: #fff;
+  padding: 3px 10px;
+  border-radius: 4px;
+  border: 1px solid #fff;
+  font-family: 'Cinzel', serif;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+  pointer-events: none;
+}
+
+/* META - złota wersja, ale BEZ pulsowania (mniej krzykliwa, oczywiście że to cel) */
+.gra-pinezka-meta {
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  background: radial-gradient(circle at 30% 30%, #fbe09c, #d4a84a);
+  border: 3px solid #fff;
+  border-radius: 50%;
+  box-shadow:
+    0 0 0 2px #d4a84a,
+    0 4px 16px rgba(212, 168, 74, 0.7),
+    0 0 30px rgba(212, 168, 74, 0.5);
+  cursor: pointer;
+  animation: gra-puls-meta 2.5s ease-in-out infinite;
+  position: relative;
+}
+@keyframes gra-puls-meta {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+}
+.gra-pinezka-meta-label {
+  position: absolute;
+  top: 46px;
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  background: linear-gradient(135deg, #d4a84a, #b08838);
+  color: #2d1810;
+  padding: 3px 10px;
+  border-radius: 4px;
+  border: 1px solid #fff;
+  font-family: 'Cinzel', serif;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+  pointer-events: none;
+}
+
 /* EDYTOR-GRA: pinezki odkrytych tajemnic (po wejściu w strefę) */
 .odkryta-tajemnica-marker {
   background: transparent !important;
@@ -5853,6 +5958,69 @@ function aktualizujPostepGryUI() {
 // Reset gry kasuje wszystkie pinezki.
 let _markeryOdkrytych = []; // lista markerów Leaflet (do usuwania przy re-renderze)
 
+// EDYTOR-GRA: duża widoczna pinezka START dla turysty
+// Bez tego turysta nie wie GDZIE jest punkt startowy - zaczyna grę w ciemno.
+// Pinezka WIDOCZNA OD POCZĄTKU, znika dopiero PO wejściu w start (etap >= 1).
+let _markerStart = null;
+let _markerMeta = null;
+
+function renderujPinezkeStartu() {
+  if (!trybGryWlaczony) return;
+  // Usuń stary marker jeśli istnieje
+  if (_markerStart) {
+    try { mapa.removeLayer(_markerStart); } catch(e) {}
+    _markerStart = null;
+  }
+  // Pokazujemy pinezkę startu TYLKO gdy etap = 0 (jeszcze nie zaczęto gry)
+  // Po wejściu w start (etap >= 1) duża pinezka znika - jest w pamięci historii
+  if (aktualnyEtapGry !== 0) return;
+
+  const start = znajdzStart();
+  if (!start) return;
+
+  const tytul = start.tytul || 'START przygody';
+  const popupTresc = `<div style="text-align:center"><b style="font-size:16px;color:#dc2626">🏁 ${tytul}</b><br><br>${start.opis || 'Tu zaczyna się Twoja przygoda!'}<br><br><em style="color:#dc2626">Idź tutaj żeby rozpocząć grę</em></div>`;
+
+  _markerStart = L.marker(start.pozycja, {
+    icon: L.divIcon({
+      className: 'gra-pinezka-start-marker',
+      html: `<div class="gra-pinezka-start" title="START - tu rozpocznij grę">🏁</div><div class="gra-pinezka-start-label">START</div>`,
+      iconSize: [44, 44],
+      iconAnchor: [22, 22]
+    }),
+    zIndexOffset: 500 // wyżej niż inne markery
+  }).bindPopup(popupTresc);
+  _markerStart.addTo(mapa);
+}
+
+function renderujPinezkeMety() {
+  if (!trybGryWlaczony) return;
+  if (_markerMeta) {
+    try { mapa.removeLayer(_markerMeta); } catch(e) {}
+    _markerMeta = null;
+  }
+  // META pojawia się dopiero po odkryciu wszystkich tajemnic (etap >= ileTajemnic + 1)
+  const ileTajemnic = policzTajemnice();
+  if (aktualnyEtapGry < ileTajemnic + 1) return;
+
+  const meta = znajdzMete();
+  if (!meta) return;
+
+  const tytul = meta.tytul || 'META przygody';
+  const popupTresc = `<div style="text-align:center"><b style="font-size:16px;color:#d4a84a">🏆 ${tytul}</b><br><br>${meta.opis || 'Już prawie koniec! Idź tu po gratulacje.'}<br><br><em style="color:#d4a84a">Cel końcowy przygody</em></div>`;
+
+  _markerMeta = L.marker(meta.pozycja, {
+    icon: L.divIcon({
+      className: 'gra-pinezka-meta-marker',
+      html: `<div class="gra-pinezka-meta" title="META - cel końcowy">🏆</div><div class="gra-pinezka-meta-label">META</div>`,
+      iconSize: [44, 44],
+      iconAnchor: [22, 22]
+    }),
+    zIndexOffset: 500
+  }).bindPopup(popupTresc);
+  _markerMeta.addTo(mapa);
+}
+
 function renderujOdkryteTajemnice() {
   if (!trybGryWlaczony) return;
   // Najpierw usuń stare markery
@@ -5860,6 +6028,10 @@ function renderujOdkryteTajemnice() {
     try { mapa.removeLayer(m); } catch(e) {}
   });
   _markeryOdkrytych = [];
+
+  // EDYTOR-GRA: dodatkowo renderujemy widoczne pinezki START i META
+  renderujPinezkeStartu();
+  renderujPinezkeMety();
 
   // Dla każdej tajemnicy która została odkryta (numer < aktualnyEtap)
   // - aktualnyEtap = 1 (po starcie) → żadna nie odkryta
