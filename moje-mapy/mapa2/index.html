@@ -10,7 +10,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 
-<title>Nazwa przygody · mini-klik.pl</title>
+<title>Nocna przygoda · mini-klik.pl</title>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css"/>
@@ -1169,6 +1169,45 @@ footer{
   pointer-events: none;
 }
 
+/* START PO ROZPOCZĘCIU GRY - pinezka spokojniejsza, mniej krzykliwa.
+ * Ten sam rozmiar, ale bez pulsowania, lekko przygaszona.
+ * Klimat: "tu zacząłeś przygodę, pamiątka". */
+.gra-pinezka-start-odkryty {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  background: radial-gradient(circle at 30% 30%, #fca5a5, #dc2626);
+  border: 2px solid #fff;
+  border-radius: 50%;
+  box-shadow:
+    0 0 0 1px #dc2626,
+    0 3px 10px rgba(220, 38, 38, 0.4);
+  cursor: pointer;
+  opacity: 0.85;
+  position: relative;
+}
+.gra-pinezka-start-label-odkryty {
+  position: absolute;
+  top: 42px;
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  background: rgba(220, 38, 38, 0.85);
+  color: #fff;
+  padding: 2px 8px;
+  border-radius: 3px;
+  border: 1px solid rgba(255,255,255,0.6);
+  font-family: 'Cinzel', serif;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+  pointer-events: none;
+}
+
 /* META - złota wersja, ale BEZ pulsowania (mniej krzykliwa, oczywiście że to cel) */
 .gra-pinezka-meta {
   width: 44px;
@@ -1219,12 +1258,12 @@ footer{
   overflow: visible !important;
 }
 .odkryta-tajemnica-pinezka {
-  width: 24px;
-  height: 24px;
+  width: 36px;
+  height: 36px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 14px;
+  font-size: 20px;
   background: linear-gradient(135deg, #fca5a5, #dc2626);
   border: 2px solid #fff;
   border-radius: 50%;
@@ -1233,7 +1272,7 @@ footer{
 }
 .odkryta-tajemnica-label {
   position: absolute;
-  top: 26px;
+  top: 38px;
   left: 50%;
   transform: translateX(-50%);
   white-space: nowrap;
@@ -1845,13 +1884,13 @@ footer{
 }
 
 .audio-dot{
-  width:20px;height:20px;
+  width:32px;height:32px;
   background:linear-gradient(135deg,#a78bfa,#7c3aed);
   border:2px dashed #fff;
   border-radius:50%;
   box-shadow:0 0 0 1px #7c3aed, 0 3px 8px rgba(124,58,237,0.5);
   display:flex;align-items:center;justify-content:center;
-  color:#fff;font-family:'Cinzel',serif;font-weight:700;font-size:9px;
+  color:#fff;font-family:'Cinzel',serif;font-weight:700;font-size:14px;
   position:relative;
   cursor:help;
 }
@@ -2504,21 +2543,6 @@ footer{
   flex:1;
   min-height:120px;
   margin-bottom:8px;
-}
-
-/* Tryb pełnoekranowy edytora kategorii - analogicznie jak dla opisu strony */
-.admin-list.edytuje-kategorie > *:not(#kategorieEdytor){
-  display:none !important;
-}
-.admin-list.edytuje-kategorie{
-  max-height:90vh;
-  max-width:340px;
-  overflow-y:auto;
-  padding:14px;
-}
-.admin-list.edytuje-kategorie #kategorieEdytor{
-  display:block !important;
-  margin:0;
 }
 
 .admin-list .admin-list-title{
@@ -4585,7 +4609,7 @@ html.tryb-noc .sw-off {
 <div class="wrapper">
 
   <header>
-    <h1>Nazwa przygody</h1>
+    <h1>Nocna przygoda</h1>
   </header>
 
   <!-- KONTROLKI -->
@@ -4601,9 +4625,12 @@ html.tryb-noc .sw-off {
       <!-- PANEL POSTĘPU GRY -->
       <div class="gra-postep-info visible" id="graPostepPanel">
         <div class="gra-postep-label">🎮 Twoja przygoda</div>
-        <div style="font-size:14px;color:var(--ink);margin-bottom:8px">
+        <div style="font-size:14px;color:var(--ink);margin-bottom:6px">
           Odkryto: <strong id="postepGryDisplay">⭐ 0/0</strong>
         </div>
+        <!-- EDYTOR-GRA: lista odkrytych tajemnic + wskazówka co dalej -->
+        <div id="graPostepListaOdkrytych" style="font-size:12px;color:var(--ink);text-align:left;margin:8px 0 6px 0;display:none"></div>
+        <div id="graPostepCoDalej" style="font-size:12px;color:var(--ink);background:rgba(220,38,38,0.08);border-left:3px solid #dc2626;padding:6px 8px;border-radius:3px;margin-bottom:8px;display:none;text-align:left"></div>
         <button class="gra-reset-btn" onclick="if(confirm('Zresetować postęp gry? Zaczniesz od początku.')) resetujPostepGry();">🔄 Reset gry</button>
       </div>
     </div>
@@ -4665,12 +4692,10 @@ html.tryb-noc .sw-off {
 
       <!-- ============================================================== -->
       <!-- NOWY PANEL "📡 W ZASIĘGU" (Radar wielowarstwowy, Krok B) ====== -->
-      <!-- ============================================================== -->
-      <!-- Pokazuje listę WSZYSTKICH stref w których turysta JEST teraz.  -->
-      <!-- Akordeon: mini state = tylko liczba, klik = rozwija listę.     -->
-      <!-- Klik [▶] na wpisie = odtwarza audio (przerywa poprzednie).     -->
-      <!-- Wpisy znikają same gdy turysta wyjdzie ze strefy.              -->
-      <div class="radar-panel" id="radarPanel">
+      <!-- DOLNA SZUFLADA RADARU - UKRYTA (display:none) -->
+      <!-- Zostawiona w DOM bo funkcje JS jeszcze ją aktualizują (aktualizujPanelRadaru itp). -->
+      <!-- Ponowny odsłuch audio: klik na pinezkę odkrytej tajemnicy / START / META. -->
+      <div class="radar-panel" id="radarPanel" style="display:none !important">
         <div class="radar-mini" id="radarMini" onclick="toggleRadarPanel()">
           <span class="radar-icon">📡</span>
           <span class="radar-mini-text">W zasięgu: <span id="radarCount">0</span></span>
@@ -4694,24 +4719,26 @@ html.tryb-noc .sw-off {
       <!-- PANEL ADMIN: liczniki + akcje -->
       <div class="admin-list" id="adminList">
         <div class="admin-list-title">🛠 Tryb admin</div>
-        <div>🏁 Start: <span class="admin-list-count" id="adminCountStart">0</span></div>
-        <div>❓ Tajemnice: <span class="admin-list-count" id="adminCountTajemnice">0</span></div>
-        <div>🏆 Meta: <span class="admin-list-count" id="adminCountMeta">0</span></div>
-        <div>Zmiany kropek: <span class="admin-list-count" id="adminListCount" style="color:#22c55e">0</span></div>
-        <div style="font-size:11px;color:var(--ink-muted);margin-top:4px">Klik w mapę = dodaj<br>Klik w pinezkę → 🛠 = edytuj</div>
 
-        <!-- EDYTOR-GRA: tryb gry zawsze włączony, brak przełącznika -->
-        <div style="margin:10px 0 8px 0;padding:8px;background:rgba(124,58,237,0.08);border-radius:6px;border:1px solid rgba(124,58,237,0.3);font-size:11px;color:var(--ink);text-align:center">
-          🎮 <strong>Edytor gry terenowej</strong><br>
-          <span style="font-size:10px;color:var(--ink-muted)">Dodawaj: 🏁 Start · ❓ Tajemnice · 🏆 Meta</span>
+        <!-- Liczniki kropek audio gry (Start / Tajemnice / Meta / Zmiany) -->
+        <div id="adminWidokGra" style="margin:8px 0">
+          <div>🏁 Start: <span class="admin-list-count" id="adminCountStart">0</span></div>
+          <div>❓ Tajemnice: <span class="admin-list-count" id="adminCountTajemnice">0</span></div>
+          <div>🏆 Meta: <span class="admin-list-count" id="adminCountMeta">0</span></div>
+          <div>Zmiany: <span class="admin-list-count" id="adminListCount" style="color:#22c55e">0</span></div>
+        </div>
+
+        <!-- Ukryte liczniki zakładki Punkty (zachowane technicznie - kod JS je aktualizuje) -->
+        <div id="adminWidokPunkty" style="display:none">
+          <span class="admin-list-count" id="adminCountPunkty">0</span>
         </div>
 
         <button onclick="pobierzNowyIndex()" style="background:#22c55e;font-size:11px">💾 Pobierz nowy index.html</button>
-        <button id="nazwaStronyBtn" onclick="otworzEdytorNazwy()" style="background:#a04510;font-size:11px">✏️ Nazwa strony</button>
+        <button id="nazwaStronyBtn" onclick="otworzEdytorNazwy()" style="background:#a04510;font-size:11px">✏️ Nazwa przygody</button>
 
         <!-- Rozwijana ramka edycji nazwy strony -->
         <div class="nazwa-edytor" id="nazwaEdytor">
-          <label class="nazwa-edytor-label">Nazwa strony:</label>
+          <label class="nazwa-edytor-label">Nazwa przygody:</label>
           <input type="text" id="nazwaStronyInput" maxlength="60" placeholder="np. Tytuł przygody">
           <div class="nazwa-edytor-akcje">
             <button class="nazwa-zapisz" onclick="zapiszNazweStrony()">✓ Zapisz</button>
@@ -4720,13 +4747,11 @@ html.tryb-noc .sw-off {
           <p class="nazwa-edytor-info">Zmiana zostanie zapisana w pliku po pobraniu nowego index.html.</p>
         </div>
 
-        <button id="opisStronyBtn" onclick="otworzEdytorOpisuStrony()" style="background:#a04510;font-size:11px">📜 Opis strony</button>
+        <button id="opisStronyBtn" onclick="otworzEdytorOpisuStrony()" style="background:#a04510;font-size:11px">📜 Opis gry</button>
 
-        <!-- Rozwijana ramka edycji opisu strony (akordeon pod mapą) -->
+        <!-- Rozwijana ramka edycji opisu gry (akordeon pod mapą) -->
         <div class="nazwa-edytor" id="opisStronyEdytor">
-          <label class="nazwa-edytor-label">Tytuł sekcji:</label>
-          <input type="text" id="opisStronyTytulInput" maxlength="80" placeholder="np. O tej przygodzie">
-          <label class="nazwa-edytor-label" style="margin-top:8px">Treść (akapity oddziel pustą linią):</label>
+          <label class="nazwa-edytor-label">Treść opisu gry (akapity oddziel pustą linią):</label>
           <textarea id="opisStronyTrescInput" rows="8" placeholder="Tekst akapit po akapicie. Pustą linią oddzielisz jeden akapit od drugiego.&#10;&#10;Możesz używać **pogrubienia** dla wyróżnień."></textarea>
           <div class="nazwa-edytor-akcje">
             <button class="nazwa-zapisz" onclick="zapiszOpisStrony()">✓ Zapisz</button>
@@ -4735,38 +4760,8 @@ html.tryb-noc .sw-off {
           <p class="nazwa-edytor-info">Pogrubianie: <code>**tekst**</code>. Akapity rozdziel pustą linią.</p>
         </div>
 
-        <button id="kategorieBtn" onclick="otworzEdytorKategorii()" style="background:#a04510;font-size:11px">🏷️ Nazwy kategorii</button>
-
-        <!-- Rozwijana ramka edycji kategorii -->
-        <div class="nazwa-edytor" id="kategorieEdytor">
-          <label class="nazwa-edytor-label" style="margin-bottom:8px">Edytuj nazwy i ikony zakładek (klucze techniczne pozostają takie same):</label>
-
-          <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px">
-            <input type="text" id="katIkona_zabytek" maxlength="4" style="width:48px;text-align:center;font-size:18px" placeholder="🏰">
-            <input type="text" id="katNazwa_zabytek" maxlength="30" style="flex:1" placeholder="Zabytki">
-          </div>
-          <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px">
-            <input type="text" id="katIkona_sakral" maxlength="4" style="width:48px;text-align:center;font-size:18px" placeholder="⛪">
-            <input type="text" id="katNazwa_sakral" maxlength="30" style="flex:1" placeholder="Sakralne">
-          </div>
-          <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px">
-            <input type="text" id="katIkona_przyroda" maxlength="4" style="width:48px;text-align:center;font-size:18px" placeholder="🌳">
-            <input type="text" id="katNazwa_przyroda" maxlength="30" style="flex:1" placeholder="Przyroda">
-          </div>
-          <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px">
-            <input type="text" id="katIkona_urzad" maxlength="4" style="width:48px;text-align:center;font-size:18px" placeholder="🏛️">
-            <input type="text" id="katNazwa_urzad" maxlength="30" style="flex:1" placeholder="Instytucje">
-          </div>
-
-          <div class="nazwa-edytor-akcje" style="margin-top:10px">
-            <button class="nazwa-zapisz" onclick="zapiszKategorie()">✓ Zapisz</button>
-            <button class="nazwa-anuluj" onclick="zamknijEdytorKategorii()">Anuluj</button>
-          </div>
-          <p class="nazwa-edytor-info">Wpisz emoji w lewe pole, nazwę w prawe. Klucz techniczny (np. <code>zabytek</code>) zostaje — wszystkie miejsca w tej kategorii zachowują przypisanie. Zmiany trwałe po pobraniu nowego index.html.</p>
-        </div>
-
         <button onclick="toggleRysowanie()" id="btnRysowanie" style="font-size:10px;background:#3a6a4a;color:#fff;border-color:#3a6a4a">🎨 Rysuj na mapie</button>
-        <button class="danger" onclick="wyczyscMiejsca()" style="font-size:10px">🗑 Wyczyść miejsca</button>
+        <button onclick="wyczyscWszystkoEdytor()" style="background:#dc2626;color:#fff;border-color:#dc2626;font-size:11px;margin-top:10px;font-weight:700" title="Wyczyść wszystkie dane edytora - kropki audio, miejsca, nazwę, opis, rysunki, postęp gry">🗑️ Wyczyść wszystko</button>
       </div>
     </div>
     <aside class="sidebar">
@@ -4816,14 +4811,9 @@ html.tryb-noc .sw-off {
       <button class="mobile-menu-close" onclick="zamknijMobilneMenu()" aria-label="Zamknij">✕</button>
       <h2>❦ Menu ❦</h2>
 
-      <!-- FILTRY KATEGORII - pionowo, bez opisów -->
-      <div class="menu-stack" id="menuFiltryKategorii">
-        <button onclick="filtruj('wszystko', this);refreshMenuFilters()">⭐ Wszystkie</button>
-        <button onclick="filtruj('sakral', this);refreshMenuFilters()">⛪ Sakralne</button>
-        <button onclick="filtruj('zabytek', this);refreshMenuFilters()">🏛️ Zabytki</button>
-        <button onclick="filtruj('przyroda', this);refreshMenuFilters()">🌳 Przyroda</button>
-        <button onclick="filtruj('urzad', this);refreshMenuFilters()">🏢 Urzędy</button>
-        <button onclick="filtruj('wybrane', this);zamknijMobilneMenu()">🎯 Wybrane z listy</button>
+      <!-- ODKRYTE TAJEMNICE - lista odkrytych przez gracza, klik = mapa leci do miejsca -->
+      <div class="menu-stack" id="menuOdkryteTajemnice">
+        <!-- Zawartość generowana przez aktualizujMenuOdkryteTajemnice() -->
       </div>
 
       <!-- SKANER QR - z czytelnym tekstem -->
@@ -4866,15 +4856,21 @@ html.tryb-noc .sw-off {
     </div>
     <div class="promien-display"><span id="adminPromienVal">50 m</span></div>
 
-    <div class="form-row">
-      <label>Opis:</label>
-      <input type="text" id="adminOpis" placeholder="np. Tu czeka pierwsza tajemnica" maxlength="60">
-    </div>
+    <!-- EDYTOR-GRA: pole "Opis" wywalone - fabuła idzie przez audio (start.mp3/N.mp3/meta.mp3),
+         a wizualne pinezki nie potrzebują tekstowego opisu. Pole zostawione jako hidden
+         żeby nie wybuchał kod który nadal je odczytuje. -->
+    <input type="hidden" id="adminOpis" value="">
 
     <!-- EDYTOR-GRA: pole LINK YOUTUBE (tylko dla startu) -->
     <div class="form-row" id="adminLinkYTRow" style="display:none">
       <label>📺 Link YouTube:</label>
       <input type="url" id="adminLinkYT" placeholder="https://youtube.com/watch?v=..." maxlength="200">
+    </div>
+
+    <!-- EDYTOR-GRA: pole AUTOR (tylko dla startu) - widoczne w menu startowym -->
+    <div class="form-row" id="adminAutorRow" style="display:none">
+      <label>👤 Autor:</label>
+      <input type="text" id="adminAutor" placeholder="np. Piotr Przebiorowski" maxlength="80">
     </div>
 
     <div class="code-output" id="adminCodeOutput" style="display:none"></div>
@@ -4913,6 +4909,13 @@ html.tryb-noc .sw-off {
           <span>Punkt końcowy gry. Audio: meta.mp3. Pojawia się dopiero po odkryciu wszystkich tajemnic.</span>
         </span>
       </button>
+      <button class="choice-btn" onclick="wybierzTypGry('miejsce')" style="border-color:#a04510">
+        <span class="choice-icon">📍</span>
+        <span class="choice-text">
+          <strong>PUNKT ORIENTACYJNY</strong>
+          <span>Stałe miejsce na mapie (kładka, stara mogiła, kapliczka) z nazwą, opisem i zdjęciem. Pomaga graczom w nawigacji - "kieruj się do kładki przez rów".</span>
+        </span>
+      </button>
     </div>
     <a class="cancel-link" onclick="zamknijChoose()">✕ Anuluj</a>
   </div>
@@ -4927,9 +4930,11 @@ html.tryb-noc .sw-off {
       <input type="text" id="miejsceNazwa" placeholder="np. Kościół św. Anny" maxlength="80">
     </div>
 
-    <div class="form-row">
+    <!-- EDYTOR-GRA: kategoria UKRYTA - wszystkie miejsca są "Punkt orientacyjny" -->
+    <div class="form-row" style="display:none">
       <label>Kategoria:</label>
       <select id="miejsceKategoria" style="background:var(--paper-2);color:var(--ink);border:1px solid rgba(160,69,16,0.4);border-radius:4px;padding:8px 10px;font-family:'EB Garamond',serif;font-size:14px;width:100%">
+        <option value="punkt">📍 Punkt orientacyjny</option>
         <option value="sakral">⛪ Sakralne</option>
         <option value="zabytek">🏛️ Zabytek</option>
         <option value="przyroda">🌳 Przyroda</option>
@@ -4998,6 +5003,12 @@ html.tryb-noc .sw-off {
         <div class="opis-licznik"><span id="opisLicznik">0</span> znaków</div>
       </div>
 
+      <!-- EDYTOR-GRA: pole Link YouTube w opisie miejsca (np. wideo o tym miejscu) -->
+      <div class="opis-pole-tytul">
+        <label>📺 Link YouTube (opcjonalny)</label>
+        <input type="url" id="opisLinkYT" placeholder="https://youtube.com/watch?v=..." maxlength="200">
+      </div>
+
       <div class="opis-podglad-toggle">
         <button type="button" onclick="przelaczPodgladOpisu()" id="opisPodgladBtn">👁 Pokaż podgląd</button>
       </div>
@@ -5030,15 +5041,15 @@ html.tryb-noc .sw-off {
     <div class="detail-content" id="detailContent"></div>
   </div>
 
-  <!-- ACCORDION: Opis strony (edytowalny w trybie admin) -->
+  <!-- ACCORDION: Opis gry (treść edytowalna w trybie admin, tytuł na sztywno) -->
   <div class="accordion" id="info-accordion">
     <div class="accordion-header" onclick="toggleAccordion()">
-      <span class="title" id="opisStronyTytul">O stronie</span>
+      <span class="title" id="opisStronyTytul">Opis gry</span>
       <span class="accordion-arrow">▼</span>
     </div>
     <div class="accordion-content">
       <div class="accordion-inner" id="opisStronyTresc">
-        <p style="color:var(--ink-muted);font-style:italic;text-align:center;padding:20px 0">opis strony</p>
+        <p>ok to jest przygoda jazda do Nocols</p>
       </div>
     </div>
 
@@ -5184,28 +5195,15 @@ const EMOJI_NAMES = {
 
 // === KATEGORIE:START === (nie usuwaj tego komentarza - znacznik dla auto-eksportu)
 const kategorieDomyslne = {
-  przygoda: { ikona: '❓', nazwa: 'Przygoda' }
+
 };
 // === KATEGORIE:END ===
 
-// W trybie admin localStorage może nadpisać te wartości (do czasu eksportu pliku).
-// Goście zawsze widzą `kategorieDomyslne` (nie mają localStorage z edycjami admina).
-let kategorie = (function() {
-  try {
-    // UWAGA: const isAdmin jest deklarowane niżej, więc tu czytamy URL bezpośrednio
-    const adminTeraz = new URLSearchParams(window.location.search).get('admin') === '1';
-    if (adminTeraz) {
-      const robocze = localStorage.getItem('kategorie_robocze_v1');
-      if (robocze) {
-        const dane = JSON.parse(robocze);
-        // Zlewamy z domyślnymi - jeśli admin nie zmienił wszystkich, brakujące biorą domyślne
-        return Object.assign({}, JSON.parse(JSON.stringify(kategorieDomyslne)), dane);
-      }
-    }
-  } catch (e) {}
-  // Klonujemy żeby modyfikacje nie ruszały kategorieDomyslne
-  return JSON.parse(JSON.stringify(kategorieDomyslne));
-})();
+// Edytor nazw kategorii został usunięty - zawsze używamy kategorieDomyslne.
+// Czyścimy stary klucz z localStorage (jeśli pochodzi z poprzedniej wersji).
+try { localStorage.removeItem('kategorie_robocze_v1'); } catch(e) {}
+
+let kategorie = JSON.parse(JSON.stringify(kategorieDomyslne));
 
 // Pomocnik: zwraca etykietę kategorii np. "Zabytki" albo "Restauracje" w zależności od edycji
 function nazwaKategorii(klucz) {
@@ -5257,6 +5255,12 @@ function zastosujKategorie() {
 }
 
 const miejsca = [
+  { klucz: 'hotel', nazwa: 'Hotel', pozycja: [51.1913, 23.1709], ikona: '📍', kategoria: 'punkt' },
+  { klucz: 'lipowki', nazwa: 'Lipówki', pozycja: [51.1677, 23.1316], ikona: '📍', kategoria: 'punkt' },
+  { klucz: 'ciekawe-miejsce', nazwa: 'ciekawe miejsce', pozycja: [51.1515, 23.1059], ikona: '📍', kategoria: 'punkt' },
+  { klucz: 'wielki-las', nazwa: 'Wielki las', pozycja: [51.1460, 23.0601], ikona: '📍', kategoria: 'punkt' },
+  { klucz: 'most', nazwa: 'Most', pozycja: [51.1313, 23.0256], ikona: '📍', kategoria: 'punkt' },
+  { klucz: 'stawy-kansjie', nazwa: 'stawy Kańsjie', pozycja: [51.1411, 23.1449], ikona: '📍', kategoria: 'punkt' }
 ];
 
 const mapa = L.map('mapa', {
@@ -5375,6 +5379,15 @@ function sciezkaAudioDlaKropki(k) {
   if (t === 'start') return 'audio/start.mp3';
   if (t === 'meta')  return 'audio/meta.mp3';
   return 'audio/' + k.numer + '.mp3';
+}
+
+// Zwraca unikalny klucz kropki do śledzenia odtwarzania w Set kropkaJestOdtwarzana.
+// Dla tajemnic: numer (np. 1, 2, 3). Dla start/meta: 'start'/'meta'.
+function kluczOdtwarzaniaKropki(k) {
+  if (!k) return null;
+  const t = typKropki(k);
+  if (t === 'tajemnica') return k.numer;
+  return t; // 'start' lub 'meta'
 }
 
 
@@ -5527,10 +5540,10 @@ function ikonaSpecjalna(emoji, klucz, kategoria) {
   return L.divIcon({
     className: 'custom-marker-wrapper',
     html: `
-      <div style="position:relative;width:24px;height:24px">
-        <div style="background:linear-gradient(180deg,#fff8eb,#f0e6d0);width:24px;height:24px;border-radius:50%;
+      <div style="position:relative;width:36px;height:36px">
+        <div style="background:linear-gradient(180deg,#fff8eb,#f0e6d0);width:36px;height:36px;border-radius:50%;
           border:2px solid ${kolor};box-shadow:0 3px 10px rgba(60,40,20,0.5),inset 0 0 0 1px rgba(255,255,255,0.5);
-          display:flex;align-items:center;justify-content:center;font-size:13px;cursor:pointer;
+          display:flex;align-items:center;justify-content:center;font-size:18px;cursor:pointer;
           filter:sepia(0.15);
           transition:transform 0.2s;"
           onclick="event.stopPropagation();togglePlatki('${klucz}')">${emoji}</div>
@@ -5538,7 +5551,7 @@ function ikonaSpecjalna(emoji, klucz, kategoria) {
           ${platkiHTML}
         </div>
       </div>`,
-    iconSize: [24, 24], iconAnchor: [12, 12]
+    iconSize: [36, 36], iconAnchor: [18, 18]
   });
 }
 
@@ -5698,6 +5711,10 @@ async function otworzPlatek(klucz, akcja) {
           `<p>${linkifyHTML(a).replace(/\n/g, '<br>')}</p>`
         ).join('');
         html += `<div class="opis-tekst">${akapityHTML}</div>`;
+      }
+      // EDYTOR-GRA: Link YouTube w opisie miejsca (jeśli admin wkleił)
+      if (miejsce.linkYT) {
+        html += `<p style="margin-top:14px"><a href="${miejsce.linkYT}" target="_blank" rel="noopener" style="display:inline-block;background:#ff0000;color:#fff;padding:10px 18px;border-radius:6px;text-decoration:none;font-weight:700">📺 Obejrzyj wideo</a></p>`;
       }
     } else {
       // 2. Fallback: spróbuj wczytać stary plik Markdown (kompatybilność wsteczna)
@@ -5947,6 +5964,54 @@ function aktualizujPostepGryUI() {
   const wszystkie = policzTajemnice();
   const odkryte = Math.max(0, aktualnyEtapGry - 1);
   el.textContent = `⭐ ${odkryte}/${wszystkie}`;
+
+  // EDYTOR-GRA: aktualizuj listę odkrytych tajemnic w panelu postępu
+  const listaEl = document.getElementById('graPostepListaOdkrytych');
+  if (listaEl) {
+    const odkrytePoNumerach = [];
+    for (const k of kropkiAudio) {
+      if (typKropki(k) !== 'tajemnica') continue;
+      if (!k.numer || k.numer >= aktualnyEtapGry) continue;
+      odkrytePoNumerach.push({
+        numer: k.numer,
+        tytul: k.tytul || `Tajemnica #${k.numer}`
+      });
+    }
+    if (odkrytePoNumerach.length > 0) {
+      odkrytePoNumerach.sort((a, b) => a.numer - b.numer);
+      let html = '<strong style="color:#15803d;display:block;margin-bottom:3px">✓ Odkryte:</strong>';
+      for (const o of odkrytePoNumerach) {
+        html += `<div style="margin:2px 0">🏛️ ${o.tytul}</div>`;
+      }
+      listaEl.innerHTML = html;
+      listaEl.style.display = 'block';
+    } else {
+      listaEl.style.display = 'none';
+    }
+  }
+
+  // EDYTOR-GRA: aktualizuj wskazówkę "co dalej"
+  const coDalejEl = document.getElementById('graPostepCoDalej');
+  if (coDalejEl) {
+    if (aktualnyEtapGry === 0) {
+      coDalejEl.innerHTML = '<strong style="color:#dc2626">🎯 Cel:</strong><br>Idź do punktu <strong>START</strong> żeby rozpocząć grę.';
+      coDalejEl.style.display = 'block';
+    } else if (aktualnyEtapGry > wszystkie) {
+      coDalejEl.innerHTML = '<strong style="color:#15803d">🏆 Brawo!</strong><br>Ukończyłeś całą przygodę!';
+      coDalejEl.style.display = 'block';
+    } else {
+      const nastNumer = aktualnyEtapGry;
+      const nastKropka = kropkiAudio.find(k => typKropki(k) === 'tajemnica' && k.numer === nastNumer);
+      const nastTytul = (nastKropka && nastKropka.tytul) ? nastKropka.tytul : `Tajemnica #${nastNumer}`;
+      coDalejEl.innerHTML = `<strong style="color:#dc2626">🎯 Teraz szukasz:</strong><br>${nastTytul}`;
+      coDalejEl.style.display = 'block';
+    }
+  }
+
+  // Odśwież listę odkrytych tajemnic w menu mobilnym (jeśli funkcja zdefiniowana)
+  if (typeof aktualizujMenuOdkryteTajemnice === 'function') {
+    aktualizujMenuOdkryteTajemnice();
+  }
 }
 
 // ============================================================
@@ -5964,6 +6029,49 @@ let _markeryOdkrytych = []; // lista markerów Leaflet (do usuwania przy re-rend
 let _markerStart = null;
 let _markerMeta = null;
 
+// EDYTOR-GRA: dodaje kartę "START" do listy w dolnej szufladzie.
+// Klik w kartę przenosi mapę do punktu startowego (jak w starym edytorze map).
+// W przyszłości tu mogą dochodzić inne KATEGORIE punktów (np. parking, WC, etc.)
+// ale tajemnice/meta NIE - one mają swoje pinezki na mapie.
+function renderujStartWLiscie() {
+  const lista = document.getElementById('lista-miejsc');
+  if (!lista) return;
+  // Usuń poprzednią kartę startu jeśli istnieje (re-render)
+  const stara = lista.querySelector('.miejsce-card.gra-start-card');
+  if (stara) stara.remove();
+
+  const start = znajdzStart();
+  if (!start) return;
+
+  const tytul = start.tytul || 'START przygody';
+  const krotki = (aktualnyEtapGry === 0) ? 'Tu rozpocznij grę' : '✓ Tu zaczęłeś przygodę';
+
+  const card = document.createElement('div');
+  card.className = 'miejsce-card gra-start-card';
+  card.dataset.typ = 'start';
+  card.innerHTML = `<span class="ikona">🏁</span>
+    <div class="nazwa">${tytul}</div>
+    <div class="opis">${krotki}</div>`;
+  card.onclick = () => {
+    // Przelot mapy do punktu startowego (jak klik w pinezkę miejsca)
+    autoCenterAktywny = false;
+    mapaProgramowoPrzesuwana = true;
+    mapa.flyTo(start.pozycja, 17, { duration: 1.2 });
+    setTimeout(() => { mapaProgramowoPrzesuwana = false; }, 1300);
+    if (typeof aktualizujPrzyciskCenter === 'function') aktualizujPrzyciskCenter();
+    // Otwórz popup pinezki po krótkiej chwili żeby user widział co kliknął
+    setTimeout(() => {
+      if (_markerStart) _markerStart.openPopup();
+    }, 1400);
+  };
+  // Dodaj na POCZĄTEK listy (przed miejscami)
+  if (lista.firstChild) {
+    lista.insertBefore(card, lista.firstChild);
+  } else {
+    lista.appendChild(card);
+  }
+}
+
 function renderujPinezkeStartu() {
   if (!trybGryWlaczony) return;
   // Usuń stary marker jeśli istnieje
@@ -5971,27 +6079,113 @@ function renderujPinezkeStartu() {
     try { mapa.removeLayer(_markerStart); } catch(e) {}
     _markerStart = null;
   }
-  // Pokazujemy pinezkę startu TYLKO gdy etap = 0 (jeszcze nie zaczęto gry)
-  // Po wejściu w start (etap >= 1) duża pinezka znika - jest w pamięci historii
-  if (aktualnyEtapGry !== 0) return;
 
   const start = znajdzStart();
   if (!start) return;
 
+  // EDYTOR-GRA: START jest ZAWSZE widoczny. Ale wygląd zmienia się:
+  // - etap 0 (przed grą) → klasa "gra-pinezka-start" (pulsuje, krzyczy "tu zacznij!")
+  // - etap >= 1 (gra w toku/ukończona) → klasa "gra-pinezka-start-odkryty" (spokojnie, "tu zaczęłeś")
+  const klasaPinezki = (aktualnyEtapGry === 0) ? 'gra-pinezka-start' : 'gra-pinezka-start-odkryty';
+  const klasaLabel = (aktualnyEtapGry === 0) ? 'gra-pinezka-start-label' : 'gra-pinezka-start-label-odkryty';
+
   const tytul = start.tytul || 'START przygody';
-  const popupTresc = `<div style="text-align:center"><b style="font-size:16px;color:#dc2626">🏁 ${tytul}</b><br><br>${start.opis || 'Tu zaczyna się Twoja przygoda!'}<br><br><em style="color:#dc2626">Idź tutaj żeby rozpocząć grę</em></div>`;
+  // EDYTOR-GRA: KRÓTKI popup - tylko tytuł, status, autor + 2 przyciski.
+  // Pełen opis (który może być długi) trafia do PANELU pod mapą, otwieranego przyciskiem.
+  // Dzięki temu długi opis nie rozsadza popupu na cały ekran.
+  let popupTresc = `<div style="text-align:center;min-width:200px"><b style="font-size:16px;color:#dc2626">🏁 ${tytul}</b>`;
+  if (aktualnyEtapGry > 0) {
+    popupTresc += `<br><em style="color:#22c55e;font-size:12px">✓ Tu zaczęłeś przygodę</em>`;
+  }
+  // Autor (jeśli jest) - krótka linijka
+  if (start.autor) {
+    popupTresc += `<br><em style="font-size:11px;color:#8a6a45">👤 ${start.autor}</em>`;
+  }
+  // EDYTOR-GRA: tylko przycisk WIDEO YouTube (opis wywalony - fabuła w audio)
+  // Przycisk WIDEO YouTube
+  if (start.linkYT) {
+    popupTresc += `<br><br><button onclick="event.stopPropagation();window.open('${start.linkYT.replace(/'/g, "\\'")}','_blank');" style="display:inline-block;background:#ff0000;color:#fff;padding:8px 14px;border-radius:4px;border:none;font-weight:700;font-size:13px;cursor:pointer;margin:4px">📺 Wideo</button>`;
+  }
+  if (aktualnyEtapGry === 0) {
+    popupTresc += `<br><em style="color:#dc2626;font-size:12px;margin-top:6px;display:inline-block">Idź tutaj żeby rozpocząć grę</em>`;
+  }
+  popupTresc += `</div>`;
 
   _markerStart = L.marker(start.pozycja, {
     icon: L.divIcon({
       className: 'gra-pinezka-start-marker',
-      html: `<div class="gra-pinezka-start" title="START - tu rozpocznij grę">🏁</div><div class="gra-pinezka-start-label">START</div>`,
+      html: `<div class="${klasaPinezki}" title="START - ${aktualnyEtapGry === 0 ? 'tu rozpocznij grę' : 'klik aby odtworzyć audio'}">🏁</div><div class="${klasaLabel}">START</div>`,
       iconSize: [44, 44],
       iconAnchor: [22, 22]
     }),
     zIndexOffset: 500 // wyżej niż inne markery
-  }).bindPopup(popupTresc);
+  });
+
+  // Klik:
+  // - etap 0 (przed grą)  → popup z instrukcją "tu rozpocznij grę"
+  // - etap >= 1 (po starcie) → od razu odtwarzaj start.mp3 (ponowny odsłuch)
+  if (aktualnyEtapGry === 0) {
+    _markerStart.bindPopup(popupTresc, { maxWidth: 280 });
+  } else {
+    _markerStart.on('click', () => odtworzKropke(start));
+  }
   _markerStart.addTo(mapa);
 }
+
+// EDYTOR-GRA: otwiera PANEL pod mapą z opisem startu/mety/tajemnicy.
+// Używa tego samego mechanizmu co miejsca (detailPanel) - długi tekst się
+// nie mieści w popupie, więc lepiej w panelu który scrolluje się normalnie.
+function otworzOpisGry(typ, kropkaOpcjonalna) {
+  let kropka = kropkaOpcjonalna;
+  if (!kropka) {
+    if (typ === 'start') kropka = znajdzStart();
+    else if (typ === 'meta') kropka = znajdzMete();
+  }
+  if (!kropka) return;
+
+  const panel = document.getElementById('detailPanel');
+  if (!panel) return;
+
+  // Ikonka i nazwa zależne od typu
+  let ikona = '🏁', nazwa = kropka.tytul || 'START przygody';
+  if (typ === 'meta') { ikona = '🏆'; nazwa = kropka.tytul || 'META przygody'; }
+  else if (typ === 'tajemnica') { ikona = '🏛️'; nazwa = kropka.tytul || `Tajemnica #${kropka.numer}`; }
+
+  document.getElementById('detailIkona').textContent = ikona;
+  document.getElementById('detailNazwa').textContent = nazwa;
+
+  const content = document.getElementById('detailContent');
+  let html = '';
+
+  // Opis - dzielimy na akapity (jak w starym edytorze)
+  if (kropka.opis && kropka.opis.trim()) {
+    const akapity = kropka.opis.split(/\n\s*\n/).map(a => a.trim()).filter(a => a);
+    if (akapity.length > 0) {
+      for (const ak of akapity) {
+        html += `<p>${ak.replace(/\n/g, '<br>')}</p>`;
+      }
+    } else {
+      html += `<p>${kropka.opis.replace(/\n/g, '<br>')}</p>`;
+    }
+  } else {
+    html += `<p style="color:var(--ink-muted);font-style:italic">Brak opisu.</p>`;
+  }
+
+  // EDYTOR-GRA: YouTube usunięty z panelu opisu - link YT jest już jako
+  // osobny przycisk w popupie pinezki, nie dublujemy.
+
+  // Autor (tylko dla startu)
+  if (typ === 'start' && kropka.autor) {
+    html += `<p style="margin-top:14px;color:#8a6a45;font-style:italic">👤 Stworzył: <strong style="color:#4a2f18;font-style:normal">${kropka.autor}</strong></p>`;
+  }
+
+  content.innerHTML = html;
+  panel.classList.add('visible');
+  setTimeout(() => {
+    panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, 100);
+}
+
 
 function renderujPinezkeMety() {
   if (!trybGryWlaczony) return;
@@ -6007,17 +6201,23 @@ function renderujPinezkeMety() {
   if (!meta) return;
 
   const tytul = meta.tytul || 'META przygody';
-  const popupTresc = `<div style="text-align:center"><b style="font-size:16px;color:#d4a84a">🏆 ${tytul}</b><br><br>${meta.opis || 'Już prawie koniec! Idź tu po gratulacje.'}<br><br><em style="color:#d4a84a">Cel końcowy przygody</em></div>`;
+  // EDYTOR-GRA: krótki popup z przyciskiem otwierającym pełny opis w panelu
+  let popupTresc = `<div style="text-align:center;min-width:200px"><b style="font-size:16px;color:#d4a84a">🏆 ${tytul}</b><br><em style="color:#d4a84a;font-size:12px">Cel końcowy przygody</em>`;
+  // EDYTOR-GRA: opis wywalony - fabuła w meta.mp3
+  popupTresc += `</div>`;
 
   _markerMeta = L.marker(meta.pozycja, {
     icon: L.divIcon({
       className: 'gra-pinezka-meta-marker',
-      html: `<div class="gra-pinezka-meta" title="META - cel końcowy">🏆</div><div class="gra-pinezka-meta-label">META</div>`,
+      html: `<div class="gra-pinezka-meta" title="META - klik aby odtworzyć audio">🏆</div><div class="gra-pinezka-meta-label">META</div>`,
       iconSize: [44, 44],
       iconAnchor: [22, 22]
     }),
     zIndexOffset: 500
-  }).bindPopup(popupTresc);
+  });
+  // Pinezka META pojawia się tylko po ukończeniu gry, więc audio już zostało
+  // odtworzone automatycznie - klik = ponowny odsłuch meta.mp3
+  _markerMeta.on('click', () => odtworzKropke(meta));
   _markerMeta.addTo(mapa);
 }
 
@@ -6032,25 +6232,29 @@ function renderujOdkryteTajemnice() {
   // EDYTOR-GRA: dodatkowo renderujemy widoczne pinezki START i META
   renderujPinezkeStartu();
   renderujPinezkeMety();
+  // EDYTOR-GRA: kafelek START w dolnej szufladzie (do szybkiego powrotu)
+  renderujStartWLiscie();
 
   // Dla każdej tajemnicy która została odkryta (numer < aktualnyEtap)
   // - aktualnyEtap = 1 (po starcie) → żadna nie odkryta
   // - aktualnyEtap = 2 (po #1) → #1 odkryta
   // - aktualnyEtap = N+1 → wszystkie odkryte
-  for (const kropka of kropkiAudio) {
+  for (let i = 0; i < kropkiAudio.length; i++) {
+    const kropka = kropkiAudio[i];
     if (typKropki(kropka) !== 'tajemnica') continue;
     if (!kropka.numer || kropka.numer >= aktualnyEtapGry) continue;
     // Ta tajemnica została odkryta - dodaj pinezkę
     const tytul = kropka.tytul || `Tajemnica #${kropka.numer}`;
-    const popupTresc = `<b>🏛️ ${tytul}</b><br>${kropka.opis || ''}<br><em style="color:#22c55e">✓ Odkryto!</em>`;
     const marker = L.marker(kropka.pozycja, {
       icon: L.divIcon({
         className: 'odkryta-tajemnica-marker',
-        html: `<div class="odkryta-tajemnica-pinezka" title="${tytul} (odkryto)">🏛️</div><div class="odkryta-tajemnica-label">${tytul}</div>`,
-        iconSize: [24, 24],
-        iconAnchor: [12, 12]
+        html: `<div class="odkryta-tajemnica-pinezka" title="${tytul} - klik aby odtworzyć audio">🏛️</div><div class="odkryta-tajemnica-label">${tytul}</div>`,
+        iconSize: [36, 36],
+        iconAnchor: [18, 18]
       })
-    }).bindPopup(popupTresc);
+    });
+    // Klik na pinezkę = od razu odtwórz audio tej tajemnicy
+    marker.on('click', () => odtworzKropke(kropka));
     marker.addTo(mapa);
     _markeryOdkrytych.push(marker);
   }
@@ -6076,8 +6280,9 @@ function zamknijEkranKoncowy() {
   if (ekran) ekran.classList.remove('visible');
 }
 
-// EDYTOR-GRA: pokazuje ekran startowy (przed mapą) z opisem przygody
-// Wczytuje dane ze startu (kropka typ='start') - tytuł, opis, link YT.
+// EDYTOR-GRA: pokazuje ekran startowy (przed mapą) z minimalnym opisem
+// Pokazujemy: TYTUŁ + YT + AUTOR + STATYSTYKI. Reszta (opis fabuły) jest
+// w popupie pinezki START - tam user może doczytać pełną historię.
 function pokazEkranStartowy() {
   const start = znajdzStart();
   if (!start) return; // brak startu - nie pokazujemy ekranu
@@ -6089,16 +6294,38 @@ function pokazEkranStartowy() {
   const tytul = start.tytul || (h1 ? h1.textContent : 'Przygoda');
   document.getElementById('graEkranStartowyTytul').textContent = tytul;
 
-  // Opis
+  // EDYTOR-GRA: w miejscu OPISU pokazujemy TYLKO informacje o etapie gry
+  // (postęp dla powracających) + AUTOR. Pełny opis fabuły jest w pinezce START.
   const opisEl = document.getElementById('graEkranStartowyOpis');
-  if (start.opis) {
-    opisEl.innerHTML = start.opis;
-  } else {
-    opisEl.innerHTML = 'Witaj odkrywco! Twoja przygoda zaraz się rozpocznie. ' +
-      'Włącz GPS i ruszaj w teren - kolejne miejsca odsłonią się gdy do nich podejdziesz.';
-  }
+  const ileTajemnic = policzTajemnice();
+  const odkryte = Math.max(0, aktualnyEtapGry - 1);
+  const podtytulEl = document.querySelector('.gra-pergamin-podtytul');
 
-  // Link YouTube (jeśli admin wstawił)
+  let trescOpisu = '';
+
+  if (aktualnyEtapGry === 0) {
+    // PIERWSZE WEJŚCIE - krótka instrukcja, bez fabuły
+    if (podtytulEl) podtytulEl.textContent = '— Czeka Cię prawdziwa przygoda —';
+    trescOpisu = '<div style="text-align:center;color:#3a2818"><strong>Witaj odkrywco!</strong><br>Włącz GPS i ruszaj w teren.<br>Idź do punktu <strong style="color:#dc2626">START</strong> żeby rozpocząć przygodę.</div>';
+  } else if (aktualnyEtapGry > ileTajemnic) {
+    // UKOŃCZONA - gratulacje
+    if (podtytulEl) podtytulEl.textContent = '— 🏆 Przygoda ukończona! —';
+    trescOpisu = `<div style="text-align:center"><strong style="color:#22c55e;display:block;margin-bottom:6px">✓ Odkryłeś wszystkie tajemnice!</strong>` +
+      _listaOdkrytychHTML() +
+      `<em style="font-size:13px;color:#8a6a45">Wróć do mapy i zobacz swoje pinezki.</em></div>`;
+  } else {
+    // POWRÓT W TRAKCIE GRY - aktualne osiągnięcia + co dalej
+    if (podtytulEl) podtytulEl.textContent = `— Witaj z powrotem! —`;
+    const nastepnaTajemnica = aktualnyEtapGry;
+    const nastepnaKropka = kropkiAudio.find(k => typKropki(k) === 'tajemnica' && k.numer === nastepnaTajemnica);
+    const nastepnyTytul = (nastepnaKropka && nastepnaKropka.tytul) ? nastepnaKropka.tytul : `Tajemnica #${nastepnaTajemnica}`;
+    trescOpisu = `<strong style="color:#22c55e;display:block;margin-bottom:6px;text-align:center">📜 Twój postęp: ${odkryte} z ${ileTajemnic} tajemnic</strong>` +
+      _listaOdkrytychHTML() +
+      `<div style="background:rgba(220,38,38,0.1);border-left:3px solid #dc2626;padding:8px 10px;border-radius:4px;margin-top:6px"><strong style="color:#dc2626">🎯 Teraz szukasz:</strong><br><em style="color:#3a2818">${nastepnyTytul}</em></div>`;
+  }
+  opisEl.innerHTML = trescOpisu;
+
+  // Link YouTube (jeśli admin wstawił) - WYŻEJ niż autor, bo wideo to "trailer"
   const ytBox = document.getElementById('graEkranStartowyYt');
   const ytLink = document.getElementById('graEkranStartowyYtLink');
   if (start.linkYT && ytLink) {
@@ -6108,10 +6335,55 @@ function pokazEkranStartowy() {
     ytBox.style.display = 'none';
   }
 
-  // Statystyki - liczba tajemnic
-  document.getElementById('graStatLiczba').textContent = policzTajemnice();
+  // EDYTOR-GRA: AUTOR (jeśli admin wpisał) - pokazujemy w specjalnym miejscu
+  const autorBox = document.getElementById('graEkranStartowyAutor');
+  if (autorBox) {
+    if (start.autor) {
+      autorBox.innerHTML = `<span style="font-size:13px;color:#8a6a45;font-style:italic">👤 Stworzył: <strong style="color:#4a2f18;font-style:normal">${start.autor}</strong></span>`;
+      autorBox.style.display = 'block';
+    } else {
+      autorBox.style.display = 'none';
+    }
+  }
+
+  // Statystyki - liczba tajemnic + ile odkryto
+  document.getElementById('graStatLiczba').textContent = `${odkryte} / ${ileTajemnic}`;
+
+  // EDYTOR-GRA: tekst przycisku zmienia się zależnie od etapu
+  const btn = document.querySelector('.gra-pergamin-btn');
+  if (btn) {
+    if (aktualnyEtapGry === 0) {
+      btn.innerHTML = '🚶 Zaczynamy przygodę!';
+    } else if (aktualnyEtapGry > ileTajemnic) {
+      btn.innerHTML = '🗺️ Pokaż mapę odkryć';
+    } else {
+      btn.innerHTML = '🚶 Kontynuuj przygodę';
+    }
+  }
 
   ekran.classList.add('visible');
+}
+
+// EDYTOR-GRA: zwraca HTML z listą odkrytych tajemnic (z tytułami)
+function _listaOdkrytychHTML() {
+  const odkrytePoNumerach = [];
+  for (const k of kropkiAudio) {
+    if (typKropki(k) !== 'tajemnica') continue;
+    if (!k.numer || k.numer >= aktualnyEtapGry) continue;
+    odkrytePoNumerach.push({
+      numer: k.numer,
+      tytul: k.tytul || `Tajemnica #${k.numer}`
+    });
+  }
+  if (odkrytePoNumerach.length === 0) return '';
+  odkrytePoNumerach.sort((a, b) => a.numer - b.numer);
+  let html = '<div style="background:rgba(34,197,94,0.08);border-left:3px solid #22c55e;padding:8px 10px;border-radius:4px;margin:6px 0;font-size:13px">';
+  html += '<strong style="color:#15803d">Odkryłeś już:</strong><ul style="margin:4px 0 0 0;padding-left:18px;list-style:none">';
+  for (const o of odkrytePoNumerach) {
+    html += `<li style="margin:2px 0">🏛️ ${o.tytul}</li>`;
+  }
+  html += '</ul></div>';
+  return html;
 }
 function zamknijEkranStartowy() {
   const ekran = document.getElementById('graEkranStartowy');
@@ -6258,6 +6530,25 @@ zastosujKategorie();
 //
 // Aby dodać nową kropkę: użyj przycisków w panelu admin (?admin=1).
 const kropkiAudio = [
+  { numer: 0, typ: 'start', pozycja: [51.19193, 23.16990], promien: 60, opis: '', tytul: 'nocna przygoda', linkYT: 'https://www.youtube.com/watch?v=8AZZbvyBh6M&list=RDGMEMQ1dJ7wXfLlqCjwV0xfSNbA&index=3', autor: 'pp' },
+  { numer: 1, pozycja: [51.18904, 23.17272], promien: 10, opis: '', tytul: 'zakręt', pokazFale: true },
+  { numer: 2, pozycja: [51.18489, 23.17230], promien: 10, opis: '', tytul: 'smoter', pokazFale: true },
+  { numer: 3, pozycja: [51.17616, 23.17799], promien: 10, opis: '', tytul: 'cpn', pokazFale: true },
+  { numer: 4, pozycja: [51.17403, 23.15436], promien: 50, opis: '', tytul: 'krzaki', pokazFale: true },
+  { numer: 5, pozycja: [51.17303, 23.14354], promien: 50, opis: '', tytul: 'anusin', pokazFale: true },
+  { numer: 6, pozycja: [51.17045, 23.11289], promien: 10, opis: '', tytul: 'zakręt', pokazFale: true },
+  { numer: 7, pozycja: [51.14372, 23.11058], promien: 10, opis: '', tytul: 'góra', pokazFale: true },
+  { numer: 8, pozycja: [51.14265, 23.08353], promien: 50, opis: '', tytul: 'piec', pokazFale: true },
+  { numer: 9, pozycja: [51.14267, 23.06792], promien: 10, opis: '', tytul: 'las', pokazFale: true },
+  { numer: 10, pozycja: [51.14377, 23.05342], promien: 10, opis: '', tytul: 'ufo', pokazFale: true },
+  { numer: 11, pozycja: [51.14312, 23.03325], promien: 10, opis: '', tytul: 'zakręt', pokazFale: true },
+  { numer: 12, pozycja: [51.14606, 23.02685], promien: 10, opis: '', tytul: 'mostek', pokazFale: true },
+  { numer: 13, pozycja: [51.14822, 23.01840], promien: 10, opis: '', tytul: 'krzaki', pokazFale: true },
+  { numer: 14, pozycja: [51.14712, 23.01588], promien: 50, opis: '', tytul: 'ostatnia prosta', pokazFale: true },
+  { numer: 15, pozycja: [51.14946, 23.01926], promien: 50, opis: '', tytul: 'piec', pokazFale: true },
+  { numer: 16, pozycja: [51.16227, 23.02954], promien: 50, opis: '', tytul: 'krzaki', pokazFale: true },
+  { numer: 17, pozycja: [51.16640, 23.06641], promien: 50, opis: '', tytul: 'krzaki', pokazFale: true },
+  { numer: 999, typ: 'meta', pozycja: [51.16941, 23.10384], promien: 50, opis: '', tytul: 'Kańska góra' }
 ];
 
 // Stan przewodnika audio
@@ -6394,8 +6685,8 @@ function renderujKropkiAudio() {
       icon: L.divIcon({
         className: 'audio-dot-marker',
         html: `<div class="${klasaMarkera}" title="${nazwaTypu}: ${kropka.opis || ''} (promień ${kropka.promien}m)${liczbaSegmentow > 1 ? ' · segment strefy' : ''}">${trescMarkera}</div>`,
-        iconSize: [20, 20],
-        iconAnchor: [10, 10]
+        iconSize: [32, 32],
+        iconAnchor: [16, 16]
       })
     }).bindPopup(popupTresc);
 
@@ -6446,11 +6737,16 @@ function edytujKropkePoIdx(idx) {
   const tytulInput = document.getElementById('adminTytul');
   const ytRow = document.getElementById('adminLinkYTRow');
   const ytInput = document.getElementById('adminLinkYT');
+  const autorRow = document.getElementById('adminAutorRow');
+  const autorInput = document.getElementById('adminAutor');
   const numerRow = document.getElementById('adminNumerRow');
   if (tytulRow) tytulRow.style.display = 'block'; // EDYTOR-GRA: tytuł dla wszystkich typów (tajemnice też mają nazwę dla pinezki "odkryto")
   if (tytulInput) tytulInput.value = kropka.tytul || '';
   if (ytRow) ytRow.style.display = (t === 'start') ? 'block' : 'none';
   if (ytInput) ytInput.value = kropka.linkYT || '';
+  // EDYTOR-GRA: pole "Autor" widoczne tylko dla startu (wyświetlane w menu startowym)
+  if (autorRow) autorRow.style.display = (t === 'start') ? 'block' : 'none';
+  if (autorInput) autorInput.value = kropka.autor || '';
   if (numerRow) numerRow.style.display = (t === 'tajemnica') ? 'block' : 'none';
 
   // Tytuł panelu
@@ -6704,26 +7000,34 @@ function odtworzKropke(kropka) {
   }
 
   // Zacznij odtwarzanie
-  const sciezka = `audio/${kropka.numer}.mp3`;
+  const sciezka = sciezkaAudioDlaKropki(kropka);
   aktualneAudio = new Audio(sciezka);
   aktualnaKropkaAudio = kropka;
 
-  // Pokaż panel
+  // Pokaż panel - tytuł zależy od typu kropki
   const player = document.getElementById('audioPlayer');
-  document.getElementById('audioInfo').textContent = `#${kropka.numer} · ${kropka.opis || 'Audio'}`;
+  const _t = typKropki(kropka);
+  let _audioLabel;
+  if (_t === 'start') _audioLabel = `🏁 START · ${kropka.tytul || 'Początek przygody'}`;
+  else if (_t === 'meta') _audioLabel = `🏆 META · ${kropka.tytul || 'Koniec przygody'}`;
+  else _audioLabel = `#${kropka.numer} · ${kropka.tytul || kropka.opis || 'Audio'}`;
+  document.getElementById('audioInfo').textContent = _audioLabel;
   document.getElementById('audioPauseBtn').textContent = '⏸ Pauza';
   // Ukryj komunikat "w strefie" w trakcie odtwarzania
   const stref = document.getElementById('audioStrefaInfo');
   if (stref) stref.style.display = 'none';
   player.classList.add('visible');
 
+  // Klucz do śledzenia odtwarzania (numer dla tajemnic, typ dla start/meta)
+  const _kluczOdtw = kluczOdtwarzaniaKropki(kropka);
+
   aktualneAudio.play().then(() => {
-    kropkaJestOdtwarzana.add(kropka.numer);
+    kropkaJestOdtwarzana.add(_kluczOdtw);
   }).catch(err => {
-    console.warn('Audio play failed:', err);
+    console.warn('Audio play failed:', err, 'sciezka:', sciezka);
     document.getElementById('audioInfo').innerHTML =
-      `#${kropka.numer} · ${kropka.opis || ''}<br><small style="color:var(--crimson)">⚠️ Brak pliku audio/${kropka.numer}.mp3</small>`;
-    kropkaJestOdtwarzana.add(kropka.numer); // żeby nie próbować ciągle
+      `${_audioLabel}<br><small style="color:var(--crimson)">⚠️ Brak pliku ${sciezka}</small>`;
+    kropkaJestOdtwarzana.add(_kluczOdtw); // żeby nie próbować ciągle
   });
 
   aktualneAudio.onended = () => {
@@ -6747,7 +7051,7 @@ function toggleAudioPauza() {
   if (!aktualneAudio || aktualneAudio.ended) {
     if (aktualnaKropkaAudio) {
       // Reset flagi żeby kropka mogła znów zagrać
-      kropkaJestOdtwarzana.delete(aktualnaKropkaAudio.numer);
+      kropkaJestOdtwarzana.delete(kluczOdtwarzaniaKropki(aktualnaKropkaAudio));
       odtworzKropke(aktualnaKropkaAudio);
     }
     return;
@@ -7029,7 +7333,7 @@ function zapiszNazweStrony() {
   const input = document.getElementById('nazwaStronyInput');
   const nowa = (input?.value || '').trim();
   if (!nowa) {
-    alert('⚠️ Nazwa strony nie może być pusta.');
+    alert('⚠️ Nazwa przygody nie może być pusta.');
     return;
   }
 
@@ -7064,9 +7368,10 @@ const KEY_OPIS_STRONY_TRESC = 'admin-opis-strony-tresc';
 
 function wczytajOpisStrony() {
   try {
-    const tytul = localStorage.getItem(KEY_OPIS_STRONY_TYTUL);
+    // Tytuł "Opis gry" jest na sztywno w HTML - nie wczytujemy go.
+    // Czyścimy stary tytuł z localStorage jeśli był (z poprzednich wersji).
+    localStorage.removeItem(KEY_OPIS_STRONY_TYTUL);
     const tresc = localStorage.getItem(KEY_OPIS_STRONY_TRESC);
-    if (tytul) zastosujOpisStrony('tytul', tytul);
     if (tresc) zastosujOpisStrony('tresc', tresc);
   } catch(e) {}
 }
@@ -7126,19 +7431,15 @@ function otworzEdytorOpisuStrony() {
   const panel = document.getElementById('adminList');
   if (!edytor) return;
 
-  // Wczytaj aktualne wartości
-  const aktTytul = localStorage.getItem(KEY_OPIS_STRONY_TYTUL)
-    || document.getElementById('opisStronyTytul')?.textContent || '';
+  // Wczytaj aktualną treść (tytuł jest na sztywno "Opis gry" - nie edytujemy go)
   const aktTresc = pobierzOpisStronyRaw();
-
-  document.getElementById('opisStronyTytulInput').value = aktTytul.trim();
   document.getElementById('opisStronyTrescInput').value = aktTresc;
 
   edytor.classList.add('visible');
   if (btn) btn.style.display = 'none';
   // Tryb pełnoekranowy - chowa resztę panelu admin
   if (panel) panel.classList.add('edytuje-opis-strony');
-  setTimeout(() => document.getElementById('opisStronyTytulInput').focus(), 50);
+  setTimeout(() => document.getElementById('opisStronyTrescInput').focus(), 50);
 }
 
 function zamknijEdytorOpisuStrony() {
@@ -7152,23 +7453,14 @@ function zamknijEdytorOpisuStrony() {
 }
 
 function zapiszOpisStrony() {
-  const tytulInput = document.getElementById('opisStronyTytulInput');
   const trescInput = document.getElementById('opisStronyTrescInput');
-  const nowyTytul = (tytulInput?.value || '').trim();
   const nowaTresc = (trescInput?.value || '').trim();
 
-  if (!nowyTytul) {
-    alert('⚠️ Tytuł sekcji nie może być pusty.');
-    return;
-  }
-
-  // Zastosuj na żywo
-  zastosujOpisStrony('tytul', nowyTytul);
+  // Zastosuj na żywo (tylko treść - tytuł jest na sztywno w HTML)
   zastosujOpisStrony('tresc', nowaTresc);
 
   // Zapisz w localStorage (surowa wersja - zachowujemy **bold** i akapity)
   try {
-    localStorage.setItem(KEY_OPIS_STRONY_TYTUL, nowyTytul);
     localStorage.setItem(KEY_OPIS_STRONY_TRESC, nowaTresc);
   } catch(e) {}
 
@@ -7188,107 +7480,15 @@ function zapiszOpisStrony() {
   }
 }
 
-// =====================================================================
-// === EDYTOR KATEGORII ================================================
-// =====================================================================
-
-function otworzEdytorKategorii() {
-  const edytor = document.getElementById('kategorieEdytor');
-  const btn = document.getElementById('kategorieBtn');
-  const panel = document.getElementById('adminList');
-  if (!edytor) return;
-
-  // Wczytaj aktualne wartości do pól
-  for (const klucz of ['zabytek', 'sakral', 'przyroda', 'urzad']) {
-    const ikonaInput = document.getElementById('katIkona_' + klucz);
-    const nazwaInput = document.getElementById('katNazwa_' + klucz);
-    if (ikonaInput) ikonaInput.value = ikonaKategorii(klucz);
-    if (nazwaInput) nazwaInput.value = nazwaKategorii(klucz);
-  }
-
-  edytor.classList.add('visible');
-  if (btn) btn.style.display = 'none';
-  // Tryb pełnoekranowy panelu - chowa pozostałe przyciski, pokazuje tylko edytor
-  if (panel) panel.classList.add('edytuje-kategorie');
-}
-
-function zamknijEdytorKategorii() {
-  const edytor = document.getElementById('kategorieEdytor');
-  const btn = document.getElementById('kategorieBtn');
-  const panel = document.getElementById('adminList');
-  if (edytor) edytor.classList.remove('visible');
-  if (btn) btn.style.display = '';
-  // Wyjdź z trybu pełnoekranowego - przywróć resztę panelu
-  if (panel) panel.classList.remove('edytuje-kategorie');
-}
-
-function zapiszKategorie() {
-  const nowe = {};
-  let bladPusta = false;
-
-  for (const klucz of ['zabytek', 'sakral', 'przyroda', 'urzad']) {
-    const ikona = (document.getElementById('katIkona_' + klucz)?.value || '').trim();
-    const nazwa = (document.getElementById('katNazwa_' + klucz)?.value || '').trim();
-    if (!nazwa) {
-      bladPusta = true;
-      break;
-    }
-    // Jeśli ikona pusta - bierz domyślną
-    nowe[klucz] = {
-      ikona: ikona || (kategorieDomyslne[klucz] && kategorieDomyslne[klucz].ikona) || '📍',
-      nazwa: nazwa
-    };
-  }
-
-  if (bladPusta) {
-    alert('⚠️ Wszystkie kategorie muszą mieć nazwę. Ikona może być pusta (weźmie domyślną).');
-    return;
-  }
-
-  // Aktualizuj globalny obiekt
-  kategorie = nowe;
-
-  // Zapisz do localStorage
-  try {
-    localStorage.setItem('kategorie_robocze_v1', JSON.stringify(nowe));
-  } catch(e) {}
-
-  // Odśwież UI
-  zastosujKategorie();
-
-  // Wizualne potwierdzenie
-  const btn = document.querySelector('#kategorieEdytor .nazwa-zapisz');
-  if (btn) {
-    const original = btn.innerHTML;
-    btn.innerHTML = '✓ Zapisano!';
-    btn.classList.add('zapisany');
-    setTimeout(() => {
-      btn.innerHTML = original;
-      btn.classList.remove('zapisany');
-      zamknijEdytorKategorii();
-    }, 900);
-  } else {
-    zamknijEdytorKategorii();
-  }
-}
-
 function pokazAdminListe() {
   const panel = document.getElementById('adminList');
   if (!panel) return;
   panel.classList.toggle('visible', isAdmin);
   document.getElementById('adminListCount').textContent = zaplanowaneKropki.length;
   // EDYTOR-GRA: liczymy osobno start/tajemnice/metę z OBU źródeł (kropkiAudio + zaplanowane)
-  const wszystkie = [...kropkiAudio, ...zaplanowaneKropki];
-  let liczbaStart = 0, liczbaMeta = 0, liczbaTajemnic = 0;
-  for (const k of wszystkie) {
-    const t = typKropki(k);
-    if (t === 'start') liczbaStart++;
-    else if (t === 'meta') liczbaMeta++;
-    else liczbaTajemnic++;
-  }
   // Deduplikacja: __ref oznacza że to zaplanowana referencja do istniejącej
   // Wystarczy nam policzyć kropkiAudio + te zaplanowane bez __ref (nowe)
-  liczbaStart = 0; liczbaMeta = 0; liczbaTajemnic = 0;
+  let liczbaStart = 0, liczbaMeta = 0, liczbaTajemnic = 0;
   for (const k of kropkiAudio) {
     const t = typKropki(k);
     if (t === 'start') liczbaStart++;
@@ -7308,6 +7508,44 @@ function pokazAdminListe() {
   if (elT) elT.textContent = liczbaTajemnic;
   const elM = document.getElementById('adminCountMeta');
   if (elM) elM.textContent = liczbaMeta;
+  // EDYTOR-GRA: licznik punktów orientacyjnych
+  const elP = document.getElementById('adminCountPunkty');
+  if (elP) elP.textContent = (typeof miejsca !== 'undefined') ? miejsca.length : 0;
+}
+
+// EDYTOR-GRA: przełączanie zakładek panelu admina (Gra vs Punkty orientacyjne)
+function adminPrzelaczZakladke(ktora) {
+  const widokGra = document.getElementById('adminWidokGra');
+  const widokPunkty = document.getElementById('adminWidokPunkty');
+  const tabGra = document.getElementById('adminTabGra');
+  const tabPunkty = document.getElementById('adminTabPunkty');
+  if (!widokGra || !widokPunkty || !tabGra || !tabPunkty) return;
+
+  if (ktora === 'gra') {
+    widokGra.style.display = 'block';
+    widokPunkty.style.display = 'none';
+    tabGra.style.background = 'rgba(124,58,237,0.15)';
+    tabGra.style.border = '1px solid rgba(124,58,237,0.4)';
+    tabGra.style.borderBottom = 'none';
+    tabGra.style.color = 'var(--ink)';
+    tabGra.style.fontWeight = '700';
+    tabPunkty.style.background = 'transparent';
+    tabPunkty.style.border = '1px solid transparent';
+    tabPunkty.style.color = 'var(--ink-muted)';
+    tabPunkty.style.fontWeight = 'normal';
+  } else {
+    widokPunkty.style.display = 'block';
+    widokGra.style.display = 'none';
+    tabPunkty.style.background = 'rgba(160,69,16,0.15)';
+    tabPunkty.style.border = '1px solid rgba(160,69,16,0.4)';
+    tabPunkty.style.borderBottom = 'none';
+    tabPunkty.style.color = 'var(--ink)';
+    tabPunkty.style.fontWeight = '700';
+    tabGra.style.background = 'transparent';
+    tabGra.style.border = '1px solid transparent';
+    tabGra.style.color = 'var(--ink-muted)';
+    tabGra.style.fontWeight = 'normal';
+  }
 }
 
 function dajKolejnyNumer() {
@@ -7380,6 +7618,9 @@ function otworzEdytorOpisu() {
   document.getElementById('opisTekst').value = opisRoboczy.opis || '';
   document.getElementById('opisTytulSrodek').checked = !!opisRoboczy.srodek;
   document.getElementById('opisTytulDuzy').checked = !!opisRoboczy.duzy;
+  // EDYTOR-GRA: Link YouTube
+  const ytEl = document.getElementById('opisLinkYT');
+  if (ytEl) ytEl.value = opisRoboczy.linkYT || '';
 
   aktualizujLicznikOpisu();
   // Schowaj podgląd na start
@@ -7396,6 +7637,9 @@ function zamknijEdytorOpisu() {
   opisRoboczy.opis = document.getElementById('opisTekst').value;
   opisRoboczy.srodek = document.getElementById('opisTytulSrodek').checked;
   opisRoboczy.duzy = document.getElementById('opisTytulDuzy').checked;
+  // EDYTOR-GRA: Link YouTube
+  const ytEl = document.getElementById('opisLinkYT');
+  if (ytEl) opisRoboczy.linkYT = ytEl.value.trim();
 
   document.getElementById('opisEdytor').classList.remove('visible');
   document.getElementById('opisZwiniety').style.display = '';
@@ -7572,10 +7816,11 @@ function wczytajOpisDoBufora(miejsce) {
       tytul: miejsce.tytul || '',
       opis: miejsce.opis || '',
       srodek: !!miejsce.tytulSrodek,
-      duzy: !!miejsce.tytulDuzy
+      duzy: !!miejsce.tytulDuzy,
+      linkYT: miejsce.linkYT || ''
     };
   } else {
-    opisRoboczy = { tytul: '', opis: '', srodek: false, duzy: false };
+    opisRoboczy = { tytul: '', opis: '', srodek: false, duzy: false, linkYT: '' };
   }
   // Upewnij się że edytor jest zwinięty po otwarciu nowego miejsca
   const ed = document.getElementById('opisEdytor');
@@ -7633,6 +7878,29 @@ function wybierzTypGry(typ) {
   document.getElementById('adminChoose').classList.remove('visible');
   _aktualnyTypNowejKropki = typ;
 
+  // EDYTOR-GRA: typ 'miejsce' = punkt orientacyjny (stała pinezka na mapie).
+  // Przekierowujemy do starego helpera miejsc (osobny formularz).
+  if (typ === 'miejsce') {
+    const helper = document.getElementById('miejsceHelper');
+    document.getElementById('miejsceHelperTytul').textContent = '📍 Nowy punkt orientacyjny';
+    document.getElementById('miejsceNazwa').value = '';
+    // EDYTOR-GRA: domyślna kategoria 'punkt' (jedyna w grze)
+    const selKat = document.getElementById('miejsceKategoria');
+    if (selKat) selKat.value = 'punkt';
+    document.getElementById('miejsceIkona').value = '📍';
+    document.getElementById('miejsceKlucz').value = '';
+    // Reset numerGry (nie używamy w punktach orientacyjnych)
+    const ngInput = document.getElementById('miejsceNumerGry');
+    if (ngInput) ngInput.value = '';
+    pokazPoleNumerGry();
+    if (typeof aktualizujKodMiejsca === 'function') aktualizujKodMiejsca();
+    if (typeof zaktualizujPrzyciskiMiejsce === 'function') zaktualizujPrzyciskiMiejsce();
+    // Reset bufora opisu - nowe miejsce, czysty stan
+    if (typeof wczytajOpisDoBufora === 'function') wczytajOpisDoBufora(null);
+    helper.classList.add('visible');
+    return;
+  }
+
   // Walidacja: start i meta mogą być TYLKO po 1 sztuce
   // EDYTOR-GRA: usuwamy z OBU tablic (kropkiAudio i zaplanowane)
   if (typ === 'start' && znajdzStart() && !edytowanaKropka) {
@@ -7682,6 +7950,12 @@ function wybierzTypGry(typ) {
   if (ytRow) ytRow.style.display = (typ === 'start') ? 'block' : 'none';
   const ytInput = document.getElementById('adminLinkYT');
   if (ytInput) ytInput.value = '';
+
+  // EDYTOR-GRA: pole "Autor" tylko dla startu (wyświetlane w menu startowym)
+  const autorRow = document.getElementById('adminAutorRow');
+  if (autorRow) autorRow.style.display = (typ === 'start') ? 'block' : 'none';
+  const autorInput = document.getElementById('adminAutor');
+  if (autorInput) autorInput.value = '';
 
   // EDYTOR-GRA: tytuł dla wszystkich typów (tajemnice też mają nazwę dla pinezki "odkryto")
   const tytulRow = document.getElementById('adminTytulRow');
@@ -7918,6 +8192,11 @@ function planujKolejna() {
     if (ytInput && ytInput.value.trim()) {
       nowa.linkYT = ytInput.value.trim();
     }
+    // EDYTOR-GRA: pole "Autor" - wyświetlane w menu startowym
+    const autorInput = document.getElementById('adminAutor');
+    if (autorInput && autorInput.value.trim()) {
+      nowa.autor = autorInput.value.trim();
+    }
   }
   zaplanowaneKropki.push(nowa);
   zapiszZaplanowane();
@@ -8000,6 +8279,79 @@ function wyczyscMiejsca() {
   alert('✓ Lista miejsc wyczyszczona.\n\nOdśwież stronę (F5) aby zobaczyć miejsca z pliku HTML (jeśli są).');
 }
 
+// ====================================================================
+// EDYTOR-GRA: WYCZYŚĆ WSZYSTKO - jeden przycisk do resetu całego edytora
+// Czyści: zaplanowane kropki, miejsca, nazwę strony, opis, rysunki,
+// postęp gry, kropki audio z pamięci, tryb gry admin.
+// ====================================================================
+function wyczyscWszystkoEdytor() {
+  const ileZaplan = zaplanowaneKropki.length;
+  const ileMiejsc = miejsca.length;
+  const ileKropek = kropkiAudio.length;
+  const co = [];
+  if (ileKropek > 0) co.push(`${ileKropek} kropek audio (start/tajemnice/meta)`);
+  if (ileZaplan > 0) co.push(`${ileZaplan} zaplanowanych zmian`);
+  if (ileMiejsc > 0) co.push(`${ileMiejsc} miejsc`);
+  co.push('nazwę strony i opis');
+  co.push('rysunki na mapie');
+  co.push('postęp gry');
+
+  const opis = co.join(', ');
+  if (!confirm(`🗑️ Wyczyścić WSZYSTKO z edytora?\n\nTo usunie:\n• ${co.join('\n• ')}\n\nUWAGA: Akcja nieodwracalna. Po wyczyszczeniu edytor będzie czysty jak po pierwszym otwarciu.\n\nKontynuować?`)) return;
+
+  // Drugie potwierdzenie - na pewno?
+  if (!confirm('⚠️ NA PEWNO?\n\nWszystkie kropki, miejsca, rysunki i ustawienia zostaną nieodwracalnie usunięte.')) return;
+
+  try {
+    // 1. Wyczyść tablice w pamięci
+    kropkiAudio.length = 0;
+    miejsca.length = 0;
+    zaplanowaneKropki = [];
+
+    // 2. Wyczyść localStorage - wszystkie znane klucze edytora
+    const klucze = [
+      KEY_ZAPLANOWANE,
+      KEY_MIEJSCA,
+      KEY_NAZWA_STRONY,
+      KEY_OPIS_STRONY_TYTUL,
+      KEY_OPIS_STRONY_TRESC,
+      KEY_TRYB_GRY,
+      STORAGE_KEY_RYSUNKI,
+      'kategorie_robocze_v1',
+      'mapa-rozmiar',
+      'mapa-widok',
+      _kluczPostepuGry(),
+      _kluczPostepuGry() + '_ekran'
+    ];
+    for (const klucz of klucze) {
+      try { localStorage.removeItem(klucz); } catch(e) {}
+    }
+
+    // 3. Wyczyść wszystkie inne klucze gry (np. wieloznaczne 'gra-postep-*')
+    try {
+      const wszystkieKlucze = Object.keys(localStorage);
+      for (const k of wszystkieKlucze) {
+        if (k.startsWith('gra-postep-')) {
+          localStorage.removeItem(k);
+        }
+      }
+    } catch(e) {}
+
+    // 4. Reset zmiennych w pamięci
+    aktualnyEtapGry = 0;
+    if (typeof rysunki !== 'undefined') {
+      try { rysunki.length = 0; } catch(e) {}
+    }
+
+    alert('✓ Wszystko wyczyszczone!\n\nStrona zostanie odświeżona za chwilę aby pokazać czysty edytor.');
+
+    // 5. Odśwież stronę aby pokazać czysty stan
+    setTimeout(() => location.reload(), 500);
+  } catch(e) {
+    alert('⚠️ Błąd podczas czyszczenia: ' + e.message);
+  }
+}
+
 // ============== POBIERANIE NOWEGO INDEX.HTML ==============
 // Bierze obecny plik (przez fetch do samego siebie), znajduje tablicę kropkiAudio
 // i podmienia ją na NOWĄ (istniejące + zaplanowane). Zwraca plik do pobrania.
@@ -8022,6 +8374,7 @@ async function pobierzNowyIndex() {
         typ: k.typ,
         tytul: k.tytul,
         linkYT: k.linkYT,
+        autor: k.autor,
         lat: k.pozycja[0],
         lng: k.pozycja[1],
         promien: k.promien,
@@ -8048,9 +8401,12 @@ async function pobierzNowyIndex() {
       // link YouTube (dla startu)
       let ytPole = '';
       if (k.linkYT) ytPole = `, linkYT: '${(k.linkYT || '').replace(/'/g, "\\'")}'`;
+      // EDYTOR-GRA: autor (dla startu) - wyświetlany w menu startowym
+      let autorPole = '';
+      if (k.autor) autorPole = `, autor: '${(k.autor || '').replace(/'/g, "\\'")}'`;
       // pokazFale dodajemy TYLKO gdy true (oszczędność miejsca; brak pola = false)
       const fala = k.pokazFale === true ? ', pokazFale: true' : '';
-      return `  { numer: ${k.numer}${typPole}, pozycja: [${k.lat.toFixed(5)}, ${k.lng.toFixed(5)}], promien: ${k.promien}, opis: '${opis}'${tytulPole}${ytPole}${fala} }`;
+      return `  { numer: ${k.numer}${typPole}, pozycja: [${k.lat.toFixed(5)}, ${k.lng.toFixed(5)}], promien: ${k.promien}, opis: '${opis}'${tytulPole}${ytPole}${autorPole}${fala} }`;
     });
     const nowaTablicaKropek = `const kropkiAudio = [\n${linie.join(',\n')}\n];`;
 
@@ -8137,19 +8493,10 @@ async function pobierzNowyIndex() {
       });
     }
 
-    // ===== OPIS STRONY (zakładka pod mapą) =====
-    // Tytuł sekcji (span#opisStronyTytul) + treść (div#opisStronyTresc) z akapitów.
-    const aktOpisTytul = localStorage.getItem(KEY_OPIS_STRONY_TYTUL);
+    // ===== OPIS GRY (zakładka pod mapą) =====
+    // Tytuł "Opis gry" jest na sztywno w HTML - nie podmieniamy go.
+    // Eksportujemy tylko treść (div#opisStronyTresc) z akapitów.
     const aktOpisTresc = localStorage.getItem(KEY_OPIS_STRONY_TRESC);
-
-    if (aktOpisTytul) {
-      const safeTytul = aktOpisTytul.replace(/\$/g, '$$$$');
-      // Podmiana zawartości <span class="title" id="opisStronyTytul">…</span>
-      tekst = tekst.replace(
-        /(<span\s+class="title"\s+id="opisStronyTytul">)([\s\S]*?)(<\/span>)/,
-        `$1${safeTytul}$3`
-      );
-    }
 
     if (aktOpisTresc !== null && aktOpisTresc !== undefined) {
       // Generuj HTML akapitów z surowego tekstu (zachowując **bold** i akapity)
@@ -8365,8 +8712,11 @@ function zapiszEdycje() {
   // EDYTOR-GRA: tytuł dla WSZYSTKICH typów (start/tajemnica/meta)
   const tytulInput = document.getElementById('adminTytul');
   const ytInput = document.getElementById('adminLinkYT');
+  const autorInput = document.getElementById('adminAutor');
   const noweTytul = tytulInput ? tytulInput.value.trim() : null;
   const noweLinkYT = (ytInput && tEdyt === 'start') ? ytInput.value.trim() : null;
+  // EDYTOR-GRA: pole "Autor" - tylko dla startu
+  const noweAutor = (autorInput && tEdyt === 'start') ? autorInput.value.trim() : null;
 
   if (edytowanyTyp === 'audio') {
     // Edytujemy kropkę z kodu - zapisujemy zmiany do listy zaplanowanych
@@ -8384,6 +8734,7 @@ function zapiszEdycje() {
       kropkiAudio[idx].typ = tEdyt;
       if (noweTytul) kropkiAudio[idx].tytul = noweTytul; else delete kropkiAudio[idx].tytul;
       if (noweLinkYT) kropkiAudio[idx].linkYT = noweLinkYT; else delete kropkiAudio[idx].linkYT;
+      if (noweAutor) kropkiAudio[idx].autor = noweAutor; else delete kropkiAudio[idx].autor;
     }
     // Dodatkowo do zaplanowanych żeby trafiło do pobranego pliku.
     const istn = zaplanowaneKropki.findIndex(k => k.__ref === edytowanaKropka);
@@ -8393,6 +8744,7 @@ function zapiszEdycje() {
     };
     if (noweTytul) noweDaneZapis.tytul = noweTytul;
     if (noweLinkYT) noweDaneZapis.linkYT = noweLinkYT;
+    if (noweAutor) noweDaneZapis.autor = noweAutor;
     if (istn >= 0) {
       zaplanowaneKropki[istn] = noweDaneZapis;
     } else {
@@ -8408,6 +8760,7 @@ function zapiszEdycje() {
     edytowanaKropka.pokazFale = aktualnyPokazFale;
     if (noweTytul) edytowanaKropka.tytul = noweTytul; else delete edytowanaKropka.tytul;
     if (noweLinkYT) edytowanaKropka.linkYT = noweLinkYT; else delete edytowanaKropka.linkYT;
+    if (noweAutor) edytowanaKropka.autor = noweAutor; else delete edytowanaKropka.autor;
   }
 
   zapiszZaplanowane();
@@ -8608,6 +8961,9 @@ function zapiszEdycjeMiejsca() {
   miejsca[edytowanyMiejsceIdx].opis = opisRoboczy.opis || '';
   miejsca[edytowanyMiejsceIdx].tytulSrodek = !!opisRoboczy.srodek;
   miejsca[edytowanyMiejsceIdx].tytulDuzy = !!opisRoboczy.duzy;
+  // EDYTOR-GRA: link YouTube w opisie miejsca
+  if (opisRoboczy.linkYT) miejsca[edytowanyMiejsceIdx].linkYT = opisRoboczy.linkYT;
+  else delete miejsca[edytowanyMiejsceIdx].linkYT;
   // TRYB GRY - zapisz numer etapu (jeśli pusty lub 0 - usuwamy pole)
   const numerGryInput = document.getElementById('miejsceNumerGry');
   if (numerGryInput) {
@@ -8670,6 +9026,8 @@ function planujMiejsce() {
   if (opisRoboczy.opis) nowe.opis = opisRoboczy.opis;
   if (opisRoboczy.srodek) nowe.tytulSrodek = true;
   if (opisRoboczy.duzy) nowe.tytulDuzy = true;
+  // EDYTOR-GRA: link YouTube w opisie miejsca
+  if (opisRoboczy.linkYT) nowe.linkYT = opisRoboczy.linkYT;
   // TRYB GRY - dodaj numer etapu jeśli admin wpisał
   const numerGryInputN = document.getElementById('miejsceNumerGry');
   if (numerGryInputN) {
@@ -8785,12 +9143,11 @@ if (trybGryWlaczony) {
   aktualizujPostepGryUI();
   // EDYTOR-GRA: pokaż ekran startowy przy pierwszym otwarciu mapy
   // (NIE pokazujemy w trybie admin - zbyt natrętne podczas edycji)
+  // EDYTOR-GRA: ekran startowy pokazuje się ZA KAŻDYM RAZEM gdy user wchodzi na grę.
+  // Dzięki temu wracający user widzi swoje aktualne osiągnięcia (np. "Już odkryłeś 2/4")
+  // i może wrócić do gry z pełnym kontekstem.
   if (!isAdmin) {
-    let pokazalismyJuz = false;
-    try { pokazalismyJuz = localStorage.getItem(_kluczPostepuGry() + '_ekran') === '1'; } catch(e) {}
-    if (!pokazalismyJuz && aktualnyEtapGry === 0) {
-      setTimeout(pokazEkranStartowy, 800);
-    }
+    setTimeout(pokazEkranStartowy, 800);
   }
 }
 
@@ -10015,10 +10372,12 @@ function aktualizujBottomSheetMini() {
   } else {
     icon.textContent = '📜';
     title.textContent = 'MIEJSCA';
-    const liczba = miejsca.length;
+    // EDYTOR-GRA: liczymy karty rzeczywiście w liście (start + miejsca)
+    const lista = document.getElementById('lista-miejsc');
+    const liczba = lista ? lista.querySelectorAll('.miejsce-card').length : miejsca.length;
     subtitle.textContent = liczba > 0
-      ? `${liczba} miejsc · przesuń w górę aby zobaczyć`
-      : 'Brak miejsc · dodaj przez tryb admin';
+      ? `${liczba} ${liczba === 1 ? 'miejsce' : 'miejsc'} · przesuń w górę aby zobaczyć`
+      : 'Brak miejsc';
   }
 }
 setInterval(aktualizujBottomSheetMini, 1000);
@@ -10030,12 +10389,53 @@ aktualizujBottomSheetMini();
 
 function otworzMobilneMenu() {
   document.getElementById('mobileMenuOverlay').classList.add('visible');
-  refreshMenuFilters(); // sync stanu filtrów z aktualnym
+  aktualizujMenuOdkryteTajemnice(); // odśwież listę odkrytych tajemnic
   aktualizujPrzyciskiTrybu(); // sync aktywnego trybu wyświetlania (auto/dzien/noc)
 }
 
 function zamknijMobilneMenu() {
   document.getElementById('mobileMenuOverlay').classList.remove('visible');
+}
+
+// =====================================================================
+// === LISTA ODKRYTYCH TAJEMNIC W MENU MOBILNYM ========================
+// =====================================================================
+// Generuje listę odkrytych przez gracza tajemnic w menu hamburger.
+// Klik w pozycję = mapa centruje się na tej tajemnicy.
+function aktualizujMenuOdkryteTajemnice() {
+  const lista = document.getElementById('menuOdkryteTajemnice');
+  if (!lista) return;
+
+  // Zbierz odkryte tajemnice (numer < aktualnyEtapGry = już zaliczone)
+  const odkryte = [];
+  for (const k of kropkiAudio) {
+    if (typKropki(k) !== 'tajemnica') continue;
+    if (!k.numer || k.numer >= aktualnyEtapGry) continue;
+    odkryte.push(k);
+  }
+  odkryte.sort((a, b) => a.numer - b.numer);
+
+  if (odkryte.length === 0) {
+    lista.innerHTML = '<div style="text-align:center;padding:14px;color:var(--ink-muted);font-style:italic;font-size:14px">Nie odkryto jeszcze żadnej tajemnicy</div>';
+    return;
+  }
+
+  let html = '';
+  for (const k of odkryte) {
+    const tytul = k.tytul ? k.tytul.replace(/"/g, '&quot;') : `Tajemnica ${k.numer}`;
+    html += `<button onclick="idzNaTajemnice(${k.numer})">❓ Tajemnica ${k.numer} — ${tytul}</button>`;
+  }
+  lista.innerHTML = html;
+}
+
+// Centruje mapę na wybranej (odkrytej) tajemnicy i zamyka menu
+function idzNaTajemnice(numer) {
+  const kropka = kropkiAudio.find(k => typKropki(k) === 'tajemnica' && k.numer === numer);
+  if (!kropka || !kropka.pozycja) return;
+  zamknijMobilneMenu();
+  setTimeout(() => {
+    mapa.flyTo(kropka.pozycja, 17, { duration: 1.2 });
+  }, 200);
 }
 
 // Synchronizacja aktywnego stanu filtrów w menu
@@ -10502,6 +10902,7 @@ aktualizujPanelRadaru();
 
 // === RYSUNKI:START === (nie usuwaj tego komentarza - znacznik dla auto-eksportu)
 const rysunkiZakodowane = [
+
 ];
 // === RYSUNKI:END ===
 
@@ -11095,11 +11496,14 @@ inicjalizujRysunki();
       </a>
     </div>
 
+    <!-- EDYTOR-GRA: pole AUTOR (opcjonalne, z edytora startu) -->
+    <div id="graEkranStartowyAutor" style="text-align:center;margin:10px 0;display:none"></div>
+
     <!-- Statystyki gry -->
     <div class="gra-pergamin-statystyki">
       <div class="gra-stat-item">
         <span class="gra-stat-ikona">🎯</span>
-        <span class="gra-stat-tekst">Tajemnic do odkrycia: <strong id="graStatLiczba">0</strong></span>
+        <span class="gra-stat-tekst">Odkryte tajemnice: <strong id="graStatLiczba">0 / 0</strong></span>
       </div>
     </div>
 
