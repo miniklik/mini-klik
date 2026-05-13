@@ -4736,25 +4736,48 @@ html.tryb-noc .sw-off {
       <!-- PANEL ADMIN: liczniki + akcje -->
       <div class="admin-list" id="adminList">
         <div class="admin-list-title">🛠 Tryb admin</div>
-        <div>🏁 Start: <span class="admin-list-count" id="adminCountStart">0</span></div>
-        <div>❓ Tajemnice: <span class="admin-list-count" id="adminCountTajemnice">0</span></div>
-        <div>🏆 Meta: <span class="admin-list-count" id="adminCountMeta">0</span></div>
-        <div>Zmiany kropek: <span class="admin-list-count" id="adminListCount" style="color:#22c55e">0</span></div>
-        <div style="font-size:11px;color:var(--ink-muted);margin-top:4px">Klik w mapę = dodaj<br>Klik w pinezkę → 🛠 = edytuj</div>
+
+        <!-- EDYTOR-GRA: zakładki - przełączanie widoku liczników -->
+        <div class="admin-tabs" style="display:flex;gap:4px;margin:8px 0;border-bottom:1px solid rgba(160,69,16,0.3)">
+          <button id="adminTabGra" onclick="adminPrzelaczZakladke('gra')"
+                  style="flex:1;background:rgba(124,58,237,0.15);border:1px solid rgba(124,58,237,0.4);border-bottom:none;color:var(--ink);font-size:11px;padding:6px;border-radius:4px 4px 0 0;cursor:pointer;font-weight:700">
+            🎮 Gra
+          </button>
+          <button id="adminTabPunkty" onclick="adminPrzelaczZakladke('punkty')"
+                  style="flex:1;background:transparent;border:1px solid transparent;color:var(--ink-muted);font-size:11px;padding:6px;border-radius:4px 4px 0 0;cursor:pointer">
+            📍 Punkty
+          </button>
+        </div>
+
+        <!-- Widok ZAKŁADKI GRA - liczniki kropek audio gry -->
+        <div id="adminWidokGra">
+          <div>🏁 Start: <span class="admin-list-count" id="adminCountStart">0</span></div>
+          <div>❓ Tajemnice: <span class="admin-list-count" id="adminCountTajemnice">0</span></div>
+          <div>🏆 Meta: <span class="admin-list-count" id="adminCountMeta">0</span></div>
+          <div>Zmiany: <span class="admin-list-count" id="adminListCount" style="color:#22c55e">0</span></div>
+        </div>
+
+        <!-- Widok ZAKŁADKI PUNKTY ORIENTACYJNE -->
+        <div id="adminWidokPunkty" style="display:none">
+          <div>📍 Punktów: <span class="admin-list-count" id="adminCountPunkty" style="color:#a04510">0</span></div>
+          <div style="font-size:11px;color:var(--ink-muted);margin-top:4px">Stałe miejsca na mapie<br>(np. mogiła, kładka, drzewo)</div>
+        </div>
+
+        <div style="font-size:11px;color:var(--ink-muted);margin-top:8px">Klik w mapę = dodaj<br>Klik w pinezkę → 🛠 = edytuj</div>
 
         <!-- EDYTOR-GRA: tryb gry zawsze włączony, brak przełącznika -->
         <div style="margin:10px 0 8px 0;padding:8px;background:rgba(124,58,237,0.08);border-radius:6px;border:1px solid rgba(124,58,237,0.3);font-size:11px;color:var(--ink);text-align:center">
           🎮 <strong>Edytor gry terenowej</strong><br>
-          <span style="font-size:10px;color:var(--ink-muted)">Dodawaj: 🏁 Start · ❓ Tajemnice · 🏆 Meta</span>
+          <span style="font-size:10px;color:var(--ink-muted)">🏁 Start · ❓ Tajemnice · 🏆 Meta · 📍 Punkty</span>
         </div>
 
         <button onclick="pobierzNowyIndex()" style="background:#22c55e;font-size:11px">💾 Pobierz nowy index.html</button>
-        <button id="nazwaStronyBtn" onclick="otworzEdytorNazwy()" style="background:#a04510;font-size:11px">✏️ Nazwa strony</button>
+        <button id="nazwaStronyBtn" onclick="otworzEdytorNazwy()" style="background:#a04510;font-size:11px">✏️ Nazwa przygody</button>
         <button onclick="wyczyscWszystkoEdytor()" style="background:#dc2626;font-size:11px;margin-top:6px" title="Wyczyść wszystkie dane edytora - punkty, miejsca, rysunki, postęp gry">🗑️ Wyczyść wszystko</button>
 
         <!-- Rozwijana ramka edycji nazwy strony -->
         <div class="nazwa-edytor" id="nazwaEdytor">
-          <label class="nazwa-edytor-label">Nazwa strony:</label>
+          <label class="nazwa-edytor-label">Nazwa przygody:</label>
           <input type="text" id="nazwaStronyInput" maxlength="60" placeholder="np. Tytuł przygody">
           <div class="nazwa-edytor-akcje">
             <button class="nazwa-zapisz" onclick="zapiszNazweStrony()">✓ Zapisz</button>
@@ -4962,6 +4985,13 @@ html.tryb-noc .sw-off {
           <span>Punkt końcowy gry. Audio: meta.mp3. Pojawia się dopiero po odkryciu wszystkich tajemnic.</span>
         </span>
       </button>
+      <button class="choice-btn" onclick="wybierzTypGry('miejsce')" style="border-color:#a04510">
+        <span class="choice-icon">📍</span>
+        <span class="choice-text">
+          <strong>PUNKT ORIENTACYJNY</strong>
+          <span>Stałe miejsce na mapie (kładka, stara mogiła, kapliczka) z nazwą, opisem i zdjęciem. Pomaga graczom w nawigacji - "kieruj się do kładki przez rów".</span>
+        </span>
+      </button>
     </div>
     <a class="cancel-link" onclick="zamknijChoose()">✕ Anuluj</a>
   </div>
@@ -4976,9 +5006,11 @@ html.tryb-noc .sw-off {
       <input type="text" id="miejsceNazwa" placeholder="np. Kościół św. Anny" maxlength="80">
     </div>
 
-    <div class="form-row">
+    <!-- EDYTOR-GRA: kategoria UKRYTA - wszystkie miejsca są "Punkt orientacyjny" -->
+    <div class="form-row" style="display:none">
       <label>Kategoria:</label>
       <select id="miejsceKategoria" style="background:var(--paper-2);color:var(--ink);border:1px solid rgba(160,69,16,0.4);border-radius:4px;padding:8px 10px;font-family:'EB Garamond',serif;font-size:14px;width:100%">
+        <option value="punkt">📍 Punkt orientacyjny</option>
         <option value="sakral">⛪ Sakralne</option>
         <option value="zabytek">🏛️ Zabytek</option>
         <option value="przyroda">🌳 Przyroda</option>
@@ -5045,6 +5077,12 @@ html.tryb-noc .sw-off {
         <label>Opis</label>
         <textarea id="opisTekst" placeholder="Tu wpisz właściwy opis miejsca. Możesz pisać dowolnie długo — każdy nowy akapit oddziel pustą linią." rows="10"></textarea>
         <div class="opis-licznik"><span id="opisLicznik">0</span> znaków</div>
+      </div>
+
+      <!-- EDYTOR-GRA: pole Link YouTube w opisie miejsca (np. wideo o tym miejscu) -->
+      <div class="opis-pole-tytul">
+        <label>📺 Link YouTube (opcjonalny)</label>
+        <input type="url" id="opisLinkYT" placeholder="https://youtube.com/watch?v=..." maxlength="200">
       </div>
 
       <div class="opis-podglad-toggle">
@@ -5232,7 +5270,10 @@ const EMOJI_NAMES = {
 };
 
 // === KATEGORIE:START === (nie usuwaj tego komentarza - znacznik dla auto-eksportu)
+// EDYTOR-GRA: tylko jedna kategoria - "Punkt orientacyjny" dla miejsc na mapie.
+// (Przygoda zostaje dla wstecznej kompatybilności - nie używana aktywnie.)
 const kategorieDomyslne = {
+  punkt: { ikona: '📍', nazwa: 'Punkt orientacyjny' },
   przygoda: { ikona: '❓', nazwa: 'Przygoda' }
 };
 // === KATEGORIE:END ===
@@ -5748,6 +5789,10 @@ async function otworzPlatek(klucz, akcja) {
         ).join('');
         html += `<div class="opis-tekst">${akapityHTML}</div>`;
       }
+      // EDYTOR-GRA: Link YouTube w opisie miejsca (jeśli admin wkleił)
+      if (miejsce.linkYT) {
+        html += `<p style="margin-top:14px"><a href="${miejsce.linkYT}" target="_blank" rel="noopener" style="display:inline-block;background:#ff0000;color:#fff;padding:10px 18px;border-radius:6px;text-decoration:none;font-weight:700">📺 Obejrzyj wideo</a></p>`;
+      }
     } else {
       // 2. Fallback: spróbuj wczytać stary plik Markdown (kompatybilność wsteczna)
       const opis = await pobierzOpisMiejsca(klucz);
@@ -6056,6 +6101,49 @@ let _markeryOdkrytych = []; // lista markerów Leaflet (do usuwania przy re-rend
 let _markerStart = null;
 let _markerMeta = null;
 
+// EDYTOR-GRA: dodaje kartę "START" do listy w dolnej szufladzie.
+// Klik w kartę przenosi mapę do punktu startowego (jak w starym edytorze map).
+// W przyszłości tu mogą dochodzić inne KATEGORIE punktów (np. parking, WC, etc.)
+// ale tajemnice/meta NIE - one mają swoje pinezki na mapie.
+function renderujStartWLiscie() {
+  const lista = document.getElementById('lista-miejsc');
+  if (!lista) return;
+  // Usuń poprzednią kartę startu jeśli istnieje (re-render)
+  const stara = lista.querySelector('.miejsce-card.gra-start-card');
+  if (stara) stara.remove();
+
+  const start = znajdzStart();
+  if (!start) return;
+
+  const tytul = start.tytul || 'START przygody';
+  const krotki = (aktualnyEtapGry === 0) ? 'Tu rozpocznij grę' : '✓ Tu zaczęłeś przygodę';
+
+  const card = document.createElement('div');
+  card.className = 'miejsce-card gra-start-card';
+  card.dataset.typ = 'start';
+  card.innerHTML = `<span class="ikona">🏁</span>
+    <div class="nazwa">${tytul}</div>
+    <div class="opis">${krotki}</div>`;
+  card.onclick = () => {
+    // Przelot mapy do punktu startowego (jak klik w pinezkę miejsca)
+    autoCenterAktywny = false;
+    mapaProgramowoPrzesuwana = true;
+    mapa.flyTo(start.pozycja, 17, { duration: 1.2 });
+    setTimeout(() => { mapaProgramowoPrzesuwana = false; }, 1300);
+    if (typeof aktualizujPrzyciskCenter === 'function') aktualizujPrzyciskCenter();
+    // Otwórz popup pinezki po krótkiej chwili żeby user widział co kliknął
+    setTimeout(() => {
+      if (_markerStart) _markerStart.openPopup();
+    }, 1400);
+  };
+  // Dodaj na POCZĄTEK listy (przed miejscami)
+  if (lista.firstChild) {
+    lista.insertBefore(card, lista.firstChild);
+  } else {
+    lista.appendChild(card);
+  }
+}
+
 function renderujPinezkeStartu() {
   if (!trybGryWlaczony) return;
   // Usuń stary marker jeśli istnieje
@@ -6151,10 +6239,8 @@ function otworzOpisGry(typ, kropkaOpcjonalna) {
     html += `<p style="color:var(--ink-muted);font-style:italic">Brak opisu.</p>`;
   }
 
-  // Wideo YouTube (jeśli jest)
-  if (kropka.linkYT) {
-    html += `<p style="margin-top:14px"><a href="${kropka.linkYT}" target="_blank" rel="noopener" style="display:inline-block;background:#ff0000;color:#fff;padding:10px 18px;border-radius:6px;text-decoration:none;font-weight:700">📺 Obejrzyj wideo</a></p>`;
-  }
+  // EDYTOR-GRA: YouTube usunięty z panelu opisu - link YT jest już jako
+  // osobny przycisk w popupie pinezki, nie dublujemy.
 
   // Autor (tylko dla startu)
   if (typ === 'start' && kropka.autor) {
@@ -6214,6 +6300,8 @@ function renderujOdkryteTajemnice() {
   // EDYTOR-GRA: dodatkowo renderujemy widoczne pinezki START i META
   renderujPinezkeStartu();
   renderujPinezkeMety();
+  // EDYTOR-GRA: kafelek START w dolnej szufladzie (do szybkiego powrotu)
+  renderujStartWLiscie();
 
   // Dla każdej tajemnicy która została odkryta (numer < aktualnyEtap)
   // - aktualnyEtap = 1 (po starcie) → żadna nie odkryta
@@ -7290,7 +7378,7 @@ function zapiszNazweStrony() {
   const input = document.getElementById('nazwaStronyInput');
   const nowa = (input?.value || '').trim();
   if (!nowa) {
-    alert('⚠️ Nazwa strony nie może być pusta.');
+    alert('⚠️ Nazwa przygody nie może być pusta.');
     return;
   }
 
@@ -7539,17 +7627,9 @@ function pokazAdminListe() {
   panel.classList.toggle('visible', isAdmin);
   document.getElementById('adminListCount').textContent = zaplanowaneKropki.length;
   // EDYTOR-GRA: liczymy osobno start/tajemnice/metę z OBU źródeł (kropkiAudio + zaplanowane)
-  const wszystkie = [...kropkiAudio, ...zaplanowaneKropki];
-  let liczbaStart = 0, liczbaMeta = 0, liczbaTajemnic = 0;
-  for (const k of wszystkie) {
-    const t = typKropki(k);
-    if (t === 'start') liczbaStart++;
-    else if (t === 'meta') liczbaMeta++;
-    else liczbaTajemnic++;
-  }
   // Deduplikacja: __ref oznacza że to zaplanowana referencja do istniejącej
   // Wystarczy nam policzyć kropkiAudio + te zaplanowane bez __ref (nowe)
-  liczbaStart = 0; liczbaMeta = 0; liczbaTajemnic = 0;
+  let liczbaStart = 0, liczbaMeta = 0, liczbaTajemnic = 0;
   for (const k of kropkiAudio) {
     const t = typKropki(k);
     if (t === 'start') liczbaStart++;
@@ -7569,6 +7649,44 @@ function pokazAdminListe() {
   if (elT) elT.textContent = liczbaTajemnic;
   const elM = document.getElementById('adminCountMeta');
   if (elM) elM.textContent = liczbaMeta;
+  // EDYTOR-GRA: licznik punktów orientacyjnych
+  const elP = document.getElementById('adminCountPunkty');
+  if (elP) elP.textContent = (typeof miejsca !== 'undefined') ? miejsca.length : 0;
+}
+
+// EDYTOR-GRA: przełączanie zakładek panelu admina (Gra vs Punkty orientacyjne)
+function adminPrzelaczZakladke(ktora) {
+  const widokGra = document.getElementById('adminWidokGra');
+  const widokPunkty = document.getElementById('adminWidokPunkty');
+  const tabGra = document.getElementById('adminTabGra');
+  const tabPunkty = document.getElementById('adminTabPunkty');
+  if (!widokGra || !widokPunkty || !tabGra || !tabPunkty) return;
+
+  if (ktora === 'gra') {
+    widokGra.style.display = 'block';
+    widokPunkty.style.display = 'none';
+    tabGra.style.background = 'rgba(124,58,237,0.15)';
+    tabGra.style.border = '1px solid rgba(124,58,237,0.4)';
+    tabGra.style.borderBottom = 'none';
+    tabGra.style.color = 'var(--ink)';
+    tabGra.style.fontWeight = '700';
+    tabPunkty.style.background = 'transparent';
+    tabPunkty.style.border = '1px solid transparent';
+    tabPunkty.style.color = 'var(--ink-muted)';
+    tabPunkty.style.fontWeight = 'normal';
+  } else {
+    widokPunkty.style.display = 'block';
+    widokGra.style.display = 'none';
+    tabPunkty.style.background = 'rgba(160,69,16,0.15)';
+    tabPunkty.style.border = '1px solid rgba(160,69,16,0.4)';
+    tabPunkty.style.borderBottom = 'none';
+    tabPunkty.style.color = 'var(--ink)';
+    tabPunkty.style.fontWeight = '700';
+    tabGra.style.background = 'transparent';
+    tabGra.style.border = '1px solid transparent';
+    tabGra.style.color = 'var(--ink-muted)';
+    tabGra.style.fontWeight = 'normal';
+  }
 }
 
 function dajKolejnyNumer() {
@@ -7641,6 +7759,9 @@ function otworzEdytorOpisu() {
   document.getElementById('opisTekst').value = opisRoboczy.opis || '';
   document.getElementById('opisTytulSrodek').checked = !!opisRoboczy.srodek;
   document.getElementById('opisTytulDuzy').checked = !!opisRoboczy.duzy;
+  // EDYTOR-GRA: Link YouTube
+  const ytEl = document.getElementById('opisLinkYT');
+  if (ytEl) ytEl.value = opisRoboczy.linkYT || '';
 
   aktualizujLicznikOpisu();
   // Schowaj podgląd na start
@@ -7657,6 +7778,9 @@ function zamknijEdytorOpisu() {
   opisRoboczy.opis = document.getElementById('opisTekst').value;
   opisRoboczy.srodek = document.getElementById('opisTytulSrodek').checked;
   opisRoboczy.duzy = document.getElementById('opisTytulDuzy').checked;
+  // EDYTOR-GRA: Link YouTube
+  const ytEl = document.getElementById('opisLinkYT');
+  if (ytEl) opisRoboczy.linkYT = ytEl.value.trim();
 
   document.getElementById('opisEdytor').classList.remove('visible');
   document.getElementById('opisZwiniety').style.display = '';
@@ -7833,10 +7957,11 @@ function wczytajOpisDoBufora(miejsce) {
       tytul: miejsce.tytul || '',
       opis: miejsce.opis || '',
       srodek: !!miejsce.tytulSrodek,
-      duzy: !!miejsce.tytulDuzy
+      duzy: !!miejsce.tytulDuzy,
+      linkYT: miejsce.linkYT || ''
     };
   } else {
-    opisRoboczy = { tytul: '', opis: '', srodek: false, duzy: false };
+    opisRoboczy = { tytul: '', opis: '', srodek: false, duzy: false, linkYT: '' };
   }
   // Upewnij się że edytor jest zwinięty po otwarciu nowego miejsca
   const ed = document.getElementById('opisEdytor');
@@ -7893,6 +8018,29 @@ let _aktualnyTypNowejKropki = 'tajemnica'; // ostatnio wybrany typ - używany pr
 function wybierzTypGry(typ) {
   document.getElementById('adminChoose').classList.remove('visible');
   _aktualnyTypNowejKropki = typ;
+
+  // EDYTOR-GRA: typ 'miejsce' = punkt orientacyjny (stała pinezka na mapie).
+  // Przekierowujemy do starego helpera miejsc (osobny formularz).
+  if (typ === 'miejsce') {
+    const helper = document.getElementById('miejsceHelper');
+    document.getElementById('miejsceHelperTytul').textContent = '📍 Nowy punkt orientacyjny';
+    document.getElementById('miejsceNazwa').value = '';
+    // EDYTOR-GRA: domyślna kategoria 'punkt' (jedyna w grze)
+    const selKat = document.getElementById('miejsceKategoria');
+    if (selKat) selKat.value = 'punkt';
+    document.getElementById('miejsceIkona').value = '📍';
+    document.getElementById('miejsceKlucz').value = '';
+    // Reset numerGry (nie używamy w punktach orientacyjnych)
+    const ngInput = document.getElementById('miejsceNumerGry');
+    if (ngInput) ngInput.value = '';
+    pokazPoleNumerGry();
+    if (typeof aktualizujKodMiejsca === 'function') aktualizujKodMiejsca();
+    if (typeof zaktualizujPrzyciskiMiejsce === 'function') zaktualizujPrzyciskiMiejsce();
+    // Reset bufora opisu - nowe miejsce, czysty stan
+    if (typeof wczytajOpisDoBufora === 'function') wczytajOpisDoBufora(null);
+    helper.classList.add('visible');
+    return;
+  }
 
   // Walidacja: start i meta mogą być TYLKO po 1 sztuce
   // EDYTOR-GRA: usuwamy z OBU tablic (kropkiAudio i zaplanowane)
@@ -8963,6 +9111,9 @@ function zapiszEdycjeMiejsca() {
   miejsca[edytowanyMiejsceIdx].opis = opisRoboczy.opis || '';
   miejsca[edytowanyMiejsceIdx].tytulSrodek = !!opisRoboczy.srodek;
   miejsca[edytowanyMiejsceIdx].tytulDuzy = !!opisRoboczy.duzy;
+  // EDYTOR-GRA: link YouTube w opisie miejsca
+  if (opisRoboczy.linkYT) miejsca[edytowanyMiejsceIdx].linkYT = opisRoboczy.linkYT;
+  else delete miejsca[edytowanyMiejsceIdx].linkYT;
   // TRYB GRY - zapisz numer etapu (jeśli pusty lub 0 - usuwamy pole)
   const numerGryInput = document.getElementById('miejsceNumerGry');
   if (numerGryInput) {
@@ -9025,6 +9176,8 @@ function planujMiejsce() {
   if (opisRoboczy.opis) nowe.opis = opisRoboczy.opis;
   if (opisRoboczy.srodek) nowe.tytulSrodek = true;
   if (opisRoboczy.duzy) nowe.tytulDuzy = true;
+  // EDYTOR-GRA: link YouTube w opisie miejsca
+  if (opisRoboczy.linkYT) nowe.linkYT = opisRoboczy.linkYT;
   // TRYB GRY - dodaj numer etapu jeśli admin wpisał
   const numerGryInputN = document.getElementById('miejsceNumerGry');
   if (numerGryInputN) {
@@ -10369,10 +10522,12 @@ function aktualizujBottomSheetMini() {
   } else {
     icon.textContent = '📜';
     title.textContent = 'MIEJSCA';
-    const liczba = miejsca.length;
+    // EDYTOR-GRA: liczymy karty rzeczywiście w liście (start + miejsca)
+    const lista = document.getElementById('lista-miejsc');
+    const liczba = lista ? lista.querySelectorAll('.miejsce-card').length : miejsca.length;
     subtitle.textContent = liczba > 0
-      ? `${liczba} miejsc · przesuń w górę aby zobaczyć`
-      : 'Brak miejsc · dodaj przez tryb admin';
+      ? `${liczba} ${liczba === 1 ? 'miejsce' : 'miejsc'} · przesuń w górę aby zobaczyć`
+      : 'Brak miejsc';
   }
 }
 setInterval(aktualizujBottomSheetMini, 1000);
