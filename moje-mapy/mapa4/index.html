@@ -10,7 +10,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 
-<title>Nazwa przygody · mini-klik.pl</title>
+<title>Kubuś · mini-klik.pl</title>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css"/>
@@ -4609,7 +4609,7 @@ html.tryb-noc .sw-off {
 <div class="wrapper">
 
   <header>
-    <h1>Nazwa przygody</h1>
+    <h1>Kubuś</h1>
   </header>
 
   <!-- KONTROLKI -->
@@ -5051,7 +5051,7 @@ html.tryb-noc .sw-off {
     </div>
     <div class="accordion-content">
       <div class="accordion-inner" id="opisStronyTresc">
-        <p style="color:var(--ink-muted);font-style:italic;text-align:center;padding:20px 0">Opis gry nie został jeszcze dodany.</p>
+        <p>szkanie Kubasia Puchatka</p>
       </div>
     </div>
 
@@ -5257,7 +5257,8 @@ function zastosujKategorie() {
 }
 
 const miejsca = [
-  { klucz: 'bagno', nazwa: 'bagno', pozycja: [51.1906, 23.1701], ikona: '📍', kategoria: 'punkt', tytul: 'co to znowu za tytuł', opis: 'opis startu' }
+  { klucz: 'bagno', nazwa: 'bagno', pozycja: [51.1913, 23.1709], ikona: '📍', kategoria: 'punkt', tytul: 'holtel', opis: 'tu znajduje sie wielki hotel Dywanoli', numerGry: 1 },
+  { klucz: 'wroni-gaj', nazwa: 'Wroni gaj', pozycja: [51.1906, 23.1738], ikona: '📍', kategoria: 'punkt', tytul: 'Wroni gaj', opis: 'Tu znajduje sie wielki las.. obejdz do okola , znajdz coś co wyglada jak na zdjeciu', numerGry: 1 }
 ];
 
 const mapa = L.map('mapa', {
@@ -5376,6 +5377,15 @@ function sciezkaAudioDlaKropki(k) {
   if (t === 'start') return 'audio/start.mp3';
   if (t === 'meta')  return 'audio/meta.mp3';
   return 'audio/' + k.numer + '.mp3';
+}
+
+// Zwraca unikalny klucz kropki do śledzenia odtwarzania w Set kropkaJestOdtwarzana.
+// Dla tajemnic: numer (np. 1, 2, 3). Dla start/meta: 'start'/'meta'.
+function kluczOdtwarzaniaKropki(k) {
+  if (!k) return null;
+  const t = typKropki(k);
+  if (t === 'tajemnica') return k.numer;
+  return t; // 'start' lub 'meta'
 }
 
 
@@ -6506,9 +6516,8 @@ zastosujKategorie();
 //
 // Aby dodać nową kropkę: użyj przycisków w panelu admin (?admin=1).
 const kropkiAudio = [
-  { numer: 0, typ: 'start', pozycja: [51.19161, 23.17032], promien: 70, opis: '' },
-  { numer: 1, pozycja: [51.19048, 23.17175], promien: 20, opis: '', pokazFale: true },
-  { numer: 2, pozycja: [51.19002, 23.17028], promien: 20, opis: '', pokazFale: true }
+  { numer: 0, typ: 'start', pozycja: [51.19193, 23.17016], promien: 30, opis: '', tytul: 'Sokolec', autor: 'ed' },
+  { numer: 1, pozycja: [51.19121, 23.17008], promien: 100, opis: '', tytul: 'krzaki', pokazFale: true }
 ];
 
 // Stan przewodnika audio
@@ -6960,26 +6969,34 @@ function odtworzKropke(kropka) {
   }
 
   // Zacznij odtwarzanie
-  const sciezka = `audio/${kropka.numer}.mp3`;
+  const sciezka = sciezkaAudioDlaKropki(kropka);
   aktualneAudio = new Audio(sciezka);
   aktualnaKropkaAudio = kropka;
 
-  // Pokaż panel
+  // Pokaż panel - tytuł zależy od typu kropki
   const player = document.getElementById('audioPlayer');
-  document.getElementById('audioInfo').textContent = `#${kropka.numer} · ${kropka.opis || 'Audio'}`;
+  const _t = typKropki(kropka);
+  let _audioLabel;
+  if (_t === 'start') _audioLabel = `🏁 START · ${kropka.tytul || 'Początek przygody'}`;
+  else if (_t === 'meta') _audioLabel = `🏆 META · ${kropka.tytul || 'Koniec przygody'}`;
+  else _audioLabel = `#${kropka.numer} · ${kropka.tytul || kropka.opis || 'Audio'}`;
+  document.getElementById('audioInfo').textContent = _audioLabel;
   document.getElementById('audioPauseBtn').textContent = '⏸ Pauza';
   // Ukryj komunikat "w strefie" w trakcie odtwarzania
   const stref = document.getElementById('audioStrefaInfo');
   if (stref) stref.style.display = 'none';
   player.classList.add('visible');
 
+  // Klucz do śledzenia odtwarzania (numer dla tajemnic, typ dla start/meta)
+  const _kluczOdtw = kluczOdtwarzaniaKropki(kropka);
+
   aktualneAudio.play().then(() => {
-    kropkaJestOdtwarzana.add(kropka.numer);
+    kropkaJestOdtwarzana.add(_kluczOdtw);
   }).catch(err => {
-    console.warn('Audio play failed:', err);
+    console.warn('Audio play failed:', err, 'sciezka:', sciezka);
     document.getElementById('audioInfo').innerHTML =
-      `#${kropka.numer} · ${kropka.opis || ''}<br><small style="color:var(--crimson)">⚠️ Brak pliku audio/${kropka.numer}.mp3</small>`;
-    kropkaJestOdtwarzana.add(kropka.numer); // żeby nie próbować ciągle
+      `${_audioLabel}<br><small style="color:var(--crimson)">⚠️ Brak pliku ${sciezka}</small>`;
+    kropkaJestOdtwarzana.add(_kluczOdtw); // żeby nie próbować ciągle
   });
 
   aktualneAudio.onended = () => {
@@ -7003,7 +7020,7 @@ function toggleAudioPauza() {
   if (!aktualneAudio || aktualneAudio.ended) {
     if (aktualnaKropkaAudio) {
       // Reset flagi żeby kropka mogła znów zagrać
-      kropkaJestOdtwarzana.delete(aktualnaKropkaAudio.numer);
+      kropkaJestOdtwarzana.delete(kluczOdtwarzaniaKropki(aktualnaKropkaAudio));
       odtworzKropke(aktualnaKropkaAudio);
     }
     return;
