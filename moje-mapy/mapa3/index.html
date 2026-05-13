@@ -4640,9 +4640,13 @@ html.tryb-noc .sw-off {
       <!-- PANEL POSTĘPU GRY -->
       <div class="gra-postep-info visible" id="graPostepPanel">
         <div class="gra-postep-label">🎮 Twoja przygoda</div>
-        <div style="font-size:14px;color:var(--ink);margin-bottom:8px">
+        <div style="font-size:14px;color:var(--ink);margin-bottom:6px">
           Odkryto: <strong id="postepGryDisplay">⭐ 0/0</strong>
         </div>
+        <!-- EDYTOR-GRA: lista odkrytych tajemnic + wskazówka co dalej -->
+        <div id="graPostepListaOdkrytych" style="font-size:12px;color:var(--ink);text-align:left;margin:8px 0 6px 0;display:none"></div>
+        <div id="graPostepCoDalej" style="font-size:12px;color:var(--ink);background:rgba(220,38,38,0.08);border-left:3px solid #dc2626;padding:6px 8px;border-radius:3px;margin-bottom:8px;display:none;text-align:left"></div>
+        <button class="gra-reset-btn" onclick="pokazEkranStartowy()" style="margin-bottom:4px">📜 Pokaż menu startowe</button>
         <button class="gra-reset-btn" onclick="if(confirm('Zresetować postęp gry? Zaczniesz od początku.')) resetujPostepGry();">🔄 Reset gry</button>
       </div>
     </div>
@@ -5987,6 +5991,49 @@ function aktualizujPostepGryUI() {
   const wszystkie = policzTajemnice();
   const odkryte = Math.max(0, aktualnyEtapGry - 1);
   el.textContent = `⭐ ${odkryte}/${wszystkie}`;
+
+  // EDYTOR-GRA: aktualizuj listę odkrytych tajemnic w panelu postępu
+  const listaEl = document.getElementById('graPostepListaOdkrytych');
+  if (listaEl) {
+    const odkrytePoNumerach = [];
+    for (const k of kropkiAudio) {
+      if (typKropki(k) !== 'tajemnica') continue;
+      if (!k.numer || k.numer >= aktualnyEtapGry) continue;
+      odkrytePoNumerach.push({
+        numer: k.numer,
+        tytul: k.tytul || `Tajemnica #${k.numer}`
+      });
+    }
+    if (odkrytePoNumerach.length > 0) {
+      odkrytePoNumerach.sort((a, b) => a.numer - b.numer);
+      let html = '<strong style="color:#15803d;display:block;margin-bottom:3px">✓ Odkryte:</strong>';
+      for (const o of odkrytePoNumerach) {
+        html += `<div style="margin:2px 0">🏛️ ${o.tytul}</div>`;
+      }
+      listaEl.innerHTML = html;
+      listaEl.style.display = 'block';
+    } else {
+      listaEl.style.display = 'none';
+    }
+  }
+
+  // EDYTOR-GRA: aktualizuj wskazówkę "co dalej"
+  const coDalejEl = document.getElementById('graPostepCoDalej');
+  if (coDalejEl) {
+    if (aktualnyEtapGry === 0) {
+      coDalejEl.innerHTML = '<strong style="color:#dc2626">🎯 Cel:</strong><br>Idź do punktu <strong>START</strong> żeby rozpocząć grę.';
+      coDalejEl.style.display = 'block';
+    } else if (aktualnyEtapGry > wszystkie) {
+      coDalejEl.innerHTML = '<strong style="color:#15803d">🏆 Brawo!</strong><br>Ukończyłeś całą przygodę!';
+      coDalejEl.style.display = 'block';
+    } else {
+      const nastNumer = aktualnyEtapGry;
+      const nastKropka = kropkiAudio.find(k => typKropki(k) === 'tajemnica' && k.numer === nastNumer);
+      const nastTytul = (nastKropka && nastKropka.tytul) ? nastKropka.tytul : `Tajemnica #${nastNumer}`;
+      coDalejEl.innerHTML = `<strong style="color:#dc2626">🎯 Teraz szukasz:</strong><br>${nastTytul}`;
+      coDalejEl.style.display = 'block';
+    }
+  }
 }
 
 // ============================================================
@@ -6147,13 +6194,39 @@ function pokazEkranStartowy() {
   const tytul = start.tytul || (h1 ? h1.textContent : 'Przygoda');
   document.getElementById('graEkranStartowyTytul').textContent = tytul;
 
-  // Opis
+  // EDYTOR-GRA: Opis dostosowany do etapu gry
+  // - Etap 0 (pierwsze wejście) → opis fabuły ze startu
+  // - Etap > 0 (powrót w trakcie gry) → przypomnienie postępu + lista odkrytych
+  // - Etap > N (ukończona) → gratulacje
   const opisEl = document.getElementById('graEkranStartowyOpis');
-  if (start.opis) {
-    opisEl.innerHTML = start.opis;
+  const ileTajemnic = policzTajemnice();
+  const odkryte = Math.max(0, aktualnyEtapGry - 1);
+  const podtytulEl = document.querySelector('.gra-pergamin-podtytul');
+
+  if (aktualnyEtapGry === 0) {
+    // PIERWSZE WEJŚCIE - standardowy opis
+    if (podtytulEl) podtytulEl.textContent = '— Czeka Cię prawdziwa przygoda —';
+    if (start.opis) {
+      opisEl.innerHTML = start.opis;
+    } else {
+      opisEl.innerHTML = 'Witaj odkrywco! Twoja przygoda zaraz się rozpocznie. ' +
+        'Włącz GPS i ruszaj w teren - kolejne miejsca odsłonią się gdy do nich podejdziesz.';
+    }
+  } else if (aktualnyEtapGry > ileTajemnic) {
+    // UKOŃCZONA - gratulacje
+    if (podtytulEl) podtytulEl.textContent = '— 🏆 Przygoda ukończona! —';
+    opisEl.innerHTML = `<strong style="color:#22c55e;display:block;margin-bottom:8px">✓ Odkryłeś wszystkie tajemnice!</strong>` +
+      _listaOdkrytychHTML() +
+      `<br><em style="font-size:13px;color:#8a6a45">Możesz wrócić do mapy i zobaczyć swoje pinezki.</em>`;
   } else {
-    opisEl.innerHTML = 'Witaj odkrywco! Twoja przygoda zaraz się rozpocznie. ' +
-      'Włącz GPS i ruszaj w teren - kolejne miejsca odsłonią się gdy do nich podejdziesz.';
+    // POWRÓT W TRAKCIE GRY - aktualne osiągnięcia + co dalej
+    if (podtytulEl) podtytulEl.textContent = `— Witaj z powrotem, odkrywco! —`;
+    const nastepnaTajemnica = aktualnyEtapGry; // bo etap=2 znaczy odkryta #1, teraz szukamy #2
+    const nastepnaKropka = kropkiAudio.find(k => typKropki(k) === 'tajemnica' && k.numer === nastepnaTajemnica);
+    const nastepnyTytul = (nastepnaKropka && nastepnaKropka.tytul) ? nastepnaKropka.tytul : `Tajemnica #${nastepnaTajemnica}`;
+    opisEl.innerHTML = `<strong style="color:#22c55e;display:block;margin-bottom:8px">📜 Twój postęp: ${odkryte} z ${ileTajemnic} tajemnic</strong>` +
+      _listaOdkrytychHTML() +
+      `<br><div style="background:rgba(220,38,38,0.1);border-left:3px solid #dc2626;padding:8px 10px;border-radius:4px;margin-top:8px"><strong style="color:#dc2626">🎯 Teraz szukasz:</strong><br><em style="color:#3a2818">${nastepnyTytul}</em></div>`;
   }
 
   // Link YouTube (jeśli admin wstawił)
@@ -6166,10 +6239,44 @@ function pokazEkranStartowy() {
     ytBox.style.display = 'none';
   }
 
-  // Statystyki - liczba tajemnic
-  document.getElementById('graStatLiczba').textContent = policzTajemnice();
+  // Statystyki - liczba tajemnic + ile odkryto
+  document.getElementById('graStatLiczba').textContent = `${odkryte} / ${ileTajemnic}`;
+
+  // EDYTOR-GRA: tekst przycisku zmienia się zależnie od etapu
+  const btn = document.querySelector('.gra-pergamin-btn');
+  if (btn) {
+    if (aktualnyEtapGry === 0) {
+      btn.innerHTML = '🚶 Zaczynamy przygodę!';
+    } else if (aktualnyEtapGry > ileTajemnic) {
+      btn.innerHTML = '🗺️ Pokaż mapę odkryć';
+    } else {
+      btn.innerHTML = '🚶 Kontynuuj przygodę';
+    }
+  }
 
   ekran.classList.add('visible');
+}
+
+// EDYTOR-GRA: zwraca HTML z listą odkrytych tajemnic (z tytułami)
+function _listaOdkrytychHTML() {
+  const odkrytePoNumerach = [];
+  for (const k of kropkiAudio) {
+    if (typKropki(k) !== 'tajemnica') continue;
+    if (!k.numer || k.numer >= aktualnyEtapGry) continue;
+    odkrytePoNumerach.push({
+      numer: k.numer,
+      tytul: k.tytul || `Tajemnica #${k.numer}`
+    });
+  }
+  if (odkrytePoNumerach.length === 0) return '';
+  odkrytePoNumerach.sort((a, b) => a.numer - b.numer);
+  let html = '<div style="background:rgba(34,197,94,0.08);border-left:3px solid #22c55e;padding:8px 10px;border-radius:4px;margin:6px 0;font-size:13px">';
+  html += '<strong style="color:#15803d">Odkryłeś już:</strong><ul style="margin:4px 0 0 0;padding-left:18px;list-style:none">';
+  for (const o of odkrytePoNumerach) {
+    html += `<li style="margin:2px 0">🏛️ ${o.tytul}</li>`;
+  }
+  html += '</ul></div>';
+  return html;
 }
 function zamknijEkranStartowy() {
   const ekran = document.getElementById('graEkranStartowy');
@@ -8916,12 +9023,11 @@ if (trybGryWlaczony) {
   aktualizujPostepGryUI();
   // EDYTOR-GRA: pokaż ekran startowy przy pierwszym otwarciu mapy
   // (NIE pokazujemy w trybie admin - zbyt natrętne podczas edycji)
+  // EDYTOR-GRA: ekran startowy pokazuje się ZA KAŻDYM RAZEM gdy user wchodzi na grę.
+  // Dzięki temu wracający user widzi swoje aktualne osiągnięcia (np. "Już odkryłeś 2/4")
+  // i może wrócić do gry z pełnym kontekstem.
   if (!isAdmin) {
-    let pokazalismyJuz = false;
-    try { pokazalismyJuz = localStorage.getItem(_kluczPostepuGry() + '_ekran') === '1'; } catch(e) {}
-    if (!pokazalismyJuz && aktualnyEtapGry === 0) {
-      setTimeout(pokazEkranStartowy, 800);
-    }
+    setTimeout(pokazEkranStartowy, 800);
   }
 }
 
@@ -11230,7 +11336,7 @@ inicjalizujRysunki();
     <div class="gra-pergamin-statystyki">
       <div class="gra-stat-item">
         <span class="gra-stat-ikona">🎯</span>
-        <span class="gra-stat-tekst">Tajemnic do odkrycia: <strong id="graStatLiczba">0</strong></span>
+        <span class="gra-stat-tekst">Odkryte tajemnice: <strong id="graStatLiczba">0 / 0</strong></span>
       </div>
     </div>
 
