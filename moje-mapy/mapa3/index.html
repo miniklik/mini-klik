@@ -4692,12 +4692,10 @@ html.tryb-noc .sw-off {
 
       <!-- ============================================================== -->
       <!-- NOWY PANEL "📡 W ZASIĘGU" (Radar wielowarstwowy, Krok B) ====== -->
-      <!-- ============================================================== -->
-      <!-- Pokazuje listę WSZYSTKICH stref w których turysta JEST teraz.  -->
-      <!-- Akordeon: mini state = tylko liczba, klik = rozwija listę.     -->
-      <!-- Klik [▶] na wpisie = odtwarza audio (przerywa poprzednie).     -->
-      <!-- Wpisy znikają same gdy turysta wyjdzie ze strefy.              -->
-      <div class="radar-panel" id="radarPanel">
+      <!-- DOLNA SZUFLADA RADARU - UKRYTA (display:none) -->
+      <!-- Zostawiona w DOM bo funkcje JS jeszcze ją aktualizują (aktualizujPanelRadaru itp). -->
+      <!-- Ponowny odsłuch audio: klik na pinezkę odkrytej tajemnicy / START / META. -->
+      <div class="radar-panel" id="radarPanel" style="display:none !important">
         <div class="radar-mini" id="radarMini" onclick="toggleRadarPanel()">
           <span class="radar-icon">📡</span>
           <span class="radar-mini-text">W zasięgu: <span id="radarCount">0</span></span>
@@ -6113,12 +6111,21 @@ function renderujPinezkeStartu() {
   _markerStart = L.marker(start.pozycja, {
     icon: L.divIcon({
       className: 'gra-pinezka-start-marker',
-      html: `<div class="${klasaPinezki}" title="START - ${aktualnyEtapGry === 0 ? 'tu rozpocznij grę' : 'początek przygody'}">🏁</div><div class="${klasaLabel}">START</div>`,
+      html: `<div class="${klasaPinezki}" title="START - ${aktualnyEtapGry === 0 ? 'tu rozpocznij grę' : 'klik aby odtworzyć audio'}">🏁</div><div class="${klasaLabel}">START</div>`,
       iconSize: [44, 44],
       iconAnchor: [22, 22]
     }),
     zIndexOffset: 500 // wyżej niż inne markery
-  }).bindPopup(popupTresc, { maxWidth: 280 });
+  });
+
+  // Klik:
+  // - etap 0 (przed grą)  → popup z instrukcją "tu rozpocznij grę"
+  // - etap >= 1 (po starcie) → od razu odtwarzaj start.mp3 (ponowny odsłuch)
+  if (aktualnyEtapGry === 0) {
+    _markerStart.bindPopup(popupTresc, { maxWidth: 280 });
+  } else {
+    _markerStart.on('click', () => odtworzKropke(start));
+  }
   _markerStart.addTo(mapa);
 }
 
@@ -6199,12 +6206,15 @@ function renderujPinezkeMety() {
   _markerMeta = L.marker(meta.pozycja, {
     icon: L.divIcon({
       className: 'gra-pinezka-meta-marker',
-      html: `<div class="gra-pinezka-meta" title="META - cel końcowy">🏆</div><div class="gra-pinezka-meta-label">META</div>`,
+      html: `<div class="gra-pinezka-meta" title="META - klik aby odtworzyć audio">🏆</div><div class="gra-pinezka-meta-label">META</div>`,
       iconSize: [44, 44],
       iconAnchor: [22, 22]
     }),
     zIndexOffset: 500
-  }).bindPopup(popupTresc, { maxWidth: 280 });
+  });
+  // Pinezka META pojawia się tylko po ukończeniu gry, więc audio już zostało
+  // odtworzone automatycznie - klik = ponowny odsłuch meta.mp3
+  _markerMeta.on('click', () => odtworzKropke(meta));
   _markerMeta.addTo(mapa);
 }
 
@@ -6232,16 +6242,16 @@ function renderujOdkryteTajemnice() {
     if (!kropka.numer || kropka.numer >= aktualnyEtapGry) continue;
     // Ta tajemnica została odkryta - dodaj pinezkę
     const tytul = kropka.tytul || `Tajemnica #${kropka.numer}`;
-    // EDYTOR-GRA: krótki popup - opis wywalony (fabuła w audio N.mp3)
-    let popupTresc = `<div style="text-align:center;min-width:180px"><b>🏛️ ${tytul}</b><br><em style="color:#22c55e;font-size:12px">✓ Odkryto!</em></div>`;
     const marker = L.marker(kropka.pozycja, {
       icon: L.divIcon({
         className: 'odkryta-tajemnica-marker',
-        html: `<div class="odkryta-tajemnica-pinezka" title="${tytul} (odkryto)">🏛️</div><div class="odkryta-tajemnica-label">${tytul}</div>`,
+        html: `<div class="odkryta-tajemnica-pinezka" title="${tytul} - klik aby odtworzyć audio">🏛️</div><div class="odkryta-tajemnica-label">${tytul}</div>`,
         iconSize: [36, 36],
         iconAnchor: [18, 18]
       })
-    }).bindPopup(popupTresc, { maxWidth: 240 });
+    });
+    // Klik na pinezkę = od razu odtwórz audio tej tajemnicy
+    marker.on('click', () => odtworzKropke(kropka));
     marker.addTo(mapa);
     _markeryOdkrytych.push(marker);
   }
