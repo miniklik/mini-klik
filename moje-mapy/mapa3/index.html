@@ -10,7 +10,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 
-<title>miki · mini-klik.pl</title>
+<title>Nazwa przygody · mini-klik.pl</title>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css"/>
@@ -1166,6 +1166,45 @@ footer{
   font-weight: 700;
   letter-spacing: 1px;
   box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+  pointer-events: none;
+}
+
+/* START PO ROZPOCZĘCIU GRY - pinezka spokojniejsza, mniej krzykliwa.
+ * Ten sam rozmiar, ale bez pulsowania, lekko przygaszona.
+ * Klimat: "tu zacząłeś przygodę, pamiątka". */
+.gra-pinezka-start-odkryty {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  background: radial-gradient(circle at 30% 30%, #fca5a5, #dc2626);
+  border: 2px solid #fff;
+  border-radius: 50%;
+  box-shadow:
+    0 0 0 1px #dc2626,
+    0 3px 10px rgba(220, 38, 38, 0.4);
+  cursor: pointer;
+  opacity: 0.85;
+  position: relative;
+}
+.gra-pinezka-start-label-odkryty {
+  position: absolute;
+  top: 42px;
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  background: rgba(220, 38, 38, 0.85);
+  color: #fff;
+  padding: 2px 8px;
+  border-radius: 3px;
+  border: 1px solid rgba(255,255,255,0.6);
+  font-family: 'Cinzel', serif;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.2);
   pointer-events: none;
 }
 
@@ -4585,7 +4624,7 @@ html.tryb-noc .sw-off {
 <div class="wrapper">
 
   <header>
-    <h1>miki</h1>
+    <h1>Nazwa przygody</h1>
   </header>
 
   <!-- KONTROLKI -->
@@ -4708,6 +4747,7 @@ html.tryb-noc .sw-off {
 
         <button onclick="pobierzNowyIndex()" style="background:#22c55e;font-size:11px">💾 Pobierz nowy index.html</button>
         <button id="nazwaStronyBtn" onclick="otworzEdytorNazwy()" style="background:#a04510;font-size:11px">✏️ Nazwa strony</button>
+        <button onclick="wyczyscWszystkoEdytor()" style="background:#dc2626;font-size:11px;margin-top:6px" title="Wyczyść wszystkie dane edytora - punkty, miejsca, rysunki, postęp gry">🗑️ Wyczyść wszystko</button>
 
         <!-- Rozwijana ramka edycji nazwy strony -->
         <div class="nazwa-edytor" id="nazwaEdytor">
@@ -5038,7 +5078,7 @@ html.tryb-noc .sw-off {
     </div>
     <div class="accordion-content">
       <div class="accordion-inner" id="opisStronyTresc">
-        <p>ok robimy opis</p>
+        <p style="color:var(--ink-muted);font-style:italic;text-align:center;padding:20px 0">opis strony</p>
       </div>
     </div>
 
@@ -5184,7 +5224,7 @@ const EMOJI_NAMES = {
 
 // === KATEGORIE:START === (nie usuwaj tego komentarza - znacznik dla auto-eksportu)
 const kategorieDomyslne = {
-
+  przygoda: { ikona: '❓', nazwa: 'Przygoda' }
 };
 // === KATEGORIE:END ===
 
@@ -5257,7 +5297,6 @@ function zastosujKategorie() {
 }
 
 const miejsca = [
-
 ];
 
 const mapa = L.map('mapa', {
@@ -5972,20 +6011,38 @@ function renderujPinezkeStartu() {
     try { mapa.removeLayer(_markerStart); } catch(e) {}
     _markerStart = null;
   }
-  // Pokazujemy pinezkę startu TYLKO gdy etap = 0 (jeszcze nie zaczęto gry)
-  // Po wejściu w start (etap >= 1) duża pinezka znika - jest w pamięci historii
-  if (aktualnyEtapGry !== 0) return;
 
   const start = znajdzStart();
   if (!start) return;
 
+  // EDYTOR-GRA: START jest ZAWSZE widoczny. Ale wygląd zmienia się:
+  // - etap 0 (przed grą) → klasa "gra-pinezka-start" (pulsuje, krzyczy "tu zacznij!")
+  // - etap >= 1 (gra w toku/ukończona) → klasa "gra-pinezka-start-odkryty" (spokojnie, "tu zaczęłeś")
+  const klasaPinezki = (aktualnyEtapGry === 0) ? 'gra-pinezka-start' : 'gra-pinezka-start-odkryty';
+  const klasaLabel = (aktualnyEtapGry === 0) ? 'gra-pinezka-start-label' : 'gra-pinezka-start-label-odkryty';
+
   const tytul = start.tytul || 'START przygody';
-  const popupTresc = `<div style="text-align:center"><b style="font-size:16px;color:#dc2626">🏁 ${tytul}</b><br><br>${start.opis || 'Tu zaczyna się Twoja przygoda!'}<br><br><em style="color:#dc2626">Idź tutaj żeby rozpocząć grę</em></div>`;
+  // Popup - inny tekst zależnie od etapu
+  let popupTresc;
+  if (aktualnyEtapGry === 0) {
+    popupTresc = `<div style="text-align:center;min-width:200px"><b style="font-size:16px;color:#dc2626">🏁 ${tytul}</b><br><br>${start.opis || 'Tu zaczyna się Twoja przygoda!'}`;
+  } else {
+    popupTresc = `<div style="text-align:center;min-width:200px"><b style="font-size:16px;color:#dc2626">🏁 ${tytul}</b><br><em style="color:#22c55e;font-size:12px">✓ Tu zaczęłeś przygodę</em><br><br>${start.opis || ''}`;
+  }
+  // EDYTOR-GRA: link YouTube w popupie - klikalny przycisk żeby user mógł
+  // wrócić do wideo z opisem gry w każdej chwili
+  if (start.linkYT) {
+    popupTresc += `<br><br><a href="${start.linkYT}" target="_blank" rel="noopener" style="display:inline-block;background:#ff0000;color:#fff;padding:8px 14px;border-radius:4px;text-decoration:none;font-weight:700;font-size:13px">📺 Obejrzyj wideo</a>`;
+  }
+  if (aktualnyEtapGry === 0) {
+    popupTresc += `<br><br><em style="color:#dc2626">Idź tutaj żeby rozpocząć grę</em>`;
+  }
+  popupTresc += `</div>`;
 
   _markerStart = L.marker(start.pozycja, {
     icon: L.divIcon({
       className: 'gra-pinezka-start-marker',
-      html: `<div class="gra-pinezka-start" title="START - tu rozpocznij grę">🏁</div><div class="gra-pinezka-start-label">START</div>`,
+      html: `<div class="${klasaPinezki}" title="START - ${aktualnyEtapGry === 0 ? 'tu rozpocznij grę' : 'początek przygody'}">🏁</div><div class="${klasaLabel}">START</div>`,
       iconSize: [44, 44],
       iconAnchor: [22, 22]
     }),
@@ -6259,28 +6316,6 @@ zastosujKategorie();
 //
 // Aby dodać nową kropkę: użyj przycisków w panelu admin (?admin=1).
 const kropkiAudio = [
-  { numer: 0, typ: 'start', pozycja: [51.19218, 23.17006], promien: 550, opis: 'rrrr', tytul: 'ruszamy' },
-  { numer: 1, pozycja: [51.19105, 23.17067], promien: 50, opis: 'rrrrr', tytul: 'er', pokazFale: true },
-  { numer: 2, pozycja: [51.18914, 23.17222], promien: 50, opis: '' },
-  { numer: 2, pozycja: [51.18523, 23.17228], promien: 50, opis: '' },
-  { numer: 2, pozycja: [51.17665, 23.17766], promien: 50, opis: '' },
-  { numer: 2, pozycja: [51.17042, 23.11451], promien: 50, opis: '' },
-  { numer: 2, pozycja: [51.14485, 23.11125], promien: 50, opis: '' },
-  { numer: 2, pozycja: [51.14808, 23.01916], promien: 50, opis: '' },
-  { numer: 4, pozycja: [51.18988, 23.17192], promien: 50, opis: '', pokazFale: true },
-  { numer: 5, pozycja: [51.18016, 23.17623], promien: 50, opis: '', pokazFale: true },
-  { numer: 6, pozycja: [51.17523, 23.15702], promien: 50, opis: '', pokazFale: true },
-  { numer: 7, pozycja: [51.17251, 23.14938], promien: 50, opis: '', pokazFale: true },
-  { numer: 8, pozycja: [51.16751, 23.12524], promien: 50, opis: '' },
-  { numer: 9, pozycja: [51.14477, 23.12018], promien: 50, opis: '', pokazFale: true },
-  { numer: 10, pozycja: [51.15277, 23.10990], promien: 50, opis: '', pokazFale: true },
-  { numer: 11, pozycja: [51.14566, 23.08370], promien: 50, opis: '', pokazFale: true },
-  { numer: 12, pozycja: [51.13958, 23.08130], promien: 50, opis: '' },
-  { numer: 13, pozycja: [51.14614, 23.06113], promien: 50, opis: '', pokazFale: true },
-  { numer: 14, pozycja: [51.14646, 23.05048], promien: 50, opis: '', pokazFale: true },
-  { numer: 15, pozycja: [51.14899, 23.03443], promien: 50, opis: '', pokazFale: true },
-  { numer: 16, pozycja: [51.14846, 23.02559], promien: 50, opis: '', pokazFale: true },
-  { numer: 17, pozycja: [51.14555, 23.01941], promien: 840, opis: '', pokazFale: true }
 ];
 
 // Stan przewodnika audio
@@ -8021,6 +8056,79 @@ function wyczyscMiejsca() {
   pokazAdminListe();
 
   alert('✓ Lista miejsc wyczyszczona.\n\nOdśwież stronę (F5) aby zobaczyć miejsca z pliku HTML (jeśli są).');
+}
+
+// ====================================================================
+// EDYTOR-GRA: WYCZYŚĆ WSZYSTKO - jeden przycisk do resetu całego edytora
+// Czyści: zaplanowane kropki, miejsca, nazwę strony, opis, rysunki,
+// postęp gry, kropki audio z pamięci, tryb gry admin.
+// ====================================================================
+function wyczyscWszystkoEdytor() {
+  const ileZaplan = zaplanowaneKropki.length;
+  const ileMiejsc = miejsca.length;
+  const ileKropek = kropkiAudio.length;
+  const co = [];
+  if (ileKropek > 0) co.push(`${ileKropek} kropek audio (start/tajemnice/meta)`);
+  if (ileZaplan > 0) co.push(`${ileZaplan} zaplanowanych zmian`);
+  if (ileMiejsc > 0) co.push(`${ileMiejsc} miejsc`);
+  co.push('nazwę strony i opis');
+  co.push('rysunki na mapie');
+  co.push('postęp gry');
+
+  const opis = co.join(', ');
+  if (!confirm(`🗑️ Wyczyścić WSZYSTKO z edytora?\n\nTo usunie:\n• ${co.join('\n• ')}\n\nUWAGA: Akcja nieodwracalna. Po wyczyszczeniu edytor będzie czysty jak po pierwszym otwarciu.\n\nKontynuować?`)) return;
+
+  // Drugie potwierdzenie - na pewno?
+  if (!confirm('⚠️ NA PEWNO?\n\nWszystkie kropki, miejsca, rysunki i ustawienia zostaną nieodwracalnie usunięte.')) return;
+
+  try {
+    // 1. Wyczyść tablice w pamięci
+    kropkiAudio.length = 0;
+    miejsca.length = 0;
+    zaplanowaneKropki = [];
+
+    // 2. Wyczyść localStorage - wszystkie znane klucze edytora
+    const klucze = [
+      KEY_ZAPLANOWANE,
+      KEY_MIEJSCA,
+      KEY_NAZWA_STRONY,
+      KEY_OPIS_STRONY_TYTUL,
+      KEY_OPIS_STRONY_TRESC,
+      KEY_TRYB_GRY,
+      STORAGE_KEY_RYSUNKI,
+      'kategorie_robocze_v1',
+      'mapa-rozmiar',
+      'mapa-widok',
+      _kluczPostepuGry(),
+      _kluczPostepuGry() + '_ekran'
+    ];
+    for (const klucz of klucze) {
+      try { localStorage.removeItem(klucz); } catch(e) {}
+    }
+
+    // 3. Wyczyść wszystkie inne klucze gry (np. wieloznaczne 'gra-postep-*')
+    try {
+      const wszystkieKlucze = Object.keys(localStorage);
+      for (const k of wszystkieKlucze) {
+        if (k.startsWith('gra-postep-')) {
+          localStorage.removeItem(k);
+        }
+      }
+    } catch(e) {}
+
+    // 4. Reset zmiennych w pamięci
+    aktualnyEtapGry = 0;
+    if (typeof rysunki !== 'undefined') {
+      try { rysunki.length = 0; } catch(e) {}
+    }
+
+    alert('✓ Wszystko wyczyszczone!\n\nStrona zostanie odświeżona za chwilę aby pokazać czysty edytor.');
+
+    // 5. Odśwież stronę aby pokazać czysty stan
+    setTimeout(() => location.reload(), 500);
+  } catch(e) {
+    alert('⚠️ Błąd podczas czyszczenia: ' + e.message);
+  }
 }
 
 // ============== POBIERANIE NOWEGO INDEX.HTML ==============
@@ -10525,7 +10633,6 @@ aktualizujPanelRadaru();
 
 // === RYSUNKI:START === (nie usuwaj tego komentarza - znacznik dla auto-eksportu)
 const rysunkiZakodowane = [
-
 ];
 // === RYSUNKI:END ===
 
