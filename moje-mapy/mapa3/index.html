@@ -5380,6 +5380,15 @@ function sciezkaAudioDlaKropki(k) {
   return 'audio/' + k.numer + '.mp3';
 }
 
+// Zwraca unikalny klucz kropki do śledzenia odtwarzania w Set kropkaJestOdtwarzana.
+// Dla tajemnic: numer (np. 1, 2, 3). Dla start/meta: 'start'/'meta'.
+function kluczOdtwarzaniaKropki(k) {
+  if (!k) return null;
+  const t = typKropki(k);
+  if (t === 'tajemnica') return k.numer;
+  return t; // 'start' lub 'meta'
+}
+
 
 // === WARSTWY MAPY ===
 // Dwie warstwy: OpenStreetMap (drogowa) + Geoportal (ortofotomapa Polska)
@@ -6959,26 +6968,34 @@ function odtworzKropke(kropka) {
   }
 
   // Zacznij odtwarzanie
-  const sciezka = `audio/${kropka.numer}.mp3`;
+  const sciezka = sciezkaAudioDlaKropki(kropka);
   aktualneAudio = new Audio(sciezka);
   aktualnaKropkaAudio = kropka;
 
-  // Pokaż panel
+  // Pokaż panel - tytuł zależy od typu kropki
   const player = document.getElementById('audioPlayer');
-  document.getElementById('audioInfo').textContent = `#${kropka.numer} · ${kropka.opis || 'Audio'}`;
+  const _t = typKropki(kropka);
+  let _audioLabel;
+  if (_t === 'start') _audioLabel = `🏁 START · ${kropka.tytul || 'Początek przygody'}`;
+  else if (_t === 'meta') _audioLabel = `🏆 META · ${kropka.tytul || 'Koniec przygody'}`;
+  else _audioLabel = `#${kropka.numer} · ${kropka.tytul || kropka.opis || 'Audio'}`;
+  document.getElementById('audioInfo').textContent = _audioLabel;
   document.getElementById('audioPauseBtn').textContent = '⏸ Pauza';
   // Ukryj komunikat "w strefie" w trakcie odtwarzania
   const stref = document.getElementById('audioStrefaInfo');
   if (stref) stref.style.display = 'none';
   player.classList.add('visible');
 
+  // Klucz do śledzenia odtwarzania (numer dla tajemnic, typ dla start/meta)
+  const _kluczOdtw = kluczOdtwarzaniaKropki(kropka);
+
   aktualneAudio.play().then(() => {
-    kropkaJestOdtwarzana.add(kropka.numer);
+    kropkaJestOdtwarzana.add(_kluczOdtw);
   }).catch(err => {
-    console.warn('Audio play failed:', err);
+    console.warn('Audio play failed:', err, 'sciezka:', sciezka);
     document.getElementById('audioInfo').innerHTML =
-      `#${kropka.numer} · ${kropka.opis || ''}<br><small style="color:var(--crimson)">⚠️ Brak pliku audio/${kropka.numer}.mp3</small>`;
-    kropkaJestOdtwarzana.add(kropka.numer); // żeby nie próbować ciągle
+      `${_audioLabel}<br><small style="color:var(--crimson)">⚠️ Brak pliku ${sciezka}</small>`;
+    kropkaJestOdtwarzana.add(_kluczOdtw); // żeby nie próbować ciągle
   });
 
   aktualneAudio.onended = () => {
@@ -7002,7 +7019,7 @@ function toggleAudioPauza() {
   if (!aktualneAudio || aktualneAudio.ended) {
     if (aktualnaKropkaAudio) {
       // Reset flagi żeby kropka mogła znów zagrać
-      kropkaJestOdtwarzana.delete(aktualnaKropkaAudio.numer);
+      kropkaJestOdtwarzana.delete(kluczOdtwarzaniaKropki(aktualnaKropkaAudio));
       odtworzKropke(aktualnaKropkaAudio);
     }
     return;
