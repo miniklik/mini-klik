@@ -1857,9 +1857,11 @@ footer{
 }
 
 /* ========== PULSATOR AUDIO (publiczny tryb GPS) ==========
-   Pojawia się gdy turysta jest w odległości <=400m od ukrytej kropki audio.
-   Wersja "falowanie wody" - 3 okręgi rozchodzące się w fazach,
-   bez stałego punktu w środku. Większy rozmiar - lepiej widoczny. */
+   Pojawia się gdy turysta jest w odległości <=500m od ukrytej kropki audio.
+   DWA STANY:
+   - daleko (500-400m): pojedyncza mała kropka migająca co 1 sekundę
+     (subtelne ostrzeżenie "coś tu jest, idź dalej")
+   - blisko (<=400m): pełne 3 fale wody (mocniejszy sygnał "blisko!") */
 .audio-pulsator-wrapper {
   position: relative;
   width: 60px;
@@ -1881,6 +1883,26 @@ footer{
   15%  { opacity: 0.85; }
   60%  { opacity: 0.4;  border-width: 2px; }
   100% { transform: scale(1.0);  opacity: 0;   border-width: 1px; }
+}
+
+/* TRYB DALEKO (500-400m) - chowamy 3 fale, pokazujemy pojedynczą kropkę.
+   Klasa .daleko jest dodawana z JS na wrapper. */
+.audio-pulsator-wrapper.daleko .audio-pulsator-fala {
+  display: none;
+}
+.audio-pulsator-wrapper.daleko::before {
+  content: '';
+  position: absolute;
+  left: 50%; top: 50%;
+  width: 14px; height: 14px;
+  margin: -7px 0 0 -7px;
+  background: radial-gradient(circle, rgba(124,58,237,0.95) 0%, rgba(124,58,237,0.7) 60%, rgba(124,58,237,0) 100%);
+  border-radius: 50%;
+  animation: audioPulsatorKropkaMig 1s ease-in-out infinite;
+}
+@keyframes audioPulsatorKropkaMig {
+  0%, 100% { opacity: 0.15; transform: scale(0.7); }
+  50%      { opacity: 1;    transform: scale(1.0); }
 }
 
 .audio-dot{
@@ -6540,7 +6562,8 @@ let aktualnaKropkaAudio = null; // aktualnie odtwarzana kropka
 // Pojawiają się gdy turysta jest w odległości <=400m od kropki audio,
 // ale jeszcze NIE w jej strefie. Jeden pulsator na numer (jeśli wiele segmentów,
 // pulsuje tylko ten najbliższy).
-const PULSATOR_PROMIEN_M = 400;     // próg widoczności pulsatora
+const PULSATOR_PROMIEN_M = 500;     // próg widoczności pulsatora
+const PULSATOR_BLISKO_M  = 400;     // próg "blisko" (od tego włączają się pełne 3 fale)
 let pulsatoryAudio = new Map();      // numer -> { marker, segIdx } (Leaflet markery)
 
 // =====================================================================
@@ -6702,6 +6725,15 @@ function edytujKropkePoIdx(idx) {
 
   // EDYTOR-GRA: zapamiętaj typ żeby przy zapisie go zachować
   _aktualnyTypNowejKropki = typKropki(kropka);
+
+  // EDYTOR-GRA: ustaw MAX suwaka promienia zgodnie z typem (start/meta=30m, tajemnica=100m).
+  // Bez tego edycja istniejącej tajemnicy o zapisanym promieniu większym niż max suwaka
+  // miałaby suwak ucięty. Stare punkty z większymi promieniami zostają, ale edytor pokazuje
+  // wartość rzeczywistą w polu obok suwaka.
+  const slider = document.getElementById('adminPromien');
+  const typEdycji = typKropki(kropka);
+  if (typEdycji === 'start' || typEdycji === 'meta') slider.max = 30;
+  else slider.max = 100;
 
   document.getElementById('adminNumer').value = kropka.numer;
   document.getElementById('adminPromien').value = kropka.promien;
@@ -6909,29 +6941,30 @@ function aktualizujPulsatoryAudio() {
     }
   }
 
-  // Buduj zestaw numerów które MAJĄ mieć pulsator
-  const aktywneNumery = new Set();
+  // Buduj zestaw numerów które MAJĄ mieć pulsator (z informacją o odległości)
+  // Mapa: numer -> { kropka, odl } (odl użyte do rozpoznania blisko/daleko w CSS)
+  const aktywneZOdl = new Map();
   for (const [numer, { kropka, odl }] of najblizszePerNumer) {
-    // Warunek: w zasięgu 400m ALE nie w strefie audio (poza promieniem strefy)
+    // Warunek: w zasięgu 500m ALE nie w strefie audio (poza promieniem strefy)
     // Dodatkowo: kropka musi mieć pokazFale === true (admin świadomie włączył).
     // Domyślnie wyłączone - widoczne miejsca nie potrzebują fali, tylko tajemnicze.
     if (kropka.pokazFale === true && odl <= PULSATOR_PROMIEN_M && odl > kropka.promien && czyKropkaAudioAktywna(kropka)) {
-      aktywneNumery.add(numer);
+      aktywneZOdl.set(numer, { kropka, odl });
     }
   }
 
   // Usuń pulsatory dla numerów które już NIE powinny być aktywne
   for (const [numer, { marker }] of pulsatoryAudio) {
-    if (!aktywneNumery.has(numer)) {
+    if (!aktywneZOdl.has(numer)) {
       mapa.removeLayer(marker);
       pulsatoryAudio.delete(numer);
     }
   }
 
   // Dodaj/zaktualizuj pulsatory dla aktywnych numerów
-  for (const numer of aktywneNumery) {
-    const { kropka } = najblizszePerNumer.get(numer);
+  for (const [numer, { kropka, odl }] of aktywneZOdl) {
     const istniejacy = pulsatoryAudio.get(numer);
+    const stanDaleko = odl > PULSATOR_BLISKO_M; // 400-500m = daleko, <=400m = blisko
 
     if (istniejacy) {
       // Już istnieje - sprawdź czy pozycja się nie zmieniła (inny segment najbliżej?)
@@ -6940,12 +6973,20 @@ function aktualizujPulsatoryAudio() {
       if (Math.abs(aktLatLng.lat - lat) > 1e-6 || Math.abs(aktLatLng.lng - lng) > 1e-6) {
         istniejacy.marker.setLatLng([lat, lng]);
       }
+      // Aktualizuj klasę "daleko" jeśli się zmieniła strefa (przekroczył 400m w którąś stronę)
+      if (istniejacy.daleko !== stanDaleko) {
+        const el = istniejacy.marker.getElement();
+        const wrapper = el ? el.querySelector('.audio-pulsator-wrapper') : null;
+        if (wrapper) wrapper.classList.toggle('daleko', stanDaleko);
+        istniejacy.daleko = stanDaleko;
+      }
     } else {
-      // Nowy pulsator
+      // Nowy pulsator - od razu z odpowiednią klasą
+      const klasaDaleko = stanDaleko ? ' daleko' : '';
       const marker = L.marker(kropka.pozycja, {
         icon: L.divIcon({
           className: 'audio-pulsator-marker',
-          html: '<div class="audio-pulsator-wrapper"><div class="audio-pulsator-fala"></div><div class="audio-pulsator-fala f2"></div><div class="audio-pulsator-fala f3"></div></div>',
+          html: `<div class="audio-pulsator-wrapper${klasaDaleko}"><div class="audio-pulsator-fala"></div><div class="audio-pulsator-fala f2"></div><div class="audio-pulsator-fala f3"></div></div>`,
           iconSize: [60, 60],
           iconAnchor: [30, 30]
         }),
@@ -6954,7 +6995,7 @@ function aktualizujPulsatoryAudio() {
         zIndexOffset: -100   // pod innymi markerami
       });
       marker.addTo(mapa);
-      pulsatoryAudio.set(numer, { marker });
+      pulsatoryAudio.set(numer, { marker, daleko: stanDaleko });
     }
   }
 }
@@ -7915,11 +7956,18 @@ function wybierzTypGry(typ) {
   else if (typ === 'meta') domyslnyNumer = 999;
   else domyslnyNumer = dajKolejnyNumerTajemnicy();
   document.getElementById('adminNumer').value = domyslnyNumer;
-  // EDYTOR-GRA: domyślny promień zależny od typu
-  // - START: 20m (mały, precyzyjny - turysta musi STANĄĆ w punkcie startowym)
-  // - TAJEMNICA / META: 50m (standardowy)
-  const domyslnyPromien = (typ === 'start') ? 20 : 50;
-  document.getElementById('adminPromien').value = domyslnyPromien;
+  // EDYTOR-GRA: domyślne promienie i MAX zależne od typu punktu w grze:
+  // - START: 20m domyślnie, MAX 30m (turysta musi STANĄĆ precyzyjnie w punkcie startowym)
+  // - TAJEMNICA: 30m domyślnie, MAX 100m (strefa audio - elastyczna ale nie za duża)
+  // - META: 25m domyślnie, MAX 30m (precyzyjny finisz - dziecko ma być DOKŁADNIE w mecie)
+  let domyslnyPromien, maxPromien;
+  if (typ === 'start')         { domyslnyPromien = 20;  maxPromien = 30; }
+  else if (typ === 'meta')     { domyslnyPromien = 25;  maxPromien = 30; }
+  else /* tajemnica */         { domyslnyPromien = 30;  maxPromien = 100; }
+
+  const slider = document.getElementById('adminPromien');
+  slider.max = maxPromien;
+  slider.value = domyslnyPromien;
   document.getElementById('adminPromienVal').textContent = domyslnyPromien + ' m';
   document.getElementById('adminOpis').value = '';
 
