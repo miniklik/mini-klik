@@ -19,6 +19,13 @@
 <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 
+<!-- Pannellum - viewer zdjęć 360° sferycznych.
+     Aktywuje się gdy admin wgra plik z suffiksem "-360" (np. img/bagno-360.jpg).
+     Daje pełną sferę: obracasz palcem dookoła w każdą stronę.
+     Tylko ~25 KB, działa na wszystkich nowoczesnych przeglądarkach (WebGL). -->
+<link rel="stylesheet" href="https://cdn.pannellum.org/2.5/pannellum.css"/>
+<script src="https://cdn.pannellum.org/2.5/pannellum.js"></script>
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=EB+Garamond:wght@400;500;600&family=Cinzel:wght@400;600&display=swap" rel="stylesheet">
@@ -1857,9 +1864,11 @@ footer{
 }
 
 /* ========== PULSATOR AUDIO (publiczny tryb GPS) ==========
-   Pojawia się gdy turysta jest w odległości <=400m od ukrytej kropki audio.
-   Wersja "falowanie wody" - 3 okręgi rozchodzące się w fazach,
-   bez stałego punktu w środku. Większy rozmiar - lepiej widoczny. */
+   Pojawia się gdy turysta jest w odległości <=500m od ukrytej kropki audio.
+   DWA STANY:
+   - daleko (500-400m): pojedyncza mała kropka migająca co 1 sekundę
+     (subtelne ostrzeżenie "coś tu jest, idź dalej")
+   - blisko (<=400m): pełne 3 fale wody (mocniejszy sygnał "blisko!") */
 .audio-pulsator-wrapper {
   position: relative;
   width: 60px;
@@ -1881,6 +1890,26 @@ footer{
   15%  { opacity: 0.85; }
   60%  { opacity: 0.4;  border-width: 2px; }
   100% { transform: scale(1.0);  opacity: 0;   border-width: 1px; }
+}
+
+/* TRYB DALEKO (500-400m) - chowamy 3 fale, pokazujemy pojedynczą kropkę.
+   Klasa .daleko jest dodawana z JS na wrapper. */
+.audio-pulsator-wrapper.daleko .audio-pulsator-fala {
+  display: none;
+}
+.audio-pulsator-wrapper.daleko::before {
+  content: '';
+  position: absolute;
+  left: 50%; top: 50%;
+  width: 14px; height: 14px;
+  margin: -7px 0 0 -7px;
+  background: radial-gradient(circle, rgba(124,58,237,0.95) 0%, rgba(124,58,237,0.7) 60%, rgba(124,58,237,0) 100%);
+  border-radius: 50%;
+  animation: audioPulsatorKropkaMig 1s ease-in-out infinite;
+}
+@keyframes audioPulsatorKropkaMig {
+  0%, 100% { opacity: 0.15; transform: scale(0.7); }
+  50%      { opacity: 1;    transform: scale(1.0); }
 }
 
 .audio-dot{
@@ -2996,6 +3025,61 @@ footer{
   display:block;
   margin:0 auto;
 }
+
+/* ========== PANORAMA - przewijana palcem w poziomie ==========
+   Aktywuje się gdy zdjęcie ma proporcje >2.5:1 (szer/wys).
+   Klasa dodawana z JS po załadowaniu obrazka (img.onload).
+   Cel UX: pełna wysokość, scroll horyzontalny, gładkie przewijanie. */
+.detail-image-wrapper.panorama{
+  /* Kontener pełnej szerokości okna detail, scrollowalny w bok */
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;       /* gładkie momentum scroll na iOS */
+  scroll-behavior: smooth;
+  padding: 0;
+  /* Subtelny gradient po krawędziach - sugestia "przewiń dalej" */
+  position: relative;
+}
+.detail-image-wrapper.panorama img{
+  /* Obrazek w pełnej wysokości, szerokość auto = rzeczywista (wystaje poza viewport) */
+  max-width: none;
+  max-height: 65vh;
+  height: 65vh;
+  width: auto;
+  border-radius: 4px;
+  margin: 0;
+  display: block;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+.detail-image-wrapper.panorama img:active{
+  cursor: grabbing;
+}
+/* Wskazówka "przesuń palcem" - znika gdy user dotknie panoramy */
+.detail-image-wrapper.panorama::after{
+  content: '👈 przesuń palcem 👉';
+  position: absolute;
+  bottom: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(60, 40, 20, 0.75);
+  color: #f5e8c8;
+  padding: 6px 14px;
+  border-radius: 14px;
+  font-size: 12px;
+  font-family: 'EB Garamond', serif;
+  font-style: italic;
+  pointer-events: none;
+  animation: panoramaHint 3.5s ease-out forwards;
+  z-index: 5;
+}
+@keyframes panoramaHint{
+  0%   { opacity: 0; transform: translateX(-50%) translateY(10px); }
+  15%  { opacity: 1; transform: translateX(-50%) translateY(0); }
+  75%  { opacity: 1; }
+  100% { opacity: 0; transform: translateX(-50%) translateY(-5px); }
+}
 .detail-image-placeholder{
   padding:40px 20px;text-align:center;
   color:var(--ink-soft);
@@ -3007,6 +3091,39 @@ footer{
 .detail-image-placeholder em{
   font-style:italic;color:var(--ink-muted);font-size:15px;
   line-height:1.5;display:block;
+}
+
+/* === VIEWER SFERYCZNY 360° (Pannellum) === */
+.detail-360-info {
+  text-align: center;
+  padding: 8px 12px;
+  margin-bottom: 8px;
+  background: linear-gradient(180deg, var(--paper-2), var(--paper-3));
+  border: 1px solid var(--gold);
+  border-radius: 4px;
+  font-family: 'EB Garamond', serif;
+  font-style: italic;
+  color: var(--ink);
+  font-size: 13px;
+}
+.detail-sfera-wrapper {
+  width: 100%;
+  height: 65vh;
+  border: 2px solid var(--gold);
+  border-radius: 6px;
+  background: #0a0a0a;
+  box-shadow: 0 4px 14px rgba(60,40,20,0.35);
+  overflow: hidden;
+  /* Pannellum sam zarządza zawartością przez canvas WebGL */
+}
+/* Tryb nocny - obwódka ciemniejsza */
+html.tryb-noc .detail-360-info {
+  background: linear-gradient(180deg, #2d1f15, #1f1510) !important;
+  border-color: #d4a574 !important;
+  color: #f5e8c8 !important;
+}
+html.tryb-noc .detail-sfera-wrapper {
+  border-color: #d4a574 !important;
 }
 
 @media (max-width:540px){
@@ -4927,7 +5044,7 @@ html.tryb-noc .sw-off {
 
     <div class="form-row">
       <label>Nazwa:</label>
-      <input type="text" id="miejsceNazwa" placeholder="np. Kościół św. Anny" maxlength="80">
+      <input type="text" id="miejsceNazwa" placeholder="np. Ruiny zamku" maxlength="80">
     </div>
 
     <!-- EDYTOR-GRA: kategoria UKRYTA - wszystkie miejsca są "Punkt orientacyjny" -->
@@ -4955,14 +5072,9 @@ html.tryb-noc .sw-off {
       <input type="text" id="miejsceKlucz" placeholder="auto" readonly style="background:var(--paper-3);font-style:italic;color:var(--ink-muted)">
     </div>
 
-    <!-- POLE "NUMER W GRZE" - widoczne tylko gdy admin włączył tryb gry -->
-    <div class="form-row" id="miejsceNumerGryRow" style="display:none">
-      <label>Etap gry:</label>
-      <div style="display:flex;align-items:center;gap:6px;flex:1">
-        <input type="number" id="miejsceNumerGry" min="0" max="99" placeholder="np. 1, 2, 3..." style="flex:1">
-        <small style="color:var(--ink-muted);font-size:11px">0 lub puste = zawsze widoczne</small>
-      </div>
-    </div>
+    <!-- POLE "Etap gry" zostało usunięte - nie używane, mylące dla admina.
+         Funkcje JS które odwołują się do miejsceNumerGry mają zabezpieczenie
+         `if (numerGryInput)` więc nic nie wybucha gdy elementu nie ma. -->
 
     <!-- PRZYCISK / EDYTOR OPISU -->
     <div class="opis-zwiniety" id="opisZwiniety">
@@ -5255,9 +5367,7 @@ function zastosujKategorie() {
 }
 
 const miejsca = [
-  { klucz: 'wroni-gaj', nazwa: 'Wroni gaj', pozycja: [51.1906, 23.1737], ikona: '📍', kategoria: 'punkt' },
-  { klucz: 'zsdf', nazwa: 'zsdf', pozycja: [51.1914, 23.1709], ikona: '📍', kategoria: 'punkt' },
-  { klucz: 'bagno', nazwa: 'bagno', pozycja: [51.1924, 23.1724], ikona: '📍', kategoria: 'punkt' }
+  { klucz: 'test', nazwa: 'test', pozycja: [51.1941, 23.1674], ikona: '⚓', kategoria: 'punkt', tytul: 'bagienko na sokolvc', opis: 'opisik' }
 ];
 
 const mapa = L.map('mapa', {
@@ -5630,6 +5740,80 @@ async function pobierzOpisMiejsca(klucz) {
   }
 }
 
+// Sprawdza czy załadowane zdjęcie jest panoramą (proporcje szer/wys > 2.5).
+// Wywoływana z onload tagu <img>. Jeśli panorama - dodaje klasę .panorama
+// do wrappera, co aktywuje CSS przewijania horyzontalnego.
+// Próg 2.5 wybrany żeby:
+//   - łapać typowe panoramy z telefonu (3:1 do 5:1)
+//   - NIE łapać zwykłych zdjęć 16:9 (1.78), 3:2 (1.5), 4:3 (1.33), kwadratowych (1.0)
+function sprawdzPanorame(img) {
+  if (!img.naturalWidth || !img.naturalHeight) return;
+  const proporcja = img.naturalWidth / img.naturalHeight;
+  if (proporcja > 2.5) {
+    const wrapper = img.closest('.detail-image-wrapper');
+    if (wrapper) wrapper.classList.add('panorama');
+  }
+}
+
+// ZDJĘCIA 360° SFERYCZNE (Pannellum):
+// Sprawdzamy czy istnieje plik img/{klucz}-360.jpg (lub png/webp).
+// Jeśli tak - admin świadomie wgrał zdjęcie 360° = aktywujemy Pannellum.
+// Jeśli nie - traktujemy jako zwykłe zdjęcie.
+//
+// Cache wyników w pamięci żeby przy kolejnym kliknięciu nie sprawdzać znowu.
+const _cacheSfera = new Map(); // klucz -> { jest: bool, src: string } | null
+async function sprawdzCzyJestSfera(klucz) {
+  if (_cacheSfera.has(klucz)) return _cacheSfera.get(klucz).jest;
+  // Próbujemy kolejno rozszerzenia - pierwsze które odpowie 200 OK wygrywa
+  const rozszerzenia = ['jpg', 'png', 'jpeg', 'webp'];
+  for (const ext of rozszerzenia) {
+    const src = `img/${klucz}-360.${ext}`;
+    try {
+      const r = await fetch(src, { method: 'HEAD' });
+      if (r.ok) {
+        _cacheSfera.set(klucz, { jest: true, src });
+        return true;
+      }
+    } catch(e) {
+      // Sieć padła / CORS - spróbuj kolejne
+    }
+  }
+  _cacheSfera.set(klucz, { jest: false, src: null });
+  return false;
+}
+
+// Uruchamia viewer Pannellum dla zdjęcia 360° w danym elemencie.
+function uruchomSfere(elementId, klucz, nazwa) {
+  if (typeof pannellum === 'undefined') {
+    // Pannellum nie załadowane - może problem z CDN. Fallback.
+    document.getElementById(elementId).innerHTML =
+      '<p style="color:var(--ink-muted);text-align:center;padding:20px;font-style:italic">' +
+      'Viewer 360° nie załadował się. Sprawdź połączenie internetowe i odśwież.</p>';
+    return;
+  }
+  const cache = _cacheSfera.get(klucz);
+  const src = cache && cache.src ? cache.src : `img/${klucz}-360.jpg`;
+  try {
+    pannellum.viewer(elementId, {
+      type: 'equirectangular',
+      panorama: src,
+      autoLoad: true,
+      title: nazwa || '',
+      hfov: 100,           // pole widzenia - "naturalne" otwarcie
+      autoRotate: 0,       // bez auto-rotacji (user sam steruje)
+      compass: false,
+      showControls: true,
+      mouseZoom: true,
+      keyboardZoom: false,
+      hotSpotDebug: false
+    });
+  } catch(e) {
+    document.getElementById(elementId).innerHTML =
+      '<p style="color:#a04510;text-align:center;padding:20px">' +
+      'Błąd ładowania zdjęcia 360°: ' + (e.message || 'nieznany') + '</p>';
+  }
+}
+
 // Próbuje wczytać zdjęcie w kolejnych formatach: jpg -> png -> jpeg -> webp -> placeholder.
 // Wywoływana z onerror tagu <img>. Atrybut data-prob trzyma aktualnie sprawdzane rozszerzenie.
 function probujKolejneRozszerzenieZdjecia(img) {
@@ -5650,7 +5834,7 @@ function probujKolejneRozszerzenieZdjecia(img) {
     img.parentElement.innerHTML =
       '<div class="detail-image-placeholder">' +
         '<span class="ikona-big">📷</span>' +
-        '<em>Zdjęcie nie zostało jeszcze dodane.<br>Wgraj plik <code>img/' + klucz + '.jpg</code> lub <code>img/' + klucz + '.png</code> do repo.</em>' +
+        '<em>Zdjęcie nie zostało jeszcze dodane.<br>Wgraj plik <code>img/' + klucz + '.jpg</code> (zwykłe) lub <code>img/' + klucz + '-360.jpg</code> (sferyczne 360°) do repo.</em>' +
       '</div>';
   }
 }
@@ -5737,10 +5921,36 @@ async function otworzPlatek(klucz, akcja) {
   } else if (akcja === 'zdjecie') {
     const klucz = miejsce.klucz;
     const safeNazwa = (miejsce.nazwa || '').replace(/"/g,'&quot;');
-    content.innerHTML = `<div class="detail-image-wrapper">
-      <img src="img/${klucz}.jpg" alt="${safeNazwa}" data-klucz="${klucz}" data-prob="jpg"
-        onerror="probujKolejneRozszerzenieZdjecia(this)">
-    </div>`;
+    // STRATEGIA:
+    //   1. Próbujemy najpierw img/{klucz}-360.jpg -> jeśli istnieje, ładujemy
+    //      w Pannellum (sferyczny viewer 360, obracasz dookoła)
+    //   2. Jeśli -360 nie istnieje, fallback do img/{klucz}.jpg ze wszystkimi
+    //      rozszerzeniami (jpg/png/jpeg/webp). Działa jak dotąd - z autowykrywaniem
+    //      panoramy płaskiej (proporcje > 2.5:1) i przewijaniem palcem.
+    //
+    // Sprawdzanie czy plik 360 istnieje robimy przez `fetch HEAD` - lekki request,
+    // bez ładowania całego obrazka. Jeśli 200 OK -> 360 mode. Jeśli 404 -> normalny.
+    content.innerHTML = '<p style="color:var(--ink-muted);font-style:italic;text-align:center;padding:20px">Wczytywanie zdjęcia...</p>';
+
+    sprawdzCzyJestSfera(klucz).then(maSfere => {
+      if (maSfere) {
+        // Mamy zdjęcie 360 - pokażemy w Pannellum
+        const sfereId = 'pannellum-' + klucz.replace(/[^a-z0-9]/gi, '_');
+        content.innerHTML = `
+          <div class="detail-360-info">🔄 Wirtualny spacer 360° — obracaj palcem dookoła</div>
+          <div id="${sfereId}" class="detail-sfera-wrapper"></div>
+        `;
+        // Inicjalizuj Pannellum po renderowaniu DOM
+        setTimeout(() => uruchomSfere(sfereId, klucz, miejsce.nazwa), 50);
+      } else {
+        // Zwykłe zdjęcie - jak dotąd
+        content.innerHTML = `<div class="detail-image-wrapper">
+          <img src="img/${klucz}.jpg" alt="${safeNazwa}" data-klucz="${klucz}" data-prob="jpg"
+            onload="sprawdzPanorame(this)"
+            onerror="probujKolejneRozszerzenieZdjecia(this)">
+        </div>`;
+      }
+    });
   }
 
   // Pokaż panel i przewiń do niego (dla zdjęcia)
@@ -6527,9 +6737,7 @@ zastosujKategorie();
 //
 // Aby dodać nową kropkę: użyj przycisków w panelu admin (?admin=1).
 const kropkiAudio = [
-  { numer: 0, typ: 'start', pozycja: [51.19184, 23.16993], promien: 110, opis: '' },
-  { numer: 1, pozycja: [51.19186, 23.17143], promien: 50, opis: '', pokazFale: true },
-  { numer: 2, pozycja: [51.19026, 23.17162], promien: 50, opis: '', tytul: 'krzaki', pokazFale: true }
+
 ];
 
 // Stan przewodnika audio
@@ -6543,7 +6751,8 @@ let aktualnaKropkaAudio = null; // aktualnie odtwarzana kropka
 // Pojawiają się gdy turysta jest w odległości <=400m od kropki audio,
 // ale jeszcze NIE w jej strefie. Jeden pulsator na numer (jeśli wiele segmentów,
 // pulsuje tylko ten najbliższy).
-const PULSATOR_PROMIEN_M = 400;     // próg widoczności pulsatora
+const PULSATOR_PROMIEN_M = 500;     // próg widoczności pulsatora
+const PULSATOR_BLISKO_M  = 400;     // próg "blisko" (od tego włączają się pełne 3 fale)
 let pulsatoryAudio = new Map();      // numer -> { marker, segIdx } (Leaflet markery)
 
 // =====================================================================
@@ -6705,6 +6914,15 @@ function edytujKropkePoIdx(idx) {
 
   // EDYTOR-GRA: zapamiętaj typ żeby przy zapisie go zachować
   _aktualnyTypNowejKropki = typKropki(kropka);
+
+  // EDYTOR-GRA: ustaw MAX suwaka promienia zgodnie z typem (start/meta=30m, tajemnica=100m).
+  // Bez tego edycja istniejącej tajemnicy o zapisanym promieniu większym niż max suwaka
+  // miałaby suwak ucięty. Stare punkty z większymi promieniami zostają, ale edytor pokazuje
+  // wartość rzeczywistą w polu obok suwaka.
+  const slider = document.getElementById('adminPromien');
+  const typEdycji = typKropki(kropka);
+  if (typEdycji === 'start' || typEdycji === 'meta') slider.max = 30;
+  else slider.max = 100;
 
   document.getElementById('adminNumer').value = kropka.numer;
   document.getElementById('adminPromien').value = kropka.promien;
@@ -6912,29 +7130,30 @@ function aktualizujPulsatoryAudio() {
     }
   }
 
-  // Buduj zestaw numerów które MAJĄ mieć pulsator
-  const aktywneNumery = new Set();
+  // Buduj zestaw numerów które MAJĄ mieć pulsator (z informacją o odległości)
+  // Mapa: numer -> { kropka, odl } (odl użyte do rozpoznania blisko/daleko w CSS)
+  const aktywneZOdl = new Map();
   for (const [numer, { kropka, odl }] of najblizszePerNumer) {
-    // Warunek: w zasięgu 400m ALE nie w strefie audio (poza promieniem strefy)
+    // Warunek: w zasięgu 500m ALE nie w strefie audio (poza promieniem strefy)
     // Dodatkowo: kropka musi mieć pokazFale === true (admin świadomie włączył).
     // Domyślnie wyłączone - widoczne miejsca nie potrzebują fali, tylko tajemnicze.
     if (kropka.pokazFale === true && odl <= PULSATOR_PROMIEN_M && odl > kropka.promien && czyKropkaAudioAktywna(kropka)) {
-      aktywneNumery.add(numer);
+      aktywneZOdl.set(numer, { kropka, odl });
     }
   }
 
   // Usuń pulsatory dla numerów które już NIE powinny być aktywne
   for (const [numer, { marker }] of pulsatoryAudio) {
-    if (!aktywneNumery.has(numer)) {
+    if (!aktywneZOdl.has(numer)) {
       mapa.removeLayer(marker);
       pulsatoryAudio.delete(numer);
     }
   }
 
   // Dodaj/zaktualizuj pulsatory dla aktywnych numerów
-  for (const numer of aktywneNumery) {
-    const { kropka } = najblizszePerNumer.get(numer);
+  for (const [numer, { kropka, odl }] of aktywneZOdl) {
     const istniejacy = pulsatoryAudio.get(numer);
+    const stanDaleko = odl > PULSATOR_BLISKO_M; // 400-500m = daleko, <=400m = blisko
 
     if (istniejacy) {
       // Już istnieje - sprawdź czy pozycja się nie zmieniła (inny segment najbliżej?)
@@ -6943,12 +7162,20 @@ function aktualizujPulsatoryAudio() {
       if (Math.abs(aktLatLng.lat - lat) > 1e-6 || Math.abs(aktLatLng.lng - lng) > 1e-6) {
         istniejacy.marker.setLatLng([lat, lng]);
       }
+      // Aktualizuj klasę "daleko" jeśli się zmieniła strefa (przekroczył 400m w którąś stronę)
+      if (istniejacy.daleko !== stanDaleko) {
+        const el = istniejacy.marker.getElement();
+        const wrapper = el ? el.querySelector('.audio-pulsator-wrapper') : null;
+        if (wrapper) wrapper.classList.toggle('daleko', stanDaleko);
+        istniejacy.daleko = stanDaleko;
+      }
     } else {
-      // Nowy pulsator
+      // Nowy pulsator - od razu z odpowiednią klasą
+      const klasaDaleko = stanDaleko ? ' daleko' : '';
       const marker = L.marker(kropka.pozycja, {
         icon: L.divIcon({
           className: 'audio-pulsator-marker',
-          html: '<div class="audio-pulsator-wrapper"><div class="audio-pulsator-fala"></div><div class="audio-pulsator-fala f2"></div><div class="audio-pulsator-fala f3"></div></div>',
+          html: `<div class="audio-pulsator-wrapper${klasaDaleko}"><div class="audio-pulsator-fala"></div><div class="audio-pulsator-fala f2"></div><div class="audio-pulsator-fala f3"></div></div>`,
           iconSize: [60, 60],
           iconAnchor: [30, 30]
         }),
@@ -6957,7 +7184,7 @@ function aktualizujPulsatoryAudio() {
         zIndexOffset: -100   // pod innymi markerami
       });
       marker.addTo(mapa);
-      pulsatoryAudio.set(numer, { marker });
+      pulsatoryAudio.set(numer, { marker, daleko: stanDaleko });
     }
   }
 }
@@ -7918,11 +8145,18 @@ function wybierzTypGry(typ) {
   else if (typ === 'meta') domyslnyNumer = 999;
   else domyslnyNumer = dajKolejnyNumerTajemnicy();
   document.getElementById('adminNumer').value = domyslnyNumer;
-  // EDYTOR-GRA: domyślny promień zależny od typu
-  // - START: 20m (mały, precyzyjny - turysta musi STANĄĆ w punkcie startowym)
-  // - TAJEMNICA / META: 50m (standardowy)
-  const domyslnyPromien = (typ === 'start') ? 20 : 50;
-  document.getElementById('adminPromien').value = domyslnyPromien;
+  // EDYTOR-GRA: domyślne promienie i MAX zależne od typu punktu w grze:
+  // - START: 20m domyślnie, MAX 30m (turysta musi STANĄĆ precyzyjnie w punkcie startowym)
+  // - TAJEMNICA: 30m domyślnie, MAX 100m (strefa audio - elastyczna ale nie za duża)
+  // - META: 25m domyślnie, MAX 30m (precyzyjny finisz - dziecko ma być DOKŁADNIE w mecie)
+  let domyslnyPromien, maxPromien;
+  if (typ === 'start')         { domyslnyPromien = 20;  maxPromien = 30; }
+  else if (typ === 'meta')     { domyslnyPromien = 25;  maxPromien = 30; }
+  else /* tajemnica */         { domyslnyPromien = 30;  maxPromien = 100; }
+
+  const slider = document.getElementById('adminPromien');
+  slider.max = maxPromien;
+  slider.value = domyslnyPromien;
   document.getElementById('adminPromienVal').textContent = domyslnyPromien + ' m';
   document.getElementById('adminOpis').value = '';
 
@@ -11329,23 +11563,38 @@ function zamknijPickerEmoji() {
 }
 
 // Wyszukiwanie - filtruje po polskich nazwach z EMOJI_NAMES
-document.getElementById('emojiSearch').oninput = function() {
-  const q = this.value.trim().toLowerCase();
-  if (!q) {
-    const list = _pickerCategory === 'Wszystkie' ? ALL_EMOJIS : EMOJI_LIBRARY[_pickerCategory];
-    _pickerRenderGrid(list);
-    return;
+// UWAGA: element emojiSearch jest w HTML PO tym skrypcie, więc używamy
+// DOMContentLoaded / sprawdzenia czy element istnieje. Bez tego cały
+// dalszy kod (w tym inicjalizujRysunki()!) NIE WYKONUJE SIĘ - skrypt
+// wybucha tutaj z błędem "Cannot set properties of null".
+(function bezpiecznieEmojiSearch() {
+  const ustaw = () => {
+    const el = document.getElementById('emojiSearch');
+    if (!el) return;
+    el.oninput = function() {
+      const q = this.value.trim().toLowerCase();
+      if (!q) {
+        const list = _pickerCategory === 'Wszystkie' ? ALL_EMOJIS : EMOJI_LIBRARY[_pickerCategory];
+        _pickerRenderGrid(list);
+        return;
+      }
+      const matches = ALL_EMOJIS.filter(em => {
+        const name = (EMOJI_NAMES[em] || '').toLowerCase();
+        return name.includes(q);
+      });
+      _pickerRenderGrid(matches);
+    };
+  };
+  ustaw();
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', ustaw);
   }
-  const matches = ALL_EMOJIS.filter(em => {
-    const name = (EMOJI_NAMES[em] || '').toLowerCase();
-    return name.includes(q);
-  });
-  _pickerRenderGrid(matches);
-};
+})();
 
 // Escape zamyka picker
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape' && document.getElementById('emojiModalBackdrop').classList.contains('show')) {
+  const el = document.getElementById('emojiModalBackdrop');
+  if (e.key === 'Escape' && el && el.classList.contains('show')) {
     zamknijPickerEmoji();
   }
 });
