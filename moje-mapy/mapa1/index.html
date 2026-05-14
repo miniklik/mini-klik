@@ -3018,6 +3018,61 @@ footer{
   display:block;
   margin:0 auto;
 }
+
+/* ========== PANORAMA - przewijana palcem w poziomie ==========
+   Aktywuje się gdy zdjęcie ma proporcje >2.5:1 (szer/wys).
+   Klasa dodawana z JS po załadowaniu obrazka (img.onload).
+   Cel UX: pełna wysokość, scroll horyzontalny, gładkie przewijanie. */
+.detail-image-wrapper.panorama{
+  /* Kontener pełnej szerokości okna detail, scrollowalny w bok */
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;       /* gładkie momentum scroll na iOS */
+  scroll-behavior: smooth;
+  padding: 0;
+  /* Subtelny gradient po krawędziach - sugestia "przewiń dalej" */
+  position: relative;
+}
+.detail-image-wrapper.panorama img{
+  /* Obrazek w pełnej wysokości, szerokość auto = rzeczywista (wystaje poza viewport) */
+  max-width: none;
+  max-height: 65vh;
+  height: 65vh;
+  width: auto;
+  border-radius: 4px;
+  margin: 0;
+  display: block;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+.detail-image-wrapper.panorama img:active{
+  cursor: grabbing;
+}
+/* Wskazówka "przesuń palcem" - znika gdy user dotknie panoramy */
+.detail-image-wrapper.panorama::after{
+  content: '👈 przesuń palcem 👉';
+  position: absolute;
+  bottom: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(60, 40, 20, 0.75);
+  color: #f5e8c8;
+  padding: 6px 14px;
+  border-radius: 14px;
+  font-size: 12px;
+  font-family: 'EB Garamond', serif;
+  font-style: italic;
+  pointer-events: none;
+  animation: panoramaHint 3.5s ease-out forwards;
+  z-index: 5;
+}
+@keyframes panoramaHint{
+  0%   { opacity: 0; transform: translateX(-50%) translateY(10px); }
+  15%  { opacity: 1; transform: translateX(-50%) translateY(0); }
+  75%  { opacity: 1; }
+  100% { opacity: 0; transform: translateX(-50%) translateY(-5px); }
+}
 .detail-image-placeholder{
   padding:40px 20px;text-align:center;
   color:var(--ink-soft);
@@ -4949,7 +5004,7 @@ html.tryb-noc .sw-off {
 
     <div class="form-row">
       <label>Nazwa:</label>
-      <input type="text" id="miejsceNazwa" placeholder="np. Kościół św. Anny" maxlength="80">
+      <input type="text" id="miejsceNazwa" placeholder="np. Ruiny zamku" maxlength="80">
     </div>
 
     <!-- EDYTOR-GRA: kategoria UKRYTA - wszystkie miejsca są "Punkt orientacyjny" -->
@@ -4977,14 +5032,9 @@ html.tryb-noc .sw-off {
       <input type="text" id="miejsceKlucz" placeholder="auto" readonly style="background:var(--paper-3);font-style:italic;color:var(--ink-muted)">
     </div>
 
-    <!-- POLE "NUMER W GRZE" - widoczne tylko gdy admin włączył tryb gry -->
-    <div class="form-row" id="miejsceNumerGryRow" style="display:none">
-      <label>Etap gry:</label>
-      <div style="display:flex;align-items:center;gap:6px;flex:1">
-        <input type="number" id="miejsceNumerGry" min="0" max="99" placeholder="np. 1, 2, 3..." style="flex:1">
-        <small style="color:var(--ink-muted);font-size:11px">0 lub puste = zawsze widoczne</small>
-      </div>
-    </div>
+    <!-- POLE "Etap gry" zostało usunięte - nie używane, mylące dla admina.
+         Funkcje JS które odwołują się do miejsceNumerGry mają zabezpieczenie
+         `if (numerGryInput)` więc nic nie wybucha gdy elementu nie ma. -->
 
     <!-- PRZYCISK / EDYTOR OPISU -->
     <div class="opis-zwiniety" id="opisZwiniety">
@@ -5652,6 +5702,21 @@ async function pobierzOpisMiejsca(klucz) {
   }
 }
 
+// Sprawdza czy załadowane zdjęcie jest panoramą (proporcje szer/wys > 2.5).
+// Wywoływana z onload tagu <img>. Jeśli panorama - dodaje klasę .panorama
+// do wrappera, co aktywuje CSS przewijania horyzontalnego.
+// Próg 2.5 wybrany żeby:
+//   - łapać typowe panoramy z telefonu (3:1 do 5:1)
+//   - NIE łapać zwykłych zdjęć 16:9 (1.78), 3:2 (1.5), 4:3 (1.33), kwadratowych (1.0)
+function sprawdzPanorame(img) {
+  if (!img.naturalWidth || !img.naturalHeight) return;
+  const proporcja = img.naturalWidth / img.naturalHeight;
+  if (proporcja > 2.5) {
+    const wrapper = img.closest('.detail-image-wrapper');
+    if (wrapper) wrapper.classList.add('panorama');
+  }
+}
+
 // Próbuje wczytać zdjęcie w kolejnych formatach: jpg -> png -> jpeg -> webp -> placeholder.
 // Wywoływana z onerror tagu <img>. Atrybut data-prob trzyma aktualnie sprawdzane rozszerzenie.
 function probujKolejneRozszerzenieZdjecia(img) {
@@ -5759,8 +5824,13 @@ async function otworzPlatek(klucz, akcja) {
   } else if (akcja === 'zdjecie') {
     const klucz = miejsce.klucz;
     const safeNazwa = (miejsce.nazwa || '').replace(/"/g,'&quot;');
+    // PANORAMA: wykrywamy automatycznie po proporcjach (szer/wys > 2.5 = panorama).
+    // Funkcja sprawdzPanorame() biegnie w onload obrazka - gdy znamy naturalWidth/Height.
+    // Jeśli to panorama -> dodajemy klasę .panorama do wrappera -> CSS robi resztę
+    // (przewijanie palcem w poziomie + hint "👈 przesuń palcem 👉").
     content.innerHTML = `<div class="detail-image-wrapper">
       <img src="img/${klucz}.jpg" alt="${safeNazwa}" data-klucz="${klucz}" data-prob="jpg"
+        onload="sprawdzPanorame(this)"
         onerror="probujKolejneRozszerzenieZdjecia(this)">
     </div>`;
   }
