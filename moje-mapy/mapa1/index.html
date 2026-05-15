@@ -10,7 +10,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 
-<title>Test gry · mini-klik.pl</title>
+<title>strona testowa · mini-klik.pl</title>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css"/>
@@ -1355,6 +1355,48 @@ footer{
 @keyframes audioPulsatorKropkaMig {
   0%, 100% { opacity: 0.15; transform: scale(0.7); }
   50%      { opacity: 1;    transform: scale(1.0); }
+}
+
+/* TRYB W STREFIE (jesteś w środku, audio dostępne) - duża kropka pulsująca wolno.
+   Klikalna - kliknięcie odtwarza audio od początku.
+   Większa od "daleko" + ciemniejszy fioletowy + wolniejsza animacja (2s) +
+   złota obwódka żeby wyraźnie sygnalizować "tu kliknij". */
+.audio-pulsator-wrapper.w-strefie .audio-pulsator-fala {
+  display: none;
+}
+.audio-pulsator-wrapper.w-strefie {
+  pointer-events: auto !important; /* nadpisuje pointer-events:none z wrappera */
+  cursor: pointer;
+}
+.audio-pulsator-wrapper.w-strefie::before {
+  content: '';
+  position: absolute;
+  left: 50%; top: 50%;
+  width: 28px; height: 28px;
+  margin: -14px 0 0 -14px;
+  background: radial-gradient(circle, rgba(124,58,237,1) 0%, rgba(124,58,237,0.85) 50%, rgba(124,58,237,0.4) 90%, rgba(124,58,237,0) 100%);
+  border: 2px solid var(--gold);
+  border-radius: 50%;
+  box-shadow: 0 2px 8px rgba(124,58,237,0.5), 0 0 12px rgba(124,58,237,0.3);
+  animation: audioPulsatorWStrefie 2s ease-in-out infinite;
+}
+@keyframes audioPulsatorWStrefie {
+  0%, 100% { opacity: 0.75; transform: scale(0.92); }
+  50%      { opacity: 1;    transform: scale(1.08); }
+}
+.audio-pulsator-wrapper.w-strefie:hover::before,
+.audio-pulsator-wrapper.w-strefie:active::before {
+  animation-play-state: paused;
+  transform: scale(1.15);
+  box-shadow: 0 4px 14px rgba(124,58,237,0.7), 0 0 18px rgba(124,58,237,0.5);
+}
+
+/* WARIANT A: minimalistyczny UI - panel radaru jest UKRYTY.
+   Cała interakcja audio dzieje się przez pulsujące kropki na mapie.
+   Szufladka "Wykryto audio" zostaje aktywna jako POWITANIE przy każdym
+   nowym wejściu w strefę (tylko informacyjnie, jeden przycisk ROZUMIEM). */
+.radar-panel {
+  display: none !important;
 }
 
 .audio-dot{
@@ -3685,6 +3727,12 @@ html.tryb-noc .detail-sfera-wrapper {
   transform: scale(0.94);
   background: rgba(60, 40, 20, 0.08);
 }
+/* Gdy szufladka ma tylko JEDEN przycisk (powitanie ROZUMIEM) - rozciągamy go */
+.sw-btn.sw-pojedynczy {
+  flex: 1;
+  padding: 12px 0;
+  font-size: 15px;
+}
 
 /* Tryb nocny - ciemny pergamin "przy świecy" */
 html.tryb-noc #szufladaWykryto {
@@ -4058,7 +4106,7 @@ html.tryb-noc .sw-off {
      -->
 <div id="szufladaWykryto" role="dialog" aria-label="Wykryto audio">
   <div class="sw-tytul">🎧 Wykryto audio</div>
-  <div class="sw-podtytul">Włączyć automatyczne odtwarzanie?</div>
+  <div class="sw-podtytul">Posłuchać opowieści tego miejsca teraz?</div>
   <div class="sw-przyciski">
     <button type="button" class="sw-btn sw-on" onclick="decyzjaSzuflady('on')">ON</button>
     <button type="button" class="sw-btn sw-off" onclick="decyzjaSzuflady('off')">OFF</button>
@@ -4131,7 +4179,7 @@ html.tryb-noc .sw-off {
 <div class="wrapper">
 
   <header>
-    <h1>Test gry</h1>
+    <h1>strona testowa</h1>
   </header>
 
   <!-- KONTROLKI -->
@@ -4552,7 +4600,7 @@ html.tryb-noc .sw-off {
     </div>
     <div class="accordion-content">
       <div class="accordion-inner" id="opisStronyTresc">
-        <p>opis głównego edytora</p>
+        <p>ok test - test</p>
       </div>
     </div>
 
@@ -4774,7 +4822,7 @@ function zastosujKategorie() {
 }
 
 const miejsca = [
-  { klucz: 'rynek', nazwa: 'Rynek', pozycja: [51.1951, 23.1637], ikona: '🛸', kategoria: 'zabytek', tytul: 'rynek SDL', opis: 'ok znajdujemy sie na rynku', tytulSrodek: true, tytulDuzy: true, linkYT: 'https://www.youtube.com/watch?v=EbgD8dRMNdw&list=RDMM&index=6' }
+  { klucz: 'rynek', nazwa: 'Rynek', pozycja: [51.1948, 23.1638], ikona: '🏛️', kategoria: 'przyroda', tytul: 'bagienko na rynku', tytulSrodek: true, tytulDuzy: true, linkYT: 'https://www.youtube.com/watch?v=svEQv6evK7g&list=RDMM&index=24' }
 ];
 
 const mapa = L.map('mapa', {
@@ -5419,8 +5467,21 @@ zastosujKategorie();
 // Aby dodać nową kropkę: skopiuj jeden obiekt, zmień numer, pozycję i promień.
 // Plik MP3 wgraj do folderu audio/ jako {numer}.mp3 (np. audio/1.mp3)
 const kropkiAudio = [
-  { numer: 1, pozycja: [51.19063, 23.17350], promien: 500, opis: 'wroni gak', pokazFale: true },
-  { numer: 2, pozycja: [51.19015, 23.17032], promien: 50, opis: 'zakręt', pokazFale: true }
+  { numer: 1, pozycja: [51.19189, 23.16976], promien: 50, opis: 'dom', pokazFale: true },
+  { numer: 2, pozycja: [51.19343, 23.16780], promien: 100, opis: 'zakręt', pokazFale: true },
+  { numer: 3, pozycja: [51.19451, 23.16397], promien: 100, opis: 'sdl', pokazFale: true },
+  { numer: 4, pozycja: [51.19436, 23.16039], promien: 50, opis: 'Szef', pokazFale: true },
+  { numer: 5, pozycja: [51.19506, 23.16062], promien: 20, opis: '', pokazFale: true },
+  { numer: 6, pozycja: [51.19498, 23.15957], promien: 20, opis: '', pokazFale: true },
+  { numer: 7, pozycja: [51.19582, 23.15822], promien: 50, opis: '', pokazFale: true },
+  { numer: 8, pozycja: [51.19560, 23.15617], promien: 10, opis: '', pokazFale: true },
+  { numer: 9, pozycja: [51.17156, 23.17511], promien: 50, opis: '', pokazFale: true },
+  { numer: 10, pozycja: [51.16375, 23.17641], promien: 50, opis: '', pokazFale: true },
+  { numer: 11, pozycja: [51.16111, 23.19006], promien: 50, opis: '', pokazFale: true },
+  { numer: 12, pozycja: [51.15326, 23.19508], promien: 50, opis: '', pokazFale: true },
+  { numer: 13, pozycja: [51.14669, 23.20684], promien: 50, opis: '', pokazFale: true },
+  { numer: 14, pozycja: [51.14540, 23.21221], promien: 50, opis: '', pokazFale: true },
+  { numer: 15, pozycja: [51.17899, 23.17624], promien: 50, opis: '', pokazFale: true }
 ];
 
 // Stan przewodnika audio
@@ -5491,19 +5552,35 @@ function zamknijSzufladkeWykryto() {
   szuflada.classList.remove('visible');
 }
 
-// Reakcja na klik ON/OFF w szufladce.
-//   'on'  -> włącz auto-odsłuch (start playlisty z aktualnej listy w zasięgu)
-//   'off' -> tylko zamknij, audio NIE leci automatycznie, radar nadal aktywny
+// Reakcja na klik ON/OFF w szufladce powitalnej.
+//   'on'  -> odtwarza audio kropki w której user JEST teraz (najbliższy segment)
+//   'off' -> tylko zamknij szufladkę, audio NIE leci
+// Po obu decyzjach pulsująca kropka "w-strefie" zostaje na mapie -
+// user może kliknąć w nią kiedy chce żeby odtworzyć (manualnie).
 function decyzjaSzuflady(wybor) {
-  pierwszeWykrycieZapytane = true;
   zamknijSzufladkeWykryto();
   if (wybor === 'on') {
-    // Symulujemy klik 🔁 - włącza auto-odsłuch i startuje pierwszą z listy
-    if (!autoOdsluchAktywny) {
-      toggleAutoOdsluch();
+    // Znajdź kropkę audio w której user aktualnie stoi (najbliższy segment).
+    // Używamy ostatnio śledzonej "wStrefieKropki" (numer) i znajdujemy
+    // najbliższy segment z tym numerem do user.
+    if (wStrefieKropki !== null && userPozycja) {
+      let najblizszySegment = null;
+      let minOdl = Infinity;
+      for (const k of kropkiAudio) {
+        if (k.numer !== wStrefieKropki) continue;
+        const odl = dystans(userPozycja.lat, userPozycja.lng, k.pozycja[0], k.pozycja[1]);
+        if (odl < minOdl) {
+          najblizszySegment = k;
+          minOdl = odl;
+        }
+      }
+      if (najblizszySegment) {
+        odtworzKropke(najblizszySegment);
+      }
     }
   }
-  // 'off' nic nie robi poza zamknięciem - radar dalej działa, manualne ▶ aktywne
+  // 'off' - tylko zamknięcie. Pulsująca kropka na mapie zostaje aktywna,
+  // user może w nią kliknąć kiedy chce żeby ręcznie odtworzyć.
 }
 
 // NOWA LOGIKA: śledzimy w jakiej strefie jest turysta TERAZ
@@ -5630,16 +5707,16 @@ function sprawdzKropkiAudio() {
   }
 
   // 2. Wykryj NOWE wejścia - wibracja jednorazowa + szufladka "Wykryto audio"
-  //    (tylko PIERWSZY raz w sesji nawigacji)
+  //    (WARIANT A z powitaniem: szufladka pojawia się przy KAŻDYM nowym wejściu
+  //    w strefę audio - jako powitanie/info "kliknij kropkę żeby posłuchać".
+  //    User klika ROZUMIEM, szufladka znika. Po wyjściu i ponownym wejściu
+  //    znowu się pojawi - bo to nowe wejście w nową sesję).
   for (const numer of aktualneKropki) {
     if (!wibrowaneStrefy.has(numer)) {
       if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
       wibrowaneStrefy.add(numer);
-      // Pierwsze wejście w jakąkolwiek strefę w tej sesji nawigacji?
-      // Pokaż szufladkę z propozycją włączenia auto-odsłuchu.
-      if (!pierwszeWykrycieZapytane && !autoOdsluchAktywny) {
-        pokazSzufladkeWykryto();
-      }
+      // Pokaż szufladkę powitalną zawsze przy nowym wejściu
+      pokazSzufladkeWykryto();
     }
   }
 
@@ -5723,15 +5800,25 @@ function aktualizujPulsatoryAudio() {
     }
   }
 
-  // Buduj zestaw numerów które MAJĄ mieć pulsator (z informacją o odległości)
-  // Mapa: numer -> { kropka, odl } (odl użyte do rozpoznania blisko/daleko w CSS)
+  // Buduj zestaw numerów które MAJĄ mieć pulsator (z informacją o odległości i stanie).
+  // TRZY STANY:
+  //   "w-strefie" (odl <= promien): jesteś w środku, audio dostępne. Klikalne.
+  //                                 Pojawia się ZAWSZE (niezależnie od pokazFale) bo
+  //                                 to "interaktywny przycisk audio" zamiast szuflady na dole.
+  //   "blisko"   (promien < odl <= 400m): 3 fale wody. Tylko gdy admin włączył pokazFale.
+  //   "daleko"   (400m < odl <= 500m): mała kropka miga co 1s. Tylko gdy pokazFale.
   const aktywneZOdl = new Map();
   for (const [numer, { kropka, odl }] of najblizszePerNumer) {
-    // Warunek: w zasięgu 500m ALE nie w strefie audio (poza promieniem strefy)
-    // Dodatkowo: kropka musi mieć pokazFale === true (admin świadomie włączył).
-    // Domyślnie wyłączone - widoczne miejsca nie potrzebują fali, tylko tajemnicze.
-    if (kropka.pokazFale === true && odl <= PULSATOR_PROMIEN_M && odl > kropka.promien) {
-      aktywneZOdl.set(numer, { kropka, odl });
+    let stan = null;
+    if (odl <= kropka.promien) {
+      stan = 'w-strefie';
+    } else if (kropka.pokazFale === true && odl <= PULSATOR_BLISKO_M) {
+      stan = 'blisko';
+    } else if (kropka.pokazFale === true && odl <= PULSATOR_PROMIEN_M) {
+      stan = 'daleko';
+    }
+    if (stan) {
+      aktywneZOdl.set(numer, { kropka, odl, stan });
     }
   }
 
@@ -5744,9 +5831,8 @@ function aktualizujPulsatoryAudio() {
   }
 
   // Dodaj/zaktualizuj pulsatory dla aktywnych numerów
-  for (const [numer, { kropka, odl }] of aktywneZOdl) {
+  for (const [numer, { kropka, stan }] of aktywneZOdl) {
     const istniejacy = pulsatoryAudio.get(numer);
-    const stanDaleko = odl > PULSATOR_BLISKO_M; // 400-500m = daleko, <=400m = blisko
 
     if (istniejacy) {
       // Już istnieje - sprawdź czy pozycja się nie zmieniła (inny segment najbliżej?)
@@ -5755,29 +5841,65 @@ function aktualizujPulsatoryAudio() {
       if (Math.abs(aktLatLng.lat - lat) > 1e-6 || Math.abs(aktLatLng.lng - lng) > 1e-6) {
         istniejacy.marker.setLatLng([lat, lng]);
       }
-      // Aktualizuj klasę "daleko" jeśli się zmieniła strefa (przekroczył 400m w którąś stronę)
-      if (istniejacy.daleko !== stanDaleko) {
+      // Aktualizuj stan (klasę CSS) jeśli się zmienił (np. wszedł w strefę)
+      if (istniejacy.stan !== stan) {
         const el = istniejacy.marker.getElement();
         const wrapper = el ? el.querySelector('.audio-pulsator-wrapper') : null;
-        if (wrapper) wrapper.classList.toggle('daleko', stanDaleko);
-        istniejacy.daleko = stanDaleko;
+        if (wrapper) {
+          wrapper.classList.remove('daleko', 'blisko', 'w-strefie');
+          if (stan === 'daleko' || stan === 'w-strefie') wrapper.classList.add(stan);
+          // 'blisko' = brak klasy (domyślne 3 fale wody)
+        }
+        // Klikalność też trzeba przeładować (w-strefie interactive, reszta nie)
+        if (stan === 'w-strefie') {
+          // Dorzucamy click handler ad-hoc jeśli go nie ma
+          if (!istniejacy.klikDodany) {
+            const elBox = el ? el.querySelector('.audio-pulsator-wrapper') : null;
+            if (elBox) {
+              elBox.addEventListener('click', (e) => {
+                e.stopPropagation();
+                odtworzKropke(kropka);
+              });
+              istniejacy.klikDodany = true;
+            }
+          }
+        }
+        istniejacy.stan = stan;
       }
     } else {
       // Nowy pulsator - od razu z odpowiednią klasą
-      const klasaDaleko = stanDaleko ? ' daleko' : '';
+      const klasa = (stan === 'blisko') ? '' : ' ' + stan;
+      // W stanie "w-strefie" pulsator MUSI być interactive (przyjmuje kliknięcia)
+      const interactive = (stan === 'w-strefie');
       const marker = L.marker(kropka.pozycja, {
         icon: L.divIcon({
           className: 'audio-pulsator-marker',
-          html: `<div class="audio-pulsator-wrapper${klasaDaleko}"><div class="audio-pulsator-fala"></div><div class="audio-pulsator-fala f2"></div><div class="audio-pulsator-fala f3"></div></div>`,
+          html: `<div class="audio-pulsator-wrapper${klasa}"><div class="audio-pulsator-fala"></div><div class="audio-pulsator-fala f2"></div><div class="audio-pulsator-fala f3"></div></div>`,
           iconSize: [60, 60],
           iconAnchor: [30, 30]
         }),
-        interactive: false,  // klik przechodzi przez pulsator do mapy
+        interactive: interactive,
         keyboard: false,
-        zIndexOffset: -100   // pod innymi markerami
+        zIndexOffset: interactive ? 100 : -100 // klikalna na wierzchu, ozdobne pod spodem
       });
       marker.addTo(mapa);
-      pulsatoryAudio.set(numer, { marker, daleko: stanDaleko });
+      const pulsObj = { marker, stan, klikDodany: false };
+      // Podpinamy klik gdy w-strefie
+      if (stan === 'w-strefie') {
+        // setTimeout żeby DOM markera istniał (Leaflet dodaje element asynchronicznie)
+        setTimeout(() => {
+          const el = marker.getElement();
+          const wrapper = el ? el.querySelector('.audio-pulsator-wrapper') : null;
+          if (wrapper) {
+            wrapper.addEventListener('click', (e) => {
+              e.stopPropagation();
+              odtworzKropke(kropka);
+            });
+            pulsObj.klikDodany = true;
+          }
+        }, 30);
+      }
+      pulsatoryAudio.set(numer, pulsObj);
     }
   }
 }
