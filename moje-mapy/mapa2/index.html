@@ -4503,6 +4503,15 @@ html.tryb-noc .sw-off {
         <div class="opis-licznik"><span id="opisLicznik">0</span> znaków</div>
       </div>
 
+      <!-- Pole Link YouTube - opcjonalny, oddzielny od opisu.
+           Jeśli admin wklei link, w panelu detail pojawi się czerwony przycisk
+           "📺 Obejrzyj wideo" pod tekstem opisu. Lepiej niż wklejanie linku
+           w środku tekstu opisu (jak dotąd). -->
+      <div class="opis-pole-tytul">
+        <label>📺 Link YouTube (opcjonalny)</label>
+        <input type="url" id="opisLinkYT" placeholder="https://youtube.com/watch?v=..." maxlength="200">
+      </div>
+
       <div class="opis-podglad-toggle">
         <button type="button" onclick="przelaczPodgladOpisu()" id="opisPodgladBtn">👁 Pokaż podgląd</button>
       </div>
@@ -5180,6 +5189,7 @@ async function otworzPlatek(klucz, akcja) {
     let html = '';
     const maTytul = miejsce.tytul && miejsce.tytul.trim();
     const maOpis = miejsce.opis && miejsce.opis.trim();
+    const maLinkYT = miejsce.linkYT && miejsce.linkYT.trim();
 
     if (maTytul || maOpis) {
       // Renderuj z obiektu - dwuklik tu działa, fetch nie potrzebny
@@ -5207,6 +5217,13 @@ async function otworzPlatek(klucz, akcja) {
           📝 Opis tego miejsca jeszcze nie został dodany.
         </p>`;
       }
+    }
+
+    // Czerwony przycisk YouTube - jeśli admin podał link w edycji miejsca.
+    // Otwiera w nowej zakładce, żeby user nie tracił mapy.
+    if (maLinkYT) {
+      const safeLinkYT = miejsce.linkYT.replace(/"/g, '&quot;');
+      html += `<p style="margin-top:14px;text-align:center"><a href="${safeLinkYT}" target="_blank" rel="noopener" style="display:inline-block;background:#ff0000;color:#fff;padding:10px 18px;border-radius:6px;text-decoration:none;font-weight:700">📺 Obejrzyj wideo</a></p>`;
     }
 
     html += `<div class="nav-action">
@@ -6414,7 +6431,7 @@ function renderujZaplanowane() {
 // =====================================================================
 
 // Roboczy bufor edytora - to co user wpisał ale jeszcze nie zatwierdził
-let opisRoboczy = { tytul: '', opis: '', srodek: false, duzy: false };
+let opisRoboczy = { tytul: '', opis: '', srodek: false, duzy: false, linkYT: '' };
 
 function otworzEdytorOpisu() {
   // Ukryj zwinięty przycisk, pokaż edytor
@@ -6430,6 +6447,9 @@ function otworzEdytorOpisu() {
   document.getElementById('opisTekst').value = opisRoboczy.opis || '';
   document.getElementById('opisTytulSrodek').checked = !!opisRoboczy.srodek;
   document.getElementById('opisTytulDuzy').checked = !!opisRoboczy.duzy;
+  // Link YT (opcjonalny - może być pusty)
+  const ytEl = document.getElementById('opisLinkYT');
+  if (ytEl) ytEl.value = opisRoboczy.linkYT || '';
 
   aktualizujLicznikOpisu();
   // Schowaj podgląd na start
@@ -6446,6 +6466,9 @@ function zamknijEdytorOpisu() {
   opisRoboczy.opis = document.getElementById('opisTekst').value;
   opisRoboczy.srodek = document.getElementById('opisTytulSrodek').checked;
   opisRoboczy.duzy = document.getElementById('opisTytulDuzy').checked;
+  // Link YT - tylko jeśli pole istnieje (defensywnie)
+  const ytEl = document.getElementById('opisLinkYT');
+  if (ytEl) opisRoboczy.linkYT = ytEl.value.trim();
 
   document.getElementById('opisEdytor').classList.remove('visible');
   document.getElementById('opisZwiniety').style.display = '';
@@ -6542,6 +6565,8 @@ function zapiszOpisRoboczo() {
   opisRoboczy.opis = document.getElementById('opisTekst').value.trim();
   opisRoboczy.srodek = document.getElementById('opisTytulSrodek').checked;
   opisRoboczy.duzy = document.getElementById('opisTytulDuzy').checked;
+  const ytEl = document.getElementById('opisLinkYT');
+  if (ytEl) opisRoboczy.linkYT = ytEl.value.trim();
 
   // Jeśli edytujemy istniejące miejsce - zapisz od razu w obiekcie + localStorage
   if (edytowaneMiejsce && edytowanyMiejsceIdx >= 0) {
@@ -6549,6 +6574,9 @@ function zapiszOpisRoboczo() {
     miejsca[edytowanyMiejsceIdx].opis = opisRoboczy.opis;
     miejsca[edytowanyMiejsceIdx].tytulSrodek = opisRoboczy.srodek;
     miejsca[edytowanyMiejsceIdx].tytulDuzy = opisRoboczy.duzy;
+    // linkYT - tylko jeśli podany, inaczej usuwamy klucz (czysty obiekt)
+    if (opisRoboczy.linkYT) miejsca[edytowanyMiejsceIdx].linkYT = opisRoboczy.linkYT;
+    else delete miejsca[edytowanyMiejsceIdx].linkYT;
     if (typeof zapiszZmianyMiejsc === 'function') zapiszZmianyMiejsc();
   }
 
@@ -6573,7 +6601,9 @@ function wyczyscOpis() {
   document.getElementById('opisTekst').value = '';
   document.getElementById('opisTytulSrodek').checked = false;
   document.getElementById('opisTytulDuzy').checked = false;
-  opisRoboczy = { tytul: '', opis: '', srodek: false, duzy: false };
+  const ytEl = document.getElementById('opisLinkYT');
+  if (ytEl) ytEl.value = '';
+  opisRoboczy = { tytul: '', opis: '', srodek: false, duzy: false, linkYT: '' };
 
   // Jeśli edytujemy - wyczyść też w obiekcie
   if (edytowaneMiejsce && edytowanyMiejsceIdx >= 0) {
@@ -6581,6 +6611,7 @@ function wyczyscOpis() {
     miejsca[edytowanyMiejsceIdx].opis = '';
     miejsca[edytowanyMiejsceIdx].tytulSrodek = false;
     miejsca[edytowanyMiejsceIdx].tytulDuzy = false;
+    delete miejsca[edytowanyMiejsceIdx].linkYT;
     if (typeof zapiszZmianyMiejsc === 'function') zapiszZmianyMiejsc();
   }
 
@@ -6622,10 +6653,11 @@ function wczytajOpisDoBufora(miejsce) {
       tytul: miejsce.tytul || '',
       opis: miejsce.opis || '',
       srodek: !!miejsce.tytulSrodek,
-      duzy: !!miejsce.tytulDuzy
+      duzy: !!miejsce.tytulDuzy,
+      linkYT: miejsce.linkYT || ''
     };
   } else {
-    opisRoboczy = { tytul: '', opis: '', srodek: false, duzy: false };
+    opisRoboczy = { tytul: '', opis: '', srodek: false, duzy: false, linkYT: '' };
   }
   // Upewnij się że edytor jest zwinięty po otwarciu nowego miejsca
   const ed = document.getElementById('opisEdytor');
@@ -6954,6 +6986,7 @@ async function pobierzNowyIndex() {
       if (m.opis && m.opis.trim()) linia += `, opis: '${esc(m.opis)}'`;
       if (m.tytulSrodek) linia += `, tytulSrodek: true`;
       if (m.tytulDuzy) linia += `, tytulDuzy: true`;
+      if (m.linkYT && m.linkYT.trim()) linia += `, linkYT: '${esc(m.linkYT)}'`;
       linia += ` }`;
       return linia;
     });
@@ -7429,6 +7462,8 @@ function synchronizujBuforZPolami() {
     opisRoboczy.opis = document.getElementById('opisTekst').value.trim();
     opisRoboczy.srodek = document.getElementById('opisTytulSrodek').checked;
     opisRoboczy.duzy = document.getElementById('opisTytulDuzy').checked;
+    const ytEl = document.getElementById('opisLinkYT');
+    if (ytEl) opisRoboczy.linkYT = ytEl.value.trim();
   }
 }
 
@@ -7467,6 +7502,7 @@ function planujMiejsce() {
   if (opisRoboczy.opis) nowe.opis = opisRoboczy.opis;
   if (opisRoboczy.srodek) nowe.tytulSrodek = true;
   if (opisRoboczy.duzy) nowe.tytulDuzy = true;
+  if (opisRoboczy.linkYT) nowe.linkYT = opisRoboczy.linkYT;
   miejsca.push(nowe);
 
   zapiszZmianyMiejsc();
