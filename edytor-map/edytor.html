@@ -19,6 +19,13 @@
 <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 
+<!-- Pannellum - viewer zdjęć 360° sferycznych.
+     Aktywuje się gdy admin wgra plik z suffiksem "-360" (np. img/bagno-360.jpg).
+     Daje pełną sferę: obracasz palcem dookoła w każdą stronę.
+     Tylko ~25 KB, działa na wszystkich nowoczesnych przeglądarkach (WebGL). -->
+<link rel="stylesheet" href="https://cdn.pannellum.org/2.5/pannellum.css"/>
+<script src="https://cdn.pannellum.org/2.5/pannellum.js"></script>
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=EB+Garamond:wght@400;500;600&family=Cinzel:wght@400;600&display=swap" rel="stylesheet">
@@ -1302,9 +1309,11 @@ footer{
 }
 
 /* ========== PULSATOR AUDIO (publiczny tryb GPS) ==========
-   Pojawia się gdy turysta jest w odległości <=400m od ukrytej kropki audio.
-   Wersja "falowanie wody" - 3 okręgi rozchodzące się w fazach,
-   bez stałego punktu w środku. Większy rozmiar - lepiej widoczny. */
+   Pojawia się gdy turysta jest w odległości <=500m od ukrytej kropki audio.
+   DWA STANY:
+   - daleko (500-400m): pojedyncza mała kropka migająca co 1 sekundę
+     (subtelne ostrzeżenie "coś tu jest, idź dalej")
+   - blisko (<=400m): pełne 3 fale wody (mocniejszy sygnał "blisko!") */
 .audio-pulsator-wrapper {
   position: relative;
   width: 60px;
@@ -1326,6 +1335,68 @@ footer{
   15%  { opacity: 0.85; }
   60%  { opacity: 0.4;  border-width: 2px; }
   100% { transform: scale(1.0);  opacity: 0;   border-width: 1px; }
+}
+
+/* TRYB DALEKO (500-400m) - chowamy 3 fale, pokazujemy pojedynczą kropkę.
+   Klasa .daleko jest dodawana z JS na wrapper. */
+.audio-pulsator-wrapper.daleko .audio-pulsator-fala {
+  display: none;
+}
+.audio-pulsator-wrapper.daleko::before {
+  content: '';
+  position: absolute;
+  left: 50%; top: 50%;
+  width: 14px; height: 14px;
+  margin: -7px 0 0 -7px;
+  background: radial-gradient(circle, rgba(124,58,237,0.95) 0%, rgba(124,58,237,0.7) 60%, rgba(124,58,237,0) 100%);
+  border-radius: 50%;
+  animation: audioPulsatorKropkaMig 1s ease-in-out infinite;
+}
+@keyframes audioPulsatorKropkaMig {
+  0%, 100% { opacity: 0.15; transform: scale(0.7); }
+  50%      { opacity: 1;    transform: scale(1.0); }
+}
+
+/* TRYB W STREFIE (jesteś w środku, audio dostępne) - duża kropka pulsująca wolno.
+   Klikalna - kliknięcie odtwarza audio od początku.
+   Większa od "daleko" + ciemniejszy fioletowy + wolniejsza animacja (2s) +
+   złota obwódka żeby wyraźnie sygnalizować "tu kliknij". */
+.audio-pulsator-wrapper.w-strefie .audio-pulsator-fala {
+  display: none;
+}
+.audio-pulsator-wrapper.w-strefie {
+  pointer-events: auto !important; /* nadpisuje pointer-events:none z wrappera */
+  cursor: pointer;
+}
+.audio-pulsator-wrapper.w-strefie::before {
+  content: '';
+  position: absolute;
+  left: 50%; top: 50%;
+  width: 28px; height: 28px;
+  margin: -14px 0 0 -14px;
+  background: radial-gradient(circle, rgba(124,58,237,1) 0%, rgba(124,58,237,0.85) 50%, rgba(124,58,237,0.4) 90%, rgba(124,58,237,0) 100%);
+  border: 2px solid var(--gold);
+  border-radius: 50%;
+  box-shadow: 0 2px 8px rgba(124,58,237,0.5), 0 0 12px rgba(124,58,237,0.3);
+  animation: audioPulsatorWStrefie 2s ease-in-out infinite;
+}
+@keyframes audioPulsatorWStrefie {
+  0%, 100% { opacity: 0.75; transform: scale(0.92); }
+  50%      { opacity: 1;    transform: scale(1.08); }
+}
+.audio-pulsator-wrapper.w-strefie:hover::before,
+.audio-pulsator-wrapper.w-strefie:active::before {
+  animation-play-state: paused;
+  transform: scale(1.15);
+  box-shadow: 0 4px 14px rgba(124,58,237,0.7), 0 0 18px rgba(124,58,237,0.5);
+}
+
+/* WARIANT A: minimalistyczny UI - panel radaru jest UKRYTY.
+   Cała interakcja audio dzieje się przez pulsujące kropki na mapie.
+   Szufladka "Wykryto audio" zostaje aktywna jako POWITANIE przy każdym
+   nowym wejściu w strefę (tylko informacyjnie, jeden przycisk ROZUMIEM). */
+.radar-panel {
+  display: none !important;
 }
 
 .audio-dot{
@@ -2467,6 +2538,39 @@ footer{
 .detail-image-placeholder em{
   font-style:italic;color:var(--ink-muted);font-size:15px;
   line-height:1.5;display:block;
+}
+
+/* === VIEWER SFERYCZNY 360° (Pannellum) === */
+.detail-360-info {
+  text-align: center;
+  padding: 8px 12px;
+  margin-bottom: 8px;
+  background: linear-gradient(180deg, var(--paper-2), var(--paper-3));
+  border: 1px solid var(--gold);
+  border-radius: 4px;
+  font-family: 'EB Garamond', serif;
+  font-style: italic;
+  color: var(--ink);
+  font-size: 13px;
+}
+.detail-sfera-wrapper {
+  width: 100%;
+  height: 65vh;
+  border: 2px solid var(--gold);
+  border-radius: 6px;
+  background: #0a0a0a;
+  box-shadow: 0 4px 14px rgba(60,40,20,0.35);
+  overflow: hidden;
+  /* Pannellum sam zarządza zawartością przez canvas WebGL */
+}
+/* Tryb nocny - obwódka ciemniejsza */
+html.tryb-noc .detail-360-info {
+  background: linear-gradient(180deg, #2d1f15, #1f1510) !important;
+  border-color: #d4a574 !important;
+  color: #f5e8c8 !important;
+}
+html.tryb-noc .detail-sfera-wrapper {
+  border-color: #d4a574 !important;
 }
 
 @media (max-width:540px){
@@ -3623,6 +3727,12 @@ footer{
   transform: scale(0.94);
   background: rgba(60, 40, 20, 0.08);
 }
+/* Gdy szufladka ma tylko JEDEN przycisk (powitanie ROZUMIEM) - rozciągamy go */
+.sw-btn.sw-pojedynczy {
+  flex: 1;
+  padding: 12px 0;
+  font-size: 15px;
+}
 
 /* Tryb nocny - ciemny pergamin "przy świecy" */
 html.tryb-noc #szufladaWykryto {
@@ -3996,7 +4106,7 @@ html.tryb-noc .sw-off {
      -->
 <div id="szufladaWykryto" role="dialog" aria-label="Wykryto audio">
   <div class="sw-tytul">🎧 Wykryto audio</div>
-  <div class="sw-podtytul">Włączyć automatyczne odtwarzanie?</div>
+  <div class="sw-podtytul">Posłuchać opowieści tego miejsca teraz?</div>
   <div class="sw-przyciski">
     <button type="button" class="sw-btn sw-on" onclick="decyzjaSzuflady('on')">ON</button>
     <button type="button" class="sw-btn sw-off" onclick="decyzjaSzuflady('off')">OFF</button>
@@ -4439,6 +4549,15 @@ html.tryb-noc .sw-off {
         <label>Opis</label>
         <textarea id="opisTekst" placeholder="Tu wpisz właściwy opis miejsca. Możesz pisać dowolnie długo — każdy nowy akapit oddziel pustą linią." rows="10"></textarea>
         <div class="opis-licznik"><span id="opisLicznik">0</span> znaków</div>
+      </div>
+
+      <!-- Pole Link YouTube - opcjonalny, oddzielny od opisu.
+           Jeśli admin wklei link, w panelu detail pojawi się czerwony przycisk
+           "📺 Obejrzyj wideo" pod tekstem opisu. Lepiej niż wklejanie linku
+           w środku tekstu opisu (jak dotąd). -->
+      <div class="opis-pole-tytul">
+        <label>📺 Link YouTube (opcjonalny)</label>
+        <input type="url" id="opisLinkYT" placeholder="https://youtube.com/watch?v=..." maxlength="200">
       </div>
 
       <div class="opis-podglad-toggle">
@@ -4996,6 +5115,65 @@ async function pobierzOpisMiejsca(klucz) {
   }
 }
 
+// ZDJĘCIA 360° SFERYCZNE (Pannellum):
+// Sprawdzamy czy istnieje plik img/{klucz}-360.jpg (lub png/webp).
+// Jeśli tak - admin świadomie wgrał zdjęcie 360° = aktywujemy Pannellum.
+// Jeśli nie - traktujemy jako zwykłe zdjęcie.
+//
+// Cache wyników w pamięci żeby przy kolejnym kliknięciu nie sprawdzać znowu.
+const _cacheSfera = new Map(); // klucz -> { jest: bool, src: string } | null
+async function sprawdzCzyJestSfera(klucz) {
+  if (_cacheSfera.has(klucz)) return _cacheSfera.get(klucz).jest;
+  // Próbujemy kolejno rozszerzenia - pierwsze które odpowie 200 OK wygrywa
+  const rozszerzenia = ['jpg', 'png', 'jpeg', 'webp'];
+  for (const ext of rozszerzenia) {
+    const src = `img/${klucz}-360.${ext}`;
+    try {
+      const r = await fetch(src, { method: 'HEAD' });
+      if (r.ok) {
+        _cacheSfera.set(klucz, { jest: true, src });
+        return true;
+      }
+    } catch(e) {
+      // Sieć padła / CORS - spróbuj kolejne
+    }
+  }
+  _cacheSfera.set(klucz, { jest: false, src: null });
+  return false;
+}
+
+// Uruchamia viewer Pannellum dla zdjęcia 360° w danym elemencie.
+function uruchomSfere(elementId, klucz, nazwa) {
+  if (typeof pannellum === 'undefined') {
+    // Pannellum nie załadowane - może problem z CDN. Fallback.
+    document.getElementById(elementId).innerHTML =
+      '<p style="color:var(--ink-muted);text-align:center;padding:20px;font-style:italic">' +
+      'Viewer 360° nie załadował się. Sprawdź połączenie internetowe i odśwież.</p>';
+    return;
+  }
+  const cache = _cacheSfera.get(klucz);
+  const src = cache && cache.src ? cache.src : `img/${klucz}-360.jpg`;
+  try {
+    pannellum.viewer(elementId, {
+      type: 'equirectangular',
+      panorama: src,
+      autoLoad: true,
+      title: nazwa || '',
+      hfov: 100,           // pole widzenia - "naturalne" otwarcie
+      autoRotate: 0,       // bez auto-rotacji (user sam steruje)
+      compass: false,
+      showControls: true,
+      mouseZoom: true,
+      keyboardZoom: false,
+      hotSpotDebug: false
+    });
+  } catch(e) {
+    document.getElementById(elementId).innerHTML =
+      '<p style="color:#a04510;text-align:center;padding:20px">' +
+      'Błąd ładowania zdjęcia 360°: ' + (e.message || 'nieznany') + '</p>';
+  }
+}
+
 // Próbuje wczytać zdjęcie w kolejnych formatach: jpg -> png -> jpeg -> webp -> placeholder.
 // Wywoływana z onerror tagu <img>. Atrybut data-prob trzyma aktualnie sprawdzane rozszerzenie.
 function probujKolejneRozszerzenieZdjecia(img) {
@@ -5016,7 +5194,7 @@ function probujKolejneRozszerzenieZdjecia(img) {
     img.parentElement.innerHTML =
       '<div class="detail-image-placeholder">' +
         '<span class="ikona-big">📷</span>' +
-        '<em>Zdjęcie nie zostało jeszcze dodane.<br>Wgraj plik <code>img/' + klucz + '.jpg</code> lub <code>img/' + klucz + '.png</code> do repo.</em>' +
+        '<em>Zdjęcie nie zostało jeszcze dodane.<br>Wgraj plik <code>img/' + klucz + '.jpg</code> (zwykłe) lub <code>img/' + klucz + '-360.jpg</code> (sferyczne 360°) do repo.</em>' +
       '</div>';
   }
 }
@@ -5059,6 +5237,7 @@ async function otworzPlatek(klucz, akcja) {
     let html = '';
     const maTytul = miejsce.tytul && miejsce.tytul.trim();
     const maOpis = miejsce.opis && miejsce.opis.trim();
+    const maLinkYT = miejsce.linkYT && miejsce.linkYT.trim();
 
     if (maTytul || maOpis) {
       // Renderuj z obiektu - dwuklik tu działa, fetch nie potrzebny
@@ -5088,6 +5267,13 @@ async function otworzPlatek(klucz, akcja) {
       }
     }
 
+    // Czerwony przycisk YouTube - jeśli admin podał link w edycji miejsca.
+    // Otwiera w nowej zakładce, żeby user nie tracił mapy.
+    if (maLinkYT) {
+      const safeLinkYT = miejsce.linkYT.replace(/"/g, '&quot;');
+      html += `<p style="margin-top:14px;text-align:center"><a href="${safeLinkYT}" target="_blank" rel="noopener" style="display:inline-block;background:#ff0000;color:#fff;padding:10px 18px;border-radius:6px;text-decoration:none;font-weight:700">📺 Obejrzyj wideo</a></p>`;
+    }
+
     html += `<div class="nav-action">
       <button class="nav-btn" onclick="pokazTraseTutaj('${klucz}')">🥾 Pokaż trasę tutaj</button>
       <button class="nav-btn secondary" onclick="prowadzMnie(${lat}, ${lng}, '${safeNazwa}')">🧭 Otwórz w mapach</button>
@@ -5099,10 +5285,34 @@ async function otworzPlatek(klucz, akcja) {
   } else if (akcja === 'zdjecie') {
     const klucz = miejsce.klucz;
     const safeNazwa = (miejsce.nazwa || '').replace(/"/g,'&quot;');
-    content.innerHTML = `<div class="detail-image-wrapper">
-      <img src="img/${klucz}.jpg" alt="${safeNazwa}" data-klucz="${klucz}" data-prob="jpg"
-        onerror="probujKolejneRozszerzenieZdjecia(this)">
-    </div>`;
+    // STRATEGIA:
+    //   1. Próbujemy najpierw img/{klucz}-360.jpg -> jeśli istnieje, ładujemy
+    //      w Pannellum (sferyczny viewer 360, obracasz dookoła)
+    //   2. Jeśli -360 nie istnieje, fallback do img/{klucz}.jpg ze wszystkimi
+    //      rozszerzeniami (jpg/png/jpeg/webp). Działa jak dotąd.
+    //
+    // Sprawdzanie czy plik 360 istnieje robimy przez `fetch HEAD` - lekki request,
+    // bez ładowania całego obrazka. Jeśli 200 OK -> 360 mode. Jeśli 404 -> normalny.
+    content.innerHTML = '<p style="color:var(--ink-muted);font-style:italic;text-align:center;padding:20px">Wczytywanie zdjęcia...</p>';
+
+    sprawdzCzyJestSfera(klucz).then(maSfere => {
+      if (maSfere) {
+        // Mamy zdjęcie 360 - pokażemy w Pannellum
+        const sfereId = 'pannellum-' + klucz.replace(/[^a-z0-9]/gi, '_');
+        content.innerHTML = `
+          <div class="detail-360-info">🔄 Wirtualny spacer 360° — obracaj palcem dookoła</div>
+          <div id="${sfereId}" class="detail-sfera-wrapper"></div>
+        `;
+        // Inicjalizuj Pannellum po renderowaniu DOM
+        setTimeout(() => uruchomSfere(sfereId, klucz, miejsce.nazwa), 50);
+      } else {
+        // Zwykłe zdjęcie - jak dotąd
+        content.innerHTML = `<div class="detail-image-wrapper">
+          <img src="img/${klucz}.jpg" alt="${safeNazwa}" data-klucz="${klucz}" data-prob="jpg"
+            onerror="probujKolejneRozszerzenieZdjecia(this)">
+        </div>`;
+      }
+    });
   }
 
   // Pokaż panel i przewiń do niego (dla zdjęcia)
@@ -5269,7 +5479,8 @@ let aktualnaKropkaAudio = null; // aktualnie odtwarzana kropka
 // Pojawiają się gdy turysta jest w odległości <=400m od kropki audio,
 // ale jeszcze NIE w jej strefie. Jeden pulsator na numer (jeśli wiele segmentów,
 // pulsuje tylko ten najbliższy).
-const PULSATOR_PROMIEN_M = 400;     // próg widoczności pulsatora
+const PULSATOR_PROMIEN_M = 500;     // próg widoczności pulsatora
+const PULSATOR_BLISKO_M  = 400;     // próg "blisko" (od tego włączają się pełne 3 fale)
 let pulsatoryAudio = new Map();      // numer -> { marker, segIdx } (Leaflet markery)
 
 // =====================================================================
@@ -5325,19 +5536,35 @@ function zamknijSzufladkeWykryto() {
   szuflada.classList.remove('visible');
 }
 
-// Reakcja na klik ON/OFF w szufladce.
-//   'on'  -> włącz auto-odsłuch (start playlisty z aktualnej listy w zasięgu)
-//   'off' -> tylko zamknij, audio NIE leci automatycznie, radar nadal aktywny
+// Reakcja na klik ON/OFF w szufladce powitalnej.
+//   'on'  -> odtwarza audio kropki w której user JEST teraz (najbliższy segment)
+//   'off' -> tylko zamknij szufladkę, audio NIE leci
+// Po obu decyzjach pulsująca kropka "w-strefie" zostaje na mapie -
+// user może kliknąć w nią kiedy chce żeby odtworzyć (manualnie).
 function decyzjaSzuflady(wybor) {
-  pierwszeWykrycieZapytane = true;
   zamknijSzufladkeWykryto();
   if (wybor === 'on') {
-    // Symulujemy klik 🔁 - włącza auto-odsłuch i startuje pierwszą z listy
-    if (!autoOdsluchAktywny) {
-      toggleAutoOdsluch();
+    // Znajdź kropkę audio w której user aktualnie stoi (najbliższy segment).
+    // Używamy ostatnio śledzonej "wStrefieKropki" (numer) i znajdujemy
+    // najbliższy segment z tym numerem do user.
+    if (wStrefieKropki !== null && userPozycja) {
+      let najblizszySegment = null;
+      let minOdl = Infinity;
+      for (const k of kropkiAudio) {
+        if (k.numer !== wStrefieKropki) continue;
+        const odl = dystans(userPozycja.lat, userPozycja.lng, k.pozycja[0], k.pozycja[1]);
+        if (odl < minOdl) {
+          najblizszySegment = k;
+          minOdl = odl;
+        }
+      }
+      if (najblizszySegment) {
+        odtworzKropke(najblizszySegment);
+      }
     }
   }
-  // 'off' nic nie robi poza zamknięciem - radar dalej działa, manualne ▶ aktywne
+  // 'off' - tylko zamknięcie. Pulsująca kropka na mapie zostaje aktywna,
+  // user może w nią kliknąć kiedy chce żeby ręcznie odtworzyć.
 }
 
 // NOWA LOGIKA: śledzimy w jakiej strefie jest turysta TERAZ
@@ -5464,16 +5691,16 @@ function sprawdzKropkiAudio() {
   }
 
   // 2. Wykryj NOWE wejścia - wibracja jednorazowa + szufladka "Wykryto audio"
-  //    (tylko PIERWSZY raz w sesji nawigacji)
+  //    (WARIANT A z powitaniem: szufladka pojawia się przy KAŻDYM nowym wejściu
+  //    w strefę audio - jako powitanie/info "kliknij kropkę żeby posłuchać".
+  //    User klika ROZUMIEM, szufladka znika. Po wyjściu i ponownym wejściu
+  //    znowu się pojawi - bo to nowe wejście w nową sesję).
   for (const numer of aktualneKropki) {
     if (!wibrowaneStrefy.has(numer)) {
       if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
       wibrowaneStrefy.add(numer);
-      // Pierwsze wejście w jakąkolwiek strefę w tej sesji nawigacji?
-      // Pokaż szufladkę z propozycją włączenia auto-odsłuchu.
-      if (!pierwszeWykrycieZapytane && !autoOdsluchAktywny) {
-        pokazSzufladkeWykryto();
-      }
+      // Pokaż szufladkę powitalną zawsze przy nowym wejściu
+      pokazSzufladkeWykryto();
     }
   }
 
@@ -5557,28 +5784,38 @@ function aktualizujPulsatoryAudio() {
     }
   }
 
-  // Buduj zestaw numerów które MAJĄ mieć pulsator
-  const aktywneNumery = new Set();
+  // Buduj zestaw numerów które MAJĄ mieć pulsator (z informacją o odległości i stanie).
+  // TRZY STANY:
+  //   "w-strefie" (odl <= promien): jesteś w środku, audio dostępne. Klikalne.
+  //                                 Pojawia się ZAWSZE (niezależnie od pokazFale) bo
+  //                                 to "interaktywny przycisk audio" zamiast szuflady na dole.
+  //   "blisko"   (promien < odl <= 400m): 3 fale wody. Tylko gdy admin włączył pokazFale.
+  //   "daleko"   (400m < odl <= 500m): mała kropka miga co 1s. Tylko gdy pokazFale.
+  const aktywneZOdl = new Map();
   for (const [numer, { kropka, odl }] of najblizszePerNumer) {
-    // Warunek: w zasięgu 400m ALE nie w strefie audio (poza promieniem strefy)
-    // Dodatkowo: kropka musi mieć pokazFale === true (admin świadomie włączył).
-    // Domyślnie wyłączone - widoczne miejsca nie potrzebują fali, tylko tajemnicze.
-    if (kropka.pokazFale === true && odl <= PULSATOR_PROMIEN_M && odl > kropka.promien) {
-      aktywneNumery.add(numer);
+    let stan = null;
+    if (odl <= kropka.promien) {
+      stan = 'w-strefie';
+    } else if (kropka.pokazFale === true && odl <= PULSATOR_BLISKO_M) {
+      stan = 'blisko';
+    } else if (kropka.pokazFale === true && odl <= PULSATOR_PROMIEN_M) {
+      stan = 'daleko';
+    }
+    if (stan) {
+      aktywneZOdl.set(numer, { kropka, odl, stan });
     }
   }
 
   // Usuń pulsatory dla numerów które już NIE powinny być aktywne
   for (const [numer, { marker }] of pulsatoryAudio) {
-    if (!aktywneNumery.has(numer)) {
+    if (!aktywneZOdl.has(numer)) {
       mapa.removeLayer(marker);
       pulsatoryAudio.delete(numer);
     }
   }
 
   // Dodaj/zaktualizuj pulsatory dla aktywnych numerów
-  for (const numer of aktywneNumery) {
-    const { kropka } = najblizszePerNumer.get(numer);
+  for (const [numer, { kropka, stan }] of aktywneZOdl) {
     const istniejacy = pulsatoryAudio.get(numer);
 
     if (istniejacy) {
@@ -5588,21 +5825,65 @@ function aktualizujPulsatoryAudio() {
       if (Math.abs(aktLatLng.lat - lat) > 1e-6 || Math.abs(aktLatLng.lng - lng) > 1e-6) {
         istniejacy.marker.setLatLng([lat, lng]);
       }
+      // Aktualizuj stan (klasę CSS) jeśli się zmienił (np. wszedł w strefę)
+      if (istniejacy.stan !== stan) {
+        const el = istniejacy.marker.getElement();
+        const wrapper = el ? el.querySelector('.audio-pulsator-wrapper') : null;
+        if (wrapper) {
+          wrapper.classList.remove('daleko', 'blisko', 'w-strefie');
+          if (stan === 'daleko' || stan === 'w-strefie') wrapper.classList.add(stan);
+          // 'blisko' = brak klasy (domyślne 3 fale wody)
+        }
+        // Klikalność też trzeba przeładować (w-strefie interactive, reszta nie)
+        if (stan === 'w-strefie') {
+          // Dorzucamy click handler ad-hoc jeśli go nie ma
+          if (!istniejacy.klikDodany) {
+            const elBox = el ? el.querySelector('.audio-pulsator-wrapper') : null;
+            if (elBox) {
+              elBox.addEventListener('click', (e) => {
+                e.stopPropagation();
+                odtworzKropke(kropka);
+              });
+              istniejacy.klikDodany = true;
+            }
+          }
+        }
+        istniejacy.stan = stan;
+      }
     } else {
-      // Nowy pulsator
+      // Nowy pulsator - od razu z odpowiednią klasą
+      const klasa = (stan === 'blisko') ? '' : ' ' + stan;
+      // W stanie "w-strefie" pulsator MUSI być interactive (przyjmuje kliknięcia)
+      const interactive = (stan === 'w-strefie');
       const marker = L.marker(kropka.pozycja, {
         icon: L.divIcon({
           className: 'audio-pulsator-marker',
-          html: '<div class="audio-pulsator-wrapper"><div class="audio-pulsator-fala"></div><div class="audio-pulsator-fala f2"></div><div class="audio-pulsator-fala f3"></div></div>',
+          html: `<div class="audio-pulsator-wrapper${klasa}"><div class="audio-pulsator-fala"></div><div class="audio-pulsator-fala f2"></div><div class="audio-pulsator-fala f3"></div></div>`,
           iconSize: [60, 60],
           iconAnchor: [30, 30]
         }),
-        interactive: false,  // klik przechodzi przez pulsator do mapy
+        interactive: interactive,
         keyboard: false,
-        zIndexOffset: -100   // pod innymi markerami
+        zIndexOffset: interactive ? 100 : -100 // klikalna na wierzchu, ozdobne pod spodem
       });
       marker.addTo(mapa);
-      pulsatoryAudio.set(numer, { marker });
+      const pulsObj = { marker, stan, klikDodany: false };
+      // Podpinamy klik gdy w-strefie
+      if (stan === 'w-strefie') {
+        // setTimeout żeby DOM markera istniał (Leaflet dodaje element asynchronicznie)
+        setTimeout(() => {
+          const el = marker.getElement();
+          const wrapper = el ? el.querySelector('.audio-pulsator-wrapper') : null;
+          if (wrapper) {
+            wrapper.addEventListener('click', (e) => {
+              e.stopPropagation();
+              odtworzKropke(kropka);
+            });
+            pulsObj.klikDodany = true;
+          }
+        }, 30);
+      }
+      pulsatoryAudio.set(numer, pulsObj);
     }
   }
 }
@@ -6259,7 +6540,7 @@ function renderujZaplanowane() {
 // =====================================================================
 
 // Roboczy bufor edytora - to co user wpisał ale jeszcze nie zatwierdził
-let opisRoboczy = { tytul: '', opis: '', srodek: false, duzy: false };
+let opisRoboczy = { tytul: '', opis: '', srodek: false, duzy: false, linkYT: '' };
 
 function otworzEdytorOpisu() {
   // Ukryj zwinięty przycisk, pokaż edytor
@@ -6275,6 +6556,9 @@ function otworzEdytorOpisu() {
   document.getElementById('opisTekst').value = opisRoboczy.opis || '';
   document.getElementById('opisTytulSrodek').checked = !!opisRoboczy.srodek;
   document.getElementById('opisTytulDuzy').checked = !!opisRoboczy.duzy;
+  // Link YT (opcjonalny - może być pusty)
+  const ytEl = document.getElementById('opisLinkYT');
+  if (ytEl) ytEl.value = opisRoboczy.linkYT || '';
 
   aktualizujLicznikOpisu();
   // Schowaj podgląd na start
@@ -6291,6 +6575,9 @@ function zamknijEdytorOpisu() {
   opisRoboczy.opis = document.getElementById('opisTekst').value;
   opisRoboczy.srodek = document.getElementById('opisTytulSrodek').checked;
   opisRoboczy.duzy = document.getElementById('opisTytulDuzy').checked;
+  // Link YT - tylko jeśli pole istnieje (defensywnie)
+  const ytEl = document.getElementById('opisLinkYT');
+  if (ytEl) opisRoboczy.linkYT = ytEl.value.trim();
 
   document.getElementById('opisEdytor').classList.remove('visible');
   document.getElementById('opisZwiniety').style.display = '';
@@ -6387,6 +6674,8 @@ function zapiszOpisRoboczo() {
   opisRoboczy.opis = document.getElementById('opisTekst').value.trim();
   opisRoboczy.srodek = document.getElementById('opisTytulSrodek').checked;
   opisRoboczy.duzy = document.getElementById('opisTytulDuzy').checked;
+  const ytEl = document.getElementById('opisLinkYT');
+  if (ytEl) opisRoboczy.linkYT = ytEl.value.trim();
 
   // Jeśli edytujemy istniejące miejsce - zapisz od razu w obiekcie + localStorage
   if (edytowaneMiejsce && edytowanyMiejsceIdx >= 0) {
@@ -6394,6 +6683,9 @@ function zapiszOpisRoboczo() {
     miejsca[edytowanyMiejsceIdx].opis = opisRoboczy.opis;
     miejsca[edytowanyMiejsceIdx].tytulSrodek = opisRoboczy.srodek;
     miejsca[edytowanyMiejsceIdx].tytulDuzy = opisRoboczy.duzy;
+    // linkYT - tylko jeśli podany, inaczej usuwamy klucz (czysty obiekt)
+    if (opisRoboczy.linkYT) miejsca[edytowanyMiejsceIdx].linkYT = opisRoboczy.linkYT;
+    else delete miejsca[edytowanyMiejsceIdx].linkYT;
     if (typeof zapiszZmianyMiejsc === 'function') zapiszZmianyMiejsc();
   }
 
@@ -6418,7 +6710,9 @@ function wyczyscOpis() {
   document.getElementById('opisTekst').value = '';
   document.getElementById('opisTytulSrodek').checked = false;
   document.getElementById('opisTytulDuzy').checked = false;
-  opisRoboczy = { tytul: '', opis: '', srodek: false, duzy: false };
+  const ytEl = document.getElementById('opisLinkYT');
+  if (ytEl) ytEl.value = '';
+  opisRoboczy = { tytul: '', opis: '', srodek: false, duzy: false, linkYT: '' };
 
   // Jeśli edytujemy - wyczyść też w obiekcie
   if (edytowaneMiejsce && edytowanyMiejsceIdx >= 0) {
@@ -6426,6 +6720,7 @@ function wyczyscOpis() {
     miejsca[edytowanyMiejsceIdx].opis = '';
     miejsca[edytowanyMiejsceIdx].tytulSrodek = false;
     miejsca[edytowanyMiejsceIdx].tytulDuzy = false;
+    delete miejsca[edytowanyMiejsceIdx].linkYT;
     if (typeof zapiszZmianyMiejsc === 'function') zapiszZmianyMiejsc();
   }
 
@@ -6467,10 +6762,11 @@ function wczytajOpisDoBufora(miejsce) {
       tytul: miejsce.tytul || '',
       opis: miejsce.opis || '',
       srodek: !!miejsce.tytulSrodek,
-      duzy: !!miejsce.tytulDuzy
+      duzy: !!miejsce.tytulDuzy,
+      linkYT: miejsce.linkYT || ''
     };
   } else {
-    opisRoboczy = { tytul: '', opis: '', srodek: false, duzy: false };
+    opisRoboczy = { tytul: '', opis: '', srodek: false, duzy: false, linkYT: '' };
   }
   // Upewnij się że edytor jest zwinięty po otwarciu nowego miejsca
   const ed = document.getElementById('opisEdytor');
@@ -6799,6 +7095,7 @@ async function pobierzNowyIndex() {
       if (m.opis && m.opis.trim()) linia += `, opis: '${esc(m.opis)}'`;
       if (m.tytulSrodek) linia += `, tytulSrodek: true`;
       if (m.tytulDuzy) linia += `, tytulDuzy: true`;
+      if (m.linkYT && m.linkYT.trim()) linia += `, linkYT: '${esc(m.linkYT)}'`;
       linia += ` }`;
       return linia;
     });
@@ -7274,6 +7571,8 @@ function synchronizujBuforZPolami() {
     opisRoboczy.opis = document.getElementById('opisTekst').value.trim();
     opisRoboczy.srodek = document.getElementById('opisTytulSrodek').checked;
     opisRoboczy.duzy = document.getElementById('opisTytulDuzy').checked;
+    const ytEl = document.getElementById('opisLinkYT');
+    if (ytEl) opisRoboczy.linkYT = ytEl.value.trim();
   }
 }
 
@@ -7312,6 +7611,7 @@ function planujMiejsce() {
   if (opisRoboczy.opis) nowe.opis = opisRoboczy.opis;
   if (opisRoboczy.srodek) nowe.tytulSrodek = true;
   if (opisRoboczy.duzy) nowe.tytulDuzy = true;
+  if (opisRoboczy.linkYT) nowe.linkYT = opisRoboczy.linkYT;
   miejsca.push(nowe);
 
   zapiszZmianyMiejsc();
@@ -9578,23 +9878,38 @@ function zamknijPickerEmoji() {
 }
 
 // Wyszukiwanie - filtruje po polskich nazwach z EMOJI_NAMES
-document.getElementById('emojiSearch').oninput = function() {
-  const q = this.value.trim().toLowerCase();
-  if (!q) {
-    const list = _pickerCategory === 'Wszystkie' ? ALL_EMOJIS : EMOJI_LIBRARY[_pickerCategory];
-    _pickerRenderGrid(list);
-    return;
+// UWAGA: element emojiSearch jest w HTML PO tym skrypcie, więc używamy
+// DOMContentLoaded / sprawdzenia czy element istnieje. Bez tego cały
+// dalszy kod (w tym inicjalizujRysunki()!) NIE WYKONUJE SIĘ - skrypt
+// wybucha tutaj z błędem "Cannot set properties of null".
+(function bezpiecznieEmojiSearch() {
+  const ustaw = () => {
+    const el = document.getElementById('emojiSearch');
+    if (!el) return;
+    el.oninput = function() {
+      const q = this.value.trim().toLowerCase();
+      if (!q) {
+        const list = _pickerCategory === 'Wszystkie' ? ALL_EMOJIS : EMOJI_LIBRARY[_pickerCategory];
+        _pickerRenderGrid(list);
+        return;
+      }
+      const matches = ALL_EMOJIS.filter(em => {
+        const name = (EMOJI_NAMES[em] || '').toLowerCase();
+        return name.includes(q);
+      });
+      _pickerRenderGrid(matches);
+    };
+  };
+  ustaw();
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', ustaw);
   }
-  const matches = ALL_EMOJIS.filter(em => {
-    const name = (EMOJI_NAMES[em] || '').toLowerCase();
-    return name.includes(q);
-  });
-  _pickerRenderGrid(matches);
-};
+})();
 
 // Escape zamyka picker
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape' && document.getElementById('emojiModalBackdrop').classList.contains('show')) {
+  const el = document.getElementById('emojiModalBackdrop');
+  if (e.key === 'Escape' && el && el.classList.contains('show')) {
     zamknijPickerEmoji();
   }
 });
