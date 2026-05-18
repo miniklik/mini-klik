@@ -10,7 +10,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 
-<title>Nazwa strony · mini-klik.pl</title>
+<title>Siedliszcze · mini-klik.pl</title>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css"/>
@@ -4423,7 +4423,7 @@ html.tryb-noc .sw-off {
 <div class="wrapper">
 
   <header>
-    <h1>Nazwa strony</h1>
+    <h1>Siedliszcze</h1>
   </header>
 
   <!-- KONTROLKI -->
@@ -4608,7 +4608,7 @@ html.tryb-noc .sw-off {
     </div>
     <div class="accordion-content">
       <div class="accordion-inner" id="opisStronyTresc">
-        <p style="color:var(--ink-muted);font-style:italic;text-align:center;padding:20px 0">opis strony</p>
+        <p>opis strony siedliszcze , połozone jest tu i tam<br>https://www.youtube.com/watch?v=LJ7qXHjxj_0&amp;list=RDGMEMQ1dJ7wXfLlqCjwV0xfSNbA&amp;index=2</p>
       </div>
     </div>
 
@@ -5598,15 +5598,18 @@ zastosujKategorie();
 // Aby dodać nową kropkę: skopiuj jeden obiekt, zmień numer, pozycję i promień.
 // Plik MP3 wgraj do folderu audio/ jako {numer}.mp3 (np. audio/1.mp3)
 const kropkiAudio = [
-  { numer: 1, pozycja: [51.19595, 23.17336], promien: 980, opis: 'zakręt', trybKropki: 'migajacy' },
-  { numer: 2, pozycja: [51.18927, 23.20014], promien: 50, opis: '', trybKropki: 'migajacy' },
-  { numer: 3, pozycja: [51.19078, 23.13577], promien: 50, opis: '' },
-  { numer: 4, pozycja: [51.21845, 23.12632], promien: 50, opis: '' },
-  { numer: 5, pozycja: [51.17703, 23.17621], promien: 50, opis: '' },
-  { numer: 6, pozycja: [51.17186, 23.13020], promien: 50, opis: '' },
-  { numer: 7, pozycja: [51.17423, 23.25586], promien: 50, opis: '' },
-  { numer: 8, pozycja: [51.20955, 23.22565], promien: 660, opis: '', trybKropki: 'migajacy' },
-  { numer: 9, pozycja: [51.22914, 23.08145], promien: 5000, opis: '', trybKropki: 'migajacy' }
+  { numer: 1, pozycja: [51.19905, 23.16189], promien: 1880, opis: 'zakręt', trybKropki: 'migajacy' },
+  { numer: 2, pozycja: [51.19327, 23.19619], promien: 50, opis: '', trybKropki: 'migajacy' },
+  { numer: 3, pozycja: [51.17553, 23.17782], promien: 50, opis: '' },
+  { numer: 4, pozycja: [51.19327, 23.11534], promien: 50, opis: '' },
+  { numer: 5, pozycja: [51.30489, 22.88905], promien: 50, opis: '' },
+  { numer: 6, pozycja: [51.22842, 23.08351], promien: 50, opis: '' },
+  { numer: 7, pozycja: [51.21897, 23.10651], promien: 50, opis: '' },
+  { numer: 8, pozycja: [51.20951, 23.12814], promien: 50, opis: '' },
+  { numer: 9, pozycja: [51.22369, 23.09347], promien: 50, opis: '', trybKropki: 'migajacy' },
+  { numer: 10, pozycja: [51.21338, 23.11750], promien: 50, opis: '', trybKropki: 'migajacy' },
+  { numer: 11, pozycja: [51.20435, 23.14016], promien: 50, opis: '', trybKropki: 'migajacy' },
+  { numer: 12, pozycja: [51.20220, 23.14909], promien: 50, opis: '' }
 ];
 
 // Stan przewodnika audio
@@ -5615,6 +5618,11 @@ let audioWyciszony = false; // toggle 'głośnik' w trybie wędrowca - audio NIE
 let audioMarkery = []; // markery kropek audio (Leaflet)
 let aktualneAudio = null; // aktualnie odtwarzany Audio()
 let aktualnaKropkaAudio = null; // aktualnie odtwarzana kropka
+
+// Filtr odległości (menu hamburgera) - deklaracje muszą być TUTAJ (przed pokazListeAudio)
+// żeby uniknąć Temporal Dead Zone gdy admin wywołuje akcję która odświeża listę.
+let aktualnyFiltrOdleglosci = 0;
+let widoczneNumeryKropek = new Set();
 
 // ===== PULSATORY (publiczny tryb GPS) =====
 // Pojawiają się gdy turysta jest w odległości <=400m od kropki audio,
@@ -5815,14 +5823,27 @@ function pokazListeAudio() {
   // Sortuj po numerze
   wszystkie.sort((a, b) => a.numer - b.numer);
 
-  if (wszystkie.length === 0) {
-    lista.innerHTML = '<div style="text-align:center;padding:30px 10px;color:#a08868;font-style:italic">Brak punktów audio</div>';
+  // Filtr odległości - jeśli aktywny, pokaż tylko te które są widoczne na mapie
+  // Zmienna widoczneNumeryKropek jest pusta gdy filtr wyłączony (=brak filtra).
+  let dosygnalizowania = wszystkie;
+  const filtrAktywny = (typeof aktualnyFiltrOdleglosci !== 'undefined' && aktualnyFiltrOdleglosci > 0)
+                    && (typeof userPozycja !== 'undefined' && userPozycja);
+  if (filtrAktywny && typeof widoczneNumeryKropek !== 'undefined') {
+    dosygnalizowania = wszystkie.filter(k => widoczneNumeryKropek.has(k.numer));
+  }
+
+  if (dosygnalizowania.length === 0) {
+    const komunikat = filtrAktywny
+      ? 'Brak punktów w zasięgu ' + aktualnyFiltrOdleglosci + ' m'
+      : 'Brak punktów audio';
+    lista.innerHTML = '<div style="text-align:center;padding:30px 10px;color:#a08868;font-style:italic">' + komunikat + '</div>';
     return;
   }
 
   // Buduję HTML jako string. Współrzędne w data-* atrybutach.
-  let html = '<div style="font-family:\'Cormorant Garamond\',serif;font-size:18px;color:#3a2818;border-bottom:1px solid #a04510;padding-bottom:8px;margin-bottom:12px;">🎧 Punkty audio (' + wszystkie.length + ')</div>';
-  wszystkie.forEach(k => {
+  const tytulFiltra = filtrAktywny ? ' (w ' + aktualnyFiltrOdleglosci + ' m)' : '';
+  let html = '<div style="font-family:\'Cormorant Garamond\',serif;font-size:18px;color:#3a2818;border-bottom:1px solid #a04510;padding-bottom:8px;margin-bottom:12px;">🎧 Punkty audio (' + dosygnalizowania.length + ')' + tytulFiltra + '</div>';
+  dosygnalizowania.forEach(k => {
     const opis = k.opis ? String(k.opis).replace(/</g, '&lt;').replace(/>/g, '&gt;') : 'Punkt ' + k.numer;
     html += '<div class="kropka-karta-audio" data-lat="' + k.lat + '" data-lng="' + k.lng + '" data-numer="' + k.numer + '" ';
     html += 'style="background:#fff8eb;border:1px solid rgba(160,69,16,0.2);border-left:3px solid #7c3aed;padding:10px 12px;margin-bottom:8px;border-radius:4px;font-family:\'EB Garamond\',serif;font-size:14px;color:#3a2818;cursor:pointer;transition:all 0.2s ease;">';
@@ -9549,14 +9570,77 @@ function zamknijMobilneMenu() {
 // =====================================================================
 // === FILTR ODLEGŁOŚCI (menu hamburgera) ==============================
 // =====================================================================
-// Zmienna trzyma aktualnie wybrany promień:
-//   0    = pokaż wszystko (brak filtra)
-//   1000 = tylko punkty w 1km od pozycji GPS turysty
-//   500  = tylko 500m
-//   100  = tylko 100m
-// W kroku A (teraz): tylko aktualizacja UI - kropki nie są jeszcze filtrowane.
-// Logika filtrowania pójdzie w następnym kroku.
-let aktualnyFiltrOdleglosci = 0;
+// Zmienne aktualnyFiltrOdleglosci i widoczneNumeryKropek są zadeklarowane
+// na początku skryptu (przed pokazListeAudio), żeby uniknąć Temporal Dead Zone.
+
+// Czy filtr jest aktywny (czyli != 0)?
+function filtrOdleglosciAktywny() {
+  return aktualnyFiltrOdleglosci > 0;
+}
+
+// Główna funkcja filtrowania - sprawdza pozycję GPS turysty,
+// liczy odległości do każdej kropki, ukrywa/pokazuje markery na mapie.
+// Wywoływana:
+//   - po kliknięciu przycisku filtru (ustawFiltrOdleglosci)
+//   - po każdej zmianie pozycji GPS (krok C - jeszcze nie dodane)
+function przeliczFiltrOdleglosci() {
+  // Filtr wyłączony - pokaż wszystkie kropki
+  if (!filtrOdleglosciAktywny()) {
+    widoczneNumeryKropek = new Set(); // pusty = brak filtra
+    audioMarkery.forEach(m => {
+      if (!mapa.hasLayer(m)) m.addTo(mapa);
+    });
+    if (typeof pokazListeAudio === 'function') pokazListeAudio();
+    return;
+  }
+
+  // Filtr włączony, ale brak pozycji GPS - nic nie filtruj (ale komunikat)
+  if (typeof userPozycja === 'undefined' || !userPozycja) {
+    // Nie ma od czego liczyć - pokaż wszystkie kropki (jak filtr=0)
+    widoczneNumeryKropek = new Set();
+    audioMarkery.forEach(m => {
+      if (!mapa.hasLayer(m)) m.addTo(mapa);
+    });
+    if (typeof pokazListeAudio === 'function') pokazListeAudio();
+    // Krótki komunikat dla turysty
+    if (typeof pokazToast === 'function') {
+      pokazToast('Włącz nawigację (🧭) aby filtr odległości działał');
+    } else {
+      console.warn('Filtr odległości aktywny ale brak pozycji GPS');
+    }
+    return;
+  }
+
+  // Mamy pozycję GPS i filtr aktywny - przelicz
+  const nowoWidoczne = new Set();
+  audioMarkery.forEach(m => {
+    const k = m.kropka;
+    if (!k) return;
+    const odl = dystans(userPozycja.lat, userPozycja.lng, k.pozycja[0], k.pozycja[1]);
+    if (odl <= aktualnyFiltrOdleglosci) {
+      nowoWidoczne.add(k.numer);
+      if (!mapa.hasLayer(m)) m.addTo(mapa);
+    } else {
+      if (mapa.hasLayer(m)) mapa.removeLayer(m);
+    }
+  });
+  widoczneNumeryKropek = nowoWidoczne;
+
+  // Audio aktualnie grające - sprawdź czy nadal w zasięgu, jeśli nie - zatrzymaj
+  if (aktualneAudio && aktualnaKropkaAudio) {
+    if (!nowoWidoczne.has(aktualnaKropkaAudio.numer)) {
+      aktualneAudio.pause();
+      aktualneAudio = null;
+      // Schowaj panel odtwarzacza
+      const player = document.getElementById('audioPlayer');
+      if (player) player.classList.remove('visible');
+      aktualnaKropkaAudio = null;
+    }
+  }
+
+  // Odśwież listę w prawym sidebarze
+  if (typeof pokazListeAudio === 'function') pokazListeAudio();
+}
 
 function ustawFiltrOdleglosci(metry) {
   aktualnyFiltrOdleglosci = metry;
@@ -9567,7 +9651,9 @@ function ustawFiltrOdleglosci(metry) {
     btn.classList.toggle('aktywny', v === metry);
   });
 
-  // TODO (krok B): wywołaj funkcję filtrowania kropek
+  // Przelicz filtr - ukryj/pokaż kropki, odśwież listę
+  przeliczFiltrOdleglosci();
+
   // TODO (krok C): jeśli metry > 0 i GPS wyłączony - włącz GPS
 
   // Zamknij menu po kliknięciu - turysta widzi efekt na mapie
