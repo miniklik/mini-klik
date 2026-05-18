@@ -5805,14 +5805,27 @@ function pokazListeAudio() {
   // Sortuj po numerze
   wszystkie.sort((a, b) => a.numer - b.numer);
 
-  if (wszystkie.length === 0) {
-    lista.innerHTML = '<div style="text-align:center;padding:30px 10px;color:#a08868;font-style:italic">Brak punktów audio</div>';
+  // Filtr odległości - jeśli aktywny, pokaż tylko te które są widoczne na mapie
+  // Zmienna widoczneNumeryKropek jest pusta gdy filtr wyłączony (=brak filtra).
+  let dosygnalizowania = wszystkie;
+  const filtrAktywny = (typeof aktualnyFiltrOdleglosci !== 'undefined' && aktualnyFiltrOdleglosci > 0)
+                    && (typeof userPozycja !== 'undefined' && userPozycja);
+  if (filtrAktywny && typeof widoczneNumeryKropek !== 'undefined') {
+    dosygnalizowania = wszystkie.filter(k => widoczneNumeryKropek.has(k.numer));
+  }
+
+  if (dosygnalizowania.length === 0) {
+    const komunikat = filtrAktywny
+      ? 'Brak punktów w zasięgu ' + aktualnyFiltrOdleglosci + ' m'
+      : 'Brak punktów audio';
+    lista.innerHTML = '<div style="text-align:center;padding:30px 10px;color:#a08868;font-style:italic">' + komunikat + '</div>';
     return;
   }
 
   // Buduję HTML jako string. Współrzędne w data-* atrybutach.
-  let html = '<div style="font-family:\'Cormorant Garamond\',serif;font-size:18px;color:#3a2818;border-bottom:1px solid #a04510;padding-bottom:8px;margin-bottom:12px;">🎧 Punkty audio (' + wszystkie.length + ')</div>';
-  wszystkie.forEach(k => {
+  const tytulFiltra = filtrAktywny ? ' (w ' + aktualnyFiltrOdleglosci + ' m)' : '';
+  let html = '<div style="font-family:\'Cormorant Garamond\',serif;font-size:18px;color:#3a2818;border-bottom:1px solid #a04510;padding-bottom:8px;margin-bottom:12px;">🎧 Punkty audio (' + dosygnalizowania.length + ')' + tytulFiltra + '</div>';
+  dosygnalizowania.forEach(k => {
     const opis = k.opis ? String(k.opis).replace(/</g, '&lt;').replace(/>/g, '&gt;') : 'Punkt ' + k.numer;
     html += '<div class="kropka-karta-audio" data-lat="' + k.lat + '" data-lng="' + k.lng + '" data-numer="' + k.numer + '" ';
     html += 'style="background:#fff8eb;border:1px solid rgba(160,69,16,0.2);border-left:3px solid #7c3aed;padding:10px 12px;margin-bottom:8px;border-radius:4px;font-family:\'EB Garamond\',serif;font-size:14px;color:#3a2818;cursor:pointer;transition:all 0.2s ease;">';
@@ -9544,9 +9557,81 @@ function zamknijMobilneMenu() {
 //   1000 = tylko punkty w 1km od pozycji GPS turysty
 //   500  = tylko 500m
 //   100  = tylko 100m
-// W kroku A (teraz): tylko aktualizacja UI - kropki nie są jeszcze filtrowane.
-// Logika filtrowania pójdzie w następnym kroku.
 let aktualnyFiltrOdleglosci = 0;
+
+// Set numerów kropek które są aktualnie WIDOCZNE po filtrze.
+// Pusty Set = filtr wyłączony (wszystko widoczne).
+// pokazListeAudio() używa tego do filtrowania listy w prawym panelu.
+let widoczneNumeryKropek = new Set();
+
+// Czy filtr jest aktywny (czyli != 0)?
+function filtrOdleglosciAktywny() {
+  return aktualnyFiltrOdleglosci > 0;
+}
+
+// Główna funkcja filtrowania - sprawdza pozycję GPS turysty,
+// liczy odległości do każdej kropki, ukrywa/pokazuje markery na mapie.
+// Wywoływana:
+//   - po kliknięciu przycisku filtru (ustawFiltrOdleglosci)
+//   - po każdej zmianie pozycji GPS (krok C - jeszcze nie dodane)
+function przeliczFiltrOdleglosci() {
+  // Filtr wyłączony - pokaż wszystkie kropki
+  if (!filtrOdleglosciAktywny()) {
+    widoczneNumeryKropek = new Set(); // pusty = brak filtra
+    audioMarkery.forEach(m => {
+      if (!mapa.hasLayer(m)) m.addTo(mapa);
+    });
+    if (typeof pokazListeAudio === 'function') pokazListeAudio();
+    return;
+  }
+
+  // Filtr włączony, ale brak pozycji GPS - nic nie filtruj (ale komunikat)
+  if (typeof userPozycja === 'undefined' || !userPozycja) {
+    // Nie ma od czego liczyć - pokaż wszystkie kropki (jak filtr=0)
+    widoczneNumeryKropek = new Set();
+    audioMarkery.forEach(m => {
+      if (!mapa.hasLayer(m)) m.addTo(mapa);
+    });
+    if (typeof pokazListeAudio === 'function') pokazListeAudio();
+    // Krótki komunikat dla turysty
+    if (typeof pokazToast === 'function') {
+      pokazToast('Włącz nawigację (🧭) aby filtr odległości działał');
+    } else {
+      console.warn('Filtr odległości aktywny ale brak pozycji GPS');
+    }
+    return;
+  }
+
+  // Mamy pozycję GPS i filtr aktywny - przelicz
+  const nowoWidoczne = new Set();
+  audioMarkery.forEach(m => {
+    const k = m.kropka;
+    if (!k) return;
+    const odl = dystans(userPozycja.lat, userPozycja.lng, k.pozycja[0], k.pozycja[1]);
+    if (odl <= aktualnyFiltrOdleglosci) {
+      nowoWidoczne.add(k.numer);
+      if (!mapa.hasLayer(m)) m.addTo(mapa);
+    } else {
+      if (mapa.hasLayer(m)) mapa.removeLayer(m);
+    }
+  });
+  widoczneNumeryKropek = nowoWidoczne;
+
+  // Audio aktualnie grające - sprawdź czy nadal w zasięgu, jeśli nie - zatrzymaj
+  if (aktualneAudio && aktualnaKropkaAudio) {
+    if (!nowoWidoczne.has(aktualnaKropkaAudio.numer)) {
+      aktualneAudio.pause();
+      aktualneAudio = null;
+      // Schowaj panel odtwarzacza
+      const player = document.getElementById('audioPlayer');
+      if (player) player.classList.remove('visible');
+      aktualnaKropkaAudio = null;
+    }
+  }
+
+  // Odśwież listę w prawym sidebarze
+  if (typeof pokazListeAudio === 'function') pokazListeAudio();
+}
 
 function ustawFiltrOdleglosci(metry) {
   aktualnyFiltrOdleglosci = metry;
@@ -9557,7 +9642,9 @@ function ustawFiltrOdleglosci(metry) {
     btn.classList.toggle('aktywny', v === metry);
   });
 
-  // TODO (krok B): wywołaj funkcję filtrowania kropek
+  // Przelicz filtr - ukryj/pokaż kropki, odśwież listę
+  przeliczFiltrOdleglosci();
+
   // TODO (krok C): jeśli metry > 0 i GPS wyłączony - włącz GPS
 
   // Zamknij menu po kliknięciu - turysta widzi efekt na mapie
