@@ -4545,10 +4545,10 @@ html.tryb-noc .sw-off {
      -->
 <div id="szufladaWykryto" role="dialog" aria-label="Wykryto audio">
   <div class="sw-tytul">🎧 Wykryto audio</div>
-  <div class="sw-podtytul">Posłuchać opowieści tego miejsca teraz?</div>
+  <div class="sw-podtytul">Zaczynamy opowieść?</div>
   <div class="sw-przyciski">
-    <button type="button" class="sw-btn sw-on" onclick="decyzjaSzuflady('on')">ON</button>
-    <button type="button" class="sw-btn sw-off" onclick="decyzjaSzuflady('off')">OFF</button>
+    <button type="button" class="sw-btn sw-on" onclick="decyzjaSzuflady('on')">TAK</button>
+    <button type="button" class="sw-btn sw-off" onclick="decyzjaSzuflady('off')">NIE</button>
   </div>
 </div>
 
@@ -5867,17 +5867,23 @@ function zamknijSzufladkeWykryto() {
   szuflada.classList.remove('visible');
 }
 
-// Reakcja na klik ON/OFF w szufladce powitalnej.
-//   'on'  -> odtwarza audio kropki w której user JEST teraz (najbliższy segment)
-//   'off' -> tylko zamknij szufladkę, audio NIE leci
-// Po obu decyzjach pulsująca kropka "w-strefie" zostaje na mapie -
-// user może kliknąć w nią kiedy chce żeby odtworzyć (manualnie).
+// Reakcja na klik TAK/NIE w szufladce powitalnej.
+//   'on'  -> włącza auto-odsłuch dla całej sesji (każda kolejna kropka zagra sama)
+//            + odtwarza audio kropki w której user JEST teraz (najbliższy segment)
+//   'off' -> tylko zamknij szufladkę, NIE włączaj auto, NIE resetuj pierwszeWykrycieZapytane
+//            (przy NASTĘPNYM wejściu w nową strefę znowu pojawi się szufladka).
 function decyzjaSzuflady(wybor) {
   zamknijSzufladkeWykryto();
   if (wybor === 'on') {
-    // Znajdź kropkę audio w której user aktualnie stoi (najbliższy segment).
-    // Używamy ostatnio śledzonej "wStrefieKropki" (numer) i znajdujemy
-    // najbliższy segment z tym numerem do user.
+    // KLUCZOWE: włącz tryb auto-odsłuchu na całą sesję.
+    // Od teraz każde wejście w strefę odpali audio AUTOMATYCZNIE,
+    // bez ponownego pytania. Reset tylko przy wyłączeniu nawigacji.
+    autoOdsluchAktywny = true;
+    if (typeof aktualizujPrzyciskAuto === 'function') {
+      try { aktualizujPrzyciskAuto(); } catch (e) {}
+    }
+
+    // Odtwórz audio kropki w której user aktualnie stoi (najbliższy segment).
     if (wStrefieKropki !== null && userPozycja) {
       let najblizszySegment = null;
       let minOdl = Infinity;
@@ -5890,12 +5896,16 @@ function decyzjaSzuflady(wybor) {
         }
       }
       if (najblizszySegment) {
+        // Dodaj do autoSesjaOdsluchane żeby nie odtwarzało drugi raz przez auto-logikę
+        autoSesjaOdsluchane.add(najblizszySegment.numer);
         odtworzKropke(najblizszySegment);
       }
     }
+  } else {
+    // NIE: cofamy flagę pierwszeWykrycieZapytane - kolejne wejście znowu zapyta.
+    // (Bez tego flaga zostałaby true i już nigdy by nie zapytało)
+    pierwszeWykrycieZapytane = false;
   }
-  // 'off' - tylko zamknięcie. Pulsująca kropka na mapie zostaje aktywna,
-  // user może w nią kliknąć kiedy chce żeby ręcznie odtworzyć.
 }
 
 // NOWA LOGIKA: śledzimy w jakiej strefie jest turysta TERAZ
@@ -6142,17 +6152,22 @@ function sprawdzKropkiAudio() {
     }
   }
 
-  // 2. Wykryj NOWE wejścia - wibracja jednorazowa + szufladka "Wykryto audio"
-  //    (WARIANT A z powitaniem: szufladka pojawia się przy KAŻDYM nowym wejściu
-  //    w strefę audio - jako powitanie/info "kliknij kropkę żeby posłuchać".
-  //    User klika ROZUMIEM, szufladka znika. Po wyjściu i ponownym wejściu
-  //    znowu się pojawi - bo to nowe wejście w nową sesję).
+  // 2. Wykryj NOWE wejścia w strefę:
+  //    - Wibracja jednorazowa (zawsze)
+  //    - Jeśli auto-odsłuch JEST aktywny → kropka zagra automatycznie (przez aktualizujPulsatoryAudio + autoOdsluch)
+  //    - Jeśli auto-odsłuch NIE jest aktywny → pokaż szufladkę "Wykryto audio - zaczynamy?"
+  //      i ustaw flagę pierwszeWykrycieZapytane=true.
+  //      Klik TAK włącza autoOdsluchAktywny=true (każda kolejna kropka zagra sama).
+  //      Klik NIE cofa flagę pierwszeWykrycieZapytane=false (następne wejście znowu zapyta).
   for (const numer of aktualneKropki) {
     if (!wibrowaneStrefy.has(numer)) {
       if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
       wibrowaneStrefy.add(numer);
-      // Pokaż szufladkę powitalną zawsze przy nowym wejściu
-      pokazSzufladkeWykryto();
+      // Pokaż szufladkę TYLKO jeśli auto-odsłuch wyłączony I jeszcze nie pytaliśmy
+      if (!autoOdsluchAktywny && !pierwszeWykrycieZapytane) {
+        pierwszeWykrycieZapytane = true;
+        pokazSzufladkeWykryto();
+      }
     }
   }
 
