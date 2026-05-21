@@ -932,7 +932,7 @@ html.tryb-noc .sidebar-poeta-opis a:hover{color:#c4b5fd}
 /* === PRZEŁĄCZNIK TŁA AUDIO === dół prawej strony mapy */
 .tlo-audio-btn{
   position:absolute;
-  bottom:14px;right:14px;
+  bottom:14px;left:14px;
   z-index:500;
   display:flex;
   align-items:center;
@@ -972,7 +972,7 @@ html.tryb-noc .tlo-audio-btn.off{
 }
 @media (max-width:600px){
   .tlo-audio-btn{
-    bottom:14px;right:14px;
+    bottom:14px;left:14px;
     font-size:11px;
     padding:7px 10px;
   }
@@ -9276,19 +9276,20 @@ function aktualizujKodKropki() {
   const codeOutputEl = document.getElementById('adminCodeOutput');
   if (codeOutputEl) codeOutputEl.textContent = kod;
 
-  // Podpowiedź: czy ten numer jest już używany?
-  // Jeśli tak - to oznacza że tworzysz KOLEJNY SEGMENT istniejącej strefy
-  // (np. duży park otoczony 3 fioletowymi kółkami #5, wszystkie odpalają audio/5.mp3).
+  // Podpowiedź na żywo: czy ten numer jest już zajęty?
+  // Jeden numer = jedno miejsce - jeśli zajęty, admin musi wybrać inny.
+  // Numery wierszy i tła są niezależne (wiersz #1 i tło #1 to inne pliki).
   const hint = document.getElementById('adminNumerHint');
   if (hint) {
-    let istniejaceSegmenty = kropkiAudio.filter(k => k.numer === numer);
-    // Jeśli edytujemy istniejącą kropkę, nie liczymy jej samej
-    if (edytowanaKropka && edytowanyTyp === 'audio') {
-      istniejaceSegmenty = istniejaceSegmenty.filter(k => k !== edytowanaKropka);
-    }
-    if (istniejaceSegmenty.length > 0) {
+    const typBiez = (typeof aktualnyTypKropki !== 'undefined') ? aktualnyTypKropki : 'wiersz';
+    const pomijana = (edytowanaKropka) ? edytowanaKropka : null;
+    if (!numerWolny(numer, typBiez, pomijana)) {
+      const co = (typBiez === 'tlo') ? 'Tło audio' : 'Wiersz';
       hint.style.display = 'block';
-      hint.innerHTML = `🔗 <b>Strefa #${numer} już istnieje</b> (${istniejaceSegmenty.length} ${istniejaceSegmenty.length === 1 ? 'segment' : 'segmenty'}).<br>Ten segment dołączy do strefy — wszystkie używają tego samego pliku <code>audio/${numer}.mp3</code> i pojawiają się jako jeden wpis w radarze.`;
+      hint.style.color = '#b91c1c';
+      hint.style.background = 'rgba(220,38,38,0.08)';
+      hint.style.borderLeftColor = '#b91c1c';
+      hint.innerHTML = `⚠️ <b>Numer ${numer} jest już zajęty</b> (${co} #${numer}).<br>Każdy numer może być użyty tylko raz — wybierz inny.`;
     } else {
       hint.style.display = 'none';
     }
@@ -9386,12 +9387,53 @@ function odswiezPrzyciskFali() {
   }
 }
 
+// Sprawdź czy numer jest już zajęty przez INNĄ kropkę tego samego typu.
+// Zwraca true jeśli numer wolny (można użyć), false jeśli zajęty.
+// pomijanaKropka - przy edycji: kropka którą właśnie edytujemy (nie liczy się jako kolizja).
+// typK - 'wiersz' lub 'tlo' - numery wierszy i tła są niezależne
+//        (wiersz #1 i tło #1 mogą współistnieć - to inne pliki: 1.mp3 vs tlo1.mp3).
+function numerWolny(numer, typK, pomijanaKropka) {
+  // Sprawdź w kropkach już istniejących (kropkiAudio)
+  for (const k of kropkiAudio) {
+    if (k === pomijanaKropka) continue;
+    const kTyp = (k.typKropki === 'tlo') ? 'tlo' : 'wiersz';
+    if (kTyp === typK && k.numer === numer) return false;
+  }
+  // Sprawdź w zaplanowanych (jeszcze nie zapisanych do pliku)
+  for (const k of zaplanowaneKropki) {
+    if (k === pomijanaKropka) continue;
+    if (k.__ref && k.__ref === pomijanaKropka) continue;
+    const kTyp = (k.typKropki === 'tlo') ? 'tlo' : 'wiersz';
+    if (kTyp === typK && k.numer === numer) return false;
+  }
+  return true;
+}
+
+// Pokaż komunikat o zajętym numerze w formularzu (czerwona ramka pod numerem)
+function pokazBladNumeru(numer, typK) {
+  const hint = document.getElementById('adminNumerHint');
+  if (!hint) return;
+  const co = (typK === 'tlo') ? 'Tło audio' : 'Wiersz';
+  hint.style.display = 'block';
+  hint.style.color = '#b91c1c';
+  hint.style.background = 'rgba(220,38,38,0.08)';
+  hint.style.borderLeftColor = '#b91c1c';
+  hint.textContent = `⚠️ Numer ${numer} jest już zajęty (${co} #${numer}). Każdy numer może być użyty tylko raz — wybierz inny numer.`;
+}
+
 function planujKolejna() {
   // Zapisz aktualną do listy zaplanowanych
   if (!aktualnyKlik) return;
   const numer = parseInt(document.getElementById('adminNumer').value) || 1;
   const promien = parseInt(document.getElementById('adminPromien').value) || 50;
   const opis = document.getElementById('adminOpis').value;
+
+  // BLOKADA DUPLIKATU - jeden numer = jedno miejsce.
+  // Sprawdzamy w obrębie typu (wiersz osobno, tło osobno).
+  if (!numerWolny(numer, aktualnyTypKropki, null)) {
+    pokazBladNumeru(numer, aktualnyTypKropki);
+    return; // nie zapisuj
+  }
 
   zaplanowaneKropki.push({
     numer: numer,
@@ -9919,6 +9961,13 @@ function zapiszEdycje() {
   const numer = parseInt(document.getElementById('adminNumer').value) || 1;
   const promien = parseInt(document.getElementById('adminPromien').value) || 50;
   const opis = document.getElementById('adminOpis').value;
+
+  // BLOKADA DUPLIKATU - jeden numer = jedno miejsce.
+  // Przy edycji pomijamy samą edytowaną kropkę (jej obecny numer się "nie liczy").
+  if (!numerWolny(numer, aktualnyTypKropki, edytowanaKropka)) {
+    pokazBladNumeru(numer, aktualnyTypKropki);
+    return; // nie zapisuj
+  }
 
   if (edytowanyTyp === 'audio') {
     // Edytujemy kropkę z kodu - zapisujemy zmiany do listy zaplanowanych
