@@ -5588,6 +5588,7 @@ html.tryb-noc .sw-off {
         </div>
       </div>
       <!-- PANEL ADMIN: liczniki + akcje -->
+      <!-- ADMIN-LIST:START --><!-- (marker dla generowania wersji publicznej - nie usuwać) -->
       <div class="admin-list" id="adminList">
         <div class="admin-list-title">🛠 Tryb admin</div>
         <div>🎧 Kropek audio: <span class="admin-list-count" id="adminListCountKod">0</span></div>
@@ -5627,6 +5628,7 @@ html.tryb-noc .sw-off {
 
         <button onclick="wyczyscWszystkoEdytor()" style="background:#dc2626;color:#fff;border-color:#dc2626;font-size:11px;margin-top:10px;font-weight:700" title="Wyczyść wszystkie dane edytora - kropki audio, nazwę, opis">🗑️ Wyczyść wszystko</button>
       </div>
+      <!-- ADMIN-LIST:END -->
     </div>
     <aside class="sidebar">
       <!-- SEKCJA POETY - tytuł + opis (te same dane co splash i menu hamburgera) -->
@@ -5686,6 +5688,7 @@ html.tryb-noc .sw-off {
   </div>
 
   <!-- POMOCNIK DODAWANIA KROPKI (tryb admin) -->
+  <!-- ADMIN-HELPER:START --><!-- (marker dla generowania wersji publicznej - nie usuwać) -->
   <div class="admin-helper" id="adminHelper">
     <h3>Nowa kropka audio</h3>
     <p class="admin-subtitle">Lokalizacja zapisana z kliknięcia w mapę. Możesz teraz ustawić promień i opis.</p>
@@ -5725,6 +5728,7 @@ html.tryb-noc .sw-off {
     <!-- Przyciski są wstrzykiwane przez zaktualizujPrzyciskiHelpera() -->
     <div class="actions"></div>
   </div>
+  <!-- ADMIN-HELPER:END -->
 
   <!-- PANEL SZCZEGÓŁÓW (otwiera się po kliknięciu w płatek) -->
   <div class="detail-panel" id="detailPanel">
@@ -9590,6 +9594,44 @@ function wyczyscWszystkoEdytor() {
 // ============== POBIERANIE NOWEGO INDEX.HTML ==============
 // Bierze obecny plik (przez fetch do samego siebie), znajduje tablicę kropkiAudio
 // i podmienia ją na NOWĄ (istniejące + zaplanowane). Zwraca plik do pobrania.
+// =====================================================================
+// === GENEROWANIE WERSJI PUBLICZNEJ (bez panelu admina) ===============
+// =====================================================================
+// Przyjmuje pełny tekst pliku (z adminem) i zwraca wersję dla turysty:
+//  - wycina bloki HTML admina (między markerami ADMIN-*:START/END)
+//  - wymusza isAdmin = false na stałe (?admin=1 przestaje działać)
+// Edytor na stronie zostaje nietknięty - to działa tylko na KOPII
+// którą pobiera użytkownik.
+function wytnijAdmina(tekst) {
+  let wynik = tekst;
+
+  // 1. Wytnij bloki HTML admina (między markerami).
+  //    Każdy blok: <!-- NAZWA:START -->...<!-- NAZWA:END -->
+  const blokiDoWyciecia = [
+    ['ADMIN-HELPER:START', 'ADMIN-HELPER:END'],   // formularz dodawania kropki
+    ['ADMIN-LIST:START',   'ADMIN-LIST:END'],     // panel admina (liczniki, przyciski)
+    ['ADMIN-MODAL:START',  'ADMIN-MODAL:END']     // modal Splash poety
+  ];
+  for (const [start, end] of blokiDoWyciecia) {
+    // Regex: od komentarza START do komentarza END włącznie (z zawartością)
+    const re = new RegExp(
+      '<!--\\s*' + start + '\\s*-->[\\s\\S]*?<!--\\s*' + end + '\\s*-->',
+      'g'
+    );
+    wynik = wynik.replace(re, '<!-- (panel admina usunięty w wersji publicznej) -->');
+  }
+
+  // 2. Wymuś isAdmin = false na stałe.
+  //    Podmieniamy linię odczytu ?admin=1 - w wersji publicznej zawsze false.
+  wynik = wynik.replace(
+    /const\s+_chce_admina\s*=\s*new\s+URLSearchParams[^;]*;/,
+    'const _chce_admina = false; // wersja publiczna - tryb admin wyłączony na stałe'
+  );
+
+  return wynik;
+}
+
+
 async function pobierzNowyIndex() {
   try {
     // Pobierz tekst tego samego pliku - z timestampem i no-cache żeby ominąć
@@ -9880,6 +9922,12 @@ async function pobierzNowyIndex() {
     } catch (errKat) {
       console.warn('[Kategorie] Nie udało się zaktualizować kategorii:', errKat);
     }
+
+    // ===== WERSJA PUBLICZNA - wytnij panel admina =====
+    // Plik który pobiera użytkownik NIE zawiera trybu admin.
+    // Edytor na stronie (ten plik otwarty w przeglądarce) zostaje nietknięty -
+    // wycinanie działa tylko na pobieranej KOPII.
+    tekst = wytnijAdmina(tekst);
 
     // Stwórz blob i pobierz plik
     const blob = new Blob([tekst], { type: 'text/html;charset=utf-8' });
@@ -12984,6 +13032,7 @@ function splashStartBezGPS() { splashPoetaStart(); }
 </div>
 
 <!-- MODAL EDYCJI SPLASH POETY (admin) - wycentrowany na ekranie, nie wciąga panelu admina w dół -->
+<!-- ADMIN-MODAL:START --><!-- (marker dla generowania wersji publicznej - nie usuwać) -->
 <div class="splash-poety-modal-backdrop" id="splashPoetyModal" onclick="if(event.target===this)zamknijEdytorSplashPoety()">
   <div class="splash-poety-modal">
     <button class="splash-poety-modal-close" onclick="zamknijEdytorSplashPoety()" aria-label="Zamknij">✕</button>
@@ -13023,6 +13072,7 @@ function splashStartBezGPS() { splashPoetaStart(); }
     </div>
   </div>
 </div>
+<!-- ADMIN-MODAL:END -->
 
 <!-- MODAL PICKER EMOJI - wybór ikony miejsca -->
 <div class="emoji-modal-backdrop" id="emojiModalBackdrop" onclick="if(event.target===this)zamknijPickerEmoji()">
