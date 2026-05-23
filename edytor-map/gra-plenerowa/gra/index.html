@@ -7308,17 +7308,21 @@ function renderujStartWLiscie() {
     return null;
   }
 
-  // Pomocnik: tworzy jedną kartę i dokłada do listy
+  // Pomocnik: tworzy jedną kartę i dokłada do listy.
+  // Stany: 'zablokowana' (przyciemniona, nieklikalna - tryb gry),
+  //        'odkryta' (zielona, klikalna - tryb gry),
+  //        'admin' (neutralna, klikalna - tryb edytora).
   function dodajKarte({ ikona, tytul, opis, stan, poz }) {
     const card = document.createElement('div');
     card.className = 'miejsce-card gra-karta';
     if (stan === 'zablokowana') card.classList.add('gra-zablokowana');
     if (stan === 'odkryta')     card.classList.add('gra-odkryta');
+    // stan 'admin' - bez dodatkowej klasy, zwykły wygląd karty
     card.innerHTML = `<span class="ikona">${ikona}</span>
       <div class="nazwa">${tytul}</div>
       <div class="opis">${opis}</div>`;
-    // Klik działa TYLKO dla kart aktywnych (start) i odkrytych.
-    // Zablokowana = nic się nie dzieje (nie da się podejrzeć).
+    // Klik prowadzi do miejsca - dla kart aktywnych (start), odkrytych
+    // i wszystkich w trybie edytora. Zablokowana = nieklikalna.
     if (stan !== 'zablokowana' && poz) {
       card.onclick = () => {
         autoCenterAktywny = false;
@@ -7337,8 +7341,11 @@ function renderujStartWLiscie() {
     dodajKarte({
       ikona: '🧭',
       tytul: start.tytul || 'START przygody',
-      opis: (aktualnyEtapGry === 0) ? 'Tu rozpocznij grę' : '✓ Tu zaczęłeś przygodę',
-      stan: 'odkryta',           // start zawsze aktywny/klikalny
+      opis: isAdmin
+        ? 'START — kliknij, by przejść do miejsca'
+        : ((aktualnyEtapGry === 0) ? 'Tu rozpocznij grę' : '✓ Tu zaczęłeś przygodę'),
+      // W edytorze 'admin' (neutralna), w grze 'odkryta' - start zawsze klikalny
+      stan: isAdmin ? 'admin' : 'odkryta',
       poz: pozKropki(start)
     });
   }
@@ -7357,13 +7364,18 @@ function renderujStartWLiscie() {
   tajemnice.sort((a, b) => a.numer - b.numer);
 
   for (const t of tajemnice) {
-    // Odkryta = numer < aktualnyEtapGry (gracz już ją zaliczył)
+    // Odkryta = numer < aktualnyEtapGry (gracz już ją zaliczył).
     const odkryta = (t.numer < aktualnyEtapGry);
+    // Stan karty: w EDYTORZE zawsze 'admin' (neutralna, klikalna),
+    // w grze 'odkryta' (zielona) lub 'zablokowana' (przyciemniona).
+    const stanKarty = isAdmin ? 'admin' : (odkryta ? 'odkryta' : 'zablokowana');
     dodajKarte({
-      ikona: odkryta ? '🏛️' : '❓',
+      ikona: (isAdmin || odkryta) ? '🏛️' : '❓',
       tytul: t.tytul || `Tajemnica #${t.numer}`,
-      opis: odkryta ? '✓ Tajemnica odkryta' : 'Jeszcze nieodkryta',
-      stan: odkryta ? 'odkryta' : 'zablokowana',
+      opis: isAdmin
+        ? `Tajemnica #${t.numer} — kliknij, by przejść do miejsca`
+        : (odkryta ? '✓ Tajemnica odkryta' : 'Jeszcze nieodkryta'),
+      stan: stanKarty,
       poz: pozKropki(t)
     });
   }
@@ -7371,13 +7383,17 @@ function renderujStartWLiscie() {
   // --- 3. META ---
   const meta = znajdzMete();
   if (meta) {
-    // Meta odkryta = gra ukończona (aktualnyEtapGry > liczba tajemnic)
+    // Meta odkryta = gra ukończona (aktualnyEtapGry > liczba tajemnic).
     const metaOdkryta = (tajemnice.length > 0 && aktualnyEtapGry > tajemnice.length);
+    // W EDYTORZE meta jest 'admin' (neutralna, klikalna).
+    const stanMety = isAdmin ? 'admin' : (metaOdkryta ? 'odkryta' : 'zablokowana');
     dodajKarte({
-      ikona: metaOdkryta ? '🏆' : '🏆',
+      ikona: '🏆',
       tytul: meta.tytul || 'META - koniec przygody',
-      opis: metaOdkryta ? '✓ Przygoda ukończona!' : 'Cel końcowy',
-      stan: metaOdkryta ? 'odkryta' : 'zablokowana',
+      opis: isAdmin
+        ? 'META — kliknij, by przejść do miejsca'
+        : (metaOdkryta ? '✓ Przygoda ukończona!' : 'Cel końcowy'),
+      stan: stanMety,
       poz: pozKropki(meta)
     });
   }
