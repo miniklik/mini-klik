@@ -5094,25 +5094,35 @@ html.tryb-noc .sw-off {
           <p class="nazwa-edytor-info">Pogrubianie: <code>**tekst**</code>. Akapity rozdziel pustą linią.</p>
         </div>
 
-        <button id="audioIntroBtn" onclick="toggleAudioIntroInfo()" style="background:#7c3aed;font-size:11px">🎵 Audio intro</button>
+        <button id="audioIntroBtn" onclick="toggleAudioIntroInfo()" style="background:#7c3aed;font-size:11px">🎵 Audio w grze</button>
 
-        <!-- Półprzezroczyste tło za okienkiem audio intro -->
+        <!-- Półprzezroczyste tło za okienkiem -->
         <div id="audioIntroBackdrop" onclick="toggleAudioIntroInfo()"></div>
 
-        <!-- Rozwijana ramka z informacją o muzyce intro -->
+        <!-- Okienko ze ściągą: wszystkie nazwy plików audio w grze -->
         <div class="nazwa-edytor" id="audioIntroEdytor">
-          <label class="nazwa-edytor-label">🎵 Muzyka na ekranie startowym</label>
+          <label class="nazwa-edytor-label">🎵 Nazwy plików audio</label>
           <p class="nazwa-edytor-info" style="margin-top:6px">
-            Aby na ekranie startowym grała muzyka, wrzuć plik dźwiękowy
-            do folderu <code>audio/</code> i nazwij go dokładnie:
+            Wszystkie pliki audio wrzucaj do folderu <code>audio/</code>.
+            Nazwij je dokładnie tak:
           </p>
-          <p style="text-align:center;margin:8px 0">
-            <code style="background:rgba(124,58,237,0.15);color:#7c3aed;padding:4px 12px;border-radius:4px;font-size:13px;font-weight:700">audio/intro.mp3</code>
-          </p>
-          <p class="nazwa-edytor-info">
-            Muzyka odtworzy się automatycznie gdy gracz zobaczy ekran startowy
-            i sama ucichnie po kliknięciu „Zaczynamy przygodę". Jeśli pliku nie
-            ma — ekran startowy działa normalnie, tylko bez dźwięku.
+          <div style="margin:10px 0;display:flex;flex-direction:column;gap:7px">
+            <div><code style="background:rgba(124,58,237,0.15);color:#7c3aed;padding:3px 9px;border-radius:4px;font-size:12px;font-weight:700">intro.mp3</code>
+              <span style="font-size:12px;color:var(--ink-soft)"> — dźwięk do intro (ekran startowy)</span></div>
+            <div><code style="background:rgba(124,58,237,0.15);color:#7c3aed;padding:3px 9px;border-radius:4px;font-size:12px;font-weight:700">start.mp3</code>
+              <span style="font-size:12px;color:var(--ink-soft)"> — start przygody (wejście w strefę startu)</span></div>
+            <div><code style="background:rgba(124,58,237,0.15);color:#7c3aed;padding:3px 9px;border-radius:4px;font-size:12px;font-weight:700">1.mp3, 2.mp3, 3.mp3…</code>
+              <span style="font-size:12px;color:var(--ink-soft)"> — dźwięk po odnalezieniu tajemnicy nr 1, 2, 3…</span></div>
+            <div><code style="background:rgba(124,58,237,0.15);color:#7c3aed;padding:3px 9px;border-radius:4px;font-size:12px;font-weight:700">tajemnica1.mp3, tajemnica2.mp3…</code>
+              <span style="font-size:12px;color:var(--ink-soft)"> — wskazówka po kliknięciu tajemnicy w liście (osobna dla każdej)</span></div>
+            <div><code style="background:rgba(124,58,237,0.15);color:#7c3aed;padding:3px 9px;border-radius:4px;font-size:12px;font-weight:700">tajemnica.mp3</code>
+              <span style="font-size:12px;color:var(--ink-soft)"> — wspólna wskazówka dla wszystkich tajemnic (gdy nie ma indywidualnej)</span></div>
+            <div><code style="background:rgba(124,58,237,0.15);color:#7c3aed;padding:3px 9px;border-radius:4px;font-size:12px;font-weight:700">meta.mp3</code>
+              <span style="font-size:12px;color:var(--ink-soft)"> — dźwięk po dotarciu na metę</span></div>
+          </div>
+          <p class="nazwa-edytor-info" style="font-size:11px">
+            Wskazówka: jeśli wgrasz <code>tajemnica1.mp3</code> — gra ją odtworzy dla tajemnicy 1.
+            Jeśli nie — sięgnie po wspólną <code>tajemnica.mp3</code>.
           </p>
           <div class="nazwa-edytor-akcje">
             <button class="nazwa-anuluj" onclick="toggleAudioIntroInfo()">Zamknij</button>
@@ -5780,8 +5790,12 @@ function odtworzWskazowke(numer) {
     aktualneAudio = null;
   }
 
-  const sciezka = 'audio/tajemnica' + numer + '.mp3';
-  audioWskazowki = new Audio(sciezka);
+  // Ścieżka audio wskazówki - FALLBACK:
+  //  1. najpierw próbuje INDYWIDUALNEJ: audio/tajemnicaN.mp3
+  //  2. jeśli takiego pliku nie ma -> WSPÓLNA: audio/tajemnica.mp3
+  const sciezkaIndywidualna = 'audio/tajemnica' + numer + '.mp3';
+  const sciezkaWspolna = 'audio/tajemnica.mp3';
+  audioWskazowki = new Audio(sciezkaIndywidualna);
 
   // Pokaż panel audio z opisem wskazówki
   const player = document.getElementById('audioPlayer');
@@ -5797,10 +5811,24 @@ function odtworzWskazowke(numer) {
   // Podłącz wskazówkę pod istniejący panel odtwarzacza (pauza/wznów)
   if (typeof aktualneAudio !== 'undefined') aktualneAudio = audioWskazowki;
 
+  // Gdy brak pliku indywidualnego - przełącz na wspólny tajemnica.mp3
+  let probowanoWspolnej = false;
+  audioWskazowki.addEventListener('error', () => {
+    if (!probowanoWspolnej) {
+      probowanoWspolnej = true;
+      audioWskazowki = new Audio(sciezkaWspolna);
+      if (typeof aktualneAudio !== 'undefined') aktualneAudio = audioWskazowki;
+      audioWskazowki.addEventListener('error', () => {
+        // Nie ma ani indywidualnej, ani wspólnej
+        if (info) info.innerHTML =
+          `${label}<br><small style="color:var(--crimson)">⚠️ Brak pliku audio (tajemnica${numer}.mp3 ani tajemnica.mp3)</small>`;
+      });
+      audioWskazowki.play().catch(() => {});
+    }
+  });
+
   audioWskazowki.play().catch(err => {
-    console.warn('Wskazówka - audio play failed:', err, 'sciezka:', sciezka);
-    if (info) info.innerHTML =
-      `${label}<br><small style="color:var(--crimson)">⚠️ Brak pliku ${sciezka}</small>`;
+    console.warn('Wskazówka - audio play:', err);
   });
 }
 
