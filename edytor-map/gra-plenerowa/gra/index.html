@@ -10252,185 +10252,210 @@ function wyczyscWszystkoEdytor() {
 }
 
 // ============== POBIERANIE NOWEGO INDEX.HTML ==============
-// Bierze obecny plik (przez fetch do samego siebie), znajduje tablicę kropkiAudio
-// i podmienia ją na NOWĄ (istniejące + zaplanowane). Zwraca plik do pobrania.
-async function pobierzNowyIndex() {
+// =====================================================================
+// === ZAPIS GRY DO PLIKU index.html (napisane od nowa) ================
+// =====================================================================
+// Składa kompletny, samodzielny plik index.html z aktualnym stanem gry:
+// miejsca, kropki audio, rysunki, nazwa, opis, kategorie - wszystko
+// wbudowane na stałe w kod. Pobrany plik to gotowa gra (dwuklik działa).
+//
+// KLUCZOWA ZASADA: NIE robimy fetch() do serwera. Bierzemy kod strony
+// z tego, co przeglądarka MA JUŻ w pamięci (document). Dzięki temu
+// zapis nie zależy od hostingu, cache, CDN ani połączenia z siecią.
+//
+// Jak to działa krok po kroku:
+//  1. Klonujemy <html> (kopia - nie ruszamy tego, co user widzi).
+//  2. Na klonie SPRZĄTAMY wszystko, co JS dorobił w trakcie działania
+//     (klasy trybów, otwarte panele, wstrzyknięty pasek edytora) -
+//     żeby zapisany plik był "dziewiczy", jak świeżo wgrany.
+//  3. Zamieniamy klon z powrotem na tekst HTML.
+//  4. W tym tekście podmieniamy tablice danych (kropki, miejsca,
+//     rysunki, kategorie) i teksty (nazwa, opis) na aktualne.
+//  5. Sprawdzamy, czy wynik jest sensowny (rozmiar, znaczniki).
+//  6. Pobieramy plik na dysk.
+function pobierzNowyIndex() {
   try {
-    // Pobierz tekst tego samego pliku - z timestampem i no-cache żeby ominąć
-    // cache przeglądarki, Cloudflare, Netlify CDN itp. (bez tego ryzykujemy
-    // że pobierzemy starą wersję pliku bez najnowszych funkcji).
-    const adresZrodla = window.location.href.split('?')[0] + '?_=' + Date.now();
-    const response = await fetch(adresZrodla, { cache: 'no-store' });
-    if (!response.ok) throw new Error('Nie udało się odczytać pliku');
-    let tekst = await response.text();
+    // ---- KROK 1-3: złożenie kompletnego, poprawnego HTML ----
+    // Składamy plik z elementów DOM po kolei. NIE szukamy tagów przez
+    // indexOf w tekście - bo ta funkcja sama zawiera napisy jak '<style>'
+    // czy '</head>' w swoim kodzie, i indexOf trafiłby we własny kod.
+    // Budujemy strukturę z prawdziwych elementów DOM.
 
-    // ===== TABLICA kropkiAudio =====
-    // Połącz wszystkie kropki: istniejące z kodu + zaplanowane (sortuj po numerze)
-    // EDYTOR-GRA: zachowujemy też typ, tytul, linkYT (specjalne pola dla gry)
-    const wszystkie = [
+    // --- 1a. Zapamiętaj stan, posprzątaj żywy DOM, przywróć po odczycie ---
+    const htmlEl = document.documentElement;
+    const langAttr = htmlEl.getAttribute('lang') || 'pl';
+
+    const pasekEl = document.getElementById('editorPasek');
+    const zapamietanyPasek = pasekEl ? pasekEl.innerHTML : null;
+    const listaEl = document.getElementById('lista-miejsc');
+    const zapamietanaLista = listaEl ? listaEl.innerHTML : null;
+    const elementyVisible = [...document.querySelectorAll('.visible')];
+    const elementyPodglad = [...document.querySelectorAll('.tryb-podglad')];
+
+    // Nazwa przygody: podmieniamy <h1> w DOM (bezpiecznie, bez regexa).
+    const h1El = document.querySelector('header h1') || document.querySelector('h1');
+    const zapamietanyH1 = h1El ? h1El.textContent : null;
+    const nowaNazwaH1 = (localStorage.getItem(KEY_NAZWA_STRONY)
+      || (h1El ? h1El.textContent : '') || '').trim();
+
+    // Sprzątanie (chwilowe) - pasek i lista budowane są przez JS przy starcie.
+    if (pasekEl) pasekEl.innerHTML = '';
+    if (listaEl) listaEl.innerHTML = '';
+    elementyVisible.forEach(el => el.classList.remove('visible'));
+    elementyPodglad.forEach(el => el.classList.remove('tryb-podglad'));
+    // Ustaw aktualną nazwę w <h1> (zostanie odczytana w body.innerHTML niżej).
+    if (h1El && nowaNazwaH1) h1El.textContent = nowaNazwaH1;
+
+    // --- 1b. Złóż <head>: każdy element osobno, <style> z czystego textContent ---
+    let headHTML = '';
+    for (const dziecko of [...document.head.children]) {
+      if (dziecko.tagName === 'STYLE') {
+        // <style> NIE przez outerHTML (psuje się przez SVG data:URL w CSS).
+        // Bierzemy czystą treść i opakowujemy ręcznie - gwarancja poprawności.
+        headHTML += '<style>\n' + (dziecko.textContent || '') + '\n</' + 'style>\n';
+      } else {
+        // meta, link, title, script[src] - krótkie, outerHTML bezpieczne.
+        headHTML += dziecko.outerHTML + '\n';
+      }
+    }
+
+    // --- 1c. Złóż <body>: innerHTML (cała zawartość strony) ---
+    const bodyHTML = document.body.innerHTML;
+
+    // --- 1d. Przywróć żywy DOM (user nic nie zauważa) ---
+    if (pasekEl && zapamietanyPasek !== null) pasekEl.innerHTML = zapamietanyPasek;
+    if (listaEl && zapamietanaLista !== null) listaEl.innerHTML = zapamietanaLista;
+    if (h1El && zapamietanyH1 !== null) h1El.textContent = zapamietanyH1;
+    elementyVisible.forEach(el => el.classList.add('visible'));
+    elementyPodglad.forEach(el => el.classList.add('tryb-podglad'));
+
+    // --- 1e. Złóż kompletny plik ---
+    // Klasy trybów (tryb-admin/ciemny) celowo pomijamy - JS nada je przy starcie.
+    let tekst = '<!DOCTYPE html>\n'
+      + '<html lang="' + langAttr + '">\n'
+      + '<head>\n' + headHTML + '</head>\n'
+      + '<body>\n' + bodyHTML + '\n</body>\n'
+      + '</html>';
+
+    // --- Zabezpieczenia ---
+    if (!tekst || tekst.length < 100000) {
+      alert('⚠️ Zapis przerwany - kod strony wyszedł za mały ('
+        + (tekst ? tekst.length : 0) + ' znaków).\n\n'
+        + 'Odśwież stronę (Ctrl+Shift+R) i spróbuj ponownie.');
+      return;
+    }
+    // <body> musi mieć realną zawartość (mapę) - inaczej pusta plansza.
+    if (!bodyHTML || bodyHTML.length < 10000 || !bodyHTML.includes('id="mapa"')) {
+      alert('⚠️ Zapis przerwany - zawartość strony (<body>) jest niekompletna.\n\n'
+        + 'Odśwież stronę (Ctrl+Shift+R) i spróbuj ponownie.');
+      return;
+    }
+
+    // ---- KROK 4: podmiana danych w tekście ----
+
+    // --- 4a. TABLICA kropkiAudio ---
+    // Łączymy kropki z kodu (kropkiAudio) i zaplanowane (zaplanowaneKropki),
+    // sortujemy po numerze. Wiele kropek może mieć ten sam numer (segmenty
+    // jednej strefy) - NIE deduplikujemy.
+    const wszystkieKropki = [
       ...kropkiAudio.map(k => ({
         numer: k.numer,
-        typ: k.typ,
-        tytul: k.tytul,
-        linkYT: k.linkYT,
-        autor: k.autor,
-        emotka: k.emotka,
         lat: k.pozycja[0],
         lng: k.pozycja[1],
         promien: k.promien,
         opis: k.opis || '',
-        pokazFale: k.pokazFale === true
+        pokazFale: k.pokazFale === true,
+        trybKropki: k.trybKropki || null
       })),
-      ...zaplanowaneKropki
-    ];
+      ...(typeof zaplanowaneKropki !== 'undefined' ? zaplanowaneKropki : [])
+    ].slice().sort((a, b) => a.numer - b.numer);
 
-    // UWAGA: Wiele kropek może mieć ten sam `numer` (segmenty tej samej strefy
-    // dla nieregularnych obszarów - np. duży park otoczony 3 fioletowymi
-    // kółkami #5, wszystkie odpalają audio/5.mp3). NIE deduplikujemy po numerze!
-    const finalne = wszystkie.slice().sort((a, b) => a.numer - b.numer);
-
-    // Wygeneruj kod nowej tablicy kropek audio
-    const linie = finalne.map(k => {
-      const opis = (k.opis || '').replace(/'/g, "\\'");
-      // EDYTOR-GRA: typ kropki (start/tajemnica/meta) - obowiązkowe jeśli inne niż tajemnica
-      let typPole = '';
-      if (k.typ && k.typ !== 'tajemnica') typPole = `, typ: '${k.typ}'`;
-      // tytuł (dla start i meta)
-      let tytulPole = '';
-      if (k.tytul) tytulPole = `, tytul: '${(k.tytul || '').replace(/'/g, "\\'")}'`;
-      // link YouTube (dla startu)
-      let ytPole = '';
-      if (k.linkYT) ytPole = `, linkYT: '${(k.linkYT || '').replace(/'/g, "\\'")}'`;
-      // EDYTOR-GRA: autor (dla startu) - wyświetlany w menu startowym
-      let autorPole = '';
-      if (k.autor) autorPole = `, autor: '${(k.autor || '').replace(/'/g, "\\'")}'`;
-      // pokazFale dodajemy TYLKO gdy true (oszczędność miejsca; brak pola = false)
+    const linieKropek = wszystkieKropki.map(k => {
+      const opis = String(k.opis || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, '\\n').replace(/\r/g, '');
       const fala = k.pokazFale === true ? ', pokazFale: true' : '';
-      // emotka tajemnicy - dodajemy tylko gdy ustawiona
-      const emotka = k.emotka ? `, emotka: '${(k.emotka || '').replace(/'/g, "\\'")}'` : '';
-      return `  { numer: ${k.numer}${typPole}, pozycja: [${k.lat.toFixed(5)}, ${k.lng.toFixed(5)}], promien: ${k.promien}, opis: '${opis}'${tytulPole}${ytPole}${autorPole}${fala}${emotka} }`;
+      const tryb = (k.trybKropki && k.trybKropki !== 'inkognito') ? `, trybKropki: '${k.trybKropki}'` : '';
+      return `  { numer: ${k.numer}, pozycja: [${k.lat.toFixed(5)}, ${k.lng.toFixed(5)}], promien: ${k.promien}, opis: '${opis}'${fala}${tryb} }`;
     });
-    const nowaTablicaKropek = `const kropkiAudio = [\n${linie.join(',\n')}\n];`;
+    const nowaTablicaKropek = 'const kropkiAudio = [\n' + linieKropek.join(',\n') + '\n];';
 
-    // Znajdź starą tablicę kropek audio i podmień
     const regexKropki = /const\s+kropkiAudio\s*=\s*\[[\s\S]*?\n\];/;
     if (!regexKropki.test(tekst)) {
-      alert('⚠️ Nie znaleziono tablicy kropkiAudio w pliku.');
+      alert('⚠️ Nie znaleziono tablicy kropkiAudio w kodzie. Zapis przerwany.');
       return;
     }
     tekst = tekst.replace(regexKropki, nowaTablicaKropek);
 
-    // ===== TABLICA miejsca =====
-    // Generujemy tablicę z aktualną pamięcią (która zawiera nasze edycje)
-    // Format: podstawowe dane + opcjonalnie tytuł i opis (jeśli ustawione)
-    // Dzięki temu jeden plik index.html zawiera WSZYSTKO - dwuklik działa.
-    const esc = s => (s || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, '\\n').replace(/\r/g, '');
-    const linieMiejsc = miejsca.map(m => {
+    // --- 4b. TABLICA miejsca ---
+    const esc = s => String(s || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, '\\n').replace(/\r/g, '');
+    const linieMiejsc = (typeof miejsca !== 'undefined' ? miejsca : []).map(m => {
       const lat = m.pozycja[0].toFixed(4);
       const lng = m.pozycja[1].toFixed(4);
       let linia = `  { klucz: '${esc(m.klucz)}', nazwa: '${esc(m.nazwa)}', pozycja: [${lat}, ${lng}], ikona: '${esc(m.ikona)}', kategoria: '${esc(m.kategoria)}'`;
-      // Opcjonalne: tytuł, opis i flagi - dodajemy tylko jeśli są ustawione
-      if (m.tytul && m.tytul.trim()) linia += `, tytul: '${esc(m.tytul)}'`;
-      if (m.opis && m.opis.trim()) linia += `, opis: '${esc(m.opis)}'`;
-      if (m.tytulSrodek) linia += `, tytulSrodek: true`;
-      if (m.tytulDuzy) linia += `, tytulDuzy: true`;
-      // TRYB GRY: numer etapu (tylko gdy >0)
-      if (m.numerGry && m.numerGry > 0) linia += `, numerGry: ${m.numerGry}`;
+      if (m.tytul && m.tytul.trim())   linia += `, tytul: '${esc(m.tytul)}'`;
+      if (m.opis && m.opis.trim())     linia += `, opis: '${esc(m.opis)}'`;
+      if (m.tytulSrodek)               linia += `, tytulSrodek: true`;
+      if (m.tytulDuzy)                 linia += `, tytulDuzy: true`;
+      if (m.linkYT && m.linkYT.trim()) linia += `, linkYT: '${esc(m.linkYT)}'`;
+      if (m.quickTyp)                  linia += `, quickTyp: '${esc(m.quickTyp)}'`;
       linia += ` }`;
       return linia;
     });
-    const nowaTablicaMiejsc = `const miejsca = [\n${linieMiejsc.join(',\n')}\n];`;
+    const nowaTablicaMiejsc = 'const miejsca = [\n' + linieMiejsc.join(',\n') + '\n];';
 
-    // Znajdź starą tablicę miejsc i podmień
     const regexMiejsc = /const\s+miejsca\s*=\s*\[[\s\S]*?\n\];/;
     if (regexMiejsc.test(tekst)) {
       tekst = tekst.replace(regexMiejsc, nowaTablicaMiejsc);
-    } else {
-      alert('⚠️ Nie znaleziono tablicy miejsc w pliku - kropki audio zaktualizowane, miejsca pominięte.');
     }
 
-    // ===== TRYB GRY: zapisz flagę trybGryWlaczony w pobieranym pliku =====
-    // Admin ustawił przełącznik mapa/gra - musi to być zaszyte w pliku, żeby
-    // turysta otwierający mapę widział grę (lub zwykłą mapę).
-    const regexTrybGry = /let\s+trybGryWlaczony\s*=\s*(true|false)\s*;/;
-    const noweUstawienieTrybu = `let trybGryWlaczony = ${trybGryWlaczony ? 'true' : 'false'};`;
-    if (regexTrybGry.test(tekst)) {
-      tekst = tekst.replace(regexTrybGry, noweUstawienieTrybu);
-    }
-
-    // ===== NAZWA STRONY (h1 + title) =====
-    // Bierzemy z localStorage albo z aktualnego H1 - cokolwiek user widzi w tym momencie
+    // --- 4c. NAZWA STRONY ---
+    // <h1> podmieniamy w DOM przed złożeniem pliku (patrz KROK 1) - NIE
+    // regexem, bo regex /<h1>[\s\S]*?<\/h1>/ potrafi złapać gigantyczny
+    // kawałek pliku, jeśli <h1> nie ma prostej struktury (zjadał </style>!).
+    // Tu zostaje tylko <title> - to bezpieczne (krótkie, jednoznaczne).
     const aktualnaNazwa = (localStorage.getItem(KEY_NAZWA_STRONY)
-        || document.querySelector('h1')?.textContent || '').trim();
+      || (document.querySelector('header h1') || {}).textContent
+      || (document.querySelector('h1') || {}).textContent
+      || '').trim();
     if (aktualnaNazwa) {
-      // Escape dla regex replacement (specjalnie $)
       const safeNazwa = aktualnaNazwa.replace(/\$/g, '$$$$');
-      // 1. Podmień <h1>...</h1> (pierwszy h1 w pliku)
-      tekst = tekst.replace(/<h1>([\s\S]*?)<\/h1>/, `<h1>${safeNazwa}</h1>`);
-      // 2. Podmień fragment w <title> - zachowaj suffix po " · "
-      tekst = tekst.replace(/<title>([^<]*)<\/title>/, (m, stary) => {
-        const obecny = stary.trim();
-        let nowyTytul;
-        if (obecny.includes(' — ')) {
-          const czesci = obecny.split(' — ');
-          // Format "Coś — NazwaMiejsca · suffix" - podmieniamy część po " — "
-          let dolna = czesci[1] || '';
-          if (dolna.includes(' · ')) {
-            const sub = dolna.split(' · ');
-            sub[0] = aktualnaNazwa;
-            dolna = sub.join(' · ');
-          } else {
-            dolna = aktualnaNazwa;
-          }
-          czesci[1] = dolna;
-          nowyTytul = czesci.join(' — ');
-        } else if (obecny.includes(' · ')) {
-          const sub = obecny.split(' · ');
-          sub[0] = aktualnaNazwa;
-          nowyTytul = sub.join(' · ');
-        } else {
-          nowyTytul = aktualnaNazwa;
-        }
-        return `<title>${nowyTytul.replace(/\$/g, '$$$$')}</title>`;
-      });
+      tekst = tekst.replace(/<title>([^<]*)<\/title>/, () => '<title>' + safeNazwa.replace(/\$/g, '$$$$') + '</title>');
     }
 
-    // ===== OPIS GRY (zakładka pod mapą) =====
-    // Tytuł "Opis gry" jest na sztywno w HTML - nie podmieniamy go.
-    // Eksportujemy tylko treść (div#opisStronyTresc) z akapitów.
+    // --- 4d. OPIS GRY (tytuł sekcji + treść akordeonu) ---
+    const aktOpisTytul = localStorage.getItem(KEY_OPIS_STRONY_TYTUL);
+    if (aktOpisTytul) {
+      const safeTytul = aktOpisTytul.replace(/\$/g, '$$$$');
+      tekst = tekst.replace(
+        /(<span\s+class="title"\s+id="opisStronyTytul">)([\s\S]*?)(<\/span>)/,
+        '$1' + safeTytul + '$3'
+      );
+    }
     const aktOpisTresc = localStorage.getItem(KEY_OPIS_STRONY_TRESC);
-
     if (aktOpisTresc !== null && aktOpisTresc !== undefined) {
-      // Generuj HTML akapitów z surowego tekstu (zachowując **bold** i akapity)
       let trescHTML;
       const akapity = aktOpisTresc.split(/\n\s*\n/).map(a => a.trim()).filter(a => a);
       if (akapity.length === 0) {
-        // Pusty opis - wstaw placeholder
-        trescHTML = '\n        <p style="color:var(--ink-muted);font-style:italic;text-align:center;padding:20px 0">Opis tej strony nie został jeszcze dodany.</p>\n      ';
+        trescHTML = '\n        <p style="color:var(--ink-muted);font-style:italic;text-align:center;padding:20px 0">Opis gry nie został jeszcze dodany.</p>\n      ';
       } else {
         trescHTML = '\n' + akapity.map(a => {
-          let h = a.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+          let h = a.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
           h = h.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
           h = h.replace(/\n/g, '<br>');
-          return `        <p>${h}</p>`;
+          return '        <p>' + h + '</p>';
         }).join('\n') + '\n      ';
       }
       const safeTresc = trescHTML.replace(/\$/g, '$$$$');
-      // Podmiana zawartości <div class="accordion-inner" id="opisStronyTresc">…</div>
       tekst = tekst.replace(
         /(<div\s+class="accordion-inner"\s+id="opisStronyTresc">)([\s\S]*?)(<\/div>)/,
-        `$1${safeTresc}$3`
+        '$1' + safeTresc + '$3'
       );
     }
 
-    // ===== TABLICA rysunkiZakodowane =====
-    // Wszystkie rysunki (zakodowane + robocze z localStorage) zapisujemy
-    // do nowego pliku jako pełną tablicę. Po wgraniu na serwer wszyscy je zobaczą.
-    let liczbaWbudowanychRys = 0;
-    let regexZnaleziony = false;
+    // --- 4e. TABLICA rysunkiZakodowane (przez markery RYSUNKI:START/END) ---
     try {
-      const linieRys = rysunki.map(r => {
-        const kolor = (r.kolor || '#a04510').replace(/'/g, "\\'");
+      const zrodloRys = (typeof rysunki !== 'undefined' && Array.isArray(rysunki)) ? rysunki : [];
+      const linieRys = zrodloRys.map(r => {
+        const kolor = String(r.kolor || '#a04510').replace(/'/g, "\\'");
         if (r.typ === 'linia' && Array.isArray(r.punkty)) {
           const pkt = r.punkty.map(p => `[${p[0].toFixed(6)}, ${p[1].toFixed(6)}]`).join(', ');
           return `  { typ: 'linia', kolor: '${kolor}', punkty: [${pkt}] }`;
@@ -10438,91 +10463,70 @@ async function pobierzNowyIndex() {
         if (r.typ === 'kolo' && Array.isArray(r.srodek)) {
           return `  { typ: 'kolo', kolor: '${kolor}', srodek: [${r.srodek[0].toFixed(6)}, ${r.srodek[1].toFixed(6)}], promien: ${Math.round(r.promien)} }`;
         }
-        if (r.typ === 'tajemnica' && Array.isArray(r.srodek)) {
-          return `  { typ: 'tajemnica', kolor: '${kolor}', srodek: [${r.srodek[0].toFixed(6)}, ${r.srodek[1].toFixed(6)}], promien: ${Math.round(r.promien)} }`;
-        }
-        if (r.typ === 'strzalka' && Array.isArray(r.start) && Array.isArray(r.koniec)) {
-          return `  { typ: 'strzalka', kolor: '${kolor}', start: [${r.start[0].toFixed(6)}, ${r.start[1].toFixed(6)}], koniec: [${r.koniec[0].toFixed(6)}, ${r.koniec[1].toFixed(6)}] }`;
-        }
         if (r.typ === 'tekst' && Array.isArray(r.pozycja)) {
-          const tresc = (r.tresc || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, '\\n').replace(/\r/g, '');
+          const tresc = String(r.tresc || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, '\\n').replace(/\r/g, '');
           return `  { typ: 'tekst', kolor: '${kolor}', pozycja: [${r.pozycja[0].toFixed(6)}, ${r.pozycja[1].toFixed(6)}], tresc: '${tresc}' }`;
         }
         return null;
       }).filter(x => x !== null);
 
-      liczbaWbudowanychRys = linieRys.length;
-      const nowaTablicaRys = `// === RYSUNKI:START === (nie usuwaj tego komentarza - znacznik dla auto-eksportu)\nconst rysunkiZakodowane = [\n${linieRys.join(',\n')}\n];\n// === RYSUNKI:END ===`;
+      const nowaTablicaRys = '// === RYSUNKI:START === (nie usuwaj tego komentarza - znacznik dla auto-eksportu)\n'
+        + 'const rysunkiZakodowane = [\n' + linieRys.join(',\n') + '\n];\n'
+        + '// === RYSUNKI:END ===';
 
-      console.log('[Rysunki] W pamięci:', rysunki.length, '| Do wbudowania:', liczbaWbudowanychRys);
-
-      // Znajdź marker stojący NA POCZĄTKU LINII - prawdziwą deklarację, nie
-      // template string wewnątrz tej funkcji (template ma `\n` przed sobą,
-      // więc nie zaczyna się na początku linii w pliku źródłowym).
-      // Regex /^\/\/ === RYSUNKI:START ===/m wymusza początek linii.
-      const realStartRegexR = /^\/\/ === RYSUNKI:START ===.*$/m;
-      const realEndRegexR = /^\/\/ === RYSUNKI:END ===.*$/m;
-      const matchStartR = tekst.match(realStartRegexR);
-      const matchEndR = tekst.match(realEndRegexR);
-      regexZnaleziony = !!(matchStartR && matchEndR && matchEndR.index > matchStartR.index);
-      if (regexZnaleziony) {
-        const idxStart = matchStartR.index;
-        const idxEnd = matchEndR.index + matchEndR[0].length;
-        tekst = tekst.substring(0, idxStart) + nowaTablicaRys + tekst.substring(idxEnd);
-        console.log('[Rysunki] OK - tablica podmieniona w pliku.');
-      } else {
-        console.warn('[Rysunki] UWAGA: nie znaleziono markerów RYSUNKI:START/END w pobranym pliku źródłowym! ' +
-                     'Plik na serwerze może być starą wersją bez modułu rysowania. ' +
-                     'Wgraj najpierw plik z modułem rysowania, potem rysuj i pobieraj nowe wersje.');
-        if (liczbaWbudowanychRys > 0) {
-          alert('⚠️ UWAGA: Masz ' + liczbaWbudowanychRys + ' rysunków w pamięci, ale plik na serwerze ' +
-                'nie zawiera jeszcze modułu rysowania. Rysunki NIE zostały wbudowane w pobierany plik.\n\n' +
-                'Co zrobić: wgraj najpierw aktualną wersję index.html (z modułem rysowania) na serwer, ' +
-                'potem rysuj i klikaj "Pobierz nowy index.html" — wtedy rysunki zostaną wbudowane.');
-        }
+      const startRys = tekst.match(/^\/\/ === RYSUNKI:START ===.*$/m);
+      const endRys = tekst.match(/^\/\/ === RYSUNKI:END ===.*$/m);
+      if (startRys && endRys && endRys.index > startRys.index) {
+        tekst = tekst.substring(0, startRys.index)
+          + nowaTablicaRys
+          + tekst.substring(endRys.index + endRys[0].length);
       }
-    } catch (errRys) {
-      console.warn('[Rysunki] Nie udało się zaktualizować tablicy rysunków:', errRys);
+    } catch (e) {
+      console.warn('[Zapis] Rysunki - pominięto:', e);
     }
 
-    // ===== KATEGORIE (nazwy + ikony zakładek) =====
-    // Wbudowujemy aktualne kategorie (po edycjach admina) na stałe w plik HTML.
-    // Mechanizm identyczny jak dla rysunków - markery KATEGORIE:START/END.
-    // UWAGA: szukamy markeru który stoi NA POCZĄTKU LINII (nie wewnątrz template
-    // stringa - tam są poprzedzone `\n`). To eliminuje fałszywe trafienie w
-    // szablon w tej samej funkcji generującej.
+    // --- 4f. KATEGORIE (przez markery KATEGORIE:START/END) ---
     try {
+      const zrodloKat = (typeof kategorie !== 'undefined') ? kategorie : {};
+      const zrodloKatDom = (typeof kategorieDomyslne !== 'undefined') ? kategorieDomyslne : {};
       const linieKat = [];
       for (const klucz of ['zabytek', 'sakral', 'przyroda', 'urzad']) {
-        const k = kategorie[klucz] || kategorieDomyslne[klucz];
+        const k = zrodloKat[klucz] || zrodloKatDom[klucz];
         if (!k) continue;
-        const ikona = (k.ikona || '📍').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-        const nazwa = (k.nazwa || klucz).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+        const ikona = String(k.ikona || '📍').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+        const nazwa = String(k.nazwa || klucz).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
         const padding = ' '.repeat(Math.max(0, 8 - klucz.length));
         linieKat.push(`  ${klucz}:${padding}{ ikona: '${ikona}', nazwa: '${nazwa}' }`);
       }
-      const nowaTablicaKat = `// === KATEGORIE:START === (nie usuwaj tego komentarza - znacznik dla auto-eksportu)\nconst kategorieDomyslne = {\n${linieKat.join(',\n')}\n};\n// === KATEGORIE:END ===`;
+      const nowaTablicaKat = '// === KATEGORIE:START === (nie usuwaj tego komentarza - znacznik dla auto-eksportu)\n'
+        + 'const kategorieDomyslne = {\n' + linieKat.join(',\n') + '\n};\n'
+        + '// === KATEGORIE:END ===';
 
-      // Znajdź marker stojący na początku linii - czyli prawdziwą deklarację,
-      // nie template string wewnątrz funkcji (ten jest poprzedzony backsashem n).
-      // Regex /^\/\/ === KATEGORIE:START ===/m wymusza początek linii.
-      const realStartRegex = /^\/\/ === KATEGORIE:START ===.*$/m;
-      const realEndRegex = /^\/\/ === KATEGORIE:END ===.*$/m;
-      const matchStart = tekst.match(realStartRegex);
-      const matchEnd = tekst.match(realEndRegex);
-      if (matchStart && matchEnd && matchEnd.index > matchStart.index) {
-        const idxStartKat = matchStart.index;
-        const idxEndKat = matchEnd.index + matchEnd[0].length;
-        tekst = tekst.substring(0, idxStartKat) + nowaTablicaKat + tekst.substring(idxEndKat);
-        console.log('[Kategorie] OK - tablica podmieniona w pliku.');
-      } else {
-        console.warn('[Kategorie] Nie znaleziono markerów KATEGORIE:START/END na początku linii - pomijam.');
+      const startKat = tekst.match(/^\/\/ === KATEGORIE:START ===.*$/m);
+      const endKat = tekst.match(/^\/\/ === KATEGORIE:END ===.*$/m);
+      if (startKat && endKat && endKat.index > startKat.index) {
+        tekst = tekst.substring(0, startKat.index)
+          + nowaTablicaKat
+          + tekst.substring(endKat.index + endKat[0].length);
       }
-    } catch (errKat) {
-      console.warn('[Kategorie] Nie udało się zaktualizować kategorii:', errKat);
+    } catch (e) {
+      console.warn('[Zapis] Kategorie - pominięto:', e);
     }
 
-    // Stwórz blob i pobierz plik
+    // ---- KROK 5: zabezpieczenie końcowe ----
+    // Plik musi zawierać kluczowe znaczniki - dowód, że to kompletny index gry.
+    if (!tekst.includes('kropkiAudio') || !tekst.includes('id="mapa"')) {
+      alert('⚠️ Zapis przerwany - wynik nie wygląda na kompletny plik gry.\n\n'
+        + 'Odśwież stronę i spróbuj ponownie.');
+      return;
+    }
+    if (tekst.length < 100000) {
+      alert('⚠️ Zapis przerwany - plik wyszedł podejrzanie mały ('
+        + tekst.length + ' znaków).\n\nOdśwież stronę (Ctrl+Shift+R) i spróbuj ponownie.');
+      return;
+    }
+
+    // ---- KROK 6: pobranie pliku na dysk ----
     const blob = new Blob([tekst], { type: 'text/html;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -10531,35 +10535,24 @@ async function pobierzNowyIndex() {
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
 
-    // Po pobraniu - zaproponuj wyczyszczenie listy zaplanowanych + zmian miejsc
+    // Po udanym zapisie - sprzątanie cache localStorage (dane są już w pliku).
     setTimeout(() => {
-      const ileZmian = zaplanowaneKropki.length;
-      const ileRys = rysunki.length;
-      if (ileZmian > 0 &&
-          confirm(`✓ Pobrano nowy index.html z ${finalne.length} kropkami audio, ${miejsca.length} miejscami i ${ileRys} rysunkami.\n\nCzy wyczyścić listę zaplanowanych kropek? (są już w pobranym pliku)`)) {
-        zaplanowaneKropki = [];
-        zapiszZaplanowane();
-        renderujZaplanowane();
-        pokazAdminListe();
-      }
-      // Wyczyść też cache miejsc (są już w pobranym pliku)
-      try { localStorage.removeItem(KEY_MIEJSCA); } catch(e) {}
-      // Wyczyść cache nazwy strony (jest już w pobranym pliku)
-      try { localStorage.removeItem(KEY_NAZWA_STRONY); } catch(e) {}
-      // Wyczyść cache opisu strony (jest już w pobranym pliku)
-      try { localStorage.removeItem(KEY_OPIS_STRONY_TYTUL); } catch(e) {}
-      try { localStorage.removeItem(KEY_OPIS_STRONY_TRESC); } catch(e) {}
-      // Wyczyść robocze rysunki - są już w pobranym pliku jako rysunkiZakodowane
-      try { localStorage.removeItem(STORAGE_KEY_RYSUNKI); } catch(e) {}
-      // Wyczyść robocze kategorie - są już w pobranym pliku jako kategorieDomyslne
-      try { localStorage.removeItem('kategorie_robocze_v1'); } catch(e) {}
-    }, 500);
+      try { localStorage.removeItem(KEY_MIEJSCA); } catch (e) {}
+      try { localStorage.removeItem(KEY_NAZWA_STRONY); } catch (e) {}
+      try { localStorage.removeItem(KEY_OPIS_STRONY_TYTUL); } catch (e) {}
+      try { localStorage.removeItem(KEY_OPIS_STRONY_TRESC); } catch (e) {}
+      try { localStorage.removeItem(STORAGE_KEY_RYSUNKI); } catch (e) {}
+      try { localStorage.removeItem('kategorie_robocze_v1'); } catch (e) {}
+    }, 600);
+
+    alert('✅ Plik index.html został zapisany (' + Math.round(tekst.length / 1024) + ' KB).\n\n'
+      + 'Wgraj go na serwer - to gotowa gra. Edytor działa po dodaniu ?admin=1 do adresu.');
 
   } catch (err) {
-    console.error('Błąd pobierania:', err);
-    alert('⚠️ Nie udało się pobrać pliku.\n\nBłąd: ' + err.message);
+    console.error('Błąd zapisu:', err);
+    alert('⚠️ Nie udało się zapisać pliku.\n\nBłąd: ' + err.message);
   }
 }
 
