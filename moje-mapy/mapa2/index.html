@@ -4404,6 +4404,63 @@ html.tryb-noc .strefa-szukania-etykieta{
 }
 
 /* =========================================================
+   === BLOKADA TRYBU ADMINA W PIONIE =======================
+   =========================================================
+   Tryb admina (budowanie mapy) działa tylko na komputerze
+   lub tablecie w poziomie. Gdy <html> ma klasę tryb-admin
+   a urządzenie jest dotykowe i ustawione pionowo - zasłaniamy
+   cały ekran komunikatem. Warunki aktywacji w @media niżej.
+*/
+#obrocAdmin{
+  display:none;
+  position:fixed;
+  inset:0;
+  z-index:100000;
+  background:linear-gradient(135deg,#3d2817 0%,#1a0e08 100%);
+  color:#f5e8c8;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+  padding:30px;
+  font-family:'EB Garamond',serif;
+}
+#obrocAdmin-inner{
+  max-width:340px;
+}
+#obrocAdmin-ikona{
+  font-size:80px;
+  margin-bottom:20px;
+  display:block;
+  animation:obrocAnim 2.5s ease-in-out infinite;
+  transform-origin:center;
+}
+#obrocAdmin h2{
+  font-family:'Cinzel',serif;
+  font-size:24px;
+  margin:0 0 14px 0;
+  color:#d4a574;
+  letter-spacing:2px;
+}
+#obrocAdmin p{
+  font-size:17px;
+  line-height:1.5;
+  margin:0 0 8px 0;
+  color:#e8d5a8;
+}
+#obrocAdmin-mala{
+  font-size:14px !important;
+  font-style:italic;
+  opacity:0.7;
+  margin-top:20px !important;
+}
+#obrocAdmin-ozdoba{
+  color:#d4a574;
+  letter-spacing:8px;
+  font-size:18px;
+  margin:18px 0;
+}
+
+/* =========================================================
    === SZUFLADKA "Wykryto audio" - wsuwana z prawej =========
    =========================================================
    Mała kompaktowa karta która wsuwa się z prawej strony ekranu
@@ -4522,11 +4579,23 @@ html.tryb-noc .sw-off {
 
 /* Aktywacja: telefon w landscape */
 @media (max-width: 1024px) and (pointer: coarse) and (orientation: landscape) {
-  #obrocTelefon{
+  /* "Obróć telefon" - tylko dla GRACZA. Admin gra w poziomie,
+     więc gdy jest tryb-admin nie pokazujemy mu tego overlaya. */
+  html:not(.tryb-admin) #obrocTelefon{
     display:flex !important;
   }
   /* Wyłącz scroll body żeby nic nie wystawało */
-  body{
+  html:not(.tryb-admin) body{
+    overflow:hidden !important;
+  }
+}
+
+/* === BLOKADA ADMINA W PIONIE - dotykowe urządzenie pionowo === */
+@media (max-width: 1024px) and (pointer: coarse) and (orientation: portrait) {
+  html.tryb-admin #obrocAdmin{
+    display:flex !important;
+  }
+  html.tryb-admin body{
     overflow:hidden !important;
   }
 }
@@ -4883,7 +4952,1025 @@ html.tryb-noc .sw-off {
   /* Jedna stała, wygodna szerokość - dobra i na laptopie, i na monitorze */
   html.tryb-admin .wrapper { max-width: 1280px; }
 
-  /* Nagłówek z <h1>Nazwa przygody</h1>
+  /* Nagłówek z <h1> chowamy - tytuł przygody pokazujemy w ramce edytora */
+  html.tryb-admin > body header,
+  html.tryb-admin header { display: none !important; }
+
+  /* Pasek kontrolek (widok mapy / rozmiar) - chowamy.
+     Rozmiar mapy jest stały, widok mapy przełączamy w panelu bocznym niżej. */
+  html.tryb-admin .controls { display: none !important; }
+
+  /* Stary panel admina (nakładka na mapie) - całkowicie ukryty.
+     Jego zawartość przenosi JS do nowego paska #editorPasek. */
+  html.tryb-admin #adminList { display: none !important; }
+
+  /* Stara ramka tytułu (poprzednia próba) - ukryta, używamy nowej. */
+  html.tryb-admin .editor-tytul-ramka { display: none !important; }
+  /* Stara ramka tytułu (relikt poprzedniej przebudowy) - ukryta wszędzie.
+     U gracza tytuł jest w nagłówku <h1>, w edytorze w pasku edytora. */
+  .editor-tytul-ramka { display: none !important; }
+
+  /* Pergamin "Twoja przygoda" - zbędny na komputerze (tu nie gramy w teren) */
+  html.tryb-admin .gra-postep-info,
+  html.tryb-admin #graPostepPanel { display: none !important; }
+
+  /* ================= GÓRNY PASEK EDYTORA ================= */
+  #editorPasek {
+    display: none; /* domyślnie ukryty; JS pokazuje w trybie admin */
+  }
+  html.tryb-admin #editorPasek {
+    display: block;
+    margin: 0 0 22px 0;
+    position: relative;
+  }
+
+  /* --- RAMKA TYTUŁU "Nazwa przygody" (centralny element) --- */
+  .ed-tytul-blok {
+    position: relative;
+    text-align: center;
+    background:
+      radial-gradient(ellipse 60% 80% at 50% 0%, rgba(217,122,48,0.12), transparent 70%),
+      linear-gradient(180deg, var(--paper-2) 0%, var(--paper-3) 100%);
+    border: 2px solid var(--gold);
+    border-radius: 16px;
+    padding: 26px 32px 24px;
+    box-shadow: var(--shadow-deep), inset 0 0 0 4px var(--paper-2);
+    overflow: hidden;
+  }
+  /* Pulsujące rogi ramki tytułu */
+  .ed-tytul-blok::before,
+  .ed-tytul-blok::after {
+    content: ''; position: absolute; width: 26px; height: 26px;
+    border: 2px solid var(--gold); pointer-events: none;
+    animation: ed-rog-puls 3s ease-in-out infinite;
+  }
+  .ed-tytul-blok::before { top: 9px; left: 9px; border-right: none; border-bottom: none; }
+  .ed-tytul-blok::after  { bottom: 9px; right: 9px; border-left: none; border-top: none; }
+  @keyframes ed-rog-puls {
+    0%,100% { opacity: 0.45; }
+    50%     { opacity: 1; }
+  }
+
+  .ed-tytul-nazwa {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 46px;
+    font-weight: 600;
+    color: var(--ink);
+    line-height: 1.05;
+    letter-spacing: 0.5px;
+    margin: 0;
+  }
+  .ed-tytul-podpis {
+    margin-top: 8px;
+    font-family: 'EB Garamond', serif;
+    font-style: italic;
+    color: var(--ink-soft);
+    font-size: 15px;
+  }
+  .ed-tytul-podpis::before { content: '— '; color: var(--gold); }
+  .ed-tytul-podpis::after  { content: ' —'; color: var(--gold); }
+
+  /* --- RZĄD PRZYCISKÓW AKCJI (pod tytułem) --- */
+  .ed-przyciski {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 20px;
+  }
+  .ed-przyciski .ed-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-family: 'EB Garamond', serif;
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    padding: 12px 20px;
+    border-radius: 10px;
+    border: 1.5px solid transparent;
+    cursor: pointer;
+    color: #fff;
+    box-shadow: 0 3px 10px rgba(60,40,20,0.18);
+    transition: transform 0.16s ease, box-shadow 0.16s ease, filter 0.16s ease;
+    white-space: nowrap;
+  }
+  .ed-przyciski .ed-btn .ed-btn-ikona { font-size: 17px; line-height: 1; }
+  .ed-przyciski .ed-btn:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 18px rgba(60,40,20,0.3);
+    filter: brightness(1.06);
+  }
+  .ed-przyciski .ed-btn:active { transform: translateY(-1px); }
+  /* Kolory przycisków wg roli */
+  .ed-btn-pobierz  { background: linear-gradient(180deg,#34d058,#1f9d3f); }
+  .ed-btn-nazwa    { background: linear-gradient(180deg,#d97a30,#a04510); }
+  .ed-btn-opis     { background: linear-gradient(180deg,#d97a30,#a04510); }
+  .ed-btn-audio    { background: linear-gradient(180deg,#9a6cf0,#6b2fd9); }
+  .ed-btn-rysuj    { background: linear-gradient(180deg,#4f9e68,#2f6b46); }
+  .ed-btn-wyczysc  { background: linear-gradient(180deg,#ef5350,#c0392b); }
+
+  /* --- MAPA: kwadratowa, stała wysokość, panel boczny obok --- */
+  html.tryb-admin .layout {
+    grid-template-columns: minmax(0,1fr) 340px;
+    gap: 22px;
+  }
+  html.tryb-admin #mapa   { height: 600px !important; }
+  html.tryb-admin .sidebar { height: 600px !important; }
+
+  /* Akordeon "Opis gry" zostaje widoczny pod mapą - tam edytujemy opis gry.
+     (Wcześniej był chowany - teraz to docelowe miejsce na opis.) */
+  html.tryb-admin #info-accordion { margin-top: 22px; }
+
+  /* Rozwijane edytory (nazwa / opis / audio) zostają sterowane starym JS,
+     ale wizualnie unosimy je na środek ekranu jako modalne okienko. */
+  html.tryb-admin #nazwaEdytor.visible,
+  html.tryb-admin #opisStronyEdytor.visible {
+    display: block;
+    position: fixed;
+    top: 50%; left: 50%;
+    transform: translate(-50%,-50%);
+    width: min(92vw, 460px);
+    z-index: 100000;
+    margin: 0;
+    padding: 22px 24px;
+    box-shadow: 0 24px 70px rgba(60,40,20,0.5), inset 0 0 14px rgba(160,69,16,0.06);
+  }
+  /* Przyciemnienie tła pod modalem edytora nazwy/opisu */
+  html.tryb-admin #editorModalBackdrop {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(40,28,16,0.55);
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+    z-index: 99999;
+  }
+  html.tryb-admin #editorModalBackdrop.visible { display: block; }
+
+  /* ====================================================================
+     === CIEMNY MOTYW "SKARBIEC" - edytor desktop ======================
+     ====================================================================
+     Umiarkowany ciemny styl: ciepłe brązy, złote fazowane ramki,
+     delikatny blask. Nadpisuje jasny pergamin TYLKO w edytorze desktop.
+     Mobile i widok zwykłego użytkownika zostają jasne.
+
+     Paleta skarbca (lokalne zmienne nadpisujące jasne):
+       --skarb-tlo      głębokie ciemne brązowe tło
+       --skarb-panel    tło ramek/paneli (ciemny brąz)
+       --skarb-panel-2  jaśniejszy brąz (gradient ramek)
+       --skarb-zloto    złoty akcent obrysów i tekstu
+       --skarb-tekst    jasny ciepły tekst
+     ==================================================================== */
+  html.tryb-admin {
+    --skarb-tlo:      #1c1410;
+    --skarb-tlo-2:    #251a13;
+    --skarb-panel:    #2e2017;
+    --skarb-panel-2:  #3a2a1d;
+    --skarb-obrys:    #c98b3a;
+    --skarb-zloto:    #e0a955;
+    --skarb-zloto-2:  #f3cd82;
+    --skarb-tekst:    #f0e2c8;
+    --skarb-tekst-2:  #c4a878;
+  }
+
+  /* --- Tło całego edytora --- */
+  html.tryb-admin body {
+    background:
+      radial-gradient(circle at 15% 12%, rgba(201,139,58,0.10) 0%, transparent 42%),
+      radial-gradient(circle at 85% 85%, rgba(201,139,58,0.07) 0%, transparent 45%),
+      linear-gradient(180deg, var(--skarb-tlo-2) 0%, var(--skarb-tlo) 100%) !important;
+    color: var(--skarb-tekst);
+  }
+
+  /* --- GÓRNY PASEK: ramka tytułu --- */
+  html.tryb-admin .ed-tytul-blok {
+    background:
+      radial-gradient(ellipse 65% 90% at 50% 0%, rgba(224,169,85,0.14), transparent 70%),
+      linear-gradient(180deg, var(--skarb-panel-2) 0%, var(--skarb-panel) 100%);
+    border: 2px solid var(--skarb-obrys);
+    box-shadow:
+      0 10px 32px rgba(0,0,0,0.5),
+      inset 0 0 0 1px rgba(243,205,130,0.18),
+      inset 0 2px 14px rgba(0,0,0,0.4);
+  }
+  html.tryb-admin .ed-tytul-blok::before,
+  html.tryb-admin .ed-tytul-blok::after {
+    border-color: var(--skarb-zloto-2);
+  }
+  html.tryb-admin .ed-tytul-nazwa {
+    color: var(--skarb-zloto-2);
+    text-shadow: 0 2px 8px rgba(0,0,0,0.6), 0 0 18px rgba(224,169,85,0.25);
+  }
+  html.tryb-admin .ed-tytul-podpis {
+    color: var(--skarb-tekst-2);
+  }
+  html.tryb-admin .ed-tytul-podpis::before,
+  html.tryb-admin .ed-tytul-podpis::after {
+    color: var(--skarb-zloto);
+  }
+
+  /* --- PRZYCISKI: fazowany, "wytłaczany" wygląd --- */
+  html.tryb-admin .ed-przyciski .ed-btn {
+    border: 1.5px solid rgba(243,205,130,0.55);
+    color: var(--skarb-zloto-2);
+    text-shadow: 0 1px 2px rgba(0,0,0,0.6);
+    box-shadow:
+      0 4px 12px rgba(0,0,0,0.45),
+      inset 0 1px 0 rgba(255,255,255,0.12),
+      inset 0 -2px 6px rgba(0,0,0,0.35);
+  }
+  html.tryb-admin .ed-przyciski .ed-btn:hover {
+    box-shadow:
+      0 8px 20px rgba(0,0,0,0.55),
+      inset 0 1px 0 rgba(255,255,255,0.18),
+      0 0 16px rgba(224,169,85,0.3);
+    filter: brightness(1.12);
+  }
+  /* Każdy przycisk - ciemny brąz z akcentem roli na obrysie i ikonie */
+  html.tryb-admin .ed-btn-pobierz,
+  html.tryb-admin .ed-btn-nazwa,
+  html.tryb-admin .ed-btn-opis,
+  html.tryb-admin .ed-btn-audio,
+  html.tryb-admin .ed-btn-rysuj,
+  html.tryb-admin .ed-btn-wyczysc {
+    background: linear-gradient(180deg, #3a2a1d 0%, #2e2017 100%);
+  }
+  html.tryb-admin .ed-btn-pobierz {
+    background: linear-gradient(180deg, #3d5a32 0%, #243a1f 100%);
+    border-color: rgba(120,200,110,0.6);
+  }
+  html.tryb-admin .ed-btn-nazwa,
+  html.tryb-admin .ed-btn-opis {
+    background: linear-gradient(180deg, #5a3a1f 0%, #382414 100%);
+    border-color: rgba(243,205,130,0.6);
+  }
+  html.tryb-admin .ed-btn-audio {
+    background: linear-gradient(180deg, #443060 0%, #2a1c3c 100%);
+    border-color: rgba(170,140,230,0.6);
+  }
+  html.tryb-admin .ed-btn-rysuj {
+    background: linear-gradient(180deg, #2f4a3a 0%, #1e3025 100%);
+    border-color: rgba(110,190,150,0.6);
+  }
+  html.tryb-admin .ed-btn-wyczysc {
+    background: linear-gradient(180deg, #5a2a28 0%, #381a18 100%);
+    border-color: rgba(230,120,110,0.6);
+  }
+
+  /* --- MAPA: ciemna złota ramka --- */
+  html.tryb-admin #mapa {
+    border: 2px solid var(--skarb-obrys) !important;
+    box-shadow:
+      0 10px 32px rgba(0,0,0,0.55),
+      inset 0 0 0 4px var(--skarb-panel) !important;
+  }
+  html.tryb-admin #mapa::before,
+  html.tryb-admin #mapa::after {
+    border-color: var(--skarb-zloto-2) !important;
+  }
+
+  /* --- PANEL BOCZNY: ciemny skarbiec --- */
+  html.tryb-admin .sidebar {
+    background: linear-gradient(180deg, var(--skarb-panel-2) 0%, var(--skarb-panel) 100%);
+    border: 1px solid rgba(243,205,130,0.3);
+    box-shadow:
+      0 8px 24px rgba(0,0,0,0.45),
+      inset 0 0 30px rgba(0,0,0,0.3);
+  }
+  html.tryb-admin .sidebar::before,
+  html.tryb-admin .sidebar::after {
+    border-color: var(--skarb-zloto-2);
+  }
+  html.tryb-admin .sidebar::-webkit-scrollbar-track {
+    background: rgba(0,0,0,0.25);
+  }
+  html.tryb-admin .sidebar::-webkit-scrollbar-thumb {
+    background: rgba(224,169,85,0.4);
+  }
+  html.tryb-admin .sidebar::-webkit-scrollbar-thumb:hover {
+    background: var(--skarb-zloto);
+  }
+
+  /* Karty miejsc w panelu bocznym - ciemne kafelki */
+  html.tryb-admin .sidebar .miejsce-card {
+    background: linear-gradient(180deg, var(--skarb-panel-2), var(--skarb-panel));
+    border: 1px solid rgba(243,205,130,0.22);
+    border-left: 3px solid var(--skarb-obrys);
+    box-shadow: 0 3px 10px rgba(0,0,0,0.35);
+  }
+  html.tryb-admin .sidebar .miejsce-card:hover {
+    background: linear-gradient(180deg, #463424, var(--skarb-panel-2));
+    border-left-color: var(--skarb-zloto-2);
+    box-shadow: 0 5px 16px rgba(0,0,0,0.5), 0 0 14px rgba(224,169,85,0.2);
+  }
+  html.tryb-admin .sidebar .miejsce-card .nazwa { color: var(--skarb-zloto-2); }
+  html.tryb-admin .sidebar .miejsce-card .opis  { color: var(--skarb-tekst-2); }
+  html.tryb-admin .sidebar .miejsce-card.gra-zablokowana {
+    filter: grayscale(0.6) brightness(0.7);
+  }
+  html.tryb-admin .sidebar .miejsce-card.gra-odkryta {
+    background: linear-gradient(180deg, #2f3f2a, var(--skarb-panel));
+    border-left-color: #6ec88a;
+  }
+  html.tryb-admin .sidebar .miejsce-card.gra-odkryta .nazwa { color: #8fd9a3; }
+
+  /* --- AKORDEON "Opis gry" pod mapą --- */
+  html.tryb-admin #info-accordion {
+    background: linear-gradient(180deg, var(--skarb-panel-2) 0%, var(--skarb-panel) 100%);
+    border: 1px solid rgba(243,205,130,0.3);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  }
+  html.tryb-admin #info-accordion::before,
+  html.tryb-admin #info-accordion::after {
+    border-color: var(--skarb-zloto-2);
+  }
+  html.tryb-admin #info-accordion .accordion-header:hover {
+    background: rgba(224,169,85,0.08);
+  }
+  html.tryb-admin #info-accordion .title {
+    color: var(--skarb-zloto-2);
+  }
+  html.tryb-admin #info-accordion .title::before {
+    color: var(--skarb-zloto);
+  }
+  html.tryb-admin #info-accordion .accordion-arrow {
+    color: var(--skarb-zloto);
+  }
+  html.tryb-admin #info-accordion .accordion-inner p {
+    color: var(--skarb-tekst);
+  }
+  html.tryb-admin #info-accordion .accordion-inner p:first-child::first-letter {
+    color: var(--skarb-zloto-2);
+  }
+  html.tryb-admin #info-accordion .accordion-inner b {
+    color: var(--skarb-zloto-2);
+  }
+
+  /* --- STOPKA / NAWIGACJA pod spodem --- */
+  html.tryb-admin .bottomnav .back {
+    color: var(--skarb-zloto-2);
+  }
+  html.tryb-admin .bottomnav .back:hover {
+    background: var(--skarb-zloto);
+    color: var(--skarb-tlo);
+    border-color: var(--skarb-zloto);
+  }
+  html.tryb-admin footer {
+    color: var(--skarb-tekst-2);
+  }
+
+  /* --- MODALE edytora nazwy / opisu - ciemny skarbiec --- */
+  html.tryb-admin #nazwaEdytor.visible,
+  html.tryb-admin #opisStronyEdytor.visible {
+    background: linear-gradient(180deg, var(--skarb-panel-2), var(--skarb-panel)) !important;
+    border-color: var(--skarb-obrys) !important;
+    box-shadow:
+      0 24px 70px rgba(0,0,0,0.7),
+      inset 0 0 0 1px rgba(243,205,130,0.18) !important;
+  }
+  html.tryb-admin #nazwaEdytor.visible .nazwa-edytor-label,
+  html.tryb-admin #opisStronyEdytor.visible .nazwa-edytor-label {
+    color: var(--skarb-zloto-2);
+  }
+  html.tryb-admin #nazwaEdytor.visible input,
+  html.tryb-admin #opisStronyEdytor.visible textarea {
+    background: var(--skarb-tlo-2);
+    color: var(--skarb-tekst);
+    border-color: rgba(243,205,130,0.4);
+  }
+  html.tryb-admin #nazwaEdytor.visible .nazwa-edytor-info,
+  html.tryb-admin #opisStronyEdytor.visible .nazwa-edytor-info {
+    color: var(--skarb-tekst-2);
+  }
+  html.tryb-admin #nazwaEdytor.visible code,
+  html.tryb-admin #opisStronyEdytor.visible code {
+    background: rgba(224,169,85,0.15);
+    color: var(--skarb-zloto-2);
+  }
+
+  /* --- POPUP "Co dodajesz do gry?" - ciemny skarbiec --- */
+  html.tryb-admin .admin-choose {
+    background: linear-gradient(180deg, var(--skarb-panel-2) 0%, var(--skarb-panel) 100%);
+    border: 2px solid var(--skarb-obrys);
+    box-shadow:
+      0 24px 70px rgba(0,0,0,0.7),
+      0 0 0 9999px rgba(0,0,0,0.6),
+      inset 0 0 0 1px rgba(243,205,130,0.18);
+  }
+  html.tryb-admin .admin-choose::before,
+  html.tryb-admin .admin-choose::after {
+    border-color: var(--skarb-zloto-2);
+  }
+  html.tryb-admin .admin-choose h3 {
+    color: var(--skarb-zloto-2);
+    text-shadow: 0 1px 6px rgba(0,0,0,0.5);
+  }
+  html.tryb-admin .admin-choose .subtitle {
+    color: var(--skarb-tekst-2);
+  }
+
+  /* Kafelki wyboru typu - ciemne, ze złotym obrysem i blaskiem przy hover */
+  html.tryb-admin .admin-choose .choice-btn {
+    background: linear-gradient(180deg, var(--skarb-panel-2), var(--skarb-panel));
+    border: 2px solid rgba(243,205,130,0.4);
+    color: var(--skarb-tekst);
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,0.06),
+      inset 0 -2px 6px rgba(0,0,0,0.3);
+  }
+  html.tryb-admin .admin-choose .choice-btn:hover {
+    background: linear-gradient(180deg, #463424, var(--skarb-panel-2));
+    color: var(--skarb-tekst);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 18px rgba(0,0,0,0.5), 0 0 16px rgba(224,169,85,0.25);
+  }
+  html.tryb-admin .admin-choose .choice-text strong {
+    color: var(--skarb-zloto-2);
+  }
+  html.tryb-admin .admin-choose .choice-text span {
+    color: var(--skarb-tekst-2);
+  }
+  /* Akcenty kolorystyczne typów - obrys pozostaje czytelny na ciemnym tle.
+     Inline style z HTML (border-color) nadpisujemy tu spójnym zestawem. */
+  html.tryb-admin .admin-choose .choice-btn.audio {
+    border-color: rgba(170,140,230,0.55) !important;
+  }
+  html.tryb-admin .admin-choose .choice-btn.audio:hover {
+    background: linear-gradient(180deg, #3a2c52, #2a1c3c);
+    border-color: #a88ce6 !important;
+  }
+  html.tryb-admin .admin-choose .choice-btn:hover .choice-text strong {
+    color: var(--skarb-zloto-2);
+  }
+
+  /* Przycisk "Anuluj" - ciemny z czerwonym akcentem przy hover.
+     Kolor podany wprost (#f3cd82), nie przez var() - asekuracja
+     na wypadek silników słabo dziedziczących zmienne CSS. */
+  html.tryb-admin .admin-choose .cancel-link {
+    background: linear-gradient(180deg, #3a2a1d, #2e2017);
+    border: 1.5px solid rgba(243,205,130,0.5);
+    color: #f3cd82;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.7);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.06);
+  }
+  html.tryb-admin .admin-choose .cancel-link:hover {
+    background: linear-gradient(180deg, #4a2422, #311816);
+    border-color: #e0786e;
+    color: #f0b8b0;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+  }
+
+  /* --- PANEL RYSOWANIA NA MAPIE - ciemny skarbiec --- */
+  html.tryb-admin #panelRysowania {
+    background: linear-gradient(180deg, #3a2a1d 0%, #2e2017 100%);
+    border: 1.5px solid #c98b3a;
+    box-shadow:
+      0 8px 24px rgba(0,0,0,0.45),
+      inset 0 0 0 1px rgba(243,205,130,0.14);
+  }
+  html.tryb-admin #panelRysowania::before,
+  html.tryb-admin #panelRysowania::after {
+    border-color: #f3cd82;
+  }
+  html.tryb-admin .panel-rys-label {
+    color: #f3cd82;
+    text-shadow: 0 1px 4px rgba(0,0,0,0.5);
+  }
+  html.tryb-admin .panel-rys-divider {
+    background: rgba(243,205,130,0.3);
+  }
+
+  /* Przyciski narzędzi - ciemne kapsuły ze złotym obrysem.
+     Kolory podane wprost (nie var()) - asekuracja renderowania. */
+  html.tryb-admin .btn-narzedzie {
+    background: linear-gradient(180deg, #3a2a1d, #2e2017);
+    color: #f0e2c8;
+    border: 1px solid rgba(243,205,130,0.4);
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,0.06),
+      inset 0 -2px 5px rgba(0,0,0,0.3);
+  }
+  html.tryb-admin .btn-narzedzie:hover {
+    background: linear-gradient(180deg, #463424, #3a2a1d);
+    color: #f3cd82;
+    border-color: #f3cd82;
+    transform: translateY(-2px);
+    box-shadow: 0 5px 14px rgba(0,0,0,0.45), 0 0 12px rgba(224,169,85,0.22);
+  }
+  /* Aktywne narzędzie - złota kapsuła, wyraźnie podświetlona */
+  html.tryb-admin .btn-narzedzie.active {
+    background: linear-gradient(180deg, #e0a955, #b07d2e);
+    color: #2a1c10;
+    border-color: #f3cd82;
+    box-shadow:
+      0 3px 12px rgba(224,169,85,0.5),
+      inset 0 1px 0 rgba(255,255,255,0.3);
+    text-shadow: none;
+  }
+
+  /* Próbnik koloru - ciemna ramka */
+  html.tryb-admin .panel-rys-kolor {
+    border: 2px solid #c98b3a;
+    background: #251a13;
+  }
+
+  /* Pasek informacyjny pod narzędziami */
+  html.tryb-admin #panelRysowaniaInfo {
+    color: #c4a878;
+    border-top: 1px dashed rgba(243,205,130,0.3);
+  }
+
+  /* --- PANEL "Audio w grze" (ściąga nazw plików) - ciemny skarbiec --- */
+  html.tryb-admin #audioIntroEdytor.visible {
+    background: linear-gradient(180deg, #3a2a1d, #2e2017);
+    border: 2px solid #c98b3a;
+    box-shadow:
+      0 24px 70px rgba(0,0,0,0.7),
+      inset 0 0 0 1px rgba(243,205,130,0.18);
+  }
+  html.tryb-admin #audioIntroEdytor.visible::before,
+  html.tryb-admin #audioIntroEdytor.visible::after {
+    border-color: #f3cd82;
+  }
+  html.tryb-admin #audioIntroEdytor .nazwa-edytor-label {
+    color: #f3cd82;
+  }
+  html.tryb-admin #audioIntroEdytor .nazwa-edytor-info {
+    color: #c4a878;
+  }
+  /* Nazwy plików - złota kapsuła zamiast fioletowej */
+  html.tryb-admin #audioIntroEdytor code {
+    background: rgba(224,169,85,0.18) !important;
+    color: #f3cd82 !important;
+  }
+  /* Opisy plików obok kodów */
+  html.tryb-admin #audioIntroEdytor span {
+    color: #c4a878 !important;
+  }
+  /* Przycisk "Zamknij" */
+  html.tryb-admin #audioIntroEdytor .nazwa-anuluj {
+    background: linear-gradient(180deg, #3a2a1d, #2e2017);
+    border: 1.5px solid rgba(243,205,130,0.5);
+    color: #f3cd82;
+  }
+  html.tryb-admin #audioIntroEdytor .nazwa-anuluj:hover {
+    background: linear-gradient(180deg, #4a2422, #311816);
+    border-color: #e0786e;
+    color: #f0b8b0;
+  }
+}
+
+/* ====================================================================
+   === PRZYCISK MUZYKI W TLE (ikona głośnika) =========================
+   ====================================================================
+   Dyskretna okrągła ikona w prawym górnym rogu. Złota ramka pasująca
+   do stylu gry. Gdy muzyka gra - delikatny blask. */
+#btnPodklad {
+  position: fixed;
+  top: 14px;
+  right: 14px;
+  z-index: 9500;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  border: 2px solid var(--gold);
+  background: linear-gradient(180deg, var(--paper-2) 0%, var(--paper-3) 100%);
+  color: var(--ink);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 3px 12px rgba(60,40,20,0.35);
+  opacity: 0.78;
+  transition: opacity 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+}
+#btnPodklad:hover {
+  opacity: 1;
+  transform: scale(1.08);
+  box-shadow: 0 5px 18px rgba(60,40,20,0.45);
+}
+#btnPodklad:active { transform: scale(0.96); }
+/* Gdy muzyka gra - złoty blask i pełna widoczność */
+#btnPodklad.gra {
+  opacity: 1;
+  border-color: var(--gold);
+  box-shadow: 0 0 0 4px rgba(212,168,74,0.18), 0 4px 14px rgba(60,40,20,0.4);
+  animation: btnPodklad-puls 2.6s ease-in-out infinite;
+}
+@keyframes btnPodklad-puls {
+  0%,100% { box-shadow: 0 0 0 4px rgba(212,168,74,0.14), 0 4px 14px rgba(60,40,20,0.4); }
+  50%     { box-shadow: 0 0 0 7px rgba(212,168,74,0.22), 0 4px 16px rgba(60,40,20,0.45); }
+}
+/* Muzyka w tle gra TYLKO w edytorze (?admin=1).
+   Dla zwykłego gracza przycisk jest ukryty. */
+#btnPodklad { display: none; }
+html.tryb-admin #btnPodklad { display: flex; }
+
+/* ====================================================================
+   === CIEMNY MOTYW "SKARBIEC" - widok GRACZA na desktopie ============
+   ====================================================================
+   Aktywny gdy <html class="tryb-ciemny"> ORAZ szerokość >= 1024px.
+   Klasę tryb-ciemny JS ustawia ZAWSZE (gracz i admin), więc te reguły
+   obejmują też edytor - tam gdzie elementy są wspólne (mapa, sidebar).
+   Na telefonie (<1024px) nic się nie zmienia - jasny pergamin zostaje.
+
+   Paleta ta sama co w edytorze (skarbiec): ciepłe brązy, złoto. */
+@media (min-width: 1024px) {
+
+  html.tryb-ciemny {
+    --skarb-tlo:      #1c1410;
+    --skarb-tlo-2:    #251a13;
+    --skarb-panel:    #2e2017;
+    --skarb-panel-2:  #3a2a1d;
+    --skarb-obrys:    #c98b3a;
+    --skarb-zloto:    #e0a955;
+    --skarb-zloto-2:  #f3cd82;
+    --skarb-tekst:    #f0e2c8;
+    --skarb-tekst-2:  #c4a878;
+  }
+
+  /* --- Tło strony --- */
+  html.tryb-ciemny body {
+    background:
+      radial-gradient(circle at 15% 12%, rgba(201,139,58,0.10) 0%, transparent 42%),
+      radial-gradient(circle at 85% 85%, rgba(201,139,58,0.07) 0%, transparent 45%),
+      linear-gradient(180deg, #251a13 0%, #1c1410 100%) !important;
+    color: #f0e2c8;
+  }
+  html.tryb-ciemny .wrapper { max-width: 1280px; }
+
+  /* --- NAGŁÓWEK z tytułem przygody --- */
+  html.tryb-ciemny header h1 {
+    color: #f3cd82;
+    text-shadow: 0 2px 10px rgba(0,0,0,0.6), 0 0 22px rgba(224,169,85,0.25);
+  }
+  html.tryb-ciemny header .podtytul,
+  html.tryb-ciemny header p {
+    color: #c4a878;
+  }
+
+  /* --- PASEK KONTROLEK (widok mapy / rozmiar / hamburger) --- */
+  html.tryb-ciemny .controls {
+    background: linear-gradient(180deg, #3a2a1d, #2e2017);
+    border: 1.5px solid #c98b3a;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.45), inset 0 0 0 1px rgba(243,205,130,0.14);
+  }
+  html.tryb-ciemny .controls-divider {
+    background: rgba(243,205,130,0.25);
+  }
+  html.tryb-ciemny .btn-view,
+  html.tryb-ciemny .btn-size,
+  html.tryb-ciemny .hamburger-btn {
+    background: linear-gradient(180deg, #3a2a1d, #2e2017);
+    color: #f0e2c8;
+    border: 1px solid rgba(243,205,130,0.4);
+  }
+  html.tryb-ciemny .btn-view:hover,
+  html.tryb-ciemny .btn-size:hover,
+  html.tryb-ciemny .hamburger-btn:hover {
+    background: linear-gradient(180deg, #463424, #3a2a1d);
+    border-color: #f3cd82;
+    color: #f3cd82;
+  }
+  html.tryb-ciemny .btn-view.active,
+  html.tryb-ciemny .btn-size.active {
+    background: linear-gradient(180deg, #e0a955, #b07d2e);
+    color: #2a1c10;
+    border-color: #f3cd82;
+  }
+  html.tryb-ciemny .hamburger-btn .ham-icon span {
+    background: #f3cd82;
+  }
+
+  /* --- MAPA: ciemna złota ramka (jeśli edytor już ją ostylował -
+     ta reguła jest spójna, oba selektory dają ten sam efekt) --- */
+  html.tryb-ciemny #mapa {
+    border: 2px solid #c98b3a !important;
+    box-shadow:
+      0 10px 32px rgba(0,0,0,0.55),
+      inset 0 0 0 4px #2e2017 !important;
+  }
+  html.tryb-ciemny #mapa::before,
+  html.tryb-ciemny #mapa::after {
+    border-color: #f3cd82 !important;
+  }
+
+  /* --- PANEL BOCZNY i karty miejsc --- */
+  html.tryb-ciemny .sidebar {
+    background: linear-gradient(180deg, #3a2a1d 0%, #2e2017 100%);
+    border: 1px solid rgba(243,205,130,0.3);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.45), inset 0 0 30px rgba(0,0,0,0.3);
+  }
+  html.tryb-ciemny .sidebar::before,
+  html.tryb-ciemny .sidebar::after {
+    border-color: #f3cd82;
+  }
+  html.tryb-ciemny .sidebar::-webkit-scrollbar-track {
+    background: rgba(0,0,0,0.25);
+  }
+  html.tryb-ciemny .sidebar::-webkit-scrollbar-thumb {
+    background: rgba(224,169,85,0.4);
+  }
+  html.tryb-ciemny .sidebar::-webkit-scrollbar-thumb:hover {
+    background: #e0a955;
+  }
+  html.tryb-ciemny .miejsce-card {
+    background: linear-gradient(180deg, #3a2a1d, #2e2017);
+    border: 1px solid rgba(243,205,130,0.22);
+    border-left: 3px solid #c98b3a;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.35);
+  }
+  html.tryb-ciemny .miejsce-card:hover {
+    background: linear-gradient(180deg, #463424, #3a2a1d);
+    border-left-color: #f3cd82;
+    box-shadow: 0 5px 16px rgba(0,0,0,0.5), 0 0 14px rgba(224,169,85,0.2);
+  }
+  html.tryb-ciemny .miejsce-card .nazwa { color: #f3cd82; }
+  html.tryb-ciemny .miejsce-card .opis  { color: #c4a878; }
+  html.tryb-ciemny .miejsce-card .dystans {
+    background: rgba(224,169,85,0.15);
+    color: #f3cd82;
+  }
+  html.tryb-ciemny .miejsce-card .dystans.bliski {
+    background: #e0a955;
+    color: #2a1c10;
+  }
+  /* Karty gry - zablokowana / odkryta */
+  html.tryb-ciemny .miejsce-card.gra-zablokowana {
+    filter: grayscale(0.55) brightness(0.7);
+  }
+  html.tryb-ciemny .miejsce-card.gra-odkryta {
+    background: linear-gradient(180deg, #2f3f2a, #2e2017);
+    border-left-color: #6ec88a;
+  }
+  html.tryb-ciemny .miejsce-card.gra-odkryta .nazwa { color: #8fd9a3; }
+  html.tryb-ciemny .miejsce-card.gra-odkryta::before { color: #6ec88a; }
+
+  /* --- PANEL POSTĘPU "Twoja przygoda" --- */
+  html.tryb-ciemny .gra-postep-info,
+  html.tryb-ciemny #graPostepPanel {
+    background: linear-gradient(180deg, #3a2a1d, #2e2017);
+    border: 1.5px solid #c98b3a;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    color: #f0e2c8;
+  }
+  html.tryb-ciemny .gra-postep-label {
+    color: #f3cd82;
+  }
+  html.tryb-ciemny #graPostepPanel strong,
+  html.tryb-ciemny #postepGryDisplay {
+    color: #f3cd82;
+  }
+  html.tryb-ciemny #graPostepListaOdkrytych {
+    color: #f0e2c8;
+  }
+  html.tryb-ciemny #graPostepCoDalej {
+    background: rgba(224,169,85,0.12);
+    border-left: 3px solid #e0a955;
+    color: #f0e2c8;
+  }
+  html.tryb-ciemny .gra-reset-btn {
+    background: linear-gradient(180deg, #5a2a28, #381a18);
+    border: 1px solid rgba(230,120,110,0.5);
+    color: #f0b8b0;
+  }
+  html.tryb-ciemny .gra-reset-btn:hover {
+    background: linear-gradient(180deg, #6a322f, #45211e);
+  }
+
+  /* --- AKORDEON "Opis gry" pod mapą --- */
+  html.tryb-ciemny #info-accordion {
+    background: linear-gradient(180deg, #3a2a1d 0%, #2e2017 100%);
+    border: 1px solid rgba(243,205,130,0.3);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  }
+  html.tryb-ciemny #info-accordion::before,
+  html.tryb-ciemny #info-accordion::after {
+    border-color: #f3cd82;
+  }
+  html.tryb-ciemny #info-accordion .accordion-header:hover {
+    background: rgba(224,169,85,0.08);
+  }
+  html.tryb-ciemny #info-accordion .title { color: #f3cd82; }
+  html.tryb-ciemny #info-accordion .title::before { color: #e0a955; }
+  html.tryb-ciemny #info-accordion .accordion-arrow { color: #e0a955; }
+  html.tryb-ciemny #info-accordion .accordion-inner p { color: #f0e2c8; }
+  html.tryb-ciemny #info-accordion .accordion-inner b { color: #f3cd82; }
+
+  /* --- STOPKA / NAWIGACJA --- */
+  html.tryb-ciemny .bottomnav .back { color: #f3cd82; }
+  html.tryb-ciemny .bottomnav .back:hover {
+    background: #e0a955;
+    color: #1c1410;
+    border-color: #e0a955;
+  }
+  html.tryb-ciemny footer { color: #c4a878; }
+
+  /* --- EKRAN STARTOWY i KOŃCOWY przygody (wspólna klasa .gra-pergamin) --- */
+  html.tryb-ciemny .gra-ekran-startowy,
+  html.tryb-ciemny .gra-ekran-koncowy {
+    background: rgba(20,14,10,0.82);
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(3px);
+  }
+  html.tryb-ciemny .gra-pergamin {
+    background:
+      radial-gradient(ellipse 70% 50% at 50% 0%, rgba(224,169,85,0.12), transparent 70%),
+      linear-gradient(180deg, #3a2a1d 0%, #2e2017 100%);
+    border: 2px solid #c98b3a;
+    box-shadow:
+      0 24px 70px rgba(0,0,0,0.7),
+      inset 0 0 0 1px rgba(243,205,130,0.18),
+      inset 0 2px 16px rgba(0,0,0,0.4);
+    color: #f0e2c8;
+  }
+  html.tryb-ciemny .gra-pergamin::before,
+  html.tryb-ciemny .gra-pergamin::after {
+    border-color: #f3cd82;
+  }
+  html.tryb-ciemny .gra-pergamin-tytul {
+    color: #f3cd82;
+    text-shadow: 0 2px 10px rgba(0,0,0,0.6), 0 0 22px rgba(224,169,85,0.25);
+  }
+  html.tryb-ciemny .gra-pergamin-podtytul {
+    color: #c4a878;
+  }
+  html.tryb-ciemny .gra-pergamin-ozdoba-gora,
+  html.tryb-ciemny .gra-pergamin-ozdoba-dol {
+    color: #e0a955;
+  }
+  html.tryb-ciemny .gra-pergamin-opis {
+    color: #f0e2c8;
+    background: rgba(20,14,10,0.5);
+    border: 1px solid rgba(243,205,130,0.25);
+    box-shadow: inset 0 1px 4px rgba(0,0,0,0.4);
+  }
+  html.tryb-ciemny .gra-pergamin-opis b {
+    color: #f3cd82;
+  }
+  /* Pudełka statystyk na ekranie startowym */
+  html.tryb-ciemny .gra-pergamin-statystyki > div,
+  html.tryb-ciemny .gra-pergamin-statystyka {
+    background: linear-gradient(180deg, #463424, #2e2017);
+    border: 1px solid rgba(243,205,130,0.3);
+    color: #f0e2c8;
+  }
+  html.tryb-ciemny .gra-pergamin-statystyki strong {
+    color: #f3cd82;
+  }
+  /* Główny przycisk "Rozpocznij" / "Wracam do mapy" */
+  html.tryb-ciemny .gra-pergamin-btn {
+    background: linear-gradient(180deg, #e0a955, #b07d2e);
+    color: #2a1c10;
+    border: 1.5px solid #f3cd82;
+    box-shadow: 0 4px 14px rgba(224,169,85,0.4), inset 0 1px 0 rgba(255,255,255,0.3);
+    text-shadow: none;
+  }
+  html.tryb-ciemny .gra-pergamin-btn:hover {
+    background: linear-gradient(180deg, #f3cd82, #d4a04a);
+    box-shadow: 0 6px 20px rgba(224,169,85,0.55);
+  }
+  html.tryb-ciemny .gra-pergamin-info {
+    color: #c4a878;
+  }
+  /* Ramka z linkiem YouTube na ekranie startowym */
+  html.tryb-ciemny .gra-pergamin-yt {
+    background: rgba(224,169,85,0.1);
+    border: 1px solid rgba(243,205,130,0.3);
+  }
+  html.tryb-ciemny .gra-pergamin-yt a {
+    color: #f3cd82;
+  }
+  /* Przycisk muzyki na ekranie startowym */
+  html.tryb-ciemny .gra-intro-muzyka-btn {
+    background: linear-gradient(180deg, #3a2a1d, #2e2017);
+    border: 1.5px solid #c98b3a;
+    color: #f3cd82;
+  }
+
+  /* --- POWIADOMIENIA (toast u góry) --- */
+  html.tryb-ciemny .game-toast {
+    background: linear-gradient(180deg, #3a2a1d, #2e2017);
+    border: 1.5px solid #c98b3a;
+    color: #f3cd82;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+  }
+
+  /* --- TŁO SVG ekranu startowego/końcowego (las, ścieżka) ---
+     Grafika jest jasna/akwarelowa - w ciemnym motywie przyciemniamy ją
+     filtrem, by wtopiła się w skarbcowy klimat zamiast świecić na biało. */
+  html.tryb-ciemny .gra-tlo-svg {
+    filter: brightness(0.42) saturate(0.7) sepia(0.35) hue-rotate(-12deg);
+  }
+}
+
+</style>
+</head>
+<body>
+
+<!-- ============================================================
+     === PRZYCISK MUZYKI W TLE (ikona głośnika, prawy górny róg) =
+     ============================================================
+     Klik włącza/wyłącza audio/podklad.mp3. Logika w skrypcie na
+     dole strony (togglePodklad). Jeśli plik nie istnieje w repo -
+     skrypt sam chowa ten przycisk. Nie pokazuje się w edytorze. -->
+<button id="btnPodklad" onclick="togglePodklad()" title="Włącz muzykę w tle" aria-label="Muzyka w tle">🔇</button>
+
+<!-- ============================================================
+     === SZUFLADKA "WYKRYTO AUDIO" (mobile, pierwsze wejście) ===
+     ============================================================
+     Pojawia się TYLKO RAZ na sesję nawigacji - przy pierwszym
+     wjechaniu w jakąkolwiek strefę audio. User wybiera ON/OFF.
+     -->
+<div id="szufladaWykryto" role="dialog" aria-label="Wykryto audio">
+  <div class="sw-tytul">🎧 Wykryto audio</div>
+  <div class="sw-podtytul">Włączyć automatyczne odtwarzanie?</div>
+  <div class="sw-przyciski">
+    <button type="button" class="sw-btn sw-on" onclick="decyzjaSzuflady('on')">ON</button>
+    <button type="button" class="sw-btn sw-off" onclick="decyzjaSzuflady('off')">OFF</button>
+  </div>
+</div>
+
+<!-- ============================================================
+     === WYMUSZENIE PIONOWEJ ORIENTACJI (mobile landscape) =====
+     ============================================================
+     Pełnoekranowy komunikat - widoczny tylko gdy telefon obrócony
+     poziomo. CSS @media zarządza widocznością. -->
+<div id="obrocTelefon">
+  <div id="obrocTelefon-inner">
+    <span id="obrocTelefon-ikona">📱</span>
+    <h2>Obróć telefon</h2>
+    <div id="obrocTelefon-ozdoba">❦ ❦ ❦</div>
+    <p>Mapa działa tylko<br>w pionowym ułożeniu telefonu.</p>
+    <p id="obrocTelefon-mala">Obróć urządzenie, by korzystać z mapy.</p>
+  </div>
+</div>
+
+<div id="obrocAdmin">
+  <div id="obrocAdmin-inner">
+    <span id="obrocAdmin-ikona">🗺️</span>
+    <h2>Tryb budowania mapy</h2>
+    <div id="obrocAdmin-ozdoba">❦ ❦ ❦</div>
+    <p>Budowanie mapy działa tylko<br>na komputerze lub tablecie w poziomie.</p>
+    <p id="obrocAdmin-mala">Obróć tablet poziomo lub przejdź na komputer, by edytować przygodę.</p>
+  </div>
+</div>
+
+
+<!-- BANER POWITALNY (pojawia się po zeskanowaniu QR) -->
+<div class="qr-welcome" id="qrWelcome">
+  <div class="qr-ornament">❦ ❦ ❦</div>
+  <span class="ikona-qr" id="qrWelcomeIkona">📍</span>
+  <h2 id="qrWelcomeNazwa">Witaj na mapie</h2>
+  <p class="opis-qr" id="qrWelcomeOpis">Tu jesteś — zobacz więcej miejsc w pobliżu na mapie.</p>
+  <button onclick="zamknijQrWelcome()">Zobacz mapę</button>
+  <a class="small-link" id="qrWelcomeWiecej" onclick="zobaczOpisPelny()">Pełny opis miejsca →</a>
+</div>
+
+<!-- BANER WŁĄCZ AUDIO PRZEWODNIK -->
+<div class="audio-enable-banner" id="audioBanner">
+  <div class="audio-icons">🎧 🥾</div>
+  <h3>Włączyć przewodnik audio?</h3>
+  <p>Gdy zbliżysz się do oznaczonego miejsca, telefon wibruje i odtwarza krótkie nagranie z opowieścią.</p>
+  <button onclick="wlaczAudioPrzewodnik(true)">🎧 Tak, włącz</button>
+  <button class="secondary" onclick="wlaczAudioPrzewodnik(false)">Bez audio</button>
+</div>
+
+<!-- MODAL SKANERA QR (pełen ekran) -->
+<div class="scan-modal" id="scanModal">
+  <div class="scan-header">
+    <h2>Skaner kodów QR</h2>
+    <button class="scan-close" onclick="zamknijSkaner()" aria-label="Zamknij">×</button>
+  </div>
+  <div class="scan-body">
+    <div id="qrReader"></div>
+    <div class="scan-tip">Skieruj aparat na kod QR</div>
+  </div>
+</div>
+
+<!-- MODAL WYNIKU SKANOWANIA -->
+<div class="result-modal" id="resultModal">
+  <div class="ornament">❦ ❦ ❦</div>
+  <h3 id="resultTitle">Znaleziono kod QR</h3>
+  <div class="url-box" id="resultUrl"></div>
+
+  <div class="toggle-row">
+    <input type="checkbox" id="newTabToggle" checked>
+    <label for="newTabToggle">Otwórz w nowej karcie</label>
+  </div>
+
+  <div class="opcje">
+    <button onclick="otworzZnaleziony()">↗ Otwórz link</button>
+  </div>
+  <a class="small-link" onclick="zamknijWynik()">Zamknij — wróć do mapy</a>
+</div>
+
+<div class="wrapper">
+
+  <header>
+    <h1>Nazwa przygody</h1>
   </header>
 
   <!-- KONTROLKI -->
@@ -5538,8 +6625,11 @@ const EMOJI_NAMES = {
 };
 
 // === KATEGORIE:START === (nie usuwaj tego komentarza - znacznik dla auto-eksportu)
+// EDYTOR-GRA: tylko jedna kategoria - "Punkt orientacyjny" dla miejsc na mapie.
+// (Przygoda zostaje dla wstecznej kompatybilności - nie używana aktywnie.)
 const kategorieDomyslne = {
-
+  punkt: { ikona: '📍', nazwa: 'Punkt orientacyjny' },
+  przygoda: { ikona: '❓', nazwa: 'Przygoda' }
 };
 // === KATEGORIE:END ===
 
@@ -5599,7 +6689,6 @@ function zastosujKategorie() {
 }
 
 const miejsca = [
-
 ];
 
 const mapa = L.map('mapa', {
@@ -7221,6 +8310,18 @@ function renderujMiejscaNaMapie() {
   if (uzywamClusteringu && clusterGroup) {
     mapa.addLayer(clusterGroup);
   }
+
+  // KRYTYCZNE: ta funkcja czyści całą listę boczną (listaEl.innerHTML='').
+  // Czyści też karty gry (START + tajemnice + META). Trzeba je odbudować,
+  // inaczej np. dodanie punktu orientacyjnego "wywala" tajemnice z listy.
+  // UWAGA: pierwszy render przy starcie odpala się ZANIM `kropkiAudio`
+  // (const, niżej w pliku) jest zainicjalizowane. Flaga window._kropkiGotowe
+  // jest ustawiana zaraz po deklaracji - typeof na const w TDZ też rzuca,
+  // więc nie da się tego sprawdzić bezpośrednio. Karty gry przy starcie
+  // i tak buduje osobne, późniejsze wywołanie renderujStartWLiscie().
+  if (window._kropkiGotowe && typeof renderujStartWLiscie === 'function') {
+    try { renderujStartWLiscie(); } catch (e) { console.warn('[render] renderujStartWLiscie:', e); }
+  }
 }
 
 // Pierwszy render - przy starcie
@@ -7244,11 +8345,10 @@ zastosujKategorie();
 //
 // Aby dodać nową kropkę: użyj przycisków w panelu admin (?admin=1).
 const kropkiAudio = [
-  { numer: 0, typ: 'start', pozycja: [53.12700, 19.32715], promien: 20, opis: '' },
-  { numer: 1, pozycja: [51.99165, 21.06299], promien: 30, opis: '', pokazFale: true },
-  { numer: 2, pozycja: [51.40606, 18.49219], promien: 30, opis: '' },
-  { numer: 3, pozycja: [50.78510, 22.05176], promien: 30, opis: '' }
 ];
+// Flaga: od tego miejsca `kropkiAudio` istnieje. renderujMiejscaNaMapie()
+// sprawdza ją, by przy pierwszym (startowym) renderze nie wejść w TDZ.
+window._kropkiGotowe = true;
 
 // Stan przewodnika audio
 let audioPrzewodnikWlaczony = false;
@@ -9247,310 +10347,270 @@ function wyczyscWszystkoEdytor() {
 }
 
 // ============== POBIERANIE NOWEGO INDEX.HTML ==============
-// Bierze obecny plik (przez fetch do samego siebie), znajduje tablicę kropkiAudio
-// i podmienia ją na NOWĄ (istniejące + zaplanowane). Zwraca plik do pobrania.
-async function pobierzNowyIndex() {
+// =====================================================================
+// === ZAPIS GRY DO PLIKU index.html ===================================
+// =====================================================================
+// Generuje kompletny, samodzielny plik index.html z aktualnym stanem gry.
+//
+// NAJWAŻNIEJSZA ZASADA - czyszczenie warstw Leaflet:
+// W trakcie działania Leaflet WYPEŁNIA element #mapa swoimi divami
+// (kafelki, warstwy, kontrolki - klasy leaflet-*). Gdyby zapisać #mapa
+// "jak jest", w pliku znalazłaby się martwa, wyrenderowana mapa, a nowy
+// Leaflet narysowałby DRUGĄ na wierzchu = "mapa na mapie", migające
+// warstwy. Dlatego przed zapisem USUWAMY z #mapa wszystko, co dodał
+// Leaflet, zostawiając tylko oryginalne elementy (przyciski GPS itd.).
+//
+// Druga zasada - nie szukamy tagów (</style>, </head>) przez indexOf
+// w tekście, bo ta funkcja sama zawiera takie napisy w swoim kodzie.
+// Składamy plik z elementów DOM.
+function pobierzNowyIndex() {
   try {
-    // Pobierz tekst tego samego pliku.
-    // UWAGA na cache: hostingi z Varnish/Fastly/Cloudflare potrafią odpowiedzieć
-    // "304 Not Modified" z PUSTYM ciałem - wtedy response.text() zwraca prawie nic
-    // i pobralibyśmy uszkodzony (pusty) plik. Dlatego:
-    //  - dokładamy losowy parametr do URL (każde żądanie jest "nowe"),
-    //  - wymuszamy cache:'reload' + nagłówki zakazujące cache,
-    //  - status 304 traktujemy jako błąd,
-    //  - na końcu sprawdzamy, czy pobrany tekst ma sensowny rozmiar.
-    const adresZrodla = window.location.href.split('?')[0]
-      + '?_pobierz=' + Date.now() + '_' + Math.random().toString(36).slice(2);
-    const response = await fetch(adresZrodla, {
-      cache: 'reload',
-      headers: {
-        'Pragma': 'no-cache',
-        'Cache-Control': 'no-cache, no-store, must-revalidate'
+    // ===== KROK 1: przygotuj czysty klon <body> =====
+    const bodyKlon = document.body.cloneNode(true);
+
+    // --- 1a. Wyczyść warstwy Leaflet z #mapa (najważniejsze!) ---
+    const mapaKlon = bodyKlon.querySelector('#mapa');
+    if (mapaKlon) {
+      // Usuń wszystkie dzieci z klasą leaflet-* (kafelki, panes, kontrolki)
+      // oraz kontener .leaflet-pane. Zostaw tylko oryginalne elementy gry.
+      const doUsuniecia = [];
+      for (const dziecko of mapaKlon.children) {
+        const kl = dziecko.className || '';
+        if (typeof kl === 'string' && kl.indexOf('leaflet') !== -1) {
+          doUsuniecia.push(dziecko);
+        }
       }
+      doUsuniecia.forEach(el => el.remove());
+      // Zdejmij klasy leaflet-* z samego #mapa (Leaflet je dokłada)
+      if (typeof mapaKlon.className === 'string') {
+        mapaKlon.className = mapaKlon.className
+          .split(' ')
+          .filter(c => c.indexOf('leaflet') === -1)
+          .join(' ')
+          .trim();
+      }
+      // Usuń atrybuty, które Leaflet dokłada (tabindex, style pozycji)
+      mapaKlon.removeAttribute('tabindex');
+      mapaKlon.removeAttribute('style');
+    }
+
+    // --- 1b. Wyczyść wstrzyknięty pasek edytora (JS odbuduje go sam) ---
+    const pasekKlon = bodyKlon.querySelector('#editorPasek');
+    if (pasekKlon) pasekKlon.innerHTML = '';
+
+    // --- 1c. Wyczyść dynamicznie budowaną listę miejsc ---
+    const listaKlon = bodyKlon.querySelector('#lista-miejsc');
+    if (listaKlon) listaKlon.innerHTML = '';
+
+    // --- 1d. Zdejmij klasy stanu (otwarte panele, tryby gry) ---
+    bodyKlon.querySelectorAll('.visible').forEach(el => el.classList.remove('visible'));
+    bodyKlon.querySelectorAll('.tryb-podglad').forEach(el => el.classList.remove('tryb-podglad'));
+    bodyKlon.querySelectorAll('.gra-zablokowana, .gra-odkryta').forEach(el => {
+      el.classList.remove('gra-zablokowana', 'gra-odkryta');
     });
-    if (response.status === 304 || !response.ok) {
-      throw new Error('Serwer nie odesłał pełnego pliku (status ' + response.status
-        + '). To zwykle wina pamięci podręcznej hostingu - odczekaj chwilę i spróbuj ponownie.');
-    }
-    let tekst = await response.text();
 
-    // ZABEZPIECZENIE: pobrany plik musi mieć sensowny rozmiar.
-    // Prawdziwy index.html ma setki tysięcy znaków. Jeśli wyszło mało -
-    // to znaczy, że fetch dostał pustą odpowiedź z cache. NIE zapisujemy
-    // takiego pliku - lepiej przerwać z jasnym komunikatem.
-    if (!tekst || tekst.length < 50000) {
-      throw new Error('Pobrany plik jest podejrzanie mały (' + (tekst ? tekst.length : 0)
-        + ' znaków zamiast setek tysięcy).\n\nTo wina pamięci podręcznej Twojego hostingu '
-        + '(Varnish/Fastly) - serwer odesłał pustą odpowiedź zamiast pliku.\n\n'
-        + 'Co zrobić: odczekaj 1-2 minuty i kliknij "Pobierz" ponownie. '
-        + 'Jeśli błąd się powtarza - odśwież stronę (Ctrl+Shift+R) i spróbuj jeszcze raz.');
-    }
-    // Plik musi też zawierać kluczowy znacznik - dowód, że to prawdziwy index gry
-    if (!tekst.includes('kropkiAudio')) {
-      throw new Error('Pobrany plik nie wygląda na index.html gry (brak tablicy kropkiAudio). '
-        + 'Możliwe, że hosting odesłał stronę błędu lub listing katalogu. '
-        + 'Odśwież stronę i spróbuj ponownie.');
+    // --- 1e. Ustaw nazwę przygody w <h1> klona (bezpiecznie, bez regexa) ---
+    const nazwaPrzygody = (localStorage.getItem(KEY_NAZWA_STRONY)
+      || (document.querySelector('header h1') || {}).textContent
+      || '').trim();
+    if (nazwaPrzygody) {
+      const h1Klon = bodyKlon.querySelector('header h1') || bodyKlon.querySelector('h1');
+      if (h1Klon) h1Klon.textContent = nazwaPrzygody;
     }
 
-    // ===== TABLICA kropkiAudio =====
-    // Połącz wszystkie kropki: istniejące z kodu + zaplanowane (sortuj po numerze)
-    // EDYTOR-GRA: zachowujemy też typ, tytul, linkYT (specjalne pola dla gry)
-    const wszystkie = [
+    // ===== KROK 2: złóż <head> =====
+    // Każdy element <head> osobno. <style> z czystego textContent
+    // (NIE outerHTML - psuje się przez SVG data:URL wewnątrz CSS).
+    let headHTML = '';
+    for (const dziecko of [...document.head.children]) {
+      if (dziecko.tagName === 'STYLE') {
+        headHTML += '<style>\n' + (dziecko.textContent || '') + '\n</' + 'style>\n';
+      } else {
+        headHTML += dziecko.outerHTML + '\n';
+      }
+    }
+
+    // ===== KROK 3: złóż kompletny plik =====
+    const langAttr = document.documentElement.getAttribute('lang') || 'pl';
+    let tekst = '<!DOCTYPE html>\n'
+      + '<html lang="' + langAttr + '">\n'
+      + '<head>\n' + headHTML + '</head>\n'
+      + '<body>\n' + bodyKlon.innerHTML + '\n</body>\n'
+      + '</html>';
+
+    // ===== KROK 4: wstaw dane gry =====
+
+    // --- 4a. kropkiAudio (start + meta + tajemnice + zaplanowane) ---
+    const wszystkieKropki = [
       ...kropkiAudio.map(k => ({
         numer: k.numer,
-        typ: k.typ,
-        tytul: k.tytul,
-        linkYT: k.linkYT,
-        autor: k.autor,
-        emotka: k.emotka,
-        lat: k.pozycja[0],
-        lng: k.pozycja[1],
+        typ: k.typ || 'tajemnica',
+        pozycja: k.pozycja,
         promien: k.promien,
         opis: k.opis || '',
-        pokazFale: k.pokazFale === true
+        pokazFale: k.pokazFale === true,
+        trybKropki: k.trybKropki || null
       })),
-      ...zaplanowaneKropki
-    ];
+      ...(typeof zaplanowaneKropki !== 'undefined' ? zaplanowaneKropki.map(k => ({
+        numer: k.numer,
+        typ: k.typ || 'tajemnica',
+        pozycja: k.pozycja || [k.lat, k.lng],
+        promien: k.promien,
+        opis: k.opis || '',
+        pokazFale: k.pokazFale === true,
+        trybKropki: k.trybKropki || null
+      })) : [])
+    ].sort((a, b) => (a.numer || 0) - (b.numer || 0));
 
-    // UWAGA: Wiele kropek może mieć ten sam `numer` (segmenty tej samej strefy
-    // dla nieregularnych obszarów - np. duży park otoczony 3 fioletowymi
-    // kółkami #5, wszystkie odpalają audio/5.mp3). NIE deduplikujemy po numerze!
-    const finalne = wszystkie.slice().sort((a, b) => a.numer - b.numer);
+    const escTekst = s => String(s || '')
+      .replace(/\\/g, '\\\\').replace(/'/g, "\\'")
+      .replace(/\n/g, '\\n').replace(/\r/g, '');
 
-    // Wygeneruj kod nowej tablicy kropek audio
-    const linie = finalne.map(k => {
-      const opis = (k.opis || '').replace(/'/g, "\\'");
-      // EDYTOR-GRA: typ kropki (start/tajemnica/meta) - obowiązkowe jeśli inne niż tajemnica
-      let typPole = '';
-      if (k.typ && k.typ !== 'tajemnica') typPole = `, typ: '${k.typ}'`;
-      // tytuł (dla start i meta)
-      let tytulPole = '';
-      if (k.tytul) tytulPole = `, tytul: '${(k.tytul || '').replace(/'/g, "\\'")}'`;
-      // link YouTube (dla startu)
-      let ytPole = '';
-      if (k.linkYT) ytPole = `, linkYT: '${(k.linkYT || '').replace(/'/g, "\\'")}'`;
-      // EDYTOR-GRA: autor (dla startu) - wyświetlany w menu startowym
-      let autorPole = '';
-      if (k.autor) autorPole = `, autor: '${(k.autor || '').replace(/'/g, "\\'")}'`;
-      // pokazFale dodajemy TYLKO gdy true (oszczędność miejsca; brak pola = false)
+    const linieKropek = wszystkieKropki.map(k => {
+      const lat = k.pozycja[0].toFixed(5);
+      const lng = k.pozycja[1].toFixed(5);
+      // typ KLUCZOWE - bez niego start/meta stają się tajemnicami!
+      const typK = (k.typ && k.typ !== 'tajemnica') ? `, typ: '${k.typ}'` : '';
       const fala = k.pokazFale === true ? ', pokazFale: true' : '';
-      // emotka tajemnicy - dodajemy tylko gdy ustawiona
-      const emotka = k.emotka ? `, emotka: '${(k.emotka || '').replace(/'/g, "\\'")}'` : '';
-      return `  { numer: ${k.numer}${typPole}, pozycja: [${k.lat.toFixed(5)}, ${k.lng.toFixed(5)}], promien: ${k.promien}, opis: '${opis}'${tytulPole}${ytPole}${autorPole}${fala}${emotka} }`;
+      const tryb = (k.trybKropki && k.trybKropki !== 'inkognito') ? `, trybKropki: '${k.trybKropki}'` : '';
+      return `  { numer: ${k.numer}, pozycja: [${lat}, ${lng}], promien: ${k.promien}, opis: '${escTekst(k.opis)}'${typK}${fala}${tryb} }`;
     });
-    const nowaTablicaKropek = `const kropkiAudio = [\n${linie.join(',\n')}\n];`;
-
-    // Znajdź starą tablicę kropek audio i podmień
+    const nowaKropki = 'const kropkiAudio = [\n' + linieKropek.join(',\n') + '\n];';
     const regexKropki = /const\s+kropkiAudio\s*=\s*\[[\s\S]*?\n\];/;
     if (!regexKropki.test(tekst)) {
-      alert('⚠️ Nie znaleziono tablicy kropkiAudio w pliku.');
+      alert('⚠️ Zapis przerwany - nie znaleziono tablicy kropkiAudio.');
       return;
     }
-    tekst = tekst.replace(regexKropki, nowaTablicaKropek);
+    tekst = tekst.replace(regexKropki, nowaKropki);
 
-    // ===== TABLICA miejsca =====
-    // Generujemy tablicę z aktualną pamięcią (która zawiera nasze edycje)
-    // Format: podstawowe dane + opcjonalnie tytuł i opis (jeśli ustawione)
-    // Dzięki temu jeden plik index.html zawiera WSZYSTKO - dwuklik działa.
-    const esc = s => (s || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, '\\n').replace(/\r/g, '');
-    const linieMiejsc = miejsca.map(m => {
+    // --- 4b. miejsca ---
+    const linieMiejsc = (typeof miejsca !== 'undefined' ? miejsca : []).map(m => {
       const lat = m.pozycja[0].toFixed(4);
       const lng = m.pozycja[1].toFixed(4);
-      let linia = `  { klucz: '${esc(m.klucz)}', nazwa: '${esc(m.nazwa)}', pozycja: [${lat}, ${lng}], ikona: '${esc(m.ikona)}', kategoria: '${esc(m.kategoria)}'`;
-      // Opcjonalne: tytuł, opis i flagi - dodajemy tylko jeśli są ustawione
-      if (m.tytul && m.tytul.trim()) linia += `, tytul: '${esc(m.tytul)}'`;
-      if (m.opis && m.opis.trim()) linia += `, opis: '${esc(m.opis)}'`;
-      if (m.tytulSrodek) linia += `, tytulSrodek: true`;
-      if (m.tytulDuzy) linia += `, tytulDuzy: true`;
-      // TRYB GRY: numer etapu (tylko gdy >0)
-      if (m.numerGry && m.numerGry > 0) linia += `, numerGry: ${m.numerGry}`;
-      linia += ` }`;
-      return linia;
+      let l = `  { klucz: '${escTekst(m.klucz)}', nazwa: '${escTekst(m.nazwa)}', pozycja: [${lat}, ${lng}], ikona: '${escTekst(m.ikona)}', kategoria: '${escTekst(m.kategoria)}'`;
+      if (m.tytul && m.tytul.trim())   l += `, tytul: '${escTekst(m.tytul)}'`;
+      if (m.opis && m.opis.trim())     l += `, opis: '${escTekst(m.opis)}'`;
+      if (m.tytulSrodek)               l += `, tytulSrodek: true`;
+      if (m.tytulDuzy)                 l += `, tytulDuzy: true`;
+      if (m.linkYT && m.linkYT.trim()) l += `, linkYT: '${escTekst(m.linkYT)}'`;
+      if (m.quickTyp)                  l += `, quickTyp: '${escTekst(m.quickTyp)}'`;
+      return l + ' }';
     });
-    const nowaTablicaMiejsc = `const miejsca = [\n${linieMiejsc.join(',\n')}\n];`;
-
-    // Znajdź starą tablicę miejsc i podmień
+    const nowaMiejsca = 'const miejsca = [\n' + linieMiejsc.join(',\n') + '\n];';
     const regexMiejsc = /const\s+miejsca\s*=\s*\[[\s\S]*?\n\];/;
     if (regexMiejsc.test(tekst)) {
-      tekst = tekst.replace(regexMiejsc, nowaTablicaMiejsc);
-    } else {
-      alert('⚠️ Nie znaleziono tablicy miejsc w pliku - kropki audio zaktualizowane, miejsca pominięte.');
+      tekst = tekst.replace(regexMiejsc, nowaMiejsca);
     }
 
-    // ===== TRYB GRY: zapisz flagę trybGryWlaczony w pobieranym pliku =====
-    // Admin ustawił przełącznik mapa/gra - musi to być zaszyte w pliku, żeby
-    // turysta otwierający mapę widział grę (lub zwykłą mapę).
-    const regexTrybGry = /let\s+trybGryWlaczony\s*=\s*(true|false)\s*;/;
-    const noweUstawienieTrybu = `let trybGryWlaczony = ${trybGryWlaczony ? 'true' : 'false'};`;
-    if (regexTrybGry.test(tekst)) {
-      tekst = tekst.replace(regexTrybGry, noweUstawienieTrybu);
+    // --- 4c. <title> (nazwa w <h1> już ustawiona w klonie, KROK 1e) ---
+    if (nazwaPrzygody) {
+      tekst = tekst.replace(/<title>([^<]*)<\/title>/,
+        () => '<title>' + nazwaPrzygody.replace(/\$/g, '$$$$') + '</title>');
     }
 
-    // ===== NAZWA STRONY (h1 + title) =====
-    // Bierzemy z localStorage albo z aktualnego H1 - cokolwiek user widzi w tym momencie
-    const aktualnaNazwa = (localStorage.getItem(KEY_NAZWA_STRONY)
-        || document.querySelector('h1')?.textContent || '').trim();
-    if (aktualnaNazwa) {
-      // Escape dla regex replacement (specjalnie $)
-      const safeNazwa = aktualnaNazwa.replace(/\$/g, '$$$$');
-      // 1. Podmień <h1>...</h1> (pierwszy h1 w pliku)
-      tekst = tekst.replace(/<h1>([\s\S]*?)<\/h1>/, `<h1>${safeNazwa}</h1>`);
-      // 2. Podmień fragment w <title> - zachowaj suffix po " · "
-      tekst = tekst.replace(/<title>([^<]*)<\/title>/, (m, stary) => {
-        const obecny = stary.trim();
-        let nowyTytul;
-        if (obecny.includes(' — ')) {
-          const czesci = obecny.split(' — ');
-          // Format "Coś — NazwaMiejsca · suffix" - podmieniamy część po " — "
-          let dolna = czesci[1] || '';
-          if (dolna.includes(' · ')) {
-            const sub = dolna.split(' · ');
-            sub[0] = aktualnaNazwa;
-            dolna = sub.join(' · ');
-          } else {
-            dolna = aktualnaNazwa;
-          }
-          czesci[1] = dolna;
-          nowyTytul = czesci.join(' — ');
-        } else if (obecny.includes(' · ')) {
-          const sub = obecny.split(' · ');
-          sub[0] = aktualnaNazwa;
-          nowyTytul = sub.join(' · ');
-        } else {
-          nowyTytul = aktualnaNazwa;
-        }
-        return `<title>${nowyTytul.replace(/\$/g, '$$$$')}</title>`;
-      });
+    // --- 4d. opis gry (tytuł sekcji + treść akordeonu) ---
+    const opisTytul = localStorage.getItem(KEY_OPIS_STRONY_TYTUL);
+    if (opisTytul) {
+      tekst = tekst.replace(
+        /(<span\s+class="title"\s+id="opisStronyTytul">)([\s\S]*?)(<\/span>)/,
+        '$1' + opisTytul.replace(/\$/g, '$$$$') + '$3'
+      );
     }
-
-    // ===== OPIS GRY (zakładka pod mapą) =====
-    // Tytuł "Opis gry" jest na sztywno w HTML - nie podmieniamy go.
-    // Eksportujemy tylko treść (div#opisStronyTresc) z akapitów.
-    const aktOpisTresc = localStorage.getItem(KEY_OPIS_STRONY_TRESC);
-
-    if (aktOpisTresc !== null && aktOpisTresc !== undefined) {
-      // Generuj HTML akapitów z surowego tekstu (zachowując **bold** i akapity)
+    const opisTresc = localStorage.getItem(KEY_OPIS_STRONY_TRESC);
+    if (opisTresc !== null && opisTresc !== undefined) {
+      const akapity = opisTresc.split(/\n\s*\n/).map(a => a.trim()).filter(a => a);
       let trescHTML;
-      const akapity = aktOpisTresc.split(/\n\s*\n/).map(a => a.trim()).filter(a => a);
       if (akapity.length === 0) {
-        // Pusty opis - wstaw placeholder
-        trescHTML = '\n        <p style="color:var(--ink-muted);font-style:italic;text-align:center;padding:20px 0">Opis tej strony nie został jeszcze dodany.</p>\n      ';
+        trescHTML = '\n        <p style="color:var(--ink-muted);font-style:italic;text-align:center;padding:20px 0">Opis gry nie został jeszcze dodany.</p>\n      ';
       } else {
         trescHTML = '\n' + akapity.map(a => {
-          let h = a.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-          h = h.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
-          h = h.replace(/\n/g, '<br>');
-          return `        <p>${h}</p>`;
+          let x = a.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+          x = x.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/\n/g, '<br>');
+          return '        <p>' + x + '</p>';
         }).join('\n') + '\n      ';
       }
-      const safeTresc = trescHTML.replace(/\$/g, '$$$$');
-      // Podmiana zawartości <div class="accordion-inner" id="opisStronyTresc">…</div>
       tekst = tekst.replace(
         /(<div\s+class="accordion-inner"\s+id="opisStronyTresc">)([\s\S]*?)(<\/div>)/,
-        `$1${safeTresc}$3`
+        '$1' + trescHTML.replace(/\$/g, '$$$$') + '$3'
       );
     }
 
-    // ===== TABLICA rysunkiZakodowane =====
-    // Wszystkie rysunki (zakodowane + robocze z localStorage) zapisujemy
-    // do nowego pliku jako pełną tablicę. Po wgraniu na serwer wszyscy je zobaczą.
-    let liczbaWbudowanychRys = 0;
-    let regexZnaleziony = false;
+    // --- 4e. rysunki (przez markery RYSUNKI:START/END) ---
     try {
-      const linieRys = rysunki.map(r => {
-        const kolor = (r.kolor || '#a04510').replace(/'/g, "\\'");
+      const zrodloRys = (typeof rysunki !== 'undefined' && Array.isArray(rysunki)) ? rysunki : [];
+      const linieRys = zrodloRys.map(r => {
+        const kolor = String(r.kolor || '#a04510').replace(/'/g, "\\'");
         if (r.typ === 'linia' && Array.isArray(r.punkty)) {
           const pkt = r.punkty.map(p => `[${p[0].toFixed(6)}, ${p[1].toFixed(6)}]`).join(', ');
           return `  { typ: 'linia', kolor: '${kolor}', punkty: [${pkt}] }`;
         }
-        if (r.typ === 'kolo' && Array.isArray(r.srodek)) {
-          return `  { typ: 'kolo', kolor: '${kolor}', srodek: [${r.srodek[0].toFixed(6)}, ${r.srodek[1].toFixed(6)}], promien: ${Math.round(r.promien)} }`;
-        }
-        if (r.typ === 'tajemnica' && Array.isArray(r.srodek)) {
-          return `  { typ: 'tajemnica', kolor: '${kolor}', srodek: [${r.srodek[0].toFixed(6)}, ${r.srodek[1].toFixed(6)}], promien: ${Math.round(r.promien)} }`;
-        }
         if (r.typ === 'strzalka' && Array.isArray(r.start) && Array.isArray(r.koniec)) {
           return `  { typ: 'strzalka', kolor: '${kolor}', start: [${r.start[0].toFixed(6)}, ${r.start[1].toFixed(6)}], koniec: [${r.koniec[0].toFixed(6)}, ${r.koniec[1].toFixed(6)}] }`;
         }
+        if (r.typ === 'kolo' && Array.isArray(r.srodek)) {
+          return `  { typ: 'kolo', kolor: '${kolor}', srodek: [${r.srodek[0].toFixed(6)}, ${r.srodek[1].toFixed(6)}], promien: ${Math.round(r.promien)} }`;
+        }
+        // 'tajemnica' = tajemniczy okrąg (narzędzie 🔮). Ta sama struktura
+        // co kolo: srodek + promien. KLUCZOWE - bez tego okrąg nie zapisuje się!
+        if (r.typ === 'tajemnica' && Array.isArray(r.srodek)) {
+          return `  { typ: 'tajemnica', kolor: '${kolor}', srodek: [${r.srodek[0].toFixed(6)}, ${r.srodek[1].toFixed(6)}], promien: ${Math.round(r.promien)} }`;
+        }
         if (r.typ === 'tekst' && Array.isArray(r.pozycja)) {
-          const tresc = (r.tresc || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, '\\n').replace(/\r/g, '');
-          return `  { typ: 'tekst', kolor: '${kolor}', pozycja: [${r.pozycja[0].toFixed(6)}, ${r.pozycja[1].toFixed(6)}], tresc: '${tresc}' }`;
+          return `  { typ: 'tekst', kolor: '${kolor}', pozycja: [${r.pozycja[0].toFixed(6)}, ${r.pozycja[1].toFixed(6)}], tresc: '${escTekst(r.tresc)}' }`;
         }
         return null;
       }).filter(x => x !== null);
 
-      liczbaWbudowanychRys = linieRys.length;
-      const nowaTablicaRys = `// === RYSUNKI:START === (nie usuwaj tego komentarza - znacznik dla auto-eksportu)\nconst rysunkiZakodowane = [\n${linieRys.join(',\n')}\n];\n// === RYSUNKI:END ===`;
-
-      console.log('[Rysunki] W pamięci:', rysunki.length, '| Do wbudowania:', liczbaWbudowanychRys);
-
-      // Znajdź marker stojący NA POCZĄTKU LINII - prawdziwą deklarację, nie
-      // template string wewnątrz tej funkcji (template ma `\n` przed sobą,
-      // więc nie zaczyna się na początku linii w pliku źródłowym).
-      // Regex /^\/\/ === RYSUNKI:START ===/m wymusza początek linii.
-      const realStartRegexR = /^\/\/ === RYSUNKI:START ===.*$/m;
-      const realEndRegexR = /^\/\/ === RYSUNKI:END ===.*$/m;
-      const matchStartR = tekst.match(realStartRegexR);
-      const matchEndR = tekst.match(realEndRegexR);
-      regexZnaleziony = !!(matchStartR && matchEndR && matchEndR.index > matchStartR.index);
-      if (regexZnaleziony) {
-        const idxStart = matchStartR.index;
-        const idxEnd = matchEndR.index + matchEndR[0].length;
-        tekst = tekst.substring(0, idxStart) + nowaTablicaRys + tekst.substring(idxEnd);
-        console.log('[Rysunki] OK - tablica podmieniona w pliku.');
-      } else {
-        console.warn('[Rysunki] UWAGA: nie znaleziono markerów RYSUNKI:START/END w pobranym pliku źródłowym! ' +
-                     'Plik na serwerze może być starą wersją bez modułu rysowania. ' +
-                     'Wgraj najpierw plik z modułem rysowania, potem rysuj i pobieraj nowe wersje.');
-        if (liczbaWbudowanychRys > 0) {
-          alert('⚠️ UWAGA: Masz ' + liczbaWbudowanychRys + ' rysunków w pamięci, ale plik na serwerze ' +
-                'nie zawiera jeszcze modułu rysowania. Rysunki NIE zostały wbudowane w pobierany plik.\n\n' +
-                'Co zrobić: wgraj najpierw aktualną wersję index.html (z modułem rysowania) na serwer, ' +
-                'potem rysuj i klikaj "Pobierz nowy index.html" — wtedy rysunki zostaną wbudowane.');
-        }
+      const nowaRys = '// === RYSUNKI:START === (nie usuwaj tego komentarza - znacznik dla auto-eksportu)\n'
+        + 'const rysunkiZakodowane = [\n' + linieRys.join(',\n') + '\n];\n'
+        + '// === RYSUNKI:END ===';
+      const sR = tekst.match(/^\/\/ === RYSUNKI:START ===.*$/m);
+      const eR = tekst.match(/^\/\/ === RYSUNKI:END ===.*$/m);
+      if (sR && eR && eR.index > sR.index) {
+        tekst = tekst.substring(0, sR.index) + nowaRys + tekst.substring(eR.index + eR[0].length);
       }
-    } catch (errRys) {
-      console.warn('[Rysunki] Nie udało się zaktualizować tablicy rysunków:', errRys);
-    }
+    } catch (e) { console.warn('[Zapis] rysunki:', e); }
 
-    // ===== KATEGORIE (nazwy + ikony zakładek) =====
-    // Wbudowujemy aktualne kategorie (po edycjach admina) na stałe w plik HTML.
-    // Mechanizm identyczny jak dla rysunków - markery KATEGORIE:START/END.
-    // UWAGA: szukamy markeru który stoi NA POCZĄTKU LINII (nie wewnątrz template
-    // stringa - tam są poprzedzone `\n`). To eliminuje fałszywe trafienie w
-    // szablon w tej samej funkcji generującej.
+    // --- 4f. kategorie (przez markery KATEGORIE:START/END) ---
     try {
+      const zK = (typeof kategorie !== 'undefined') ? kategorie : {};
+      const zKD = (typeof kategorieDomyslne !== 'undefined') ? kategorieDomyslne : {};
       const linieKat = [];
       for (const klucz of ['zabytek', 'sakral', 'przyroda', 'urzad']) {
-        const k = kategorie[klucz] || kategorieDomyslne[klucz];
+        const k = zK[klucz] || zKD[klucz];
         if (!k) continue;
-        const ikona = (k.ikona || '📍').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-        const nazwa = (k.nazwa || klucz).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-        const padding = ' '.repeat(Math.max(0, 8 - klucz.length));
-        linieKat.push(`  ${klucz}:${padding}{ ikona: '${ikona}', nazwa: '${nazwa}' }`);
+        const ik = String(k.ikona || '📍').replace(/'/g, "\\'");
+        const nz = String(k.nazwa || klucz).replace(/'/g, "\\'");
+        linieKat.push(`  ${klucz}: { ikona: '${ik}', nazwa: '${nz}' }`);
       }
-      const nowaTablicaKat = `// === KATEGORIE:START === (nie usuwaj tego komentarza - znacznik dla auto-eksportu)\nconst kategorieDomyslne = {\n${linieKat.join(',\n')}\n};\n// === KATEGORIE:END ===`;
+      const nowaKat = '// === KATEGORIE:START === (nie usuwaj tego komentarza - znacznik dla auto-eksportu)\n'
+        + 'const kategorieDomyslne = {\n' + linieKat.join(',\n') + '\n};\n'
+        + '// === KATEGORIE:END ===';
+      const sK = tekst.match(/^\/\/ === KATEGORIE:START ===.*$/m);
+      const eK = tekst.match(/^\/\/ === KATEGORIE:END ===.*$/m);
+      if (sK && eK && eK.index > sK.index) {
+        tekst = tekst.substring(0, sK.index) + nowaKat + tekst.substring(eK.index + eK[0].length);
+      }
+    } catch (e) { console.warn('[Zapis] kategorie:', e); }
 
-      // Znajdź marker stojący na początku linii - czyli prawdziwą deklarację,
-      // nie template string wewnątrz funkcji (ten jest poprzedzony backsashem n).
-      // Regex /^\/\/ === KATEGORIE:START ===/m wymusza początek linii.
-      const realStartRegex = /^\/\/ === KATEGORIE:START ===.*$/m;
-      const realEndRegex = /^\/\/ === KATEGORIE:END ===.*$/m;
-      const matchStart = tekst.match(realStartRegex);
-      const matchEnd = tekst.match(realEndRegex);
-      if (matchStart && matchEnd && matchEnd.index > matchStart.index) {
-        const idxStartKat = matchStart.index;
-        const idxEndKat = matchEnd.index + matchEnd[0].length;
-        tekst = tekst.substring(0, idxStartKat) + nowaTablicaKat + tekst.substring(idxEndKat);
-        console.log('[Kategorie] OK - tablica podmieniona w pliku.');
-      } else {
-        console.warn('[Kategorie] Nie znaleziono markerów KATEGORIE:START/END na początku linii - pomijam.');
-      }
-    } catch (errKat) {
-      console.warn('[Kategorie] Nie udało się zaktualizować kategorii:', errKat);
+    // ===== KROK 5: zabezpieczenia =====
+    if (!tekst || tekst.length < 100000) {
+      alert('⚠️ Zapis przerwany - plik wyszedł za mały (' + (tekst ? tekst.length : 0) + ' znaków).\n\n'
+        + 'Odśwież stronę (Ctrl+Shift+R) i spróbuj ponownie.');
+      return;
+    }
+    if (!tekst.includes('kropkiAudio') || !tekst.includes('id="mapa"')) {
+      alert('⚠️ Zapis przerwany - plik niekompletny (brak mapy lub danych gry).');
+      return;
+    }
+    // <body> musi zaczynać się od realnej treści, <head> mieć zamknięty <style>
+    const idxHeadEnd = tekst.indexOf('</head>');
+    if (idxHeadEnd < 0 || !tekst.slice(0, idxHeadEnd).includes('</' + 'style>')) {
+      alert('⚠️ Zapis przerwany - arkusz CSS niekompletny.\n\nOdśwież stronę i spróbuj ponownie.');
+      return;
     }
 
-    // Stwórz blob i pobierz plik
+    // ===== KROK 6: pobranie pliku =====
     const blob = new Blob([tekst], { type: 'text/html;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -9559,35 +10619,34 @@ async function pobierzNowyIndex() {
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
 
-    // Po pobraniu - zaproponuj wyczyszczenie listy zaplanowanych + zmian miejsc
     setTimeout(() => {
-      const ileZmian = zaplanowaneKropki.length;
-      const ileRys = rysunki.length;
-      if (ileZmian > 0 &&
-          confirm(`✓ Pobrano nowy index.html z ${finalne.length} kropkami audio, ${miejsca.length} miejscami i ${ileRys} rysunkami.\n\nCzy wyczyścić listę zaplanowanych kropek? (są już w pobranym pliku)`)) {
-        zaplanowaneKropki = [];
-        zapiszZaplanowane();
-        renderujZaplanowane();
-        pokazAdminListe();
-      }
-      // Wyczyść też cache miejsc (są już w pobranym pliku)
-      try { localStorage.removeItem(KEY_MIEJSCA); } catch(e) {}
-      // Wyczyść cache nazwy strony (jest już w pobranym pliku)
-      try { localStorage.removeItem(KEY_NAZWA_STRONY); } catch(e) {}
-      // Wyczyść cache opisu strony (jest już w pobranym pliku)
-      try { localStorage.removeItem(KEY_OPIS_STRONY_TYTUL); } catch(e) {}
-      try { localStorage.removeItem(KEY_OPIS_STRONY_TRESC); } catch(e) {}
-      // Wyczyść robocze rysunki - są już w pobranym pliku jako rysunkiZakodowane
-      try { localStorage.removeItem(STORAGE_KEY_RYSUNKI); } catch(e) {}
-      // Wyczyść robocze kategorie - są już w pobranym pliku jako kategorieDomyslne
-      try { localStorage.removeItem('kategorie_robocze_v1'); } catch(e) {}
-    }, 500);
+      try { localStorage.removeItem(KEY_MIEJSCA); } catch (e) {}
+      try { localStorage.removeItem(KEY_NAZWA_STRONY); } catch (e) {}
+      try { localStorage.removeItem(KEY_OPIS_STRONY_TYTUL); } catch (e) {}
+      try { localStorage.removeItem(KEY_OPIS_STRONY_TRESC); } catch (e) {}
+      try { localStorage.removeItem(STORAGE_KEY_RYSUNKI); } catch (e) {}
+    }, 600);
+
+    // Diagnostyka - ile czego trafiło do pliku
+    let dS = 0, dM = 0, dT = 0;
+    for (const k of wszystkieKropki) {
+      const t = k.typ || 'tajemnica';
+      if (t === 'start') dS++; else if (t === 'meta') dM++; else dT++;
+    }
+    const dR = (typeof rysunki !== 'undefined' && Array.isArray(rysunki)) ? rysunki.length : 0;
+    alert('✅ Plik index.html zapisany (' + Math.round(tekst.length / 1024) + ' KB).\n\n'
+      + 'Wbudowano:\n'
+      + '• START: ' + dS + '\n'
+      + '• META: ' + dM + '\n'
+      + '• Tajemnice: ' + dT + '\n'
+      + '• Rysunki: ' + dR + '\n\n'
+      + 'Wgraj plik na serwer. Edytor: dodaj ?admin=1 do adresu.');
 
   } catch (err) {
-    console.error('Błąd pobierania:', err);
-    alert('⚠️ Nie udało się pobrać pliku.\n\nBłąd: ' + err.message);
+    console.error('Błąd zapisu:', err);
+    alert('⚠️ Nie udało się zapisać pliku.\n\nBłąd: ' + err.message);
   }
 }
 
@@ -10226,22 +11285,19 @@ document.documentElement.classList.add('tryb-ciemny');
 if (isAdmin) {
   // Klasa na <html> - CSS przebudowuje wygląd edytora na desktopie
   document.documentElement.classList.add('tryb-admin');
-  // Zbuduj górny pasek edytora (ramka tytułu + przyciski + opis)
-  zbudujPasekEdytora();
-  // Wypełnij ramkę tytułu nazwą i opisem przygody
-  setTimeout(() => { if (typeof aktualizujRamkeTytulu === 'function') aktualizujRamkeTytulu(); }, 100);
-  // Wczytaj zmiany w miejscach z localStorage (jeśli były)
-  wczytajZmianyMiejsc();
-
-  wczytajZaplanowane();
-  renderujZaplanowane();
-  pokazAdminListe();
-
-  // Admin: wczytaj zapisany tryb gry z poprzedniej sesji edycji
-  wczytajTrybGryAdmin();
-
-  // Wpinamy się w istniejący handler kliknięcia w mapę
-  mapa.on('click', obsluzKlikAdmin);
+  // KAŻDA funkcja admina w osobnym try/catch - gdyby jedna rzuciła błąd
+  // (np. uszkodzone dane w localStorage), reszta edytora i tak się zbuduje.
+  const _bezpiecznie = (nazwa, fn) => {
+    try { fn(); } catch (e) { console.warn('[admin] ' + nazwa + ':', e); }
+  };
+  _bezpiecznie('zbudujPasekEdytora', () => zbudujPasekEdytora());
+  setTimeout(() => { try { if (typeof aktualizujRamkeTytulu === 'function') aktualizujRamkeTytulu(); } catch(e){} }, 100);
+  _bezpiecznie('wczytajZmianyMiejsc', () => wczytajZmianyMiejsc());
+  _bezpiecznie('wczytajZaplanowane', () => wczytajZaplanowane());
+  _bezpiecznie('renderujZaplanowane', () => renderujZaplanowane());
+  _bezpiecznie('pokazAdminListe', () => pokazAdminListe());
+  _bezpiecznie('wczytajTrybGryAdmin', () => wczytajTrybGryAdmin());
+  _bezpiecznie('mapa.on click', () => mapa.on('click', obsluzKlikAdmin));
 
   // KRYTYCZNE: blokuj propagację kliknięć z panelu admin do mapy Leaflet.
   // Bez tego - klik w pole tekstowe edytora nazwy = klik w mapę = nowy znacznik.
@@ -12003,10 +13059,6 @@ aktualizujPanelRadaru();
 
 // === RYSUNKI:START === (nie usuwaj tego komentarza - znacznik dla auto-eksportu)
 const rysunkiZakodowane = [
-  { typ: 'tajemnica', kolor: '#a04510', srodek: [51.995094, 21.057169], promien: 1032 },
-  { typ: 'strzalka', kolor: '#a04510', start: [51.987906, 21.072018], koniec: [51.987906, 21.073018] },
-  { typ: 'strzalka', kolor: '#a04510', start: [51.988091, 21.072876], koniec: [51.993046, 21.076369] },
-  { typ: 'strzalka', kolor: '#a04510', start: [52.002307, 21.074421], koniec: [52.002307, 21.075421] }
 ];
 // === RYSUNKI:END ===
 
