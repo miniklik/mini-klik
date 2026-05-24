@@ -4857,92 +4857,33 @@ html.tryb-noc .sw-off {
   min-height:14px;
   font-weight:600;
 }
-</style>
-</head>
-<body>
+/* ====================================================================
+   === PRZEBUDOWA WYGLĄDU EDYTORA - tryb admin, tylko DESKTOP =========
+   ====================================================================
+   Aktywne gdy <html class="tryb-admin"> ORAZ szerokość >= 1024px.
+   Na mobile (<1024px) nic się nie zmienia - stary układ zostaje.
 
-<!-- ============================================================
-     === SZUFLADKA "WYKRYTO AUDIO" (mobile, pierwsze wejście) ===
-     ============================================================
-     Pojawia się TYLKO RAZ na sesję nawigacji - przy pierwszym
-     wjechaniu w jakąkolwiek strefę audio. User wybiera ON/OFF.
-     -->
-<div id="szufladaWykryto" role="dialog" aria-label="Wykryto audio">
-  <div class="sw-tytul">🎧 Wykryto audio</div>
-  <div class="sw-podtytul">Włączyć automatyczne odtwarzanie?</div>
-  <div class="sw-przyciski">
-    <button type="button" class="sw-btn sw-on" onclick="decyzjaSzuflady('on')">ON</button>
-    <button type="button" class="sw-btn sw-off" onclick="decyzjaSzuflady('off')">OFF</button>
-  </div>
-</div>
+   STRUKTURA (budowana przez JS w funkcji zbudujPasekEdytora):
+     #editorPasek               <- cały górny pasek edytora
+       .ed-tytul-blok           <- ramka z "Nazwa przygody" na środku
+       .ed-przyciski            <- rząd przycisków akcji wokół tytułu
+   Opis gry jest pod mapą jako akordeon #info-accordion (nie w pasku).
+   ==================================================================== */
+@media (min-width: 1024px) {
 
-<!-- ============================================================
-     === WYMUSZENIE PIONOWEJ ORIENTACJI (mobile landscape) =====
-     ============================================================
-     Pełnoekranowy komunikat - widoczny tylko gdy telefon obrócony
-     poziomo. CSS @media zarządza widocznością. -->
-<div id="obrocTelefon">
-  <div id="obrocTelefon-inner">
-    <span id="obrocTelefon-ikona">📱</span>
-    <h2>Obróć telefon</h2>
-    <div id="obrocTelefon-ozdoba">❦ ❦ ❦</div>
-    <p>Mapa działa tylko<br>w pionowym ułożeniu telefonu.</p>
-    <p id="obrocTelefon-mala">Obróć urządzenie, by korzystać z mapy.</p>
-  </div>
-</div>
+  /* Tło edytora - lekko bajkowe, ciepłe, z delikatnym ruchem */
+  html.tryb-admin body {
+    background:
+      radial-gradient(circle at 12% 18%, rgba(217,122,48,0.10) 0%, transparent 45%),
+      radial-gradient(circle at 88% 78%, rgba(124,58,237,0.08) 0%, transparent 45%),
+      radial-gradient(circle at 50% 50%, rgba(58,106,74,0.05) 0%, transparent 60%),
+      var(--paper);
+  }
 
-<!-- BANER POWITALNY (pojawia się po zeskanowaniu QR) -->
-<div class="qr-welcome" id="qrWelcome">
-  <div class="qr-ornament">❦ ❦ ❦</div>
-  <span class="ikona-qr" id="qrWelcomeIkona">📍</span>
-  <h2 id="qrWelcomeNazwa">Witaj na mapie</h2>
-  <p class="opis-qr" id="qrWelcomeOpis">Tu jesteś — zobacz więcej miejsc w pobliżu na mapie.</p>
-  <button onclick="zamknijQrWelcome()">Zobacz mapę</button>
-  <a class="small-link" id="qrWelcomeWiecej" onclick="zobaczOpisPelny()">Pełny opis miejsca →</a>
-</div>
+  /* Jedna stała, wygodna szerokość - dobra i na laptopie, i na monitorze */
+  html.tryb-admin .wrapper { max-width: 1280px; }
 
-<!-- BANER WŁĄCZ AUDIO PRZEWODNIK -->
-<div class="audio-enable-banner" id="audioBanner">
-  <div class="audio-icons">🎧 🥾</div>
-  <h3>Włączyć przewodnik audio?</h3>
-  <p>Gdy zbliżysz się do oznaczonego miejsca, telefon wibruje i odtwarza krótkie nagranie z opowieścią.</p>
-  <button onclick="wlaczAudioPrzewodnik(true)">🎧 Tak, włącz</button>
-  <button class="secondary" onclick="wlaczAudioPrzewodnik(false)">Bez audio</button>
-</div>
-
-<!-- MODAL SKANERA QR (pełen ekran) -->
-<div class="scan-modal" id="scanModal">
-  <div class="scan-header">
-    <h2>Skaner kodów QR</h2>
-    <button class="scan-close" onclick="zamknijSkaner()" aria-label="Zamknij">×</button>
-  </div>
-  <div class="scan-body">
-    <div id="qrReader"></div>
-    <div class="scan-tip">Skieruj aparat na kod QR</div>
-  </div>
-</div>
-
-<!-- MODAL WYNIKU SKANOWANIA -->
-<div class="result-modal" id="resultModal">
-  <div class="ornament">❦ ❦ ❦</div>
-  <h3 id="resultTitle">Znaleziono kod QR</h3>
-  <div class="url-box" id="resultUrl"></div>
-
-  <div class="toggle-row">
-    <input type="checkbox" id="newTabToggle" checked>
-    <label for="newTabToggle">Otwórz w nowej karcie</label>
-  </div>
-
-  <div class="opcje">
-    <button onclick="otworzZnaleziony()">↗ Otwórz link</button>
-  </div>
-  <a class="small-link" onclick="zamknijWynik()">Zamknij — wróć do mapy</a>
-</div>
-
-<div class="wrapper">
-
-  <header>
-    <h1>Nazwa przygody</h1>
+  /* Nagłówek z <h1>Nazwa przygody</h1>
   </header>
 
   <!-- KONTROLKI -->
@@ -4988,6 +4929,69 @@ html.tryb-noc .sw-off {
   </div>
 
   <!-- ============================================================
+       === GÓRNY PASEK EDYTORA (admin desktop) ====================
+       ============================================================
+       Pusty kontener - zawartość wstrzykuje JS (zbudujPasekEdytora).
+       Widoczny tylko gdy <html class="tryb-admin"> i szerokość >=1024px. -->
+  <div id="editorPasek"></div>
+
+  <!-- Przyciemnienie tła pod modalem edytora nazwy / opisu gry -->
+  <div id="editorModalBackdrop" onclick="zamknijModaleEdytora()"></div>
+
+  <!-- Edytory nazwy/opisu - przeniesione na poziom body, by dzialaly jako modale -->
+  <div class="nazwa-edytor" id="nazwaEdytor">
+          <label class="nazwa-edytor-label">Nazwa przygody:</label>
+          <input type="text" id="nazwaStronyInput" maxlength="60" placeholder="np. Tytuł przygody">
+          <div class="nazwa-edytor-akcje">
+            <button class="nazwa-zapisz" onclick="zapiszNazweStrony()">✓ Zapisz</button>
+            <button class="nazwa-anuluj" onclick="zamknijEdytorNazwy()">Anuluj</button>
+          </div>
+          <p class="nazwa-edytor-info">Zmiana zostanie zapisana w pliku po pobraniu nowego index.html.</p>
+        </div>
+  <div class="nazwa-edytor" id="opisStronyEdytor">
+          <label class="nazwa-edytor-label">Treść opisu gry (akapity oddziel pustą linią):</label>
+          <textarea id="opisStronyTrescInput" rows="8" placeholder="Tekst akapit po akapicie. Pustą linią oddzielisz jeden akapit od drugiego.&#10;&#10;Możesz używać **pogrubienia** dla wyróżnień."></textarea>
+          <div class="nazwa-edytor-akcje">
+            <button class="nazwa-zapisz" onclick="zapiszOpisStrony()">✓ Zapisz</button>
+            <button class="nazwa-anuluj" onclick="zamknijEdytorOpisuStrony()">Anuluj</button>
+          </div>
+          <p class="nazwa-edytor-info">Pogrubianie: <code>**tekst**</code>. Akapity rozdziel pustą linią.</p>
+        </div>
+
+  <!-- Panel "Audio w grze" - przeniesiony na poziom body, by dzialal w edytorze desktop -->
+  <div id="audioIntroBackdrop" onclick="toggleAudioIntroInfo()"></div>
+  <div class="nazwa-edytor" id="audioIntroEdytor">
+          <label class="nazwa-edytor-label">🎵 Nazwy plików audio</label>
+          <p class="nazwa-edytor-info" style="margin-top:6px">
+            Wszystkie pliki audio wrzucaj do folderu <code>audio/</code>.
+            Nazwij je dokładnie tak:
+          </p>
+          <div style="margin:10px 0;display:flex;flex-direction:column;gap:7px">
+            <div><code style="background:rgba(124,58,237,0.15);color:#7c3aed;padding:3px 9px;border-radius:4px;font-size:12px;font-weight:700">intro.mp3</code>
+              <span style="font-size:12px;color:var(--ink-soft)"> — dźwięk do intro (ekran startowy)</span></div>
+            <div><code style="background:rgba(124,58,237,0.15);color:#7c3aed;padding:3px 9px;border-radius:4px;font-size:12px;font-weight:700">start.mp3</code>
+              <span style="font-size:12px;color:var(--ink-soft)"> — start przygody (wejście w strefę startu)</span></div>
+            <div><code style="background:rgba(124,58,237,0.15);color:#7c3aed;padding:3px 9px;border-radius:4px;font-size:12px;font-weight:700">1.mp3, 2.mp3, 3.mp3…</code>
+              <span style="font-size:12px;color:var(--ink-soft)"> — dźwięk po odnalezieniu tajemnicy nr 1, 2, 3…</span></div>
+            <div><code style="background:rgba(124,58,237,0.15);color:#7c3aed;padding:3px 9px;border-radius:4px;font-size:12px;font-weight:700">tajemnica1.mp3, tajemnica2.mp3…</code>
+              <span style="font-size:12px;color:var(--ink-soft)"> — wskazówka po kliknięciu tajemnicy w liście (osobna dla każdej)</span></div>
+            <div><code style="background:rgba(124,58,237,0.15);color:#7c3aed;padding:3px 9px;border-radius:4px;font-size:12px;font-weight:700">tajemnica.mp3</code>
+              <span style="font-size:12px;color:var(--ink-soft)"> — wspólna wskazówka dla wszystkich tajemnic (gdy nie ma indywidualnej)</span></div>
+            <div><code style="background:rgba(124,58,237,0.15);color:#7c3aed;padding:3px 9px;border-radius:4px;font-size:12px;font-weight:700">meta.mp3</code>
+              <span style="font-size:12px;color:var(--ink-soft)"> — dźwięk po dotarciu na metę</span></div>
+            <div><code style="background:rgba(124,58,237,0.15);color:#7c3aed;padding:3px 9px;border-radius:4px;font-size:12px;font-weight:700">podklad.mp3</code>
+              <span style="font-size:12px;color:var(--ink-soft)"> — muzyka w tle (gra w pętli, ikona głośnika w rogu). Opcjonalna.</span></div>
+          </div>
+          <p class="nazwa-edytor-info" style="font-size:11px">
+            Wskazówka: jeśli wgrasz <code>tajemnica1.mp3</code> — gra ją odtworzy dla tajemnicy 1.
+            Jeśli nie — sięgnie po wspólną <code>tajemnica.mp3</code>.
+          </p>
+          <div class="nazwa-edytor-akcje">
+            <button class="nazwa-anuluj" onclick="toggleAudioIntroInfo()">Zamknij</button>
+          </div>
+        </div>
+
+  <!-- ============================================================
        === PANEL RYSOWANIA NA MAPIE (admin only) ==================
        ============================================================ -->
   <div id="panelRysowania">
@@ -5014,6 +5018,12 @@ html.tryb-noc .sw-off {
   </div>
 
   <div class="layout">
+    <!-- EDYTOR: ramka z tytułem przygody (widoczna tylko w trybie admin desktop) -->
+    <div class="editor-tytul-ramka" id="editorTytulRamka">
+      <div class="et-orn">✦ · ✦ · ✦</div>
+      <h2 id="editorTytulNazwa">Nazwa przygody</h2>
+      <div class="et-opis" id="editorTytulOpis"></div>
+    </div>
     <div id="mapa">
       <button class="gps-btn" id="gpsBtn" onclick="event.stopPropagation();obsluzKlikGPSlubAudio()" title="Włącz nawigację (GPS + audio + fioletowe kropki)">🧭</button>
       <button class="center-btn" id="centerBtn" onclick="event.stopPropagation();wysrodkujNaMnie()" title="Wyśrodkuj mapę na mojej pozycji GPS" style="display:none">⊙</button>
@@ -5071,53 +5081,20 @@ html.tryb-noc .sw-off {
         <button id="nazwaStronyBtn" onclick="otworzEdytorNazwy()" style="background:#a04510;font-size:11px">✏️ Nazwa przygody</button>
 
         <!-- Rozwijana ramka edycji nazwy strony -->
-        <div class="nazwa-edytor" id="nazwaEdytor">
-          <label class="nazwa-edytor-label">Nazwa przygody:</label>
-          <input type="text" id="nazwaStronyInput" maxlength="60" placeholder="np. Tytuł przygody">
-          <div class="nazwa-edytor-akcje">
-            <button class="nazwa-zapisz" onclick="zapiszNazweStrony()">✓ Zapisz</button>
-            <button class="nazwa-anuluj" onclick="zamknijEdytorNazwy()">Anuluj</button>
-          </div>
-          <p class="nazwa-edytor-info">Zmiana zostanie zapisana w pliku po pobraniu nowego index.html.</p>
-        </div>
+        
 
         <button id="opisStronyBtn" onclick="otworzEdytorOpisuStrony()" style="background:#a04510;font-size:11px">📜 Opis gry</button>
 
         <!-- Rozwijana ramka edycji opisu gry (akordeon pod mapą) -->
-        <div class="nazwa-edytor" id="opisStronyEdytor">
-          <label class="nazwa-edytor-label">Treść opisu gry (akapity oddziel pustą linią):</label>
-          <textarea id="opisStronyTrescInput" rows="8" placeholder="Tekst akapit po akapicie. Pustą linią oddzielisz jeden akapit od drugiego.&#10;&#10;Możesz używać **pogrubienia** dla wyróżnień."></textarea>
-          <div class="nazwa-edytor-akcje">
-            <button class="nazwa-zapisz" onclick="zapiszOpisStrony()">✓ Zapisz</button>
-            <button class="nazwa-anuluj" onclick="zamknijEdytorOpisuStrony()">Anuluj</button>
-          </div>
-          <p class="nazwa-edytor-info">Pogrubianie: <code>**tekst**</code>. Akapity rozdziel pustą linią.</p>
-        </div>
+        
 
-        <button id="audioIntroBtn" onclick="toggleAudioIntroInfo()" style="background:#7c3aed;font-size:11px">🎵 Audio intro</button>
+        <button id="audioIntroBtn" onclick="toggleAudioIntroInfo()" style="background:#7c3aed;font-size:11px">🎵 Audio w grze</button>
 
-        <!-- Półprzezroczyste tło za okienkiem audio intro -->
-        <div id="audioIntroBackdrop" onclick="toggleAudioIntroInfo()"></div>
+        <!-- Półprzezroczyste tło za okienkiem -->
+        
 
-        <!-- Rozwijana ramka z informacją o muzyce intro -->
-        <div class="nazwa-edytor" id="audioIntroEdytor">
-          <label class="nazwa-edytor-label">🎵 Muzyka na ekranie startowym</label>
-          <p class="nazwa-edytor-info" style="margin-top:6px">
-            Aby na ekranie startowym grała muzyka, wrzuć plik dźwiękowy
-            do folderu <code>audio/</code> i nazwij go dokładnie:
-          </p>
-          <p style="text-align:center;margin:8px 0">
-            <code style="background:rgba(124,58,237,0.15);color:#7c3aed;padding:4px 12px;border-radius:4px;font-size:13px;font-weight:700">audio/intro.mp3</code>
-          </p>
-          <p class="nazwa-edytor-info">
-            Muzyka odtworzy się automatycznie gdy gracz zobaczy ekran startowy
-            i sama ucichnie po kliknięciu „Zaczynamy przygodę". Jeśli pliku nie
-            ma — ekran startowy działa normalnie, tylko bez dźwięku.
-          </p>
-          <div class="nazwa-edytor-akcje">
-            <button class="nazwa-anuluj" onclick="toggleAudioIntroInfo()">Zamknij</button>
-          </div>
-        </div>
+        <!-- Okienko ze ściągą: wszystkie nazwy plików audio w grze -->
+        
 
         <button onclick="toggleRysowanie()" id="btnRysowanie" style="font-size:10px;background:#3a6a4a;color:#fff;border-color:#3a6a4a">🎨 Rysuj na mapie</button>
         <button onclick="wyczyscWszystkoEdytor()" style="background:#dc2626;color:#fff;border-color:#dc2626;font-size:11px;margin-top:10px;font-weight:700" title="Wyczyść wszystkie dane edytora - kropki audio, miejsca, nazwę, opis, rysunki, postęp gry">🗑️ Wyczyść wszystko</button>
@@ -5416,7 +5393,7 @@ html.tryb-noc .sw-off {
     </div>
     <div class="accordion-content">
       <div class="accordion-inner" id="opisStronyTresc">
-        <p>Opis gry nie zostałmmmmmmmmmmmmmmmm</p>
+        <p style="color:var(--ink-muted);font-style:italic;text-align:center;padding:20px 0">Opis gry nie został jeszcze dodany.</p>
       </div>
     </div>
 
@@ -5778,8 +5755,12 @@ function odtworzWskazowke(numer) {
     aktualneAudio = null;
   }
 
-  const sciezka = 'audio/tajemnica' + numer + '.mp3';
-  audioWskazowki = new Audio(sciezka);
+  // Ścieżka audio wskazówki - FALLBACK:
+  //  1. najpierw próbuje INDYWIDUALNEJ: audio/tajemnicaN.mp3
+  //  2. jeśli takiego pliku nie ma -> WSPÓLNA: audio/tajemnica.mp3
+  const sciezkaIndywidualna = 'audio/tajemnica' + numer + '.mp3';
+  const sciezkaWspolna = 'audio/tajemnica.mp3';
+  audioWskazowki = new Audio(sciezkaIndywidualna);
 
   // Pokaż panel audio z opisem wskazówki
   const player = document.getElementById('audioPlayer');
@@ -5795,10 +5776,24 @@ function odtworzWskazowke(numer) {
   // Podłącz wskazówkę pod istniejący panel odtwarzacza (pauza/wznów)
   if (typeof aktualneAudio !== 'undefined') aktualneAudio = audioWskazowki;
 
+  // Gdy brak pliku indywidualnego - przełącz na wspólny tajemnica.mp3
+  let probowanoWspolnej = false;
+  audioWskazowki.addEventListener('error', () => {
+    if (!probowanoWspolnej) {
+      probowanoWspolnej = true;
+      audioWskazowki = new Audio(sciezkaWspolna);
+      if (typeof aktualneAudio !== 'undefined') aktualneAudio = audioWskazowki;
+      audioWskazowki.addEventListener('error', () => {
+        // Nie ma ani indywidualnej, ani wspólnej
+        if (info) info.innerHTML =
+          `${label}<br><small style="color:var(--crimson)">⚠️ Brak pliku audio (tajemnica${numer}.mp3 ani tajemnica.mp3)</small>`;
+      });
+      audioWskazowki.play().catch(() => {});
+    }
+  });
+
   audioWskazowki.play().catch(err => {
-    console.warn('Wskazówka - audio play failed:', err, 'sciezka:', sciezka);
-    if (info) info.innerHTML =
-      `${label}<br><small style="color:var(--crimson)">⚠️ Brak pliku ${sciezka}</small>`;
+    console.warn('Wskazówka - audio play:', err);
   });
 }
 
@@ -6649,17 +6644,21 @@ function renderujStartWLiscie() {
     return null;
   }
 
-  // Pomocnik: tworzy jedną kartę i dokłada do listy
+  // Pomocnik: tworzy jedną kartę i dokłada do listy.
+  // Stany: 'zablokowana' (przyciemniona, nieklikalna - tryb gry),
+  //        'odkryta' (zielona, klikalna - tryb gry),
+  //        'admin' (neutralna, klikalna - tryb edytora).
   function dodajKarte({ ikona, tytul, opis, stan, poz }) {
     const card = document.createElement('div');
     card.className = 'miejsce-card gra-karta';
     if (stan === 'zablokowana') card.classList.add('gra-zablokowana');
     if (stan === 'odkryta')     card.classList.add('gra-odkryta');
+    // stan 'admin' - bez dodatkowej klasy, zwykły wygląd karty
     card.innerHTML = `<span class="ikona">${ikona}</span>
       <div class="nazwa">${tytul}</div>
       <div class="opis">${opis}</div>`;
-    // Klik działa TYLKO dla kart aktywnych (start) i odkrytych.
-    // Zablokowana = nic się nie dzieje (nie da się podejrzeć).
+    // Klik prowadzi do miejsca - dla kart aktywnych (start), odkrytych
+    // i wszystkich w trybie edytora. Zablokowana = nieklikalna.
     if (stan !== 'zablokowana' && poz) {
       card.onclick = () => {
         autoCenterAktywny = false;
@@ -6678,8 +6677,11 @@ function renderujStartWLiscie() {
     dodajKarte({
       ikona: '🧭',
       tytul: start.tytul || 'START przygody',
-      opis: (aktualnyEtapGry === 0) ? 'Tu rozpocznij grę' : '✓ Tu zaczęłeś przygodę',
-      stan: 'odkryta',           // start zawsze aktywny/klikalny
+      opis: isAdmin
+        ? 'START — kliknij, by przejść do miejsca'
+        : ((aktualnyEtapGry === 0) ? 'Tu rozpocznij grę' : '✓ Tu zaczęłeś przygodę'),
+      // W edytorze 'admin' (neutralna), w grze 'odkryta' - start zawsze klikalny
+      stan: isAdmin ? 'admin' : 'odkryta',
       poz: pozKropki(start)
     });
   }
@@ -6698,13 +6700,18 @@ function renderujStartWLiscie() {
   tajemnice.sort((a, b) => a.numer - b.numer);
 
   for (const t of tajemnice) {
-    // Odkryta = numer < aktualnyEtapGry (gracz już ją zaliczył)
+    // Odkryta = numer < aktualnyEtapGry (gracz już ją zaliczył).
     const odkryta = (t.numer < aktualnyEtapGry);
+    // Stan karty: w EDYTORZE zawsze 'admin' (neutralna, klikalna),
+    // w grze 'odkryta' (zielona) lub 'zablokowana' (przyciemniona).
+    const stanKarty = isAdmin ? 'admin' : (odkryta ? 'odkryta' : 'zablokowana');
     dodajKarte({
-      ikona: odkryta ? '🏛️' : '❓',
+      ikona: (isAdmin || odkryta) ? '🏛️' : '❓',
       tytul: t.tytul || `Tajemnica #${t.numer}`,
-      opis: odkryta ? '✓ Tajemnica odkryta' : 'Jeszcze nieodkryta',
-      stan: odkryta ? 'odkryta' : 'zablokowana',
+      opis: isAdmin
+        ? `Tajemnica #${t.numer} — kliknij, by przejść do miejsca`
+        : (odkryta ? '✓ Tajemnica odkryta' : 'Jeszcze nieodkryta'),
+      stan: stanKarty,
       poz: pozKropki(t)
     });
   }
@@ -6712,13 +6719,17 @@ function renderujStartWLiscie() {
   // --- 3. META ---
   const meta = znajdzMete();
   if (meta) {
-    // Meta odkryta = gra ukończona (aktualnyEtapGry > liczba tajemnic)
+    // Meta odkryta = gra ukończona (aktualnyEtapGry > liczba tajemnic).
     const metaOdkryta = (tajemnice.length > 0 && aktualnyEtapGry > tajemnice.length);
+    // W EDYTORZE meta jest 'admin' (neutralna, klikalna).
+    const stanMety = isAdmin ? 'admin' : (metaOdkryta ? 'odkryta' : 'zablokowana');
     dodajKarte({
-      ikona: metaOdkryta ? '🏆' : '🏆',
+      ikona: '🏆',
       tytul: meta.tytul || 'META - koniec przygody',
-      opis: metaOdkryta ? '✓ Przygoda ukończona!' : 'Cel końcowy',
-      stan: metaOdkryta ? 'odkryta' : 'zablokowana',
+      opis: isAdmin
+        ? 'META — kliknij, by przejść do miejsca'
+        : (metaOdkryta ? '✓ Przygoda ukończona!' : 'Cel końcowy'),
+      stan: stanMety,
       poz: pozKropki(meta)
     });
   }
@@ -7233,9 +7244,13 @@ zastosujKategorie();
 //
 // Aby dodać nową kropkę: użyj przycisków w panelu admin (?admin=1).
 const kropkiAudio = [
-  { numer: 0, typ: 'start', pozycja: [51.19199, 23.17000], promien: 70, opis: '' },
-  { numer: 1, pozycja: [51.19141, 23.17031], promien: 80, opis: '', tytul: 'krzaki', emotka: '🚧' },
-  { numer: 2, pozycja: [51.19261, 23.17119], promien: 30, opis: '', pokazFale: true }
+  { numer: 0, typ: 'start', pozycja: [52.47549, 19.01215], promien: 20, opis: '', tytul: 'krzaki' },
+  { numer: 1, pozycja: [51.19141, 23.17031], promien: 100, opis: '', tytul: 'krzaki', emotka: '🚀' },
+  { numer: 2, pozycja: [51.19261, 23.17119], promien: 30, opis: '', tytul: 'krzaki', pokazFale: true, emotka: '🚀' },
+  { numer: 3, pozycja: [51.13048, 23.14380], promien: 100, opis: '', tytul: 'krzaki', pokazFale: true, emotka: '🚀' },
+  { numer: 4, pozycja: [51.19661, 23.26760], promien: 30, opis: '' },
+  { numer: 5, pozycja: [51.13001, 23.14544], promien: 30, opis: '' },
+  { numer: 999, typ: 'meta', pozycja: [51.13030, 23.14502], promien: 30, opis: '' }
 ];
 
 // Stan przewodnika audio
@@ -8070,6 +8085,26 @@ function zapiszZaplanowane() {
 // =====================================================================
 const KEY_NAZWA_STRONY = 'admin-nazwa-strony';
 
+// EDYTOR: kopiuje nazwę i opis przygody do ramki tytułu w widoku admina.
+// Ramka jest widoczna tylko w trybie admin desktop (steruje tym CSS).
+function aktualizujRamkeTytulu() {
+  const nazwaEl = document.getElementById('editorTytulNazwa');
+  const opisEl = document.getElementById('editorTytulOpis');
+  if (nazwaEl) {
+    const h1 = document.querySelector('h1');
+    nazwaEl.textContent = h1 ? h1.textContent : 'Nazwa przygody';
+  }
+  if (opisEl) {
+    // Opis bierzemy z akordeonu opisu gry - tylko pierwszy akapit, krótko
+    const src = document.getElementById('opisStronyTresc');
+    let txt = src ? src.textContent.trim() : '';
+    if (txt.length > 140) txt = txt.slice(0, 140) + '…';
+    opisEl.textContent = txt;
+  }
+  // Odśwież także nowy pasek edytora (desktop)
+  if (typeof odswiezPasekEdytora === 'function') odswiezPasekEdytora();
+}
+
 function wczytajNazweStrony() {
   try {
     const raw = localStorage.getItem(KEY_NAZWA_STRONY);
@@ -8084,6 +8119,8 @@ function zastosujNazweStrony(nazwa) {
   // 1. Wielki napis na górze
   const h1 = document.querySelector('h1');
   if (h1) h1.textContent = nazwa;
+  // EDYTOR: odśwież też ramkę tytułu w widoku admina
+  if (typeof aktualizujRamkeTytulu === 'function') aktualizujRamkeTytulu();
   // 2. Tytuł zakładki w przeglądarce - próbujemy zachować suffix po " — "
   const obecny = document.title;
   if (obecny.includes(' — ')) {
@@ -8125,6 +8162,10 @@ function zamknijEdytorNazwy() {
   const btn = document.getElementById('nazwaStronyBtn');
   if (edytor) edytor.classList.remove('visible');
   if (btn) btn.style.display = '';
+  // Ukryj przyciemnienie tła modala (desktop) i odśwież pasek
+  const backdrop = document.getElementById('editorModalBackdrop');
+  if (backdrop) backdrop.classList.remove('visible');
+  if (typeof odswiezPasekEdytora === 'function') odswiezPasekEdytora();
 }
 
 function zapiszNazweStrony() {
@@ -8182,6 +8223,8 @@ function zastosujOpisStrony(co, wartosc) {
     const el = document.getElementById('opisStronyTresc');
     if (el) el.innerHTML = renderujOpisStronyHTML(wartosc);
   }
+  // Odśwież opis w nowym pasku edytora (desktop)
+  if (typeof odswiezPasekEdytora === 'function') odswiezPasekEdytora();
 }
 
 // Konwertuje surowy tekst (z textarea) na HTML zachowując akapity i pogrubienie
@@ -8248,6 +8291,10 @@ function zamknijEdytorOpisuStrony() {
   if (btn) btn.style.display = '';
   // Wyjdź z trybu pełnoekranowego - przywróć resztę panelu
   if (panel) panel.classList.remove('edytuje-opis-strony');
+  // Ukryj przyciemnienie tła modala (desktop) i odśwież pasek
+  const backdrop = document.getElementById('editorModalBackdrop');
+  if (backdrop) backdrop.classList.remove('visible');
+  if (typeof odswiezPasekEdytora === 'function') odswiezPasekEdytora();
 }
 
 // Rozwija/zwija okienko informacyjne o muzyce intro (wyśrodkowane, z tłem)
@@ -8318,6 +8365,8 @@ function pokazAdminListe() {
   // EDYTOR-GRA: licznik punktów orientacyjnych
   const elP = document.getElementById('adminCountPunkty');
   if (elP) elP.textContent = (typeof miejsca !== 'undefined') ? miejsca.length : 0;
+  // Odśwież liczniki w nowym pasku edytora (desktop)
+  if (typeof odswiezPasekEdytora === 'function') odswiezPasekEdytora();
 }
 
 // EDYTOR-GRA: przełączanie zakładek panelu admina (Gra vs Punkty orientacyjne)
@@ -10043,8 +10092,114 @@ if (trybGryWlaczony) {
   }
 }
 
+// =====================================================================
+// === GÓRNY PASEK EDYTORA (admin desktop) =============================
+// =====================================================================
+// Buduje czysty pasek nad mapą: ramka z tytułem przygody na środku,
+// rząd przycisków akcji (Pobierz / Nazwa / Opis / Audio / Rysuj / Wyczyść),
+// liczniki i ramkę z opisem gry pod spodem.
+//
+// WAŻNE: przyciski wywołują DOKŁADNIE te same funkcje co stary panel
+// (otworzEdytorNazwy, pobierzNowyIndex itd.) - logika jest nietknięta,
+// zmienia się tylko opakowanie wizualne.
+
+function zbudujPasekEdytora() {
+  const pasek = document.getElementById('editorPasek');
+  if (!pasek) return;
+
+  pasek.innerHTML = `
+    <div class="ed-tytul-blok">
+      <h2 class="ed-tytul-nazwa" id="edPasekNazwa">Nazwa przygody</h2>
+      <div class="ed-tytul-podpis" id="edPasekPodpis">kliknij „Nazwa przygody" aby zmienić tytuł</div>
+
+      <div class="ed-przyciski">
+        <button class="ed-btn ed-btn-nazwa" onclick="otworzModalEdytora('nazwa')">
+          <span class="ed-btn-ikona">✏️</span><span>Nazwa przygody</span>
+        </button>
+        <button class="ed-btn ed-btn-opis" onclick="otworzModalEdytora('opis')">
+          <span class="ed-btn-ikona">📜</span><span>Opis gry</span>
+        </button>
+        <button class="ed-btn ed-btn-rysuj" id="edBtnRysuj" onclick="toggleRysowanie()">
+          <span class="ed-btn-ikona">🎨</span><span>Rysuj na mapie</span>
+        </button>
+        <button class="ed-btn ed-btn-audio" onclick="toggleAudioIntroInfo()">
+          <span class="ed-btn-ikona">🎵</span><span>Audio w grze</span>
+        </button>
+        <button class="ed-btn ed-btn-wyczysc" onclick="wyczyscWszystkoEdytor()">
+          <span class="ed-btn-ikona">🗑️</span><span>Wyczyść wszystko</span>
+        </button>
+        <button class="ed-btn ed-btn-pobierz" onclick="pobierzNowyIndex()">
+          <span class="ed-btn-ikona">💾</span><span>Pobierz index.html</span>
+        </button>
+      </div>
+    </div>
+  `;
+
+  // Blokuj propagację kliknięć z paska do mapy Leaflet
+  if (typeof L !== 'undefined' && L.DomEvent) {
+    L.DomEvent.disableClickPropagation(pasek);
+    L.DomEvent.disableScrollPropagation(pasek);
+  }
+
+  odswiezPasekEdytora();
+}
+
+// Odświeża treść paska: tytuł, opis, liczniki. Wołane po każdej zmianie.
+function odswiezPasekEdytora() {
+  // --- Tytuł przygody (z H1 lub localStorage) ---
+  const nazwaEl = document.getElementById('edPasekNazwa');
+  if (nazwaEl) {
+    const h1 = document.querySelector('header h1');
+    const nazwa = (localStorage.getItem(KEY_NAZWA_STRONY)
+      || (h1 && h1.textContent) || 'Nazwa przygody').trim();
+    nazwaEl.textContent = nazwa;
+  }
+
+  // --- Stan przycisku "Rysuj" (gdy tryb rysowania włączony) ---
+  // typeof-guard: zmienna trybRysowaniaWlaczony jest deklarowana niżej w kodzie,
+  // a pasek budujemy wcześniej - bez guardu byłby ReferenceError.
+  const btnRys = document.getElementById('edBtnRysuj');
+  if (btnRys) {
+    let rysWl = false;
+    try { rysWl = trybRysowaniaWlaczony; } catch (e) { rysWl = false; }
+    const etykieta = btnRys.querySelector('span:last-child');
+    if (etykieta) {
+      etykieta.textContent = rysWl ? 'Zamknij rysowanie' : 'Rysuj na mapie';
+    }
+  }
+}
+
+// --- Modale edytora nazwy / opisu (wyśrodkowane okienka z przyciemnieniem) ---
+function otworzModalEdytora(co) {
+  const backdrop = document.getElementById('editorModalBackdrop');
+  if (backdrop) backdrop.classList.add('visible');
+  if (co === 'nazwa' && typeof otworzEdytorNazwy === 'function') {
+    otworzEdytorNazwy();
+  } else if (co === 'opis' && typeof otworzEdytorOpisuStrony === 'function') {
+    otworzEdytorOpisuStrony();
+  }
+}
+
+function zamknijModaleEdytora() {
+  const backdrop = document.getElementById('editorModalBackdrop');
+  if (backdrop) backdrop.classList.remove('visible');
+  if (typeof zamknijEdytorNazwy === 'function') zamknijEdytorNazwy();
+  if (typeof zamknijEdytorOpisuStrony === 'function') zamknijEdytorOpisuStrony();
+}
+
+// Klasa "tryb-ciemny" na <html> - ciemny skarbcowy motyw na desktopie.
+// Ustawiana ZAWSZE (i dla gracza, i dla admina). CSS aktywuje motyw
+// dopiero od 1024px wzwyż - na telefonie nic się nie zmienia.
+document.documentElement.classList.add('tryb-ciemny');
+
 // Aktywuj pomocnik tylko w trybie admin
 if (isAdmin) {
+  // Klasa na <html> - CSS przebudowuje wygląd edytora na desktopie
+  document.documentElement.classList.add('tryb-admin');
+  // Zbuduj górny pasek edytora (ramka tytułu + przyciski + opis)
+  zbudujPasekEdytora();
+  // Wypełnij ramkę tytułu nazwą i opisem przygody
+  setTimeout(() => { if (typeof aktualizujRamkeTytulu === 'function') aktualizujRamkeTytulu(); }, 100);
   // Wczytaj zmiany w miejscach z localStorage (jeśli były)
   wczytajZmianyMiejsc();
 
@@ -11818,8 +11973,7 @@ aktualizujPanelRadaru();
 
 // === RYSUNKI:START === (nie usuwaj tego komentarza - znacznik dla auto-eksportu)
 const rysunkiZakodowane = [
-  { typ: 'tajemnica', kolor: '#a04510', srodek: [51.192713, 23.167587], promien: 218 },
-  { typ: 'strzalka', kolor: '#a04510', start: [51.193397, 23.171990], koniec: [51.192948, 23.171507] }
+
 ];
 // === RYSUNKI:END ===
 
@@ -12097,9 +12251,11 @@ function toggleRysowanie() {
 
   if (trybRysowaniaWlaczony) {
     panel.classList.add('visible');
-    btn.textContent = '✕ Zamknij rysowanie';
-    btn.style.background = '#8b2030';
-    btn.style.borderColor = '#8b2030';
+    if (btn) {
+      btn.textContent = '✕ Zamknij rysowanie';
+      btn.style.background = '#8b2030';
+      btn.style.borderColor = '#8b2030';
+    }
 
     // BLOKADA przesuwania mapy i podwójnego kliknięcia (które zoomuje)
     // żeby nie kolidowało z rysowaniem linii / koła.
@@ -12110,9 +12266,11 @@ function toggleRysowanie() {
     mapa.closePopup();
   } else {
     panel.classList.remove('visible');
-    btn.textContent = '🎨 Rysuj na mapie';
-    btn.style.background = '#3a6a4a';
-    btn.style.borderColor = '#3a6a4a';
+    if (btn) {
+      btn.textContent = '🎨 Rysuj na mapie';
+      btn.style.background = '#3a6a4a';
+      btn.style.borderColor = '#3a6a4a';
+    }
 
     // ODBLOKUJ przesuwanie i podwójny klik
     if (mapa.dragging)        mapa.dragging.enable();
@@ -12121,6 +12279,8 @@ function toggleRysowanie() {
     // Zakończ wszystkie aktywne narzędzia
     wybierzNarzedzie(null);
   }
+  // Odśwież przycisk "Rysuj" w nowym pasku edytora (desktop)
+  if (typeof odswiezPasekEdytora === 'function') odswiezPasekEdytora();
 }
 
 // --- Wybór narzędzia ---
@@ -12505,6 +12665,109 @@ inicjalizujRysunki();
 mapa.on('zoomend', () => {
   if (typeof przerysujWszystko === 'function') przerysujWszystko();
 });
+
+// =====================================================================
+// === PODKŁAD MUZYCZNY (muzyka w tle) =================================
+// =====================================================================
+// Plik: audio/podklad.mp3 - wrzuć go do repo obok index.html.
+// Sterowanie: ikona głośnika w prawym górnym rogu (🔊 gra / 🔇 cisza).
+// - działa TYLKO w edytorze (?admin=1), dla zwykłego gracza nie
+// - gra w pętli; przeglądarki blokują autoplay - rusza po kliknięciu ikony
+// - automatycznie ŚCISZA SIĘ gdy gra narracja (start/tajemnica/meta),
+//   wraca do normalnej głośności gdy narracja się skończy
+(function() {
+  // Podkład muzyczny tylko w edytorze - dla zwykłego gracza nie
+  if (typeof isAdmin === 'undefined' || !isAdmin) return;
+
+  const SCIEZKA_PODKLADU = 'audio/podklad.mp3';
+  const GLOSNOSC_NORMALNA = 0.45;  // normalna głośność podkładu (0-1)
+  const GLOSNOSC_SCISZONA = 0.12;  // głośność gdy gra narracja
+
+  let podklad = null;          // obiekt Audio podkładu
+  let podkladWlaczony = false; // czy user włączył muzykę
+  let plikDostepny = true;     // czy audio/podklad.mp3 istnieje
+
+  // Tworzy obiekt Audio przy pierwszym użyciu
+  function utworzPodklad() {
+    if (podklad) return podklad;
+    podklad = new Audio(SCIEZKA_PODKLADU);
+    podklad.loop = true;
+    podklad.volume = GLOSNOSC_NORMALNA;
+    podklad.addEventListener('error', () => {
+      // Plik nie istnieje na serwerze - chowamy przycisk
+      plikDostepny = false;
+      const btn = document.getElementById('btnPodklad');
+      if (btn) btn.style.display = 'none';
+    });
+    return podklad;
+  }
+
+  // Przełącza muzykę on/off (klik w ikonę)
+  window.togglePodklad = function() {
+    if (!plikDostepny) return;
+    utworzPodklad();
+    if (podkladWlaczony) {
+      podklad.pause();
+      podkladWlaczony = false;
+    } else {
+      podklad.play().then(() => {
+        podkladWlaczony = true;
+        odswiezIkonePodkladu();
+      }).catch(() => {
+        // Odtwarzanie się nie udało (np. brak pliku) - nic nie rób
+        podkladWlaczony = false;
+        odswiezIkonePodkladu();
+      });
+    }
+    odswiezIkonePodkladu();
+  };
+
+  // Aktualizuje wygląd ikony (głośnik / przekreślony głośnik)
+  function odswiezIkonePodkladu() {
+    const btn = document.getElementById('btnPodklad');
+    if (!btn) return;
+    if (podkladWlaczony) {
+      btn.textContent = '🔊';
+      btn.classList.add('gra');
+      btn.title = 'Wyłącz muzykę w tle';
+    } else {
+      btn.textContent = '🔇';
+      btn.classList.remove('gra');
+      btn.title = 'Włącz muzykę w tle';
+    }
+  }
+
+  // Czy gra teraz jakaś narracja (start / tajemnica / meta / wskazówka)?
+  function naracjaGra() {
+    try {
+      if (typeof aktualneAudio !== 'undefined' && aktualneAudio
+          && !aktualneAudio.paused && !aktualneAudio.ended) return true;
+    } catch (e) {}
+    try {
+      if (typeof audioWskazowki !== 'undefined' && audioWskazowki
+          && !audioWskazowki.paused && !audioWskazowki.ended) return true;
+    } catch (e) {}
+    return false;
+  }
+
+  // Co sekundę: jeśli gra narracja - ścisz podkład, inaczej - przywróć.
+  // Płynne przejście głośności, żeby nie było skokowo.
+  setInterval(() => {
+    if (!podklad || !podkladWlaczony) return;
+    const cel = naracjaGra() ? GLOSNOSC_SCISZONA : GLOSNOSC_NORMALNA;
+    // Płynnie dosuwamy głośność do celu
+    const roznica = cel - podklad.volume;
+    if (Math.abs(roznica) > 0.01) {
+      podklad.volume = Math.max(0, Math.min(1, podklad.volume + roznica * 0.25));
+    } else {
+      podklad.volume = cel;
+    }
+  }, 200);
+
+  // Ustaw startowy wygląd ikony po załadowaniu
+  document.addEventListener('DOMContentLoaded', odswiezIkonePodkladu);
+  odswiezIkonePodkladu();
+})();
 </script>
 
 <!-- EDYTOR-GRA: STRONA STARTOWA PRZYGODY -->
