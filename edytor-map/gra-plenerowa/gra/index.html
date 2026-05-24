@@ -6552,12 +6552,33 @@ let isAdmin = _chce_admina;
 // Zmienna `trybGryWlaczony` jest zaszywana w pobranym pliku przez admina.
 let trybGryWlaczony = true;      // EDYTOR-GRA: tryb gry zawsze włączony
 let aktualnyEtapGry = 0;          // aktualny etap (0 = na początku, widać tylko #1)
-// Klucz localStorage zależy od nazwy mapy - każda mapa ma swój postęp
+
+// IDENTYFIKATOR MAPY - unikalny kod wstrzykiwany do pliku przy każdym
+// pobraniu nowego index.html (funkcja pobierzNowyIndex). Dzięki niemu
+// każda wygenerowana mapa ma własny postęp gry - nawet gdy admin wgrywa
+// ją pod ten sam adres URL, podmieniając index.html w tym samym folderze.
+// Pusty string = mapa jeszcze nie pobrana z edytora (świeży szablon).
+const MAPA_ID = '';
+
+// Klucz localStorage - unikalny dla każdej mapy.
 function _kluczPostepuGry() {
-  // Próbujemy wziąć nazwę z <h1>, fallback na pathname
+  // Klucz postępu MUSI być unikalny dla każdej mapy. Wcześniej brał tylko
+  // nazwę z <h1> - a gdy admin jej nie zmienił, każda mapa miała ten sam
+  // klucz "gra-postep-Nazwa_przygody". Skutek: postęp ze starej gry
+  // przeciekał do nowej (gra myślała, że gracz jest już na etapie 2-3
+  // i wykrywała tajemnice nim doszedł do STARTU).
+  // ROZWIĄZANIE: jeśli plik ma wstrzyknięty MAPA_ID (pobrany z edytora) -
+  // używamy go jako podstawy klucza. To gwarantuje unikalność niezależnie
+  // od adresu URL. Gdy MAPA_ID pusty (świeży szablon) - fallback na
+  // ścieżkę URL + nazwę z <h1>.
+  if (MAPA_ID) {
+    return 'gra-postep-' + MAPA_ID;
+  }
   const h1 = document.querySelector('header h1');
-  const nazwa = (h1 && h1.textContent) ? h1.textContent.trim() : window.location.pathname;
-  return 'gra-postep-' + nazwa.replace(/[^a-zA-Z0-9-]/g, '_').substring(0, 80);
+  const nazwa = (h1 && h1.textContent) ? h1.textContent.trim() : '';
+  const sciezka = window.location.pathname || '';
+  const surowy = (sciezka + '|' + nazwa);
+  return 'gra-postep-' + surowy.replace(/[^a-zA-Z0-9-]/g, '_').substring(0, 120);
 }
 
 // === HELPERY TYPÓW PUNKTÓW GRY ===
@@ -10379,6 +10400,17 @@ function pobierzNowyIndex() {
     const regexMiejsc = /const\s+miejsca\s*=\s*\[[\s\S]*?\n\];/;
     if (regexMiejsc.test(tekst)) {
       tekst = tekst.replace(regexMiejsc, nowaMiejsca);
+    }
+
+    // --- 4b2. MAPA_ID - wstrzyknij świeży, losowy identyfikator mapy ---
+    // Każde pobranie pliku = nowy MAPA_ID = osobny postęp gry. Dzięki temu
+    // gracz, który grał w starą mapę, dostaje czysty start gdy admin
+    // podmieni index.html (nawet pod tym samym adresem URL).
+    const nowyMapaId = 'm' + Date.now().toString(36)
+      + Math.random().toString(36).slice(2, 8);
+    const regexMapaId = /const\s+MAPA_ID\s*=\s*'[^']*';/;
+    if (regexMapaId.test(tekst)) {
+      tekst = tekst.replace(regexMapaId, "const MAPA_ID = '" + nowyMapaId + "';");
     }
 
     // --- 4c. <title> (nazwa w <h1> już ustawiona w klonie, KROK 1e) ---
