@@ -7193,10 +7193,13 @@ function _utworzClusterGroup() {
 // ============================================================
 // === MATRIX - ekran-pomost między tajemnicami ===============
 // ============================================================
-// Pojawia się po zdobyciu strefy. Zielony deszcz cyfr (jak w app.html),
-// dwa komunikaty po kolei, potem sam znika i wraca mapa.
+// Pojawia się po zdobyciu strefy. Zielony deszcz cyfr (jak w app.html).
+// Gracz przechodzi komunikaty przyciskiem "Dalej" - ostatni "Dalej"
+// zamyka Matrix i wraca na mapę. Sam nic nie chowa po czasie.
 let _matrixAnim = null;       // id requestAnimationFrame
-let _matrixTimery = [];       // setTimeout-y do posprzątania
+let _matrixTimery = [];       // setTimeout-y do posprzątania (deszcz nie używa, zostaje na wszelki wypadek)
+let _matrixKroki = [];        // lista komunikatów do pokazania po kolei
+let _matrixKrokIdx = 0;       // który komunikat jest teraz na ekranie
 
 function pokazMatrix() {
   const overlay = document.getElementById('matrixOverlay');
@@ -7244,14 +7247,37 @@ function pokazMatrix() {
   }
   klatka();
 
-  // Komunikaty po kolei: "STREFA ZDOBYTA" -> instrukcja -> znika
-  tekstEl.textContent = '✓ STREFA ZDOBYTA';
-  _matrixTimery.push(setTimeout(() => {
-    tekstEl.textContent = 'Otwórz menu ☰ i kliknij następną tajemnicę';
-  }, 2600));
-  _matrixTimery.push(setTimeout(() => {
+  // Komunikaty - gracz przechodzi je przyciskiem "Dalej".
+  // Każdy kolejny "Dalej" pokazuje następny; ostatni zamyka Matrix.
+  _matrixKroki = [
+    '✓ STREFA ZDOBYTA',
+    'Otwórz menu ☰ i kliknij następną tajemnicę'
+  ];
+  _matrixKrokIdx = 0;
+  _matrixPokazKrok();
+}
+
+// Pokazuje aktualny komunikat. Na ostatnim kroku zmienia napis przycisku
+// na "Wróć na mapę →" - żeby gracz wiedział, że to ostatni klik.
+function _matrixPokazKrok() {
+  const tekstEl = document.getElementById('matrixTekst');
+  const btn = document.getElementById('matrixDalejBtn');
+  if (!tekstEl) return;
+  tekstEl.textContent = _matrixKroki[_matrixKrokIdx] || '';
+  if (btn) {
+    const ostatni = _matrixKrokIdx >= _matrixKroki.length - 1;
+    btn.textContent = ostatni ? 'Wróć na mapę →' : 'Dalej →';
+  }
+}
+
+// Klik "Dalej" - następny komunikat albo zamknięcie Matrixa.
+function matrixDalej() {
+  if (_matrixKrokIdx < _matrixKroki.length - 1) {
+    _matrixKrokIdx++;
+    _matrixPokazKrok();
+  } else {
     ukryjMatrix();
-  }, 6200));
+  }
 }
 
 function ukryjMatrix() {
@@ -13677,11 +13703,14 @@ mapa.on('zoomend', () => {
 </div>
 
 <!-- EDYTOR-GRA: STRONA KOŃCOWA (po dotarciu do mety) -->
-<!-- MATRIX - nakładka między tajemnicami. Pojawia się po zdobyciu strefy,
-     pokazuje dwa komunikaty i sama znika. Zielony deszcz cyfr na czarnym tle. -->
+<!-- MATRIX - nakładka między tajemnicami. Pojawia się po zdobyciu strefy.
+     Gracz przechodzi komunikaty przyciskiem "Dalej" - sama nie znika. -->
 <div id="matrixOverlay" style="display:none;position:fixed;inset:0;z-index:99998;background:#000">
   <canvas id="matrixCanvas" style="position:absolute;inset:0;width:100%;height:100%"></canvas>
-  <div id="matrixTekst" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:30px;font-family:monospace;font-weight:bold;color:#00ffcc;text-shadow:0 0 25px #00ffcc;font-size:clamp(24px,6vw,46px);line-height:1.4;pointer-events:none"></div>
+  <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:30px;gap:36px">
+    <div id="matrixTekst" style="font-family:monospace;font-weight:bold;color:#00ffcc;text-shadow:0 0 25px #00ffcc;font-size:clamp(24px,6vw,46px);line-height:1.4"></div>
+    <button id="matrixDalejBtn" onclick="matrixDalej()" style="font-family:monospace;font-weight:bold;font-size:clamp(18px,4.5vw,26px);color:#00ffcc;background:rgba(0,40,30,0.85);border:2px solid #00ffcc;border-radius:8px;padding:14px 38px;cursor:pointer;text-shadow:0 0 12px #00ffcc;box-shadow:0 0 22px rgba(0,255,204,0.45);-webkit-tap-highlight-color:transparent">Dalej →</button>
+  </div>
 </div>
 
 <div class="gra-ekran-koncowy" id="graEkranKoncowy">
