@@ -10253,209 +10253,194 @@ function wyczyscWszystkoEdytor() {
 
 // ============== POBIERANIE NOWEGO INDEX.HTML ==============
 // =====================================================================
-// === ZAPIS GRY DO PLIKU index.html (napisane od nowa) ================
+// === ZAPIS GRY DO PLIKU index.html ===================================
 // =====================================================================
-// Składa kompletny, samodzielny plik index.html z aktualnym stanem gry:
-// miejsca, kropki audio, rysunki, nazwa, opis, kategorie - wszystko
-// wbudowane na stałe w kod. Pobrany plik to gotowa gra (dwuklik działa).
+// Generuje kompletny, samodzielny plik index.html z aktualnym stanem gry.
 //
-// KLUCZOWA ZASADA: NIE robimy fetch() do serwera. Bierzemy kod strony
-// z tego, co przeglądarka MA JUŻ w pamięci (document). Dzięki temu
-// zapis nie zależy od hostingu, cache, CDN ani połączenia z siecią.
+// NAJWAŻNIEJSZA ZASADA - czyszczenie warstw Leaflet:
+// W trakcie działania Leaflet WYPEŁNIA element #mapa swoimi divami
+// (kafelki, warstwy, kontrolki - klasy leaflet-*). Gdyby zapisać #mapa
+// "jak jest", w pliku znalazłaby się martwa, wyrenderowana mapa, a nowy
+// Leaflet narysowałby DRUGĄ na wierzchu = "mapa na mapie", migające
+// warstwy. Dlatego przed zapisem USUWAMY z #mapa wszystko, co dodał
+// Leaflet, zostawiając tylko oryginalne elementy (przyciski GPS itd.).
 //
-// Jak to działa krok po kroku:
-//  1. Klonujemy <html> (kopia - nie ruszamy tego, co user widzi).
-//  2. Na klonie SPRZĄTAMY wszystko, co JS dorobił w trakcie działania
-//     (klasy trybów, otwarte panele, wstrzyknięty pasek edytora) -
-//     żeby zapisany plik był "dziewiczy", jak świeżo wgrany.
-//  3. Zamieniamy klon z powrotem na tekst HTML.
-//  4. W tym tekście podmieniamy tablice danych (kropki, miejsca,
-//     rysunki, kategorie) i teksty (nazwa, opis) na aktualne.
-//  5. Sprawdzamy, czy wynik jest sensowny (rozmiar, znaczniki).
-//  6. Pobieramy plik na dysk.
+// Druga zasada - nie szukamy tagów (</style>, </head>) przez indexOf
+// w tekście, bo ta funkcja sama zawiera takie napisy w swoim kodzie.
+// Składamy plik z elementów DOM.
 function pobierzNowyIndex() {
   try {
-    // ---- KROK 1-3: złożenie kompletnego, poprawnego HTML ----
-    // Składamy plik z elementów DOM po kolei. NIE szukamy tagów przez
-    // indexOf w tekście - bo ta funkcja sama zawiera napisy jak '<style>'
-    // czy '</head>' w swoim kodzie, i indexOf trafiłby we własny kod.
-    // Budujemy strukturę z prawdziwych elementów DOM.
+    // ===== KROK 1: przygotuj czysty klon <body> =====
+    const bodyKlon = document.body.cloneNode(true);
 
-    // --- 1a. Zapamiętaj stan, posprzątaj żywy DOM, przywróć po odczycie ---
-    const htmlEl = document.documentElement;
-    const langAttr = htmlEl.getAttribute('lang') || 'pl';
+    // --- 1a. Wyczyść warstwy Leaflet z #mapa (najważniejsze!) ---
+    const mapaKlon = bodyKlon.querySelector('#mapa');
+    if (mapaKlon) {
+      // Usuń wszystkie dzieci z klasą leaflet-* (kafelki, panes, kontrolki)
+      // oraz kontener .leaflet-pane. Zostaw tylko oryginalne elementy gry.
+      const doUsuniecia = [];
+      for (const dziecko of mapaKlon.children) {
+        const kl = dziecko.className || '';
+        if (typeof kl === 'string' && kl.indexOf('leaflet') !== -1) {
+          doUsuniecia.push(dziecko);
+        }
+      }
+      doUsuniecia.forEach(el => el.remove());
+      // Zdejmij klasy leaflet-* z samego #mapa (Leaflet je dokłada)
+      if (typeof mapaKlon.className === 'string') {
+        mapaKlon.className = mapaKlon.className
+          .split(' ')
+          .filter(c => c.indexOf('leaflet') === -1)
+          .join(' ')
+          .trim();
+      }
+      // Usuń atrybuty, które Leaflet dokłada (tabindex, style pozycji)
+      mapaKlon.removeAttribute('tabindex');
+      mapaKlon.removeAttribute('style');
+    }
 
-    const pasekEl = document.getElementById('editorPasek');
-    const zapamietanyPasek = pasekEl ? pasekEl.innerHTML : null;
-    const listaEl = document.getElementById('lista-miejsc');
-    const zapamietanaLista = listaEl ? listaEl.innerHTML : null;
-    const elementyVisible = [...document.querySelectorAll('.visible')];
-    const elementyPodglad = [...document.querySelectorAll('.tryb-podglad')];
+    // --- 1b. Wyczyść wstrzyknięty pasek edytora (JS odbuduje go sam) ---
+    const pasekKlon = bodyKlon.querySelector('#editorPasek');
+    if (pasekKlon) pasekKlon.innerHTML = '';
 
-    // Nazwa przygody: podmieniamy <h1> w DOM (bezpiecznie, bez regexa).
-    const h1El = document.querySelector('header h1') || document.querySelector('h1');
-    const zapamietanyH1 = h1El ? h1El.textContent : null;
-    const nowaNazwaH1 = (localStorage.getItem(KEY_NAZWA_STRONY)
-      || (h1El ? h1El.textContent : '') || '').trim();
+    // --- 1c. Wyczyść dynamicznie budowaną listę miejsc ---
+    const listaKlon = bodyKlon.querySelector('#lista-miejsc');
+    if (listaKlon) listaKlon.innerHTML = '';
 
-    // Sprzątanie (chwilowe) - pasek i lista budowane są przez JS przy starcie.
-    if (pasekEl) pasekEl.innerHTML = '';
-    if (listaEl) listaEl.innerHTML = '';
-    elementyVisible.forEach(el => el.classList.remove('visible'));
-    elementyPodglad.forEach(el => el.classList.remove('tryb-podglad'));
-    // Ustaw aktualną nazwę w <h1> (zostanie odczytana w body.innerHTML niżej).
-    if (h1El && nowaNazwaH1) h1El.textContent = nowaNazwaH1;
+    // --- 1d. Zdejmij klasy stanu (otwarte panele, tryby gry) ---
+    bodyKlon.querySelectorAll('.visible').forEach(el => el.classList.remove('visible'));
+    bodyKlon.querySelectorAll('.tryb-podglad').forEach(el => el.classList.remove('tryb-podglad'));
+    bodyKlon.querySelectorAll('.gra-zablokowana, .gra-odkryta').forEach(el => {
+      el.classList.remove('gra-zablokowana', 'gra-odkryta');
+    });
 
-    // --- 1b. Złóż <head>: każdy element osobno, <style> z czystego textContent ---
+    // --- 1e. Ustaw nazwę przygody w <h1> klona (bezpiecznie, bez regexa) ---
+    const nazwaPrzygody = (localStorage.getItem(KEY_NAZWA_STRONY)
+      || (document.querySelector('header h1') || {}).textContent
+      || '').trim();
+    if (nazwaPrzygody) {
+      const h1Klon = bodyKlon.querySelector('header h1') || bodyKlon.querySelector('h1');
+      if (h1Klon) h1Klon.textContent = nazwaPrzygody;
+    }
+
+    // ===== KROK 2: złóż <head> =====
+    // Każdy element <head> osobno. <style> z czystego textContent
+    // (NIE outerHTML - psuje się przez SVG data:URL wewnątrz CSS).
     let headHTML = '';
     for (const dziecko of [...document.head.children]) {
       if (dziecko.tagName === 'STYLE') {
-        // <style> NIE przez outerHTML (psuje się przez SVG data:URL w CSS).
-        // Bierzemy czystą treść i opakowujemy ręcznie - gwarancja poprawności.
         headHTML += '<style>\n' + (dziecko.textContent || '') + '\n</' + 'style>\n';
       } else {
-        // meta, link, title, script[src] - krótkie, outerHTML bezpieczne.
         headHTML += dziecko.outerHTML + '\n';
       }
     }
 
-    // --- 1c. Złóż <body>: innerHTML (cała zawartość strony) ---
-    const bodyHTML = document.body.innerHTML;
-
-    // --- 1d. Przywróć żywy DOM (user nic nie zauważa) ---
-    if (pasekEl && zapamietanyPasek !== null) pasekEl.innerHTML = zapamietanyPasek;
-    if (listaEl && zapamietanaLista !== null) listaEl.innerHTML = zapamietanaLista;
-    if (h1El && zapamietanyH1 !== null) h1El.textContent = zapamietanyH1;
-    elementyVisible.forEach(el => el.classList.add('visible'));
-    elementyPodglad.forEach(el => el.classList.add('tryb-podglad'));
-
-    // --- 1e. Złóż kompletny plik ---
-    // Klasy trybów (tryb-admin/ciemny) celowo pomijamy - JS nada je przy starcie.
+    // ===== KROK 3: złóż kompletny plik =====
+    const langAttr = document.documentElement.getAttribute('lang') || 'pl';
     let tekst = '<!DOCTYPE html>\n'
       + '<html lang="' + langAttr + '">\n'
       + '<head>\n' + headHTML + '</head>\n'
-      + '<body>\n' + bodyHTML + '\n</body>\n'
+      + '<body>\n' + bodyKlon.innerHTML + '\n</body>\n'
       + '</html>';
 
-    // --- Zabezpieczenia ---
-    if (!tekst || tekst.length < 100000) {
-      alert('⚠️ Zapis przerwany - kod strony wyszedł za mały ('
-        + (tekst ? tekst.length : 0) + ' znaków).\n\n'
-        + 'Odśwież stronę (Ctrl+Shift+R) i spróbuj ponownie.');
-      return;
-    }
-    // <body> musi mieć realną zawartość (mapę) - inaczej pusta plansza.
-    if (!bodyHTML || bodyHTML.length < 10000 || !bodyHTML.includes('id="mapa"')) {
-      alert('⚠️ Zapis przerwany - zawartość strony (<body>) jest niekompletna.\n\n'
-        + 'Odśwież stronę (Ctrl+Shift+R) i spróbuj ponownie.');
-      return;
-    }
+    // ===== KROK 4: wstaw dane gry =====
 
-    // ---- KROK 4: podmiana danych w tekście ----
-
-    // --- 4a. TABLICA kropkiAudio ---
-    // Łączymy kropki z kodu (kropkiAudio) i zaplanowane (zaplanowaneKropki),
-    // sortujemy po numerze. Wiele kropek może mieć ten sam numer (segmenty
-    // jednej strefy) - NIE deduplikujemy.
+    // --- 4a. kropkiAudio (start + meta + tajemnice + zaplanowane) ---
     const wszystkieKropki = [
       ...kropkiAudio.map(k => ({
         numer: k.numer,
         typ: k.typ || 'tajemnica',
-        lat: k.pozycja[0],
-        lng: k.pozycja[1],
+        pozycja: k.pozycja,
         promien: k.promien,
         opis: k.opis || '',
         pokazFale: k.pokazFale === true,
         trybKropki: k.trybKropki || null
       })),
-      ...(typeof zaplanowaneKropki !== 'undefined' ? zaplanowaneKropki : [])
-    ].slice().sort((a, b) => a.numer - b.numer);
+      ...(typeof zaplanowaneKropki !== 'undefined' ? zaplanowaneKropki.map(k => ({
+        numer: k.numer,
+        typ: k.typ || 'tajemnica',
+        pozycja: k.pozycja || [k.lat, k.lng],
+        promien: k.promien,
+        opis: k.opis || '',
+        pokazFale: k.pokazFale === true,
+        trybKropki: k.trybKropki || null
+      })) : [])
+    ].sort((a, b) => (a.numer || 0) - (b.numer || 0));
+
+    const escTekst = s => String(s || '')
+      .replace(/\\/g, '\\\\').replace(/'/g, "\\'")
+      .replace(/\n/g, '\\n').replace(/\r/g, '');
 
     const linieKropek = wszystkieKropki.map(k => {
-      const opis = String(k.opis || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, '\\n').replace(/\r/g, '');
+      const lat = k.pozycja[0].toFixed(5);
+      const lng = k.pozycja[1].toFixed(5);
+      // typ KLUCZOWE - bez niego start/meta stają się tajemnicami!
+      const typK = (k.typ && k.typ !== 'tajemnica') ? `, typ: '${k.typ}'` : '';
       const fala = k.pokazFale === true ? ', pokazFale: true' : '';
       const tryb = (k.trybKropki && k.trybKropki !== 'inkognito') ? `, trybKropki: '${k.trybKropki}'` : '';
-      // typ: KLUCZOWE pole - bez niego start i meta stają się tajemnicami!
-      // Zapisujemy zawsze gdy różny od 'tajemnica' (domyślnej wartości).
-      const typK = (k.typ && k.typ !== 'tajemnica') ? `, typ: '${k.typ}'` : '';
-      return `  { numer: ${k.numer}, pozycja: [${k.lat.toFixed(5)}, ${k.lng.toFixed(5)}], promien: ${k.promien}, opis: '${opis}'${typK}${fala}${tryb} }`;
+      return `  { numer: ${k.numer}, pozycja: [${lat}, ${lng}], promien: ${k.promien}, opis: '${escTekst(k.opis)}'${typK}${fala}${tryb} }`;
     });
-    const nowaTablicaKropek = 'const kropkiAudio = [\n' + linieKropek.join(',\n') + '\n];';
-
+    const nowaKropki = 'const kropkiAudio = [\n' + linieKropek.join(',\n') + '\n];';
     const regexKropki = /const\s+kropkiAudio\s*=\s*\[[\s\S]*?\n\];/;
     if (!regexKropki.test(tekst)) {
-      alert('⚠️ Nie znaleziono tablicy kropkiAudio w kodzie. Zapis przerwany.');
+      alert('⚠️ Zapis przerwany - nie znaleziono tablicy kropkiAudio.');
       return;
     }
-    tekst = tekst.replace(regexKropki, nowaTablicaKropek);
+    tekst = tekst.replace(regexKropki, nowaKropki);
 
-    // --- 4b. TABLICA miejsca ---
-    const esc = s => String(s || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, '\\n').replace(/\r/g, '');
+    // --- 4b. miejsca ---
     const linieMiejsc = (typeof miejsca !== 'undefined' ? miejsca : []).map(m => {
       const lat = m.pozycja[0].toFixed(4);
       const lng = m.pozycja[1].toFixed(4);
-      let linia = `  { klucz: '${esc(m.klucz)}', nazwa: '${esc(m.nazwa)}', pozycja: [${lat}, ${lng}], ikona: '${esc(m.ikona)}', kategoria: '${esc(m.kategoria)}'`;
-      if (m.tytul && m.tytul.trim())   linia += `, tytul: '${esc(m.tytul)}'`;
-      if (m.opis && m.opis.trim())     linia += `, opis: '${esc(m.opis)}'`;
-      if (m.tytulSrodek)               linia += `, tytulSrodek: true`;
-      if (m.tytulDuzy)                 linia += `, tytulDuzy: true`;
-      if (m.linkYT && m.linkYT.trim()) linia += `, linkYT: '${esc(m.linkYT)}'`;
-      if (m.quickTyp)                  linia += `, quickTyp: '${esc(m.quickTyp)}'`;
-      linia += ` }`;
-      return linia;
+      let l = `  { klucz: '${escTekst(m.klucz)}', nazwa: '${escTekst(m.nazwa)}', pozycja: [${lat}, ${lng}], ikona: '${escTekst(m.ikona)}', kategoria: '${escTekst(m.kategoria)}'`;
+      if (m.tytul && m.tytul.trim())   l += `, tytul: '${escTekst(m.tytul)}'`;
+      if (m.opis && m.opis.trim())     l += `, opis: '${escTekst(m.opis)}'`;
+      if (m.tytulSrodek)               l += `, tytulSrodek: true`;
+      if (m.tytulDuzy)                 l += `, tytulDuzy: true`;
+      if (m.linkYT && m.linkYT.trim()) l += `, linkYT: '${escTekst(m.linkYT)}'`;
+      if (m.quickTyp)                  l += `, quickTyp: '${escTekst(m.quickTyp)}'`;
+      return l + ' }';
     });
-    const nowaTablicaMiejsc = 'const miejsca = [\n' + linieMiejsc.join(',\n') + '\n];';
-
+    const nowaMiejsca = 'const miejsca = [\n' + linieMiejsc.join(',\n') + '\n];';
     const regexMiejsc = /const\s+miejsca\s*=\s*\[[\s\S]*?\n\];/;
     if (regexMiejsc.test(tekst)) {
-      tekst = tekst.replace(regexMiejsc, nowaTablicaMiejsc);
+      tekst = tekst.replace(regexMiejsc, nowaMiejsca);
     }
 
-    // --- 4c. NAZWA STRONY ---
-    // <h1> podmieniamy w DOM przed złożeniem pliku (patrz KROK 1) - NIE
-    // regexem, bo regex /<h1>[\s\S]*?<\/h1>/ potrafi złapać gigantyczny
-    // kawałek pliku, jeśli <h1> nie ma prostej struktury (zjadał </style>!).
-    // Tu zostaje tylko <title> - to bezpieczne (krótkie, jednoznaczne).
-    const aktualnaNazwa = (localStorage.getItem(KEY_NAZWA_STRONY)
-      || (document.querySelector('header h1') || {}).textContent
-      || (document.querySelector('h1') || {}).textContent
-      || '').trim();
-    if (aktualnaNazwa) {
-      const safeNazwa = aktualnaNazwa.replace(/\$/g, '$$$$');
-      tekst = tekst.replace(/<title>([^<]*)<\/title>/, () => '<title>' + safeNazwa.replace(/\$/g, '$$$$') + '</title>');
+    // --- 4c. <title> (nazwa w <h1> już ustawiona w klonie, KROK 1e) ---
+    if (nazwaPrzygody) {
+      tekst = tekst.replace(/<title>([^<]*)<\/title>/,
+        () => '<title>' + nazwaPrzygody.replace(/\$/g, '$$$$') + '</title>');
     }
 
-    // --- 4d. OPIS GRY (tytuł sekcji + treść akordeonu) ---
-    const aktOpisTytul = localStorage.getItem(KEY_OPIS_STRONY_TYTUL);
-    if (aktOpisTytul) {
-      const safeTytul = aktOpisTytul.replace(/\$/g, '$$$$');
+    // --- 4d. opis gry (tytuł sekcji + treść akordeonu) ---
+    const opisTytul = localStorage.getItem(KEY_OPIS_STRONY_TYTUL);
+    if (opisTytul) {
       tekst = tekst.replace(
         /(<span\s+class="title"\s+id="opisStronyTytul">)([\s\S]*?)(<\/span>)/,
-        '$1' + safeTytul + '$3'
+        '$1' + opisTytul.replace(/\$/g, '$$$$') + '$3'
       );
     }
-    const aktOpisTresc = localStorage.getItem(KEY_OPIS_STRONY_TRESC);
-    if (aktOpisTresc !== null && aktOpisTresc !== undefined) {
+    const opisTresc = localStorage.getItem(KEY_OPIS_STRONY_TRESC);
+    if (opisTresc !== null && opisTresc !== undefined) {
+      const akapity = opisTresc.split(/\n\s*\n/).map(a => a.trim()).filter(a => a);
       let trescHTML;
-      const akapity = aktOpisTresc.split(/\n\s*\n/).map(a => a.trim()).filter(a => a);
       if (akapity.length === 0) {
         trescHTML = '\n        <p style="color:var(--ink-muted);font-style:italic;text-align:center;padding:20px 0">Opis gry nie został jeszcze dodany.</p>\n      ';
       } else {
         trescHTML = '\n' + akapity.map(a => {
-          let h = a.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-          h = h.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
-          h = h.replace(/\n/g, '<br>');
-          return '        <p>' + h + '</p>';
+          let x = a.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+          x = x.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/\n/g, '<br>');
+          return '        <p>' + x + '</p>';
         }).join('\n') + '\n      ';
       }
-      const safeTresc = trescHTML.replace(/\$/g, '$$$$');
       tekst = tekst.replace(
         /(<div\s+class="accordion-inner"\s+id="opisStronyTresc">)([\s\S]*?)(<\/div>)/,
-        '$1' + safeTresc + '$3'
+        '$1' + trescHTML.replace(/\$/g, '$$$$') + '$3'
       );
     }
 
-    // --- 4e. TABLICA rysunkiZakodowane (przez markery RYSUNKI:START/END) ---
+    // --- 4e. rysunki (przez markery RYSUNKI:START/END) ---
     try {
       const zrodloRys = (typeof rysunki !== 'undefined' && Array.isArray(rysunki)) ? rysunki : [];
       const linieRys = zrodloRys.map(r => {
@@ -10464,73 +10449,73 @@ function pobierzNowyIndex() {
           const pkt = r.punkty.map(p => `[${p[0].toFixed(6)}, ${p[1].toFixed(6)}]`).join(', ');
           return `  { typ: 'linia', kolor: '${kolor}', punkty: [${pkt}] }`;
         }
+        if (r.typ === 'strzalka' && Array.isArray(r.start) && Array.isArray(r.koniec)) {
+          return `  { typ: 'strzalka', kolor: '${kolor}', start: [${r.start[0].toFixed(6)}, ${r.start[1].toFixed(6)}], koniec: [${r.koniec[0].toFixed(6)}, ${r.koniec[1].toFixed(6)}] }`;
+        }
         if (r.typ === 'kolo' && Array.isArray(r.srodek)) {
           return `  { typ: 'kolo', kolor: '${kolor}', srodek: [${r.srodek[0].toFixed(6)}, ${r.srodek[1].toFixed(6)}], promien: ${Math.round(r.promien)} }`;
         }
+        // 'tajemnica' = tajemniczy okrąg (narzędzie 🔮). Ta sama struktura
+        // co kolo: srodek + promien. KLUCZOWE - bez tego okrąg nie zapisuje się!
+        if (r.typ === 'tajemnica' && Array.isArray(r.srodek)) {
+          return `  { typ: 'tajemnica', kolor: '${kolor}', srodek: [${r.srodek[0].toFixed(6)}, ${r.srodek[1].toFixed(6)}], promien: ${Math.round(r.promien)} }`;
+        }
         if (r.typ === 'tekst' && Array.isArray(r.pozycja)) {
-          const tresc = String(r.tresc || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, '\\n').replace(/\r/g, '');
-          return `  { typ: 'tekst', kolor: '${kolor}', pozycja: [${r.pozycja[0].toFixed(6)}, ${r.pozycja[1].toFixed(6)}], tresc: '${tresc}' }`;
+          return `  { typ: 'tekst', kolor: '${kolor}', pozycja: [${r.pozycja[0].toFixed(6)}, ${r.pozycja[1].toFixed(6)}], tresc: '${escTekst(r.tresc)}' }`;
         }
         return null;
       }).filter(x => x !== null);
 
-      const nowaTablicaRys = '// === RYSUNKI:START === (nie usuwaj tego komentarza - znacznik dla auto-eksportu)\n'
+      const nowaRys = '// === RYSUNKI:START === (nie usuwaj tego komentarza - znacznik dla auto-eksportu)\n'
         + 'const rysunkiZakodowane = [\n' + linieRys.join(',\n') + '\n];\n'
         + '// === RYSUNKI:END ===';
-
-      const startRys = tekst.match(/^\/\/ === RYSUNKI:START ===.*$/m);
-      const endRys = tekst.match(/^\/\/ === RYSUNKI:END ===.*$/m);
-      if (startRys && endRys && endRys.index > startRys.index) {
-        tekst = tekst.substring(0, startRys.index)
-          + nowaTablicaRys
-          + tekst.substring(endRys.index + endRys[0].length);
+      const sR = tekst.match(/^\/\/ === RYSUNKI:START ===.*$/m);
+      const eR = tekst.match(/^\/\/ === RYSUNKI:END ===.*$/m);
+      if (sR && eR && eR.index > sR.index) {
+        tekst = tekst.substring(0, sR.index) + nowaRys + tekst.substring(eR.index + eR[0].length);
       }
-    } catch (e) {
-      console.warn('[Zapis] Rysunki - pominięto:', e);
-    }
+    } catch (e) { console.warn('[Zapis] rysunki:', e); }
 
-    // --- 4f. KATEGORIE (przez markery KATEGORIE:START/END) ---
+    // --- 4f. kategorie (przez markery KATEGORIE:START/END) ---
     try {
-      const zrodloKat = (typeof kategorie !== 'undefined') ? kategorie : {};
-      const zrodloKatDom = (typeof kategorieDomyslne !== 'undefined') ? kategorieDomyslne : {};
+      const zK = (typeof kategorie !== 'undefined') ? kategorie : {};
+      const zKD = (typeof kategorieDomyslne !== 'undefined') ? kategorieDomyslne : {};
       const linieKat = [];
       for (const klucz of ['zabytek', 'sakral', 'przyroda', 'urzad']) {
-        const k = zrodloKat[klucz] || zrodloKatDom[klucz];
+        const k = zK[klucz] || zKD[klucz];
         if (!k) continue;
-        const ikona = String(k.ikona || '📍').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-        const nazwa = String(k.nazwa || klucz).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-        const padding = ' '.repeat(Math.max(0, 8 - klucz.length));
-        linieKat.push(`  ${klucz}:${padding}{ ikona: '${ikona}', nazwa: '${nazwa}' }`);
+        const ik = String(k.ikona || '📍').replace(/'/g, "\\'");
+        const nz = String(k.nazwa || klucz).replace(/'/g, "\\'");
+        linieKat.push(`  ${klucz}: { ikona: '${ik}', nazwa: '${nz}' }`);
       }
-      const nowaTablicaKat = '// === KATEGORIE:START === (nie usuwaj tego komentarza - znacznik dla auto-eksportu)\n'
+      const nowaKat = '// === KATEGORIE:START === (nie usuwaj tego komentarza - znacznik dla auto-eksportu)\n'
         + 'const kategorieDomyslne = {\n' + linieKat.join(',\n') + '\n};\n'
         + '// === KATEGORIE:END ===';
-
-      const startKat = tekst.match(/^\/\/ === KATEGORIE:START ===.*$/m);
-      const endKat = tekst.match(/^\/\/ === KATEGORIE:END ===.*$/m);
-      if (startKat && endKat && endKat.index > startKat.index) {
-        tekst = tekst.substring(0, startKat.index)
-          + nowaTablicaKat
-          + tekst.substring(endKat.index + endKat[0].length);
+      const sK = tekst.match(/^\/\/ === KATEGORIE:START ===.*$/m);
+      const eK = tekst.match(/^\/\/ === KATEGORIE:END ===.*$/m);
+      if (sK && eK && eK.index > sK.index) {
+        tekst = tekst.substring(0, sK.index) + nowaKat + tekst.substring(eK.index + eK[0].length);
       }
-    } catch (e) {
-      console.warn('[Zapis] Kategorie - pominięto:', e);
-    }
+    } catch (e) { console.warn('[Zapis] kategorie:', e); }
 
-    // ---- KROK 5: zabezpieczenie końcowe ----
-    // Plik musi zawierać kluczowe znaczniki - dowód, że to kompletny index gry.
+    // ===== KROK 5: zabezpieczenia =====
+    if (!tekst || tekst.length < 100000) {
+      alert('⚠️ Zapis przerwany - plik wyszedł za mały (' + (tekst ? tekst.length : 0) + ' znaków).\n\n'
+        + 'Odśwież stronę (Ctrl+Shift+R) i spróbuj ponownie.');
+      return;
+    }
     if (!tekst.includes('kropkiAudio') || !tekst.includes('id="mapa"')) {
-      alert('⚠️ Zapis przerwany - wynik nie wygląda na kompletny plik gry.\n\n'
-        + 'Odśwież stronę i spróbuj ponownie.');
+      alert('⚠️ Zapis przerwany - plik niekompletny (brak mapy lub danych gry).');
       return;
     }
-    if (tekst.length < 100000) {
-      alert('⚠️ Zapis przerwany - plik wyszedł podejrzanie mały ('
-        + tekst.length + ' znaków).\n\nOdśwież stronę (Ctrl+Shift+R) i spróbuj ponownie.');
+    // <body> musi zaczynać się od realnej treści, <head> mieć zamknięty <style>
+    const idxHeadEnd = tekst.indexOf('</head>');
+    if (idxHeadEnd < 0 || !tekst.slice(0, idxHeadEnd).includes('</' + 'style>')) {
+      alert('⚠️ Zapis przerwany - arkusz CSS niekompletny.\n\nOdśwież stronę i spróbuj ponownie.');
       return;
     }
 
-    // ---- KROK 6: pobranie pliku na dysk ----
+    // ===== KROK 6: pobranie pliku =====
     const blob = new Blob([tekst], { type: 'text/html;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -10541,33 +10526,28 @@ function pobierzNowyIndex() {
     document.body.removeChild(a);
     setTimeout(() => URL.revokeObjectURL(url), 1000);
 
-    // Po udanym zapisie - sprzątanie cache localStorage (dane są już w pliku).
     setTimeout(() => {
       try { localStorage.removeItem(KEY_MIEJSCA); } catch (e) {}
       try { localStorage.removeItem(KEY_NAZWA_STRONY); } catch (e) {}
       try { localStorage.removeItem(KEY_OPIS_STRONY_TYTUL); } catch (e) {}
       try { localStorage.removeItem(KEY_OPIS_STRONY_TRESC); } catch (e) {}
       try { localStorage.removeItem(STORAGE_KEY_RYSUNKI); } catch (e) {}
-      try { localStorage.removeItem('kategorie_robocze_v1'); } catch (e) {}
     }, 600);
 
-    // Diagnostyka: policz co trafiło do pliku (pomaga wykryć gubione dane).
-    let _diagStart = 0, _diagMeta = 0, _diagTaj = 0;
+    // Diagnostyka - ile czego trafiło do pliku
+    let dS = 0, dM = 0, dT = 0;
     for (const k of wszystkieKropki) {
       const t = k.typ || 'tajemnica';
-      if (t === 'start') _diagStart++;
-      else if (t === 'meta') _diagMeta++;
-      else _diagTaj++;
+      if (t === 'start') dS++; else if (t === 'meta') dM++; else dT++;
     }
-    const _diagRys = (typeof rysunki !== 'undefined' && Array.isArray(rysunki)) ? rysunki.length : 0;
-
+    const dR = (typeof rysunki !== 'undefined' && Array.isArray(rysunki)) ? rysunki.length : 0;
     alert('✅ Plik index.html zapisany (' + Math.round(tekst.length / 1024) + ' KB).\n\n'
-      + 'Wbudowano do pliku:\n'
-      + '• START: ' + _diagStart + '\n'
-      + '• META: ' + _diagMeta + '\n'
-      + '• Tajemnice: ' + _diagTaj + '\n'
-      + '• Rysunki: ' + _diagRys + '\n\n'
-      + 'Wgraj plik na serwer. Edytor działa po dodaniu ?admin=1 do adresu.');
+      + 'Wbudowano:\n'
+      + '• START: ' + dS + '\n'
+      + '• META: ' + dM + '\n'
+      + '• Tajemnice: ' + dT + '\n'
+      + '• Rysunki: ' + dR + '\n\n'
+      + 'Wgraj plik na serwer. Edytor: dodaj ?admin=1 do adresu.');
 
   } catch (err) {
     console.error('Błąd zapisu:', err);
@@ -11210,22 +11190,19 @@ document.documentElement.classList.add('tryb-ciemny');
 if (isAdmin) {
   // Klasa na <html> - CSS przebudowuje wygląd edytora na desktopie
   document.documentElement.classList.add('tryb-admin');
-  // Zbuduj górny pasek edytora (ramka tytułu + przyciski + opis)
-  zbudujPasekEdytora();
-  // Wypełnij ramkę tytułu nazwą i opisem przygody
-  setTimeout(() => { if (typeof aktualizujRamkeTytulu === 'function') aktualizujRamkeTytulu(); }, 100);
-  // Wczytaj zmiany w miejscach z localStorage (jeśli były)
-  wczytajZmianyMiejsc();
-
-  wczytajZaplanowane();
-  renderujZaplanowane();
-  pokazAdminListe();
-
-  // Admin: wczytaj zapisany tryb gry z poprzedniej sesji edycji
-  wczytajTrybGryAdmin();
-
-  // Wpinamy się w istniejący handler kliknięcia w mapę
-  mapa.on('click', obsluzKlikAdmin);
+  // KAŻDA funkcja admina w osobnym try/catch - gdyby jedna rzuciła błąd
+  // (np. uszkodzone dane w localStorage), reszta edytora i tak się zbuduje.
+  const _bezpiecznie = (nazwa, fn) => {
+    try { fn(); } catch (e) { console.warn('[admin] ' + nazwa + ':', e); }
+  };
+  _bezpiecznie('zbudujPasekEdytora', () => zbudujPasekEdytora());
+  setTimeout(() => { try { if (typeof aktualizujRamkeTytulu === 'function') aktualizujRamkeTytulu(); } catch(e){} }, 100);
+  _bezpiecznie('wczytajZmianyMiejsc', () => wczytajZmianyMiejsc());
+  _bezpiecznie('wczytajZaplanowane', () => wczytajZaplanowane());
+  _bezpiecznie('renderujZaplanowane', () => renderujZaplanowane());
+  _bezpiecznie('pokazAdminListe', () => pokazAdminListe());
+  _bezpiecznie('wczytajTrybGryAdmin', () => wczytajTrybGryAdmin());
+  _bezpiecznie('mapa.on click', () => mapa.on('click', obsluzKlikAdmin));
 
   // KRYTYCZNE: blokuj propagację kliknięć z panelu admin do mapy Leaflet.
   // Bez tego - klik w pole tekstowe edytora nazwy = klik w mapę = nowy znacznik.
