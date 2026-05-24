@@ -7201,7 +7201,7 @@ let _matrixTimery = [];       // setTimeout-y do posprzątania (deszcz nie używ
 let _matrixKroki = [];        // lista komunikatów do pokazania po kolei
 let _matrixKrokIdx = 0;       // który komunikat jest teraz na ekranie
 
-function pokazMatrix() {
+function pokazMatrix(kroki) {
   const overlay = document.getElementById('matrixOverlay');
   const canvas = document.getElementById('matrixCanvas');
   const tekstEl = document.getElementById('matrixTekst');
@@ -7249,12 +7249,42 @@ function pokazMatrix() {
 
   // Komunikaty - gracz przechodzi je przyciskiem "Dalej".
   // Każdy kolejny "Dalej" pokazuje następny; ostatni zamyka Matrix.
-  _matrixKroki = [
+  // Domyślnie: ekran-pomost po zdobyciu tajemnicy. Można podać własne
+  // kroki (np. Matrix powitalny przy wejściu do gry).
+  _matrixKroki = (Array.isArray(kroki) && kroki.length > 0) ? kroki : [
     '✓ STREFA ZDOBYTA',
     'Otwórz menu ☰ i kliknij następną tajemnicę'
   ];
   _matrixKrokIdx = 0;
   _matrixPokazKrok();
+}
+
+// === MATRIX POWITALNY - przy wejściu do gry (po ekranie startowym) ===
+// Treść zależna od postępu:
+//  - nowa gra (0 zdobytych): zachęta do dojścia na START
+//  - gra w toku: ile tajemnic zdobytych z ilu
+//  - gra ukończona: nie pokazuje się (obsłużone w zamknijEkranStartowy)
+function pokazMatrixPowitalny() {
+  const wszystkie = (typeof policzTajemnice === 'function') ? policzTajemnice() : 0;
+  // Zdobyte = etapy zaliczone. etap 0 = przed startem, etap 1 = po starcie
+  // (0 tajemnic), etap N+1 = po tajemnicy N. Zdobyte tajemnice = etap - 1.
+  const zdobyte = Math.max(0, (aktualnyEtapGry || 0) - 1);
+
+  let kroki;
+  if ((aktualnyEtapGry || 0) === 0) {
+    // Nowa gra - gracz jeszcze nie wszedł w START
+    kroki = [
+      '⚡ PRZYGODA SIĘ ZACZYNA',
+      'Idź do punktu START na mapie, by rozpocząć'
+    ];
+  } else {
+    // Gra w toku - pokaż postęp
+    kroki = [
+      '⚡ WITAJ Z POWROTEM',
+      `Zdobyte tajemnice: ${zdobyte} / ${wszystkie}\nSzukaj kolejnej!`
+    ];
+  }
+  pokazMatrix(kroki);
 }
 
 // Pokazuje aktualny komunikat. Na ostatnim kroku zmienia napis przycisku
@@ -8064,6 +8094,16 @@ function zamknijEkranStartowy() {
         mapa.flyTo(start.pozycja, 17, { duration: 1.5 });
       } catch(e) {}
     }, 400);
+  }
+  // MATRIX POWITALNY - pokazuje postęp po wejściu do gry.
+  // Nie pokazujemy gdy gra ukończona (etap > liczba tajemnic = META zaliczona).
+  // Krótkie opóźnienie - żeby ekran startowy zdążył się schować.
+  if (!isAdmin && typeof pokazMatrixPowitalny === 'function') {
+    const ileTajemnic = (typeof policzTajemnice === 'function') ? policzTajemnice() : 0;
+    const graUkonczona = (aktualnyEtapGry || 0) > ileTajemnic && ileTajemnic > 0;
+    if (!graUkonczona) {
+      setTimeout(() => { try { pokazMatrixPowitalny(); } catch(e){} }, 650);
+    }
   }
 }
 
@@ -13708,7 +13748,7 @@ mapa.on('zoomend', () => {
 <div id="matrixOverlay" style="display:none;position:fixed;inset:0;z-index:99998;background:#000">
   <canvas id="matrixCanvas" style="position:absolute;inset:0;width:100%;height:100%"></canvas>
   <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:30px;gap:36px">
-    <div id="matrixTekst" style="font-family:monospace;font-weight:bold;color:#00ffcc;text-shadow:0 0 25px #00ffcc;font-size:clamp(24px,6vw,46px);line-height:1.4"></div>
+    <div id="matrixTekst" style="font-family:monospace;font-weight:bold;color:#00ffcc;text-shadow:0 0 25px #00ffcc;font-size:clamp(24px,6vw,46px);line-height:1.4;white-space:pre-line"></div>
     <button id="matrixDalejBtn" onclick="matrixDalej()" style="font-family:monospace;font-weight:bold;font-size:clamp(18px,4.5vw,26px);color:#00ffcc;background:rgba(0,40,30,0.85);border:2px solid #00ffcc;border-radius:8px;padding:14px 38px;cursor:pointer;text-shadow:0 0 12px #00ffcc;box-shadow:0 0 22px rgba(0,255,204,0.45);-webkit-tap-highlight-color:transparent">Dalej →</button>
   </div>
 </div>
