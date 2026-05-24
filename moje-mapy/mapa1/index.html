@@ -3,23 +3,34 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<!-- Anti-cache: zapobiegaj cache'owaniu starych wersji w przeglądarce -->
+<!-- Po wgraniu nowego index.html użytkownicy zobaczą nowości w kilka sekund -->
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>demo 1 przygody</title>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css">
-<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css">
+
+<title>Nazwa przygody · mini-klik.pl</title>
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css"/>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-<link rel="stylesheet" href="https://cdn.pannellum.org/2.5/pannellum.css">
-<script src="https://cdn.pannellum.org/2.5/pannellum.js"></script>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&amp;family=EB+Garamond:wght@400;500;600&amp;family=Cinzel:wght@400;600&amp;display=swap" rel="stylesheet">
-<style>
 
+<!-- Pannellum - viewer zdjęć 360° sferycznych.
+     Aktywuje się gdy admin wgra plik z suffiksem "-360" (np. img/bagno-360.jpg).
+     Daje pełną sferę: obracasz palcem dookoła w każdą stronę.
+     Tylko ~25 KB, działa na wszystkich nowoczesnych przeglądarkach (WebGL). -->
+<link rel="stylesheet" href="https://cdn.pannellum.org/2.5/pannellum.css"/>
+<script src="https://cdn.pannellum.org/2.5/pannellum.js"></script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=EB+Garamond:wght@400;500;600&family=Cinzel:wght@400;600&display=swap" rel="stylesheet">
+
+<style>
 :root{
   --mapa-h:45vh;
   --paper:#f5efe2;
@@ -4393,6 +4404,63 @@ html.tryb-noc .strefa-szukania-etykieta{
 }
 
 /* =========================================================
+   === BLOKADA TRYBU ADMINA W PIONIE =======================
+   =========================================================
+   Tryb admina (budowanie mapy) działa tylko na komputerze
+   lub tablecie w poziomie. Gdy <html> ma klasę tryb-admin
+   a urządzenie jest dotykowe i ustawione pionowo - zasłaniamy
+   cały ekran komunikatem. Warunki aktywacji w @media niżej.
+*/
+#obrocAdmin{
+  display:none;
+  position:fixed;
+  inset:0;
+  z-index:100000;
+  background:linear-gradient(135deg,#3d2817 0%,#1a0e08 100%);
+  color:#f5e8c8;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+  padding:30px;
+  font-family:'EB Garamond',serif;
+}
+#obrocAdmin-inner{
+  max-width:340px;
+}
+#obrocAdmin-ikona{
+  font-size:80px;
+  margin-bottom:20px;
+  display:block;
+  animation:obrocAnim 2.5s ease-in-out infinite;
+  transform-origin:center;
+}
+#obrocAdmin h2{
+  font-family:'Cinzel',serif;
+  font-size:24px;
+  margin:0 0 14px 0;
+  color:#d4a574;
+  letter-spacing:2px;
+}
+#obrocAdmin p{
+  font-size:17px;
+  line-height:1.5;
+  margin:0 0 8px 0;
+  color:#e8d5a8;
+}
+#obrocAdmin-mala{
+  font-size:14px !important;
+  font-style:italic;
+  opacity:0.7;
+  margin-top:20px !important;
+}
+#obrocAdmin-ozdoba{
+  color:#d4a574;
+  letter-spacing:8px;
+  font-size:18px;
+  margin:18px 0;
+}
+
+/* =========================================================
    === SZUFLADKA "Wykryto audio" - wsuwana z prawej =========
    =========================================================
    Mała kompaktowa karta która wsuwa się z prawej strony ekranu
@@ -4511,11 +4579,23 @@ html.tryb-noc .sw-off {
 
 /* Aktywacja: telefon w landscape */
 @media (max-width: 1024px) and (pointer: coarse) and (orientation: landscape) {
-  #obrocTelefon{
+  /* "Obróć telefon" - tylko dla GRACZA. Admin gra w poziomie,
+     więc gdy jest tryb-admin nie pokazujemy mu tego overlaya. */
+  html:not(.tryb-admin) #obrocTelefon{
     display:flex !important;
   }
   /* Wyłącz scroll body żeby nic nie wystawało */
-  body{
+  html:not(.tryb-admin) body{
+    overflow:hidden !important;
+  }
+}
+
+/* === BLOKADA ADMINA W PIONIE - dotykowe urządzenie pionowo === */
+@media (max-width: 1024px) and (pointer: coarse) and (orientation: portrait) {
+  html.tryb-admin #obrocAdmin{
+    display:flex !important;
+  }
+  html.tryb-admin body{
     overflow:hidden !important;
   }
 }
@@ -5786,11 +5866,9 @@ html.tryb-admin #btnPodklad { display: flex; }
   }
 }
 
-
 </style>
 </head>
 <body>
-
 
 <!-- ============================================================
      === PRZYCISK MUZYKI W TLE (ikona głośnika, prawy górny róg) =
@@ -5798,7 +5876,7 @@ html.tryb-admin #btnPodklad { display: flex; }
      Klik włącza/wyłącza audio/podklad.mp3. Logika w skrypcie na
      dole strony (togglePodklad). Jeśli plik nie istnieje w repo -
      skrypt sam chowa ten przycisk. Nie pokazuje się w edytorze. -->
-<button id="btnPodklad" onclick="togglePodklad()" title="Wyłącz muzykę w tle" aria-label="Muzyka w tle" class="gra">🔊</button>
+<button id="btnPodklad" onclick="togglePodklad()" title="Włącz muzykę w tle" aria-label="Muzyka w tle">🔇</button>
 
 <!-- ============================================================
      === SZUFLADKA "WYKRYTO AUDIO" (mobile, pierwsze wejście) ===
@@ -5829,6 +5907,17 @@ html.tryb-admin #btnPodklad { display: flex; }
     <p id="obrocTelefon-mala">Obróć urządzenie, by korzystać z mapy.</p>
   </div>
 </div>
+
+<div id="obrocAdmin">
+  <div id="obrocAdmin-inner">
+    <span id="obrocAdmin-ikona">🗺️</span>
+    <h2>Tryb budowania mapy</h2>
+    <div id="obrocAdmin-ozdoba">❦ ❦ ❦</div>
+    <p>Budowanie mapy działa tylko<br>na komputerze lub tablecie w poziomie.</p>
+    <p id="obrocAdmin-mala">Obróć tablet poziomo lub przejdź na komputer, by edytować przygodę.</p>
+  </div>
+</div>
+
 
 <!-- BANER POWITALNY (pojawia się po zeskanowaniu QR) -->
 <div class="qr-welcome" id="qrWelcome">
@@ -5868,7 +5957,7 @@ html.tryb-admin #btnPodklad { display: flex; }
   <div class="url-box" id="resultUrl"></div>
 
   <div class="toggle-row">
-    <input type="checkbox" id="newTabToggle" checked="">
+    <input type="checkbox" id="newTabToggle" checked>
     <label for="newTabToggle">Otwórz w nowej karcie</label>
   </div>
 
@@ -5881,7 +5970,7 @@ html.tryb-admin #btnPodklad { display: flex; }
 <div class="wrapper">
 
   <header>
-    <h1>demo 1 przygody</h1>
+    <h1>Nazwa przygody</h1>
   </header>
 
   <!-- KONTROLKI -->
@@ -5895,14 +5984,14 @@ html.tryb-admin #btnPodklad { display: flex; }
     <!-- GRUPA 1: panel postępu gry (tylko to, brak filtrów kategorii w grze) -->
     <div class="controls-group filters" id="filters-menu">
       <!-- PANEL POSTĘPU GRY -->
-      <div class="gra-postep-info" id="graPostepPanel">
+      <div class="gra-postep-info visible" id="graPostepPanel">
         <div class="gra-postep-label">🎮 Twoja przygoda</div>
         <div style="font-size:14px;color:var(--ink);margin-bottom:6px">
           Odkryto: <strong id="postepGryDisplay">⭐ 0/0</strong>
         </div>
         <!-- EDYTOR-GRA: lista odkrytych tajemnic + wskazówka co dalej -->
         <div id="graPostepListaOdkrytych" style="font-size:12px;color:var(--ink);text-align:left;margin:8px 0 6px 0;display:none"></div>
-        <div id="graPostepCoDalej" style="font-size: 12px; color: var(--ink); background: rgba(220, 38, 38, 0.08); border-left: 3px solid rgb(220, 38, 38); padding: 6px 8px; border-radius: 3px; margin-bottom: 8px; display: block; text-align: left;"><strong style="color:#dc2626">🎯 Cel:</strong><br>Idź do punktu <strong>START</strong> żeby rozpocząć grę.</div>
+        <div id="graPostepCoDalej" style="font-size:12px;color:var(--ink);background:rgba(220,38,38,0.08);border-left:3px solid #dc2626;padding:6px 8px;border-radius:3px;margin-bottom:8px;display:none;text-align:left"></div>
         <button class="gra-reset-btn" onclick="if(confirm('Zresetować postęp gry? Zaczniesz od początku.')) resetujPostepGry();">🔄 Reset gry</button>
       </div>
     </div>
@@ -5934,7 +6023,7 @@ html.tryb-admin #btnPodklad { display: flex; }
   <div id="editorPasek"></div>
 
   <!-- Przyciemnienie tła pod modalem edytora nazwy / opisu gry -->
-  <div id="editorModalBackdrop" onclick="zamknijModaleEdytora()" class=""></div>
+  <div id="editorModalBackdrop" onclick="zamknijModaleEdytora()"></div>
 
   <!-- Edytory nazwy/opisu - przeniesione na poziom body, by dzialaly jako modale -->
   <div class="nazwa-edytor" id="nazwaEdytor">
@@ -5948,9 +6037,7 @@ html.tryb-admin #btnPodklad { display: flex; }
         </div>
   <div class="nazwa-edytor" id="opisStronyEdytor">
           <label class="nazwa-edytor-label">Treść opisu gry (akapity oddziel pustą linią):</label>
-          <textarea id="opisStronyTrescInput" rows="8" placeholder="Tekst akapit po akapicie. Pustą linią oddzielisz jeden akapit od drugiego.
-
-Możesz używać **pogrubienia** dla wyróżnień."></textarea>
+          <textarea id="opisStronyTrescInput" rows="8" placeholder="Tekst akapit po akapicie. Pustą linią oddzielisz jeden akapit od drugiego.&#10;&#10;Możesz używać **pogrubienia** dla wyróżnień."></textarea>
           <div class="nazwa-edytor-akcje">
             <button class="nazwa-zapisz" onclick="zapiszOpisStrony()">✓ Zapisz</button>
             <button class="nazwa-anuluj" onclick="zamknijEdytorOpisuStrony()">Anuluj</button>
@@ -5959,7 +6046,7 @@ Możesz używać **pogrubienia** dla wyróżnień."></textarea>
         </div>
 
   <!-- Panel "Audio w grze" - przeniesiony na poziom body, by dzialal w edytorze desktop -->
-  <div id="audioIntroBackdrop" onclick="toggleAudioIntroInfo()" class=""></div>
+  <div id="audioIntroBackdrop" onclick="toggleAudioIntroInfo()"></div>
   <div class="nazwa-edytor" id="audioIntroEdytor">
           <label class="nazwa-edytor-label">🎵 Nazwy plików audio</label>
           <p class="nazwa-edytor-info" style="margin-top:6px">
@@ -5994,7 +6081,7 @@ Możesz używać **pogrubienia** dla wyróżnień."></textarea>
   <!-- ============================================================
        === PANEL RYSOWANIA NA MAPIE (admin only) ==================
        ============================================================ -->
-  <div id="panelRysowania" class="">
+  <div id="panelRysowania">
     <span class="panel-rys-label">🎨 Rysuj</span>
     <button class="btn-narzedzie" data-narzedzie="linia" onclick="wybierzNarzedzie('linia')">✏️ Linia</button>
     <button class="btn-narzedzie" data-narzedzie="strzalka" onclick="wybierzNarzedzie('strzalka')">➡️ Strzałka</button>
@@ -6021,18 +6108,18 @@ Możesz używać **pogrubienia** dla wyróżnień."></textarea>
     <!-- EDYTOR: ramka z tytułem przygody (widoczna tylko w trybie admin desktop) -->
     <div class="editor-tytul-ramka" id="editorTytulRamka">
       <div class="et-orn">✦ · ✦ · ✦</div>
-      <h2 id="editorTytulNazwa">demo 1 przygody</h2>
-      <div class="et-opis" id="editorTytulOpis">Opis gry nie został jeszcze dodany.</div>
+      <h2 id="editorTytulNazwa">Nazwa przygody</h2>
+      <div class="et-opis" id="editorTytulOpis"></div>
     </div>
-    <div id="mapa" class="">
-      <button class="gps-btn active" id="gpsBtn" onclick="event.stopPropagation();obsluzKlikGPSlubAudio()" title="Wyłącz nawigację" style="">🛑</button>
-      <button class="center-btn" id="centerBtn" onclick="event.stopPropagation();wysrodkujNaMnie()" title="Wyśrodkuj mapę na mojej pozycji GPS" style="">⊙</button>
+    <div id="mapa">
+      <button class="gps-btn" id="gpsBtn" onclick="event.stopPropagation();obsluzKlikGPSlubAudio()" title="Włącz nawigację (GPS + audio + fioletowe kropki)">🧭</button>
+      <button class="center-btn" id="centerBtn" onclick="event.stopPropagation();wysrodkujNaMnie()" title="Wyśrodkuj mapę na mojej pozycji GPS" style="display:none">⊙</button>
 
       <!-- MOBILE FAB BUTTONS (widoczne tylko na mobile portrait dzięki CSS) -->
       <button class="mobile-fab mobile-fab-menu" id="mobileFabMenu" onclick="event.stopPropagation();otworzMobilneMenu()" title="Menu">☰</button>
       <button class="mobile-fab mobile-fab-layer" id="mobileFabLayer" onclick="event.stopPropagation();toggleWarstwyMobile()" title="Zmień warstwę mapy">🗺️</button>
 
-      <div class="gps-status" id="gpsStatus"><span class="ikona-stat">📡</span> Wyszukiwanie pozycji...<div class="czas">Łapanie sygnału z satelitów lub sieci.</div></div>
+      <div class="gps-status" id="gpsStatus"></div>
 
       <!-- ============================================================== -->
       <!-- NOWY PANEL "📡 W ZASIĘGU" (Radar wielowarstwowy, Krok B) ====== -->
@@ -6043,7 +6130,7 @@ Możesz używać **pogrubienia** dla wyróżnień."></textarea>
         <div class="radar-mini" id="radarMini" onclick="toggleRadarPanel()">
           <span class="radar-icon">📡</span>
           <span class="radar-mini-text">W zasięgu: <span id="radarCount">0</span></span>
-          <span class="radar-arrow" id="radarArrow" aria-hidden="true"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg></span>
+          <span class="radar-arrow" id="radarArrow" aria-hidden="true"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></span>
         </div>
         <div class="radar-lista" id="radarLista"></div>
       </div>
@@ -6066,24 +6153,24 @@ Możesz używać **pogrubienia** dla wyróżnień."></textarea>
 
         <!-- Liczniki kropek audio gry (Start / Tajemnice / Meta / Zmiany) -->
         <div id="adminWidokGra" style="margin:8px 0">
-          <div>🧭 Start: <span class="admin-list-count" id="adminCountStart">1</span></div>
-          <div>❓ Tajemnice: <span class="admin-list-count" id="adminCountTajemnice">4</span></div>
-          <div>🏆 Meta: <span class="admin-list-count" id="adminCountMeta">1</span></div>
-          <div>Zmiany: <span class="admin-list-count" id="adminListCount" style="color:#22c55e">6</span></div>
+          <div>🧭 Start: <span class="admin-list-count" id="adminCountStart">0</span></div>
+          <div>❓ Tajemnice: <span class="admin-list-count" id="adminCountTajemnice">0</span></div>
+          <div>🏆 Meta: <span class="admin-list-count" id="adminCountMeta">0</span></div>
+          <div>Zmiany: <span class="admin-list-count" id="adminListCount" style="color:#22c55e">0</span></div>
         </div>
 
         <!-- Ukryte liczniki zakładki Punkty (zachowane technicznie - kod JS je aktualizuje) -->
         <div id="adminWidokPunkty" style="display:none">
-          <span class="admin-list-count" id="adminCountPunkty">2</span>
+          <span class="admin-list-count" id="adminCountPunkty">0</span>
         </div>
 
         <button onclick="pobierzNowyIndex()" style="background:#22c55e;font-size:11px">💾 Pobierz nowy index.html</button>
-        <button id="nazwaStronyBtn" onclick="otworzEdytorNazwy()" style="background: rgb(160, 69, 16); font-size: 11px;">✏️ Nazwa przygody</button>
+        <button id="nazwaStronyBtn" onclick="otworzEdytorNazwy()" style="background:#a04510;font-size:11px">✏️ Nazwa przygody</button>
 
         <!-- Rozwijana ramka edycji nazwy strony -->
         
 
-        <button id="opisStronyBtn" onclick="otworzEdytorOpisuStrony()" style="background: rgb(160, 69, 16); font-size: 11px;">📜 Opis gry</button>
+        <button id="opisStronyBtn" onclick="otworzEdytorOpisuStrony()" style="background:#a04510;font-size:11px">📜 Opis gry</button>
 
         <!-- Rozwijana ramka edycji opisu gry (akordeon pod mapą) -->
         
@@ -6096,7 +6183,7 @@ Możesz używać **pogrubienia** dla wyróżnień."></textarea>
         <!-- Okienko ze ściągą: wszystkie nazwy plików audio w grze -->
         
 
-        <button onclick="toggleRysowanie()" id="btnRysowanie" style="font-size: 10px; background: rgb(58, 106, 74); color: rgb(255, 255, 255); border-color: rgb(58, 106, 74);">🎨 Rysuj na mapie</button>
+        <button onclick="toggleRysowanie()" id="btnRysowanie" style="font-size:10px;background:#3a6a4a;color:#fff;border-color:#3a6a4a">🎨 Rysuj na mapie</button>
         <button onclick="wyczyscWszystkoEdytor()" style="background:#dc2626;color:#fff;border-color:#dc2626;font-size:11px;margin-top:10px;font-weight:700" title="Wyczyść wszystkie dane edytora - kropki audio, miejsca, nazwę, opis, rysunki, postęp gry">🗑️ Wyczyść wszystko</button>
       </div>
     </div>
@@ -6113,7 +6200,7 @@ Możesz używać **pogrubienia** dla wyróżnień."></textarea>
         <div class="bottom-sheet-mini-icon" id="bsMiniIcon">📜</div>
         <div class="bottom-sheet-mini-text">
           <div class="bottom-sheet-mini-title" id="bsMiniTitle">MIEJSCA</div>
-          <div class="bottom-sheet-mini-subtitle" id="bsMiniSubtitle">Brak miejsc</div>
+          <div class="bottom-sheet-mini-subtitle" id="bsMiniSubtitle">Przesuń w górę aby zobaczyć listę</div>
         </div>
         <!-- Strzałka pokazywana tylko w stanie MINI (cyklem rozwijasz do MID) -->
         <div class="bottom-sheet-mini-arrow" id="bsMiniArrow">▲</div>
@@ -6121,11 +6208,15 @@ Możesz używać **pogrubienia** dla wyróżnień."></textarea>
              event.stopPropagation() blokuje cyklowanie, klikają tylko osobno.
              SVG chevrony - ostre, czytelne strzałki w stylu iOS. -->
         <div class="bottom-sheet-controls" id="bsControls">
-          <button type="button" class="bs-ctrl-btn" id="bsCtrlUp" onclick="event.stopPropagation();ustawStanBottomSheet('full')" title="Rozwiń na cały ekran" aria-label="Rozwiń na cały ekran">
-            <svg viewBox="0 0 24 24"><polyline points="6 15 12 9 18 15"></polyline></svg>
+          <button type="button" class="bs-ctrl-btn" id="bsCtrlUp"
+            onclick="event.stopPropagation();ustawStanBottomSheet('full')"
+            title="Rozwiń na cały ekran" aria-label="Rozwiń na cały ekran">
+            <svg viewBox="0 0 24 24"><polyline points="6 15 12 9 18 15"/></svg>
           </button>
-          <button type="button" class="bs-ctrl-btn" id="bsCtrlDown" onclick="event.stopPropagation();bsZwin()" title="Zwiń" aria-label="Zwiń">
-            <svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"></polyline></svg>
+          <button type="button" class="bs-ctrl-btn" id="bsCtrlDown"
+            onclick="event.stopPropagation();bsZwin()"
+            title="Zwiń" aria-label="Zwiń">
+            <svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
           </button>
         </div>
       </div>
@@ -6144,7 +6235,9 @@ Możesz używać **pogrubienia** dla wyróżnień."></textarea>
       <h2>❦ Menu ❦</h2>
 
       <!-- ODKRYTE TAJEMNICE - lista odkrytych przez gracza, klik = mapa leci do miejsca -->
-      <div class="menu-stack" id="menuOdkryteTajemnice"><div style="text-align:center;padding:14px;color:var(--ink-muted);font-style:italic;font-size:14px">Brak tajemnic w grze</div></div>
+      <div class="menu-stack" id="menuOdkryteTajemnice">
+        <!-- Zawartość generowana przez aktualizujMenuOdkryteTajemnice() -->
+      </div>
 
       <!-- SKANER QR - z czytelnym tekstem -->
       <div class="menu-stack" style="margin-top:18px">
@@ -6155,7 +6248,7 @@ Możesz używać **pogrubienia** dla wyróżnień."></textarea>
       <!-- TRYB WYŚWIETLANIA (dzień / noc / auto) -->
       <div class="menu-tryb-tytul">❦ Tryb wyświetlania ❦</div>
       <div class="menu-tryb-rzad">
-        <button data-tryb-nocny="auto" onclick="ustawTrybNocny('auto')" class="active">🌗 Auto</button>
+        <button data-tryb-nocny="auto" onclick="ustawTrybNocny('auto')">🌗 Auto</button>
         <button data-tryb-nocny="dzien" onclick="ustawTrybNocny('dzien')">☀️ Dzień</button>
         <button data-tryb-nocny="noc" onclick="ustawTrybNocny('noc')">🌙 Noc</button>
       </div>
@@ -6164,16 +6257,16 @@ Możesz używać **pogrubienia** dla wyróżnień."></textarea>
 
   <!-- POMOCNIK DODAWANIA KROPKI (tryb admin) -->
   <div class="admin-helper" id="adminHelper">
-    <h3>🏆 META przygody</h3>
-    <p class="admin-subtitle">Punkt końcowy gry. Pojawi się dopiero po odkryciu wszystkich tajemnic.</p>
+    <h3>Nowa kropka audio</h3>
+    <p class="admin-subtitle">Lokalizacja zapisana z kliknięcia w mapę. Możesz teraz ustawić promień i opis.</p>
 
     <!-- EDYTOR-GRA: pole TYTUŁU (dla wszystkich 3 typów: start/tajemnica/meta) -->
-    <div class="form-row" id="adminTytulRow" style="display: block;">
+    <div class="form-row" id="adminTytulRow" style="display:none">
       <label>Tytuł:</label>
       <input type="text" id="adminTytul" placeholder="np. nazwa miejsca" maxlength="80">
     </div>
 
-    <div class="form-row" id="adminNumerRow" style="display: none;">
+    <div class="form-row" id="adminNumerRow">
       <label>Numer:</label>
       <input type="number" id="adminNumer" min="1" step="1">
     </div>
@@ -6182,20 +6275,20 @@ Możesz używać **pogrubienia** dla wyróżnień."></textarea>
 
     <div class="form-row">
       <label>Promień:</label>
-      <input type="range" id="adminPromien" min="10" max="30" step="10" value="50">
+      <input type="range" id="adminPromien" min="10" max="5000" step="10" value="50">
     </div>
-    <div class="promien-display"><span id="adminPromienVal">25 m</span></div>
+    <div class="promien-display"><span id="adminPromienVal">50 m</span></div>
 
     <!-- EDYTOR-GRA: emotka tajemnicy (tylko dla tajemnic). Po zdobyciu tajemnica
          pokazuje się na mapie jako TA emotka (duża). Puste = mała kropka. -->
-    <div class="form-row" id="adminEmotkaRow" style="display: none;">
+    <div class="form-row" id="adminEmotkaRow" style="display:none">
       <label>🎨 Emotka po zdobyciu:</label>
       <div style="display:flex;align-items:center;gap:6px;flex:1">
         <input type="text" id="adminEmotka" placeholder="puste = kropka" maxlength="6" style="flex:1">
         <button type="button" class="btn-otworz-picker" onclick="otworzPickerEmoji('adminEmotka')">🎨 Wybierz…</button>
       </div>
     </div>
-    <div id="adminEmotkaHint" style="display: none; font-size: 11px; color: var(--ink-muted); margin: -4px 0px 8px; font-style: italic;">
+    <div id="adminEmotkaHint" style="display:none;font-size:11px;color:var(--ink-muted);margin:-4px 0 8px 0;font-style:italic">
       Puste pole = po zdobyciu mała kropka. Z emotką = duża emotka jako trofeum (fajne dla dzieci).
     </div>
 
@@ -6205,29 +6298,24 @@ Możesz używać **pogrubienia** dla wyróżnień."></textarea>
     <input type="hidden" id="adminOpis" value="">
 
     <!-- EDYTOR-GRA: pole LINK YOUTUBE (tylko dla startu) -->
-    <div class="form-row" id="adminLinkYTRow" style="display: none;">
+    <div class="form-row" id="adminLinkYTRow" style="display:none">
       <label>📺 Link YouTube:</label>
       <input type="url" id="adminLinkYT" placeholder="https://youtube.com/watch?v=..." maxlength="200">
     </div>
 
     <!-- EDYTOR-GRA: pole AUTOR (tylko dla startu) - widoczne w menu startowym -->
-    <div class="form-row" id="adminAutorRow" style="display: none;">
+    <div class="form-row" id="adminAutorRow" style="display:none">
       <label>👤 Autor:</label>
       <input type="text" id="adminAutor" placeholder="np. Piotr Przebiorowski" maxlength="80">
     </div>
 
-    <div class="code-output" id="adminCodeOutput" style="display:none">{ numer: 999, pozycja: [51.19181, 23.16978], promien: 30, opis: '' },</div>
+    <div class="code-output" id="adminCodeOutput" style="display:none"></div>
     <p class="code-tip" id="adminAudioInfo" style="background:rgba(34,197,94,0.1);border-left:3px solid #22c55e;padding:8px 10px;border-radius:4px;font-style:normal">
-      💡 <strong>Plik audio:</strong> wgraj do folderu <code>audio/</code> jako <code id="adminAudioFilename">meta.mp3</code>
+      💡 <strong>Plik audio:</strong> wgraj do folderu <code>audio/</code> jako <code id="adminAudioFilename">1.mp3</code>
     </p>
 
     <!-- Przyciski są wstrzykiwane przez zaktualizujPrzyciskiHelpera() -->
-    <div class="actions">
-      
-      
-      <button onclick="planujKolejna()">🏆 Ustaw metę</button>
-      <button class="secondary" onclick="zamknijHelper()">✕ Zamknij</button>
-    </div>
+    <div class="actions"></div>
   </div>
 
   <!-- POPUP WYBORU 'CO DODAJESZ?' (tryb admin, klik w mapę) -->
@@ -6270,7 +6358,7 @@ Możesz używać **pogrubienia** dla wyróżnień."></textarea>
 
   <!-- EDYTOR MIEJSCA (tryb admin) -->
   <div class="admin-helper" id="miejsceHelper">
-    <h3 id="miejsceHelperTytul">📍 Nowy punkt orientacyjny</h3>
+    <h3 id="miejsceHelperTytul">Nowe miejsce</h3>
     <p class="admin-subtitle">Wpisz nazwę, wybierz kategorię i ikonę. Dodaj tytuł i opis, a po pobraniu pliku — wgraj zdjęcie do folderu <code>img/</code>.</p>
 
     <div class="form-row">
@@ -6300,7 +6388,7 @@ Możesz używać **pogrubienia** dla wyróżnień."></textarea>
 
     <div class="form-row">
       <label>Klucz:</label>
-      <input type="text" id="miejsceKlucz" placeholder="auto" readonly="" style="background:var(--paper-3);font-style:italic;color:var(--ink-muted)">
+      <input type="text" id="miejsceKlucz" placeholder="auto" readonly style="background:var(--paper-3);font-style:italic;color:var(--ink-muted)">
     </div>
 
     <!-- POLE "Etap gry" zostało usunięte - nie używane, mylące dla admina.
@@ -6308,12 +6396,12 @@ Możesz używać **pogrubienia** dla wyróżnień."></textarea>
          `if (numerGryInput)` więc nic nie wybucha gdy elementu nie ma. -->
 
     <!-- PRZYCISK / EDYTOR OPISU -->
-    <div class="opis-zwiniety" id="opisZwiniety" style="">
-      <button type="button" class="opis-toggle-btn ma-opis" onclick="otworzEdytorOpisu()">
+    <div class="opis-zwiniety" id="opisZwiniety">
+      <button type="button" class="opis-toggle-btn" onclick="otworzEdytorOpisu()">
         <span class="opis-toggle-ikona">✍️</span>
         <span class="opis-toggle-tekst">
-          <strong id="opisToggleTytul">bagno</strong>
-          <small id="opisToggleStatus">29 znaków · kliknij aby edytować</small>
+          <strong id="opisToggleTytul">Dodaj opis</strong>
+          <small id="opisToggleStatus">Tytuł i tekst miejsca</small>
         </span>
         <span class="opis-toggle-strzalka">›</span>
       </button>
@@ -6343,7 +6431,7 @@ Możesz używać **pogrubienia** dla wyróżnień."></textarea>
       <div class="opis-pole-tekst">
         <label>Opis</label>
         <textarea id="opisTekst" placeholder="Tu wpisz właściwy opis miejsca. Możesz pisać dowolnie długo — każdy nowy akapit oddziel pustą linią." rows="10"></textarea>
-        <div class="opis-licznik"><span id="opisLicznik">29</span> znaków</div>
+        <div class="opis-licznik"><span id="opisLicznik">0</span> znaków</div>
       </div>
 
       <!-- EDYTOR-GRA: pole Link YouTube w opisie miejsca (np. wideo o tym miejscu) -->
@@ -6372,10 +6460,7 @@ Możesz używać **pogrubienia** dla wyróżnień."></textarea>
     </div>
 
     <!-- Przyciski są wstrzykiwane przez zaktualizujPrzyciskiMiejsce() -->
-    <div class="actions">
-      <button onclick="planujMiejsce()">➕ Dodaj miejsce</button>
-      <button class="secondary" onclick="zamknijMiejsceHelper()">✕ Anuluj</button>
-    </div>
+    <div class="actions"></div>
   </div>
 
   <!-- PANEL SZCZEGÓŁÓW (otwiera się po kliknięciu w płatek) -->
@@ -6394,7 +6479,9 @@ Możesz używać **pogrubienia** dla wyróżnień."></textarea>
       <span class="accordion-arrow">▼</span>
     </div>
     <div class="accordion-content">
-      <div class="accordion-inner" id="opisStronyTresc"><p>ok sprawdzamy..jdziemy po sokolcu</p></div>
+      <div class="accordion-inner" id="opisStronyTresc">
+        <p style="color:var(--ink-muted);font-style:italic;text-align:center;padding:20px 0">Opis gry nie został jeszcze dodany.</p>
+      </div>
     </div>
 
   </div>
@@ -6538,8 +6625,11 @@ const EMOJI_NAMES = {
 };
 
 // === KATEGORIE:START === (nie usuwaj tego komentarza - znacznik dla auto-eksportu)
+// EDYTOR-GRA: tylko jedna kategoria - "Punkt orientacyjny" dla miejsc na mapie.
+// (Przygoda zostaje dla wstecznej kompatybilności - nie używana aktywnie.)
 const kategorieDomyslne = {
-
+  punkt: { ikona: '📍', nazwa: 'Punkt orientacyjny' },
+  przygoda: { ikona: '❓', nazwa: 'Przygoda' }
 };
 // === KATEGORIE:END ===
 
@@ -6599,8 +6689,6 @@ function zastosujKategorie() {
 }
 
 const miejsca = [
-  { klucz: 'hotel', nazwa: 'hotel', pozycja: [51.1913, 23.1709], ikona: '📍', kategoria: 'punkt', tytul: 'hotel', opis: 'jedz obok hotelu dywanoli..na zakrecie powinno byćcś' },
-  { klucz: 'bagno', nazwa: 'bagno', pozycja: [51.1895, 23.1720], ikona: '📍', kategoria: 'punkt', tytul: 'bagno', opis: 'punkt , tu powinno nas złapać' }
 ];
 
 const mapa = L.map('mapa', {
@@ -7494,6 +7582,8 @@ function odkryjKolejnyEtapGry(kropkaNumer, kropkaObiekt) {
       if (typeof renderujKropkiAudio === 'function') renderujKropkiAudio();
       if (typeof renderujStrefySzukania === 'function') renderujStrefySzukania();
   if (typeof renderujOdkryteTajemnice === 'function') renderujOdkryteTajemnice();
+      // Odśwież fale od razu - zniknie fala zdobytej kropki bez czekania na GPS.
+      if (typeof aktualizujPulsatoryAudio === 'function') aktualizujPulsatoryAudio();
       aktualizujPostepGryUI();
       pokazPowiadomienieGry('🎬 Przygoda rozpoczęta! Szukaj pierwszej tajemnicy.');
     } else {
@@ -7520,6 +7610,8 @@ function odkryjKolejnyEtapGry(kropkaNumer, kropkaObiekt) {
     if (typeof renderujKropkiAudio === 'function') renderujKropkiAudio();
     if (typeof renderujStrefySzukania === 'function') renderujStrefySzukania();
   if (typeof renderujOdkryteTajemnice === 'function') renderujOdkryteTajemnice();
+    // Odśwież fale od razu - zniknie fala zdobytej tajemnicy bez czekania na GPS.
+    if (typeof aktualizujPulsatoryAudio === 'function') aktualizujPulsatoryAudio();
     aktualizujPostepGryUI();
     // MATRIX - ekran-pomost: "strefa zdobyta" + instrukcja co dalej.
     // Pojawia się gdy audio tajemnicy już leci - to warstwa na wierzchu.
@@ -8222,6 +8314,18 @@ function renderujMiejscaNaMapie() {
   if (uzywamClusteringu && clusterGroup) {
     mapa.addLayer(clusterGroup);
   }
+
+  // KRYTYCZNE: ta funkcja czyści całą listę boczną (listaEl.innerHTML='').
+  // Czyści też karty gry (START + tajemnice + META). Trzeba je odbudować,
+  // inaczej np. dodanie punktu orientacyjnego "wywala" tajemnice z listy.
+  // UWAGA: pierwszy render przy starcie odpala się ZANIM `kropkiAudio`
+  // (const, niżej w pliku) jest zainicjalizowane. Flaga window._kropkiGotowe
+  // jest ustawiana zaraz po deklaracji - typeof na const w TDZ też rzuca,
+  // więc nie da się tego sprawdzić bezpośrednio. Karty gry przy starcie
+  // i tak buduje osobne, późniejsze wywołanie renderujStartWLiscie().
+  if (window._kropkiGotowe && typeof renderujStartWLiscie === 'function') {
+    try { renderujStartWLiscie(); } catch (e) { console.warn('[render] renderujStartWLiscie:', e); }
+  }
 }
 
 // Pierwszy render - przy starcie
@@ -8245,13 +8349,10 @@ zastosujKategorie();
 //
 // Aby dodać nową kropkę: użyj przycisków w panelu admin (?admin=1).
 const kropkiAudio = [
-  { numer: 0, pozycja: [51.19186, 23.17061], promien: 30, opis: '', typ: 'start' },
-  { numer: 1, pozycja: [51.18987, 23.17061], promien: 30, opis: '', pokazFale: true },
-  { numer: 2, pozycja: [51.18903, 23.17274], promien: 80, opis: '' },
-  { numer: 3, pozycja: [51.19086, 23.17062], promien: 30, opis: '', pokazFale: true },
-  { numer: 4, pozycja: [51.19255, 23.16940], promien: 70, opis: '', pokazFale: true },
-  { numer: 999, pozycja: [51.19181, 23.16978], promien: 30, opis: '', typ: 'meta' }
 ];
+// Flaga: od tego miejsca `kropkiAudio` istnieje. renderujMiejscaNaMapie()
+// sprawdza ją, by przy pierwszym (startowym) renderze nie wejść w TDZ.
+window._kropkiGotowe = true;
 
 // Stan przewodnika audio
 let audioPrzewodnikWlaczony = false;
@@ -8732,6 +8833,15 @@ function aktualizujPulsatoryAudio() {
   // Mapa: numer -> { kropka, odl } (odl użyte do rozpoznania blisko/daleko w CSS)
   const aktywneZOdl = new Map();
   for (const [numer, { kropka, odl }] of najblizszePerNumer) {
+    // FALA znika dla ZDOBYTEJ tajemnicy. Zdobyta = numer < aktualnyEtapGry
+    // (to samo kryterium, którym renderujOdkryteTajemnice stawia emotkę).
+    // Po zdobyciu tajemnicy na mapie zostaje tylko emotka-trofeum, nie fala.
+    // czyKropkaAudioAktywna() tego nie wyłapie - tam numer <= etap jest dalej
+    // prawdziwe po zdobyciu, więc fala wisiałaby w nieskończoność.
+    if (trybGryWlaczony && typKropki(kropka) === 'tajemnica'
+        && kropka.numer && kropka.numer < aktualnyEtapGry) {
+      continue; // tajemnica już zdobyta - fala nie ma sensu
+    }
     // Warunek: w zasięgu 500m ALE nie w strefie audio (poza promieniem strefy)
     // Dodatkowo: kropka musi mieć pokazFale === true (admin świadomie włączył).
     // Domyślnie wyłączone - widoczne miejsca nie potrzebują fali, tylko tajemnicze.
@@ -12962,12 +13072,6 @@ aktualizujPanelRadaru();
 
 // === RYSUNKI:START === (nie usuwaj tego komentarza - znacznik dla auto-eksportu)
 const rysunkiZakodowane = [
-  { typ: 'strzalka', kolor: '#a04510', start: [51.192680, 23.170612], koniec: [51.192295, 23.170649] },
-  { typ: 'strzalka', kolor: '#a04510', start: [51.192048, 23.172415], koniec: [51.191892, 23.171378] },
-  { typ: 'strzalka', kolor: '#a04510', start: [51.191383, 23.169432], koniec: [51.191602, 23.170059] },
-  { typ: 'strzalka', kolor: '#a04510', start: [51.191288, 23.171106], koniec: [51.190594, 23.171110] },
-  { typ: 'tajemnica', kolor: '#a04510', srodek: [51.190663, 23.173702], promien: 121 },
-  { typ: 'tekst', kolor: '#a04510', pozycja: [51.193305, 23.171316], tresc: 'test gry Ed' }
 ];
 // === RYSUNKI:END ===
 
@@ -13773,87 +13877,88 @@ mapa.on('zoomend', () => {
     <defs>
       <!-- Gradient akwarela tło -->
       <radialGradient id="gradTlo" cx="50%" cy="40%" r="80%">
-        <stop offset="0%" stop-color="#fff8e8"></stop>
-        <stop offset="60%" stop-color="#f0e3c0"></stop>
-        <stop offset="100%" stop-color="#d4b88a"></stop>
+        <stop offset="0%" stop-color="#fff8e8"/>
+        <stop offset="60%" stop-color="#f0e3c0"/>
+        <stop offset="100%" stop-color="#d4b88a"/>
       </radialGradient>
       <!-- Gradient ścieżka -->
       <linearGradient id="gradSciezka" x1="0%" y1="0%" x2="100%" y2="0%">
-        <stop offset="0%" stop-color="#b8956a" stop-opacity="0.55"></stop>
-        <stop offset="50%" stop-color="#a88555" stop-opacity="0.7"></stop>
-        <stop offset="100%" stop-color="#b8956a" stop-opacity="0.55"></stop>
+        <stop offset="0%" stop-color="#b8956a" stop-opacity="0.55"/>
+        <stop offset="50%" stop-color="#a88555" stop-opacity="0.7"/>
+        <stop offset="100%" stop-color="#b8956a" stop-opacity="0.55"/>
       </linearGradient>
       <!-- Gradient drzewa -->
       <radialGradient id="gradDrzewo" cx="50%" cy="40%" r="60%">
-        <stop offset="0%" stop-color="#7ba05b"></stop>
-        <stop offset="100%" stop-color="#4a6b3a"></stop>
+        <stop offset="0%" stop-color="#7ba05b"/>
+        <stop offset="100%" stop-color="#4a6b3a"/>
       </radialGradient>
     </defs>
 
     <!-- Tło akwarelowe -->
-    <rect width="800" height="1200" fill="url(#gradTlo)"></rect>
+    <rect width="800" height="1200" fill="url(#gradTlo)"/>
 
     <!-- Akwarelowe plamy tła (delikatne) -->
-    <ellipse cx="120" cy="250" rx="180" ry="120" fill="#c8b07a" opacity="0.18"></ellipse>
-    <ellipse cx="650" cy="180" rx="150" ry="90" fill="#a89060" opacity="0.15"></ellipse>
-    <ellipse cx="400" cy="900" rx="280" ry="140" fill="#b8956a" opacity="0.15"></ellipse>
-    <ellipse cx="700" cy="1050" rx="150" ry="100" fill="#c8b07a" opacity="0.2"></ellipse>
+    <ellipse cx="120" cy="250" rx="180" ry="120" fill="#c8b07a" opacity="0.18"/>
+    <ellipse cx="650" cy="180" rx="150" ry="90" fill="#a89060" opacity="0.15"/>
+    <ellipse cx="400" cy="900" rx="280" ry="140" fill="#b8956a" opacity="0.15"/>
+    <ellipse cx="700" cy="1050" rx="150" ry="100" fill="#c8b07a" opacity="0.2"/>
 
     <!-- Kręta ścieżka prowadząca przez ekran (od dolu do gory) -->
-    <path id="gra-sciezka-path" d="M 200 1150 Q 150 950 350 850 Q 600 730 450 550 Q 250 380 500 250 Q 650 150 600 50" fill="none" stroke="url(#gradSciezka)" stroke-width="16" stroke-dasharray="22 14" stroke-linecap="round" opacity="0.6"></path>
+    <path id="gra-sciezka-path" d="M 200 1150 Q 150 950 350 850 Q 600 730 450 550 Q 250 380 500 250 Q 650 150 600 50"
+          fill="none" stroke="url(#gradSciezka)" stroke-width="16" stroke-dasharray="22 14" stroke-linecap="round" opacity="0.6"/>
 
     <!-- Drzewka rozsiane po lewej i prawej (poza ścieżką żeby się nie nakrywać z ramą tytułu) -->
     <!-- Lewa strona -->
     <g transform="translate(70, 300)">
-      <ellipse cx="0" cy="-30" rx="38" ry="42" fill="url(#gradDrzewo)" opacity="0.85"></ellipse>
-      <rect x="-6" y="10" width="12" height="22" fill="#5a3820"></rect>
+      <ellipse cx="0" cy="-30" rx="38" ry="42" fill="url(#gradDrzewo)" opacity="0.85"/>
+      <rect x="-6" y="10" width="12" height="22" fill="#5a3820"/>
     </g>
     <g transform="translate(50, 450)">
-      <ellipse cx="0" cy="-25" rx="32" ry="36" fill="url(#gradDrzewo)" opacity="0.8"></ellipse>
-      <rect x="-5" y="10" width="10" height="18" fill="#5a3820"></rect>
+      <ellipse cx="0" cy="-25" rx="32" ry="36" fill="url(#gradDrzewo)" opacity="0.8"/>
+      <rect x="-5" y="10" width="10" height="18" fill="#5a3820"/>
     </g>
     <g transform="translate(90, 750)">
-      <ellipse cx="0" cy="-30" rx="40" ry="44" fill="url(#gradDrzewo)" opacity="0.85"></ellipse>
-      <rect x="-6" y="14" width="12" height="22" fill="#5a3820"></rect>
+      <ellipse cx="0" cy="-30" rx="40" ry="44" fill="url(#gradDrzewo)" opacity="0.85"/>
+      <rect x="-6" y="14" width="12" height="22" fill="#5a3820"/>
     </g>
     <g transform="translate(40, 1000)">
-      <ellipse cx="0" cy="-25" rx="34" ry="38" fill="url(#gradDrzewo)" opacity="0.8"></ellipse>
-      <rect x="-5" y="13" width="10" height="20" fill="#5a3820"></rect>
+      <ellipse cx="0" cy="-25" rx="34" ry="38" fill="url(#gradDrzewo)" opacity="0.8"/>
+      <rect x="-5" y="13" width="10" height="20" fill="#5a3820"/>
     </g>
     <!-- Prawa strona -->
     <g transform="translate(730, 400)">
-      <ellipse cx="0" cy="-30" rx="38" ry="42" fill="url(#gradDrzewo)" opacity="0.85"></ellipse>
-      <rect x="-6" y="10" width="12" height="22" fill="#5a3820"></rect>
+      <ellipse cx="0" cy="-30" rx="38" ry="42" fill="url(#gradDrzewo)" opacity="0.85"/>
+      <rect x="-6" y="10" width="12" height="22" fill="#5a3820"/>
     </g>
     <g transform="translate(750, 600)">
-      <ellipse cx="0" cy="-25" rx="32" ry="36" fill="url(#gradDrzewo)" opacity="0.8"></ellipse>
-      <rect x="-5" y="10" width="10" height="18" fill="#5a3820"></rect>
+      <ellipse cx="0" cy="-25" rx="32" ry="36" fill="url(#gradDrzewo)" opacity="0.8"/>
+      <rect x="-5" y="10" width="10" height="18" fill="#5a3820"/>
     </g>
     <g transform="translate(720, 850)">
-      <ellipse cx="0" cy="-32" rx="42" ry="46" fill="url(#gradDrzewo)" opacity="0.85"></ellipse>
-      <rect x="-6" y="14" width="12" height="22" fill="#5a3820"></rect>
+      <ellipse cx="0" cy="-32" rx="42" ry="46" fill="url(#gradDrzewo)" opacity="0.85"/>
+      <rect x="-6" y="14" width="12" height="22" fill="#5a3820"/>
     </g>
     <g transform="translate(760, 1080)">
-      <ellipse cx="0" cy="-26" rx="34" ry="38" fill="url(#gradDrzewo)" opacity="0.8"></ellipse>
-      <rect x="-5" y="13" width="10" height="20" fill="#5a3820"></rect>
+      <ellipse cx="0" cy="-26" rx="34" ry="38" fill="url(#gradDrzewo)" opacity="0.8"/>
+      <rect x="-5" y="13" width="10" height="20" fill="#5a3820"/>
     </g>
 
     <!-- Małe kępki trawy / krzaki -->
     <g fill="#7ba05b" opacity="0.5">
-      <ellipse cx="150" cy="1080" rx="22" ry="10"></ellipse>
-      <ellipse cx="680" cy="270" rx="20" ry="9"></ellipse>
-      <ellipse cx="280" cy="950" rx="18" ry="8"></ellipse>
-      <ellipse cx="540" cy="700" rx="22" ry="10"></ellipse>
-      <ellipse cx="380" cy="430" rx="18" ry="8"></ellipse>
+      <ellipse cx="150" cy="1080" rx="22" ry="10"/>
+      <ellipse cx="680" cy="270" rx="20" ry="9"/>
+      <ellipse cx="280" cy="950" rx="18" ry="8"/>
+      <ellipse cx="540" cy="700" rx="22" ry="10"/>
+      <ellipse cx="380" cy="430" rx="18" ry="8"/>
     </g>
 
     <!-- Kilka kwiatuszków -->
     <g>
-      <circle cx="170" cy="1070" r="4" fill="#e87fa0"></circle>
-      <circle cx="290" cy="940" r="4" fill="#f5d77c"></circle>
-      <circle cx="660" cy="280" r="4" fill="#e87fa0"></circle>
-      <circle cx="540" cy="690" r="4" fill="#f5d77c"></circle>
-      <circle cx="200" cy="600" r="4" fill="#e87fa0"></circle>
+      <circle cx="170" cy="1070" r="4" fill="#e87fa0"/>
+      <circle cx="290" cy="940" r="4" fill="#f5d77c"/>
+      <circle cx="660" cy="280" r="4" fill="#e87fa0"/>
+      <circle cx="540" cy="690" r="4" fill="#f5d77c"/>
+      <circle cx="200" cy="600" r="4" fill="#e87fa0"/>
     </g>
   </svg>
 
@@ -13865,7 +13970,7 @@ mapa.on('zoomend', () => {
        Odtwarza się automatycznie gdy pojawia się ekran startowy.
        Jeśli przeglądarka zablokuje autoplay - pokazuje się przycisk 🎵.
        Jeśli pliku nie ma na serwerze - splash zostaje cichy. -->
-  <audio id="graIntroAudio" src="audio/intro.mp3" loop="" preload="auto"></audio>
+  <audio id="graIntroAudio" src="audio/intro.mp3" loop preload="auto"></audio>
 
   <!-- PERGAMINOWA KARTA z treścią -->
   <div class="gra-pergamin">
@@ -13932,12 +14037,12 @@ mapa.on('zoomend', () => {
   <svg class="gra-tlo-svg" viewBox="0 0 800 1200" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
     <defs>
       <radialGradient id="gradTloKoncowe" cx="50%" cy="40%" r="80%">
-        <stop offset="0%" stop-color="#fff5d8"></stop>
-        <stop offset="60%" stop-color="#f0d890"></stop>
-        <stop offset="100%" stop-color="#d4a84a"></stop>
+        <stop offset="0%" stop-color="#fff5d8"/>
+        <stop offset="60%" stop-color="#f0d890"/>
+        <stop offset="100%" stop-color="#d4a84a"/>
       </radialGradient>
     </defs>
-    <rect width="800" height="1200" fill="url(#gradTloKoncowe)"></rect>
+    <rect width="800" height="1200" fill="url(#gradTloKoncowe)"/>
     <!-- Pieczęcie / gwiazdki sukcesu -->
     <g opacity="0.4">
       <text x="100" y="250" font-size="60" fill="#a88555">⭐</text>
@@ -13967,17 +14072,14 @@ mapa.on('zoomend', () => {
 <div class="emoji-modal-backdrop" id="emojiModalBackdrop" onclick="if(event.target===this)zamknijPickerEmoji()">
   <div class="emoji-modal">
     <h2>🎨 Wybierz ikonę miejsca</h2>
-    <input type="text" class="emoji-modal-search" id="emojiSearch" placeholder="🔍 Szukaj... (np. kosciol, drzewo, kawa, samolot)">
-    <div class="emoji-modal-tabs" id="emojiTabs"><button class="emoji-tab active">Wszystkie</button><button class="emoji-tab">Podroze</button><button class="emoji-tab">Natura</button><button class="emoji-tab">Jedzenie</button><button class="emoji-tab">Aktywnosci</button><button class="emoji-tab">Zwierzeta</button><button class="emoji-tab">Symbole</button><button class="emoji-tab">Obiekty</button><button class="emoji-tab">Twarze</button><button class="emoji-tab">Gesty</button><button class="emoji-tab">Ludzie</button></div>
-    <div class="emoji-modal-grid" id="emojiModalGrid"><button class="emoji-grid-btn" title="samochod auto">🚗</button><button class="emoji-grid-btn" title="taxi">🚕</button><button class="emoji-grid-btn" title="suv">🚙</button><button class="emoji-grid-btn" title="autobus">🚌</button><button class="emoji-grid-btn" title="">🚎</button><button class="emoji-grid-btn" title="wyscig">🏎</button><button class="emoji-grid-btn" title="policja">🚓</button><button class="emoji-grid-btn" title="karetka">🚑</button><button class="emoji-grid-btn" title="straz">🚒</button><button class="emoji-grid-btn" title="">🚐</button><button class="emoji-grid-btn" title="">🛻</button><button class="emoji-grid-btn" title="">🚚</button><button class="emoji-grid-btn" title="">🚛</button><button class="emoji-grid-btn" title="">🚜</button><button class="emoji-grid-btn" title="">🦯</button><button class="emoji-grid-btn" title="">🦽</button><button class="emoji-grid-btn" title="">🦼</button><button class="emoji-grid-btn" title="">🛴</button><button class="emoji-grid-btn" title="rower">🚲</button><button class="emoji-grid-btn" title="">🛵</button><button class="emoji-grid-btn" title="">🏍</button><button class="emoji-grid-btn" title="">🛺</button><button class="emoji-grid-btn" title="">🚨</button><button class="emoji-grid-btn" title="">🚔</button><button class="emoji-grid-btn" title="">🚍</button><button class="emoji-grid-btn" title="">🚘</button><button class="emoji-grid-btn" title="">🚖</button><button class="emoji-grid-btn" title="">🚡</button><button class="emoji-grid-btn" title="">🚠</button><button class="emoji-grid-btn" title="">🚟</button><button class="emoji-grid-btn" title="">🚃</button><button class="emoji-grid-btn" title="">🚋</button><button class="emoji-grid-btn" title="">🚞</button><button class="emoji-grid-btn" title="">🚝</button><button class="emoji-grid-btn" title="">🚄</button><button class="emoji-grid-btn" title="">🚅</button><button class="emoji-grid-btn" title="">🚈</button><button class="emoji-grid-btn" title="pociag">🚂</button><button class="emoji-grid-btn" title="">🚆</button><button class="emoji-grid-btn" title="">🚇</button><button class="emoji-grid-btn" title="">🚊</button><button class="emoji-grid-btn" title="">🚉</button><button class="emoji-grid-btn" title="">✈️</button><button class="emoji-grid-btn" title="">🛫</button><button class="emoji-grid-btn" title="">🛬</button><button class="emoji-grid-btn" title="">🛩</button><button class="emoji-grid-btn" title="">💺</button><button class="emoji-grid-btn" title="">🛰</button><button class="emoji-grid-btn" title="rakieta">🚀</button><button class="emoji-grid-btn" title="ufo">🛸</button><button class="emoji-grid-btn" title="helikopter">🚁</button><button class="emoji-grid-btn" title="kajak">🛶</button><button class="emoji-grid-btn" title="zaglowka">⛵</button><button class="emoji-grid-btn" title="">🚤</button><button class="emoji-grid-btn" title="">🛥</button><button class="emoji-grid-btn" title="">🛳</button><button class="emoji-grid-btn" title="">⛴</button><button class="emoji-grid-btn" title="">🚢</button><button class="emoji-grid-btn" title="">⚓</button><button class="emoji-grid-btn" title="">⛽</button><button class="emoji-grid-btn" title="">🚧</button><button class="emoji-grid-btn" title="">🚦</button><button class="emoji-grid-btn" title="">🚥</button><button class="emoji-grid-btn" title="">🚏</button><button class="emoji-grid-btn" title="">🗺</button><button class="emoji-grid-btn" title="">🗿</button><button class="emoji-grid-btn" title="wolnosc">🗽</button><button class="emoji-grid-btn" title="wieza">🗼</button><button class="emoji-grid-btn" title="zamek warownia twierdza">🏰</button><button class="emoji-grid-btn" title="zamek japonski">🏯</button><button class="emoji-grid-btn" title="stadion arena">🏟</button><button class="emoji-grid-btn" title="diabelski mlyn">🎡</button><button class="emoji-grid-btn" title="kolejka rollercoaster">🎢</button><button class="emoji-grid-btn" title="">🎠</button><button class="emoji-grid-btn" title="fontanna">⛲</button><button class="emoji-grid-btn" title="parasol plaza">⛱</button><button class="emoji-grid-btn" title="plaza">🏖</button><button class="emoji-grid-btn" title="wyspa">🏝</button><button class="emoji-grid-btn" title="pustynia">🏜</button><button class="emoji-grid-btn" title="wulkan">🌋</button><button class="emoji-grid-btn" title="gora">⛰</button><button class="emoji-grid-btn" title="szczyt">🏔</button><button class="emoji-grid-btn" title="gora fuji">🗻</button><button class="emoji-grid-btn" title="kemping ognisko">🏕</button><button class="emoji-grid-btn" title="namiot">⛺</button><button class="emoji-grid-btn" title="chata">🛖</button><button class="emoji-grid-btn" title="dom">🏠</button><button class="emoji-grid-btn" title="domek">🏡</button><button class="emoji-grid-btn" title="osiedle">🏘</button><button class="emoji-grid-btn" title="ruina">🏚</button><button class="emoji-grid-btn" title="budowa">🏗</button><button class="emoji-grid-btn" title="fabryka">🏭</button><button class="emoji-grid-btn" title="biurowiec">🏢</button><button class="emoji-grid-btn" title="centrum handlowe">🏬</button><button class="emoji-grid-btn" title="">🏣</button><button class="emoji-grid-btn" title="">🏤</button><button class="emoji-grid-btn" title="szpital">🏥</button><button class="emoji-grid-btn" title="bank">🏦</button><button class="emoji-grid-btn" title="hotel">🏨</button><button class="emoji-grid-btn" title="sklep">🏪</button><button class="emoji-grid-btn" title="szkola">🏫</button><button class="emoji-grid-btn" title="hotel">🏩</button><button class="emoji-grid-btn" title="kosciol slub">💒</button><button class="emoji-grid-btn" title="instytucja muzeum kolumny">🏛</button><button class="emoji-grid-btn" title="kosciol kaplica">⛪</button><button class="emoji-grid-btn" title="meczet">🕌</button><button class="emoji-grid-btn" title="synagoga">🕍</button><button class="emoji-grid-btn" title="swiatynia">🛕</button><button class="emoji-grid-btn" title="">🕋</button><button class="emoji-grid-btn" title="brama torii">⛩</button><button class="emoji-grid-btn" title="kaktus">🌵</button><button class="emoji-grid-btn" title="choinka">🎄</button><button class="emoji-grid-btn" title="sosna">🌲</button><button class="emoji-grid-btn" title="drzewo">🌳</button><button class="emoji-grid-btn" title="palma">🌴</button><button class="emoji-grid-btn" title="">🪵</button><button class="emoji-grid-btn" title="sadzonka">🌱</button><button class="emoji-grid-btn" title="rosliny">🌿</button><button class="emoji-grid-btn" title="koniczyna">☘️</button><button class="emoji-grid-btn" title="czterolistna">🍀</button><button class="emoji-grid-btn" title="">🎍</button><button class="emoji-grid-btn" title="">🪴</button><button class="emoji-grid-btn" title="">🎋</button><button class="emoji-grid-btn" title="lisc">🍃</button><button class="emoji-grid-btn" title="liscie jesien">🍂</button><button class="emoji-grid-btn" title="lisc klonu">🍁</button><button class="emoji-grid-btn" title="grzyb">🍄</button><button class="emoji-grid-btn" title="muszla">🐚</button><button class="emoji-grid-btn" title="kamien skala">🪨</button><button class="emoji-grid-btn" title="klosy">🌾</button><button class="emoji-grid-btn" title="bukiet">💐</button><button class="emoji-grid-btn" title="tulipan">🌷</button><button class="emoji-grid-btn" title="roza">🌹</button><button class="emoji-grid-btn" title="">🥀</button><button class="emoji-grid-btn" title="hibiskus">🌺</button><button class="emoji-grid-btn" title="sakura kwiat wisni">🌸</button><button class="emoji-grid-btn" title="stokrotka">🌼</button><button class="emoji-grid-btn" title="slonecznik">🌻</button><button class="emoji-grid-btn" title="">🌞</button><button class="emoji-grid-btn" title="">🌝</button><button class="emoji-grid-btn" title="">🌛</button><button class="emoji-grid-btn" title="">🌜</button><button class="emoji-grid-btn" title="">🌚</button><button class="emoji-grid-btn" title="">🌕</button><button class="emoji-grid-btn" title="">🌖</button><button class="emoji-grid-btn" title="">🌗</button><button class="emoji-grid-btn" title="">🌘</button><button class="emoji-grid-btn" title="">🌑</button><button class="emoji-grid-btn" title="">🌒</button><button class="emoji-grid-btn" title="">🌓</button><button class="emoji-grid-btn" title="">🌔</button><button class="emoji-grid-btn" title="ksiezyc">🌙</button><button class="emoji-grid-btn" title="">🌎</button><button class="emoji-grid-btn" title="">🌍</button><button class="emoji-grid-btn" title="">🌏</button><button class="emoji-grid-btn" title="">🪐</button><button class="emoji-grid-btn" title="">💫</button><button class="emoji-grid-btn" title="gwiazda">⭐</button><button class="emoji-grid-btn" title="gwiazda blysk">🌟</button><button class="emoji-grid-btn" title="iskry">✨</button><button class="emoji-grid-btn" title="piorun">⚡</button><button class="emoji-grid-btn" title="">☄️</button><button class="emoji-grid-btn" title="wybuch">💥</button><button class="emoji-grid-btn" title="ogien plomien">🔥</button><button class="emoji-grid-btn" title="">🌪</button><button class="emoji-grid-btn" title="tecza">🌈</button><button class="emoji-grid-btn" title="">☀️</button><button class="emoji-grid-btn" title="">🌤</button><button class="emoji-grid-btn" title="">⛅</button><button class="emoji-grid-btn" title="">🌥</button><button class="emoji-grid-btn" title="">☁️</button><button class="emoji-grid-btn" title="">🌦</button><button class="emoji-grid-btn" title="deszcz">🌧</button><button class="emoji-grid-btn" title="">⛈</button><button class="emoji-grid-btn" title="">🌩</button><button class="emoji-grid-btn" title="">🌨</button><button class="emoji-grid-btn" title="">❄️</button><button class="emoji-grid-btn" title="">☃️</button><button class="emoji-grid-btn" title="">⛄</button><button class="emoji-grid-btn" title="">🌬</button><button class="emoji-grid-btn" title="">💨</button><button class="emoji-grid-btn" title="kropla">💧</button><button class="emoji-grid-btn" title="">💦</button><button class="emoji-grid-btn" title="">☔</button><button class="emoji-grid-btn" title="">☂️</button><button class="emoji-grid-btn" title="morze fala">🌊</button><button class="emoji-grid-btn" title="">🌫</button><button class="emoji-grid-btn" title="">🍏</button><button class="emoji-grid-btn" title="jablko">🍎</button><button class="emoji-grid-btn" title="">🍐</button><button class="emoji-grid-btn" title="pomarancza">🍊</button><button class="emoji-grid-btn" title="cytryna">🍋</button><button class="emoji-grid-btn" title="banan">🍌</button><button class="emoji-grid-btn" title="arbuz">🍉</button><button class="emoji-grid-btn" title="winogrona">🍇</button><button class="emoji-grid-btn" title="truskawka">🍓</button><button class="emoji-grid-btn" title="">🫐</button><button class="emoji-grid-btn" title="">🍈</button><button class="emoji-grid-btn" title="wisnie">🍒</button><button class="emoji-grid-btn" title="brzoskwinia">🍑</button><button class="emoji-grid-btn" title="mango">🥭</button><button class="emoji-grid-btn" title="ananas">🍍</button><button class="emoji-grid-btn" title="">🥥</button><button class="emoji-grid-btn" title="kiwi">🥝</button><button class="emoji-grid-btn" title="pomidor">🍅</button><button class="emoji-grid-btn" title="baklazan">🍆</button><button class="emoji-grid-btn" title="awokado">🥑</button><button class="emoji-grid-btn" title="brokul">🥦</button><button class="emoji-grid-btn" title="">🥬</button><button class="emoji-grid-btn" title="ogorek">🥒</button><button class="emoji-grid-btn" title="papryczka">🌶</button><button class="emoji-grid-btn" title="">🫑</button><button class="emoji-grid-btn" title="kukurydza">🌽</button><button class="emoji-grid-btn" title="marchew">🥕</button><button class="emoji-grid-btn" title="">🫒</button><button class="emoji-grid-btn" title="">🧄</button><button class="emoji-grid-btn" title="">🧅</button><button class="emoji-grid-btn" title="ziemniak">🥔</button><button class="emoji-grid-btn" title="">🍠</button><button class="emoji-grid-btn" title="rogalik">🥐</button><button class="emoji-grid-btn" title="">🥯</button><button class="emoji-grid-btn" title="chleb">🍞</button><button class="emoji-grid-btn" title="bagieta">🥖</button><button class="emoji-grid-btn" title="">🥨</button><button class="emoji-grid-btn" title="ser">🧀</button><button class="emoji-grid-btn" title="">🥚</button><button class="emoji-grid-btn" title="">🍳</button><button class="emoji-grid-btn" title="">🧈</button><button class="emoji-grid-btn" title="">🥞</button><button class="emoji-grid-btn" title="">🧇</button><button class="emoji-grid-btn" title="">🥓</button><button class="emoji-grid-btn" title="">🥩</button><button class="emoji-grid-btn" title="">🍗</button><button class="emoji-grid-btn" title="">🍖</button><button class="emoji-grid-btn" title="">🦴</button><button class="emoji-grid-btn" title="hotdog">🌭</button><button class="emoji-grid-btn" title="hamburger">🍔</button><button class="emoji-grid-btn" title="frytki">🍟</button><button class="emoji-grid-btn" title="pizza">🍕</button><button class="emoji-grid-btn" title="kanapka">🥪</button><button class="emoji-grid-btn" title="">🥙</button><button class="emoji-grid-btn" title="">🧆</button><button class="emoji-grid-btn" title="taco">🌮</button><button class="emoji-grid-btn" title="">🌯</button><button class="emoji-grid-btn" title="">🫔</button><button class="emoji-grid-btn" title="">🥗</button><button class="emoji-grid-btn" title="">🥘</button><button class="emoji-grid-btn" title="">🫕</button><button class="emoji-grid-btn" title="">🥫</button><button class="emoji-grid-btn" title="makaron">🍝</button><button class="emoji-grid-btn" title="zupa ramen">🍜</button><button class="emoji-grid-btn" title="zupa">🍲</button><button class="emoji-grid-btn" title="curry">🍛</button><button class="emoji-grid-btn" title="sushi">🍣</button><button class="emoji-grid-btn" title="bento">🍱</button><button class="emoji-grid-btn" title="pierogi">🥟</button><button class="emoji-grid-btn" title="">🦪</button><button class="emoji-grid-btn" title="krewetki">🍤</button><button class="emoji-grid-btn" title="">🍙</button><button class="emoji-grid-btn" title="">🍚</button><button class="emoji-grid-btn" title="">🍘</button><button class="emoji-grid-btn" title="">🍥</button><button class="emoji-grid-btn" title="">🥠</button><button class="emoji-grid-btn" title="">🥮</button><button class="emoji-grid-btn" title="">🍢</button><button class="emoji-grid-btn" title="">🍡</button><button class="emoji-grid-btn" title="">🍧</button><button class="emoji-grid-btn" title="">🍨</button><button class="emoji-grid-btn" title="">🍦</button><button class="emoji-grid-btn" title="">🥧</button><button class="emoji-grid-btn" title="muffinka">🧁</button><button class="emoji-grid-btn" title="ciasto">🍰</button><button class="emoji-grid-btn" title="tort urodzinowy">🎂</button><button class="emoji-grid-btn" title="">🍮</button><button class="emoji-grid-btn" title="lizak">🍭</button><button class="emoji-grid-btn" title="cukierek">🍬</button><button class="emoji-grid-btn" title="czekolada">🍫</button><button class="emoji-grid-btn" title="popcorn">🍿</button><button class="emoji-grid-btn" title="paczek donut">🍩</button><button class="emoji-grid-btn" title="ciastko">🍪</button><button class="emoji-grid-btn" title="">🌰</button><button class="emoji-grid-btn" title="">🥜</button><button class="emoji-grid-btn" title="miod">🍯</button><button class="emoji-grid-btn" title="">🥛</button><button class="emoji-grid-btn" title="">🍼</button><button class="emoji-grid-btn" title="">🫖</button><button class="emoji-grid-btn" title="kawa">☕</button><button class="emoji-grid-btn" title="herbata">🍵</button><button class="emoji-grid-btn" title="">🧃</button><button class="emoji-grid-btn" title="napoj">🥤</button><button class="emoji-grid-btn" title="">🧋</button><button class="emoji-grid-btn" title="">🍶</button><button class="emoji-grid-btn" title="piwo">🍺</button><button class="emoji-grid-btn" title="">🍻</button><button class="emoji-grid-btn" title="szampan">🥂</button><button class="emoji-grid-btn" title="wino">🍷</button><button class="emoji-grid-btn" title="">🥃</button><button class="emoji-grid-btn" title="koktajl">🍸</button><button class="emoji-grid-btn" title="">🍹</button><button class="emoji-grid-btn" title="">🧉</button><button class="emoji-grid-btn" title="">🍾</button><button class="emoji-grid-btn" title="">🧊</button><button class="emoji-grid-btn" title="">🥄</button><button class="emoji-grid-btn" title="">🍴</button><button class="emoji-grid-btn" title="">🍽</button><button class="emoji-grid-btn" title="">🥣</button><button class="emoji-grid-btn" title="">🥡</button><button class="emoji-grid-btn" title="">🥢</button><button class="emoji-grid-btn" title="">🧂</button><button class="emoji-grid-btn" title="pilka futbol">⚽</button><button class="emoji-grid-btn" title="koszykowka">🏀</button><button class="emoji-grid-btn" title="futbol amerykanski">🏈</button><button class="emoji-grid-btn" title="baseball">⚾</button><button class="emoji-grid-btn" title="">🥎</button><button class="emoji-grid-btn" title="tenis">🎾</button><button class="emoji-grid-btn" title="siatkowka">🏐</button><button class="emoji-grid-btn" title="rugby">🏉</button><button class="emoji-grid-btn" title="">🥏</button><button class="emoji-grid-btn" title="">🎱</button><button class="emoji-grid-btn" title="">🪀</button><button class="emoji-grid-btn" title="ping pong">🏓</button><button class="emoji-grid-btn" title="badminton">🏸</button><button class="emoji-grid-btn" title="">🏒</button><button class="emoji-grid-btn" title="">🏑</button><button class="emoji-grid-btn" title="">🥍</button><button class="emoji-grid-btn" title="">🏏</button><button class="emoji-grid-btn" title="">🪃</button><button class="emoji-grid-btn" title="">🥅</button><button class="emoji-grid-btn" title="golf">⛳</button><button class="emoji-grid-btn" title="">🪁</button><button class="emoji-grid-btn" title="">🏹</button><button class="emoji-grid-btn" title="wedkarstwo">🎣</button><button class="emoji-grid-btn" title="nurkowanie">🤿</button><button class="emoji-grid-btn" title="boks">🥊</button><button class="emoji-grid-btn" title="judo karate">🥋</button><button class="emoji-grid-btn" title="">🎽</button><button class="emoji-grid-btn" title="deskorolka">🛹</button><button class="emoji-grid-btn" title="">🛼</button><button class="emoji-grid-btn" title="">🛷</button><button class="emoji-grid-btn" title="">⛸</button><button class="emoji-grid-btn" title="">🥌</button><button class="emoji-grid-btn" title="narty">🎿</button><button class="emoji-grid-btn" title="">⛷</button><button class="emoji-grid-btn" title="snowboard">🏂</button><button class="emoji-grid-btn" title="">🪂</button><button class="emoji-grid-btn" title="">🏋</button><button class="emoji-grid-btn" title="">🤼</button><button class="emoji-grid-btn" title="">🤸</button><button class="emoji-grid-btn" title="">⛹</button><button class="emoji-grid-btn" title="">🤺</button><button class="emoji-grid-btn" title="">🤾</button><button class="emoji-grid-btn" title="">🏌</button><button class="emoji-grid-btn" title="">🏇</button><button class="emoji-grid-btn" title="">🧘</button><button class="emoji-grid-btn" title="surfing">🏄</button><button class="emoji-grid-btn" title="plywanie">🏊</button><button class="emoji-grid-btn" title="">🤽</button><button class="emoji-grid-btn" title="">🚣</button><button class="emoji-grid-btn" title="">🧗</button><button class="emoji-grid-btn" title="rower gorski">🚵</button><button class="emoji-grid-btn" title="rower">🚴</button><button class="emoji-grid-btn" title="puchar trofeum">🏆</button><button class="emoji-grid-btn" title="medal zloty">🥇</button><button class="emoji-grid-btn" title="medal srebrny">🥈</button><button class="emoji-grid-btn" title="medal brazowy">🥉</button><button class="emoji-grid-btn" title="medal">🏅</button><button class="emoji-grid-btn" title="">🎖</button><button class="emoji-grid-btn" title="">🏵</button><button class="emoji-grid-btn" title="">🎗</button><button class="emoji-grid-btn" title="">🎫</button><button class="emoji-grid-btn" title="">🎟</button><button class="emoji-grid-btn" title="">🎪</button><button class="emoji-grid-btn" title="">🤹</button><button class="emoji-grid-btn" title="maska teatr">🎭</button><button class="emoji-grid-btn" title="">🩰</button><button class="emoji-grid-btn" title="paleta">🎨</button><button class="emoji-grid-btn" title="klaps film">🎬</button><button class="emoji-grid-btn" title="mikrofon karaoke">🎤</button><button class="emoji-grid-btn" title="sluchawki">🎧</button><button class="emoji-grid-btn" title="nuty">🎼</button><button class="emoji-grid-btn" title="pianino">🎹</button><button class="emoji-grid-btn" title="beben">🥁</button><button class="emoji-grid-btn" title="">🪘</button><button class="emoji-grid-btn" title="saksofon">🎷</button><button class="emoji-grid-btn" title="trabka">🎺</button><button class="emoji-grid-btn" title="">🪗</button><button class="emoji-grid-btn" title="gitara">🎸</button><button class="emoji-grid-btn" title="">🪕</button><button class="emoji-grid-btn" title="skrzypce">🎻</button><button class="emoji-grid-btn" title="">🎲</button><button class="emoji-grid-btn" title="">♟</button><button class="emoji-grid-btn" title="tarcza cel">🎯</button><button class="emoji-grid-btn" title="kregle">🎳</button><button class="emoji-grid-btn" title="gra konsola">🎮</button><button class="emoji-grid-btn" title="kasyno">🎰</button><button class="emoji-grid-btn" title="">🧩</button><button class="emoji-grid-btn" title="pies">🐶</button><button class="emoji-grid-btn" title="kot">🐱</button><button class="emoji-grid-btn" title="mysz">🐭</button><button class="emoji-grid-btn" title="chomik">🐹</button><button class="emoji-grid-btn" title="krolik">🐰</button><button class="emoji-grid-btn" title="lis">🦊</button><button class="emoji-grid-btn" title="mis niedzwiedz">🐻</button><button class="emoji-grid-btn" title="panda">🐼</button><button class="emoji-grid-btn" title="">🐻‍❄️</button><button class="emoji-grid-btn" title="koala">🐨</button><button class="emoji-grid-btn" title="tygrys">🐯</button><button class="emoji-grid-btn" title="lew">🦁</button><button class="emoji-grid-btn" title="krowa">🐮</button><button class="emoji-grid-btn" title="swinia">🐷</button><button class="emoji-grid-btn" title="">🐽</button><button class="emoji-grid-btn" title="zaba">🐸</button><button class="emoji-grid-btn" title="malpa">🐵</button><button class="emoji-grid-btn" title="">🙈</button><button class="emoji-grid-btn" title="">🙉</button><button class="emoji-grid-btn" title="">🙊</button><button class="emoji-grid-btn" title="">🐒</button><button class="emoji-grid-btn" title="kura">🐔</button><button class="emoji-grid-btn" title="pingwin">🐧</button><button class="emoji-grid-btn" title="">🐦</button><button class="emoji-grid-btn" title="">🐤</button><button class="emoji-grid-btn" title="">🐣</button><button class="emoji-grid-btn" title="">🐥</button><button class="emoji-grid-btn" title="kaczka">🦆</button><button class="emoji-grid-btn" title="orzel">🦅</button><button class="emoji-grid-btn" title="sowa">🦉</button><button class="emoji-grid-btn" title="nietoperz">🦇</button><button class="emoji-grid-btn" title="wilk">🐺</button><button class="emoji-grid-btn" title="dzik">🐗</button><button class="emoji-grid-btn" title="kon">🐴</button><button class="emoji-grid-btn" title="jednorozec">🦄</button><button class="emoji-grid-btn" title="pszczola">🐝</button><button class="emoji-grid-btn" title="">🪱</button><button class="emoji-grid-btn" title="">🐛</button><button class="emoji-grid-btn" title="motyl">🦋</button><button class="emoji-grid-btn" title="slimak">🐌</button><button class="emoji-grid-btn" title="biedronka">🐞</button><button class="emoji-grid-btn" title="">🐜</button><button class="emoji-grid-btn" title="">🪰</button><button class="emoji-grid-btn" title="">🪲</button><button class="emoji-grid-btn" title="">🪳</button><button class="emoji-grid-btn" title="">🦟</button><button class="emoji-grid-btn" title="">🦗</button><button class="emoji-grid-btn" title="">🕷</button><button class="emoji-grid-btn" title="">🕸</button><button class="emoji-grid-btn" title="">🦂</button><button class="emoji-grid-btn" title="zolw">🐢</button><button class="emoji-grid-btn" title="waz">🐍</button><button class="emoji-grid-btn" title="jaszczurka">🦎</button><button class="emoji-grid-btn" title="">🦖</button><button class="emoji-grid-btn" title="">🦕</button><button class="emoji-grid-btn" title="osmiornica">🐙</button><button class="emoji-grid-btn" title="">🦑</button><button class="emoji-grid-btn" title="krewetka">🦐</button><button class="emoji-grid-btn" title="">🦞</button><button class="emoji-grid-btn" title="krab">🦀</button><button class="emoji-grid-btn" title="">🐡</button><button class="emoji-grid-btn" title="rybka">🐠</button><button class="emoji-grid-btn" title="ryba">🐟</button><button class="emoji-grid-btn" title="delfin">🐬</button><button class="emoji-grid-btn" title="wieloryb">🐳</button><button class="emoji-grid-btn" title="">🐋</button><button class="emoji-grid-btn" title="rekin">🦈</button><button class="emoji-grid-btn" title="krokodyl">🐊</button><button class="emoji-grid-btn" title="">🐅</button><button class="emoji-grid-btn" title="">🐆</button><button class="emoji-grid-btn" title="zebra">🦓</button><button class="emoji-grid-btn" title="">🦍</button><button class="emoji-grid-btn" title="">🦧</button><button class="emoji-grid-btn" title="">🦣</button><button class="emoji-grid-btn" title="slon">🐘</button><button class="emoji-grid-btn" title="">🦛</button><button class="emoji-grid-btn" title="">🦏</button><button class="emoji-grid-btn" title="">🐪</button><button class="emoji-grid-btn" title="">🐫</button><button class="emoji-grid-btn" title="zyrafa">🦒</button><button class="emoji-grid-btn" title="">🦘</button><button class="emoji-grid-btn" title="">🦬</button><button class="emoji-grid-btn" title="">🐃</button><button class="emoji-grid-btn" title="">🐂</button><button class="emoji-grid-btn" title="">🐄</button><button class="emoji-grid-btn" title="kon">🐎</button><button class="emoji-grid-btn" title="">🐖</button><button class="emoji-grid-btn" title="">🐏</button><button class="emoji-grid-btn" title="owca">🐑</button><button class="emoji-grid-btn" title="">🦙</button><button class="emoji-grid-btn" title="koza">🐐</button><button class="emoji-grid-btn" title="jelen">🦌</button><button class="emoji-grid-btn" title="pies">🐕</button><button class="emoji-grid-btn" title="">🐩</button><button class="emoji-grid-btn" title="">🦮</button><button class="emoji-grid-btn" title="">🐕‍🦺</button><button class="emoji-grid-btn" title="kot">🐈</button><button class="emoji-grid-btn" title="">🐈‍⬛</button><button class="emoji-grid-btn" title="">🪶</button><button class="emoji-grid-btn" title="kogut">🐓</button><button class="emoji-grid-btn" title="indyk">🦃</button><button class="emoji-grid-btn" title="">🦤</button><button class="emoji-grid-btn" title="">🦚</button><button class="emoji-grid-btn" title="">🦜</button><button class="emoji-grid-btn" title="">🦢</button><button class="emoji-grid-btn" title="">🦩</button><button class="emoji-grid-btn" title="golebica">🕊</button><button class="emoji-grid-btn" title="">🐇</button><button class="emoji-grid-btn" title="">🦝</button><button class="emoji-grid-btn" title="">🦨</button><button class="emoji-grid-btn" title="">🦡</button><button class="emoji-grid-btn" title="">🦫</button><button class="emoji-grid-btn" title="">🦦</button><button class="emoji-grid-btn" title="">🦥</button><button class="emoji-grid-btn" title="">🐁</button><button class="emoji-grid-btn" title="">🐀</button><button class="emoji-grid-btn" title="">🐿</button><button class="emoji-grid-btn" title="">🦔</button><button class="emoji-grid-btn" title="serce milosc">❤️</button><button class="emoji-grid-btn" title="pomaranczowe serce">🧡</button><button class="emoji-grid-btn" title="zolte serce">💛</button><button class="emoji-grid-btn" title="zielone serce">💚</button><button class="emoji-grid-btn" title="niebieskie serce">💙</button><button class="emoji-grid-btn" title="fioletowe serce">💜</button><button class="emoji-grid-btn" title="czarne serce">🖤</button><button class="emoji-grid-btn" title="">🤍</button><button class="emoji-grid-btn" title="">🤎</button><button class="emoji-grid-btn" title="zlamane serce">💔</button><button class="emoji-grid-btn" title="">❣️</button><button class="emoji-grid-btn" title="serca">💕</button><button class="emoji-grid-btn" title="">💞</button><button class="emoji-grid-btn" title="">💓</button><button class="emoji-grid-btn" title="">💗</button><button class="emoji-grid-btn" title="serce blyszczace">💖</button><button class="emoji-grid-btn" title="">💘</button><button class="emoji-grid-btn" title="serce wstazka">💝</button><button class="emoji-grid-btn" title="serce ozdoba">💟</button><button class="emoji-grid-btn" title="">☮️</button><button class="emoji-grid-btn" title="">✝️</button><button class="emoji-grid-btn" title="">☪️</button><button class="emoji-grid-btn" title="">🕉</button><button class="emoji-grid-btn" title="">☸️</button><button class="emoji-grid-btn" title="">✡️</button><button class="emoji-grid-btn" title="gwiazda szesciokatna">🔯</button><button class="emoji-grid-btn" title="">🕎</button><button class="emoji-grid-btn" title="">☯️</button><button class="emoji-grid-btn" title="">☦️</button><button class="emoji-grid-btn" title="modlitwa">🛐</button><button class="emoji-grid-btn" title="">⛎</button><button class="emoji-grid-btn" title="krzyzyk x">❌</button><button class="emoji-grid-btn" title="">⭕</button><button class="emoji-grid-btn" title="">🛑</button><button class="emoji-grid-btn" title="stop zakaz">⛔</button><button class="emoji-grid-btn" title="">📛</button><button class="emoji-grid-btn" title="zakaz">🚫</button><button class="emoji-grid-btn" title="sto procent">💯</button><button class="emoji-grid-btn" title="">💢</button><button class="emoji-grid-btn" title="">♨️</button><button class="emoji-grid-btn" title="zakaz przejscia">🚷</button><button class="emoji-grid-btn" title="">🚯</button><button class="emoji-grid-btn" title="">🚳</button><button class="emoji-grid-btn" title="">🚱</button><button class="emoji-grid-btn" title="">🔞</button><button class="emoji-grid-btn" title="wylacz telefon">📵</button><button class="emoji-grid-btn" title="zakaz palenia">🚭</button><button class="emoji-grid-btn" title="wykrzyknik">❗</button><button class="emoji-grid-btn" title="">❕</button><button class="emoji-grid-btn" title="pytajnik">❓</button><button class="emoji-grid-btn" title="">❔</button><button class="emoji-grid-btn" title="">‼️</button><button class="emoji-grid-btn" title="">⁉️</button><button class="emoji-grid-btn" title="">🔅</button><button class="emoji-grid-btn" title="">🔆</button><button class="emoji-grid-btn" title="">〽️</button><button class="emoji-grid-btn" title="uwaga ostrzezenie">⚠️</button><button class="emoji-grid-btn" title="">🚸</button><button class="emoji-grid-btn" title="">🔱</button><button class="emoji-grid-btn" title="">⚜️</button><button class="emoji-grid-btn" title="">🔰</button><button class="emoji-grid-btn" title="">♻️</button><button class="emoji-grid-btn" title="zaznaczone ok">✅</button><button class="emoji-grid-btn" title="">🈯</button><button class="emoji-grid-btn" title="">💹</button><button class="emoji-grid-btn" title="">❇️</button><button class="emoji-grid-btn" title="">✳️</button><button class="emoji-grid-btn" title="">❎</button><button class="emoji-grid-btn" title="">🌐</button><button class="emoji-grid-btn" title="">💠</button><button class="emoji-grid-btn" title="">🌀</button><button class="emoji-grid-btn" title="">💤</button><button class="emoji-grid-btn" title="bankomat">🏧</button><button class="emoji-grid-btn" title="WC">🚾</button><button class="emoji-grid-btn" title="niepelnosprawni">♿</button><button class="emoji-grid-btn" title="">🅿️</button><button class="emoji-grid-btn" title="winda">🛗</button><button class="emoji-grid-btn" title="meska">🚹</button><button class="emoji-grid-btn" title="damska">🚺</button><button class="emoji-grid-btn" title="dzieci">🚼</button><button class="emoji-grid-btn" title="">⚧</button><button class="emoji-grid-btn" title="toalety">🚻</button><button class="emoji-grid-btn" title="">🚮</button><button class="emoji-grid-btn" title="">🎦</button><button class="emoji-grid-btn" title="">📶</button><button class="emoji-grid-btn" title="">ℹ️</button></div>
+    <input type="text" class="emoji-modal-search" id="emojiSearch" placeholder="🔍 Szukaj... (np. kosciol, drzewo, kawa, samolot)" />
+    <div class="emoji-modal-tabs" id="emojiTabs"></div>
+    <div class="emoji-modal-grid" id="emojiModalGrid"></div>
     <div class="emoji-modal-row">
       <button class="emoji-modal-close-btn" onclick="zamknijPickerEmoji()">Zamknij</button>
     </div>
   </div>
 </div>
-
-
-
 
 </body>
 </html>
