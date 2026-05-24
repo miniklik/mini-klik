@@ -10360,6 +10360,7 @@ function pobierzNowyIndex() {
     const wszystkieKropki = [
       ...kropkiAudio.map(k => ({
         numer: k.numer,
+        typ: k.typ || 'tajemnica',
         lat: k.pozycja[0],
         lng: k.pozycja[1],
         promien: k.promien,
@@ -10374,7 +10375,10 @@ function pobierzNowyIndex() {
       const opis = String(k.opis || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, '\\n').replace(/\r/g, '');
       const fala = k.pokazFale === true ? ', pokazFale: true' : '';
       const tryb = (k.trybKropki && k.trybKropki !== 'inkognito') ? `, trybKropki: '${k.trybKropki}'` : '';
-      return `  { numer: ${k.numer}, pozycja: [${k.lat.toFixed(5)}, ${k.lng.toFixed(5)}], promien: ${k.promien}, opis: '${opis}'${fala}${tryb} }`;
+      // typ: KLUCZOWE pole - bez niego start i meta stają się tajemnicami!
+      // Zapisujemy zawsze gdy różny od 'tajemnica' (domyślnej wartości).
+      const typK = (k.typ && k.typ !== 'tajemnica') ? `, typ: '${k.typ}'` : '';
+      return `  { numer: ${k.numer}, pozycja: [${k.lat.toFixed(5)}, ${k.lng.toFixed(5)}], promien: ${k.promien}, opis: '${opis}'${typK}${fala}${tryb} }`;
     });
     const nowaTablicaKropek = 'const kropkiAudio = [\n' + linieKropek.join(',\n') + '\n];';
 
@@ -10547,8 +10551,23 @@ function pobierzNowyIndex() {
       try { localStorage.removeItem('kategorie_robocze_v1'); } catch (e) {}
     }, 600);
 
-    alert('✅ Plik index.html został zapisany (' + Math.round(tekst.length / 1024) + ' KB).\n\n'
-      + 'Wgraj go na serwer - to gotowa gra. Edytor działa po dodaniu ?admin=1 do adresu.');
+    // Diagnostyka: policz co trafiło do pliku (pomaga wykryć gubione dane).
+    let _diagStart = 0, _diagMeta = 0, _diagTaj = 0;
+    for (const k of wszystkieKropki) {
+      const t = k.typ || 'tajemnica';
+      if (t === 'start') _diagStart++;
+      else if (t === 'meta') _diagMeta++;
+      else _diagTaj++;
+    }
+    const _diagRys = (typeof rysunki !== 'undefined' && Array.isArray(rysunki)) ? rysunki.length : 0;
+
+    alert('✅ Plik index.html zapisany (' + Math.round(tekst.length / 1024) + ' KB).\n\n'
+      + 'Wbudowano do pliku:\n'
+      + '• START: ' + _diagStart + '\n'
+      + '• META: ' + _diagMeta + '\n'
+      + '• Tajemnice: ' + _diagTaj + '\n'
+      + '• Rysunki: ' + _diagRys + '\n\n'
+      + 'Wgraj plik na serwer. Edytor działa po dodaniu ?admin=1 do adresu.');
 
   } catch (err) {
     console.error('Błąd zapisu:', err);
