@@ -1616,6 +1616,18 @@ footer{
   letter-spacing: 0.5px;
 }
 
+.gra-pergamin-witaj {
+  font-family: 'Cinzel', serif;
+  font-size: 30px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: #4a2f18;
+  text-align: center;
+  margin: 22px 0 24px 0;
+  letter-spacing: 1px;
+}
+
+/* Używane na ekranie KOŃCOWYM ("Gratulacje! Ukończyłeś przygodę"). */
 .gra-pergamin-opis {
   font-family: 'EB Garamond', serif;
   font-size: 15px;
@@ -1626,7 +1638,7 @@ footer{
   background: rgba(255, 250, 230, 0.6);
   border: 1px solid rgba(180, 140, 90, 0.3);
   border-radius: 4px;
-  text-align: left;
+  text-align: center;
   box-shadow: inset 0 1px 3px rgba(180, 140, 90, 0.15);
 }
 
@@ -1652,24 +1664,24 @@ footer{
 .gra-pergamin-yt span { font-size: 18px; }
 
 .gra-pergamin-statystyki {
-  margin: 14px 0 20px 0;
-  padding: 10px 14px;
+  margin: 16px 0 22px 0;
+  padding: 18px 20px;
   background: rgba(212, 168, 74, 0.18);
-  border-left: 3px solid #d4a84a;
-  border-radius: 4px;
-  font-size: 14px;
+  border-left: 4px solid #d4a84a;
+  border-radius: 6px;
+  font-size: 17px;
   color: #3a2818;
 }
 .gra-stat-item {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   justify-content: center;
 }
-.gra-stat-ikona { font-size: 18px; }
+.gra-stat-ikona { font-size: 24px; }
 .gra-stat-tekst strong {
   color: #4a2f18;
-  font-size: 16px;
+  font-size: 21px;
 }
 
 .gra-pergamin-btn {
@@ -1759,6 +1771,17 @@ footer{
   .gra-pergamin-opis {
     font-size: 14px;
     padding: 11px 13px;
+  }
+  .gra-pergamin-witaj {
+    font-size: 24px;
+    margin: 16px 0 18px 0;
+  }
+  .gra-pergamin-statystyki {
+    padding: 14px 16px;
+    font-size: 15px;
+  }
+  .gra-stat-tekst strong {
+    font-size: 18px;
   }
   .gra-pergamin-btn {
     font-size: 15px;
@@ -5636,6 +5659,11 @@ html.tryb-admin #btnPodklad { display: flex; }
   html.tryb-ciemny .gra-pergamin-ozdoba-dol {
     color: #e0a955;
   }
+  html.tryb-ciemny .gra-pergamin-witaj {
+    color: #f3cd82;
+    text-shadow: 0 2px 8px rgba(0,0,0,0.5);
+  }
+  /* .gra-pergamin-opis nadal używane na ekranie KOŃCOWYM - zachowane. */
   html.tryb-ciemny .gra-pergamin-opis {
     color: #f0e2c8;
     background: rgba(20,14,10,0.5);
@@ -8006,36 +8034,21 @@ function pokazEkranStartowy() {
   const tytul = start.tytul || (h1 ? h1.textContent : 'Przygoda');
   document.getElementById('graEkranStartowyTytul').textContent = tytul;
 
-  // EDYTOR-GRA: w miejscu OPISU pokazujemy TYLKO informacje o etapie gry
-  // (postęp dla powracających) + AUTOR. Pełny opis fabuły jest w pinezce START.
-  const opisEl = document.getElementById('graEkranStartowyOpis');
+  // EDYTOR-GRA: środek ekranu to TYLKO "Witaj odkrywco!" (statyczne w HTML).
+  // Informacja o postępie jest w liczniku tajemnic niżej oraz w Matrixie
+  // powitalnym, który pokazuje się po kliknięciu "Zaczynamy przygodę".
+  // Tutaj zmieniamy tylko podtytuł - drobny akcent zależny od sytuacji.
   const ileTajemnic = policzTajemnice();
   const odkryte = Math.max(0, aktualnyEtapGry - 1);
   const podtytulEl = document.querySelector('.gra-pergamin-podtytul');
 
-  let trescOpisu = '';
-
   if (aktualnyEtapGry === 0) {
-    // PIERWSZE WEJŚCIE - krótka instrukcja, bez fabuły
     if (podtytulEl) podtytulEl.textContent = '— Czeka Cię prawdziwa przygoda —';
-    trescOpisu = '<div style="text-align:center;color:#3a2818"><strong>Witaj odkrywco!</strong><br>Włącz GPS i ruszaj w teren.<br>Idź do punktu <strong style="color:#dc2626">START</strong> żeby rozpocząć przygodę.</div>';
-  } else if (aktualnyEtapGry > ileTajemnic) {
-    // UKOŃCZONA - gratulacje
+  } else if (aktualnyEtapGry > ileTajemnic && ileTajemnic > 0) {
     if (podtytulEl) podtytulEl.textContent = '— 🏆 Przygoda ukończona! —';
-    trescOpisu = `<div style="text-align:center"><strong style="color:#22c55e;display:block;margin-bottom:6px">✓ Odkryłeś wszystkie tajemnice!</strong>` +
-      _listaOdkrytychHTML() +
-      `<em style="font-size:13px;color:#8a6a45">Wróć do mapy i zobacz swoje pinezki.</em></div>`;
   } else {
-    // POWRÓT W TRAKCIE GRY - aktualne osiągnięcia + co dalej
-    if (podtytulEl) podtytulEl.textContent = `— Witaj z powrotem! —`;
-    const nastepnaTajemnica = aktualnyEtapGry;
-    const nastepnaKropka = kropkiAudio.find(k => typKropki(k) === 'tajemnica' && k.numer === nastepnaTajemnica);
-    const nastepnyTytul = (nastepnaKropka && nastepnaKropka.tytul) ? nastepnaKropka.tytul : `Tajemnica #${nastepnaTajemnica}`;
-    trescOpisu = `<strong style="color:#22c55e;display:block;margin-bottom:6px;text-align:center">📜 Twój postęp: ${odkryte} z ${ileTajemnic} tajemnic</strong>` +
-      _listaOdkrytychHTML() +
-      `<div style="background:rgba(220,38,38,0.1);border-left:3px solid #dc2626;padding:8px 10px;border-radius:4px;margin-top:6px"><strong style="color:#dc2626">🎯 Teraz szukasz:</strong><br><em style="color:#3a2818">${nastepnyTytul}</em></div>`;
+    if (podtytulEl) podtytulEl.textContent = '— Witaj z powrotem! —';
   }
-  opisEl.innerHTML = trescOpisu;
 
   // Link YouTube (jeśli admin wstawił) - WYŻEJ niż autor, bo wideo to "trailer"
   const ytBox = document.getElementById('graEkranStartowyYt');
@@ -8047,11 +8060,12 @@ function pokazEkranStartowy() {
     ytBox.style.display = 'none';
   }
 
-  // EDYTOR-GRA: AUTOR (jeśli admin wpisał) - pokazujemy w specjalnym miejscu
+  // EDYTOR-GRA: AUTOR (z pola "Autor" przy STARCIE) - na dole pergaminu,
+  // w miejscu dawnego tekstu o automatycznym zapisie postępu.
   const autorBox = document.getElementById('graEkranStartowyAutor');
   if (autorBox) {
     if (start.autor) {
-      autorBox.innerHTML = `<span style="font-size:13px;color:#8a6a45;font-style:italic">👤 Stworzył: <strong style="color:#4a2f18;font-style:normal">${start.autor}</strong></span>`;
+      autorBox.textContent = '👤 Autor gry: ' + start.autor;
       autorBox.style.display = 'block';
     } else {
       autorBox.style.display = 'none';
@@ -13738,10 +13752,9 @@ mapa.on('zoomend', () => {
     <!-- Podtytuł / klimat -->
     <div class="gra-pergamin-podtytul">— Czeka Cię prawdziwa przygoda —</div>
 
-    <!-- Opis w mniejszej ramce w środku -->
-    <div class="gra-pergamin-opis" id="graEkranStartowyOpis">
-      Witaj odkrywco! Twoja przygoda zaraz się rozpocznie. Włącz GPS i ruszaj
-      w teren - kolejne miejsca odsłonią się gdy do nich podejdziesz.
+    <!-- Powitanie - duże, czytelne, jedno hasło -->
+    <div class="gra-pergamin-witaj" id="graEkranStartowyOpis">
+      Witaj odkrywco!
     </div>
 
     <!-- Link YouTube (opcjonalny) -->
@@ -13750,9 +13763,6 @@ mapa.on('zoomend', () => {
         <span>📺</span> Obejrzyj wideo z opisem przygody
       </a>
     </div>
-
-    <!-- EDYTOR-GRA: pole AUTOR (opcjonalne, z edytora startu) -->
-    <div id="graEkranStartowyAutor" style="text-align:center;margin:10px 0;display:none"></div>
 
     <!-- Statystyki gry -->
     <div class="gra-pergamin-statystyki">
@@ -13770,7 +13780,9 @@ mapa.on('zoomend', () => {
     <!-- Dolne ozdoby -->
     <div class="gra-pergamin-ozdoba-dol">✦ · ✦ · ✦</div>
 
-    <small class="gra-pergamin-info">Postęp zapisuje się automatycznie. Możesz wrócić w każdej chwili.</small>
+    <!-- EDYTOR-GRA: autor gry (z pola "Autor" przy punkcie START).
+         Pokazywany na dole zamiast technicznego tekstu o zapisie postępu. -->
+    <div id="graEkranStartowyAutor" class="gra-pergamin-info" style="display:none"></div>
   </div>
 </div>
 
