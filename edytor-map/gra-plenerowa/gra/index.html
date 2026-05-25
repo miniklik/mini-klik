@@ -4450,12 +4450,12 @@ html.tryb-noc .sw-off {
   }
 }
 
-/* === BLOKADA ADMINA - TYLKO W PIONIE ====================== */
-/* Admin (budowanie mapy) działa na komputerze ORAZ na telefonie  */
-/* i tablecie w POZIOMIE. Blokujemy tylko PION - bo edytor potrze- */
-/* buje szerokiego ekranu. W poziomie telefon dostaje brązowy     */
-/* skarbiec tak jak tablet (patrz reguły @media landscape niżej). */
-@media (orientation: portrait) and (max-width: 899px) {
+/* === BLOKADA ADMINA NA TELEFONIE ========================== */
+/* Admin (budowanie mapy) działa na komputerze i tablecie.        */
+/* Telefon = wąski ekran (<900px) - admin zablokowany w KAŻDEJ    */
+/* orientacji, bo na telefonie jest za mało miejsca na edytor.    */
+/* Komunikat #obrocAdmin pokazuje też JS (inline) - patrz skrypt. */
+@media (max-width: 899px) {
   html.tryb-admin #obrocAdmin{
     display:flex !important;
   }
@@ -4819,10 +4819,12 @@ html.tryb-noc .sw-off {
    reguły html.tryb-admin niżej. */
 #editorPasek { display: none !important; }
 .editor-tytul-ramka { display: none !important; }
-/* W trybie admina pasek MA być widoczny - przywracamy go (landscape). */
+/* W trybie admina pasek MA być widoczny - przywracamy go. */
 html.tryb-admin #editorPasek { display: block !important; }
 
-@media (orientation: landscape) {
+/* Skarbiec edytora - dla TABLETU i LAPTOPA (szeroki ekran >=900px).
+   Telefon (<900px) ma admina zablokowanego, więc skarbca tam nie ma. */
+@media (min-width: 900px) {
 
   /* Tło edytora - lekko bajkowe, ciepłe, z delikatnym ruchem */
   html.tryb-admin body {
@@ -5458,13 +5460,11 @@ html.tryb-admin #btnPodklad { display: flex; }
    Klasę tryb-ciemny JS ustawia ZAWSZE (gracz i admin), więc te reguły
    obejmują też edytor - tam gdzie elementy są wspólne (mapa, sidebar).
 
-   Aktywacja: orientation landscape (wcześniej min-width:1024px).
-   Telefon w poziomie w trybie admina też dostaje ciemny skarbcowy
-   motyw. Gracz w poziomie i tak widzi overlay "Obróć telefon", więc
-   jego ten motyw nie dotyczy wizualnie.
+   Aktywacja: min-width 900px (tablet i laptop). Telefon ma admina
+   zablokowanego, więc ciemny skarbcowy motyw go nie dotyczy.
 
    Paleta ta sama co w edytorze (skarbiec): ciepłe brązy, złoto. */
-@media (orientation: landscape) {
+@media (min-width: 900px) {
 
   html.tryb-ciemny {
     --skarb-tlo:      #1c1410;
@@ -5827,11 +5827,11 @@ html.tryb-noc header {
 
 <div id="obrocAdmin">
   <div id="obrocAdmin-inner">
-    <span id="obrocAdmin-ikona">🔄</span>
-    <h2>Obróć urządzenie poziomo</h2>
+    <span id="obrocAdmin-ikona">🗺️</span>
+    <h2>Tryb budowania mapy</h2>
     <div id="obrocAdmin-ozdoba">❦ ❦ ❦</div>
-    <p>Budowanie mapy działa<br>w ułożeniu poziomym.</p>
-    <p id="obrocAdmin-mala">Obróć telefon lub tablet poziomo, by edytować przygodę.</p>
+    <p>Budowanie mapy działa tylko<br>na komputerze lub tablecie.</p>
+    <p id="obrocAdmin-mala">Telefon służy do gry w terenie — przygodę zbudujesz na większym ekranie.</p>
   </div>
 </div>
 
@@ -6630,17 +6630,18 @@ const _chce_admina = new URLSearchParams(window.location.search).get('admin') ==
 // isAdmin pozostaje false, więc cały kod budujący edytor (pasek, panele,
 // brązowy "skarbiec") się NIE uruchamia. Dodatkowo overlay CSS #obrocAdmin
 // zasłania ekran komunikatem. Granica 900px = szerszy ekran to tablet/PC.
-// BLOKADA ADMINA: tryb budowania mapy wymaga ułożenia POZIOMEGO.
-// Admin działa na komputerze oraz na telefonie/tablecie w poziomie.
-// W pionie - isAdmin=false, edytor się nie buduje, overlay #obrocAdmin
-// prosi o obrót. "Pion" = wysokość > szerokość.
-const _pionUrzadzenia = window.innerHeight > window.innerWidth;
-// Telefon/tablet w pionie blokujemy. Komputer (szeroki) zawsze przejdzie -
-// nawet jeśli okno chwilowo wyższe niż szersze, bo szerokość >= 1024.
-const _ekranMaly = _pionUrzadzenia && window.innerWidth < 1024;
+// BLOKADA ADMINA: decyduje SZEROKOŚĆ ekranu, nie orientacja.
+// Telefon = wąski ekran (krótszy bok < 820px) - admin zablokowany,
+// bo edytor potrzebuje miejsca. Tablet i laptop = szeroki ekran -
+// admin działa. Bierzemy WIĘKSZY z wymiarów (max) - dzięki temu
+// telefon obrócony w poziom dalej jest "telefonem" (jego dłuższy
+// bok ~850px to wciąż za mało na wygodny edytor), a tablet/laptop
+// przechodzą zawsze. Granica 900px: telefon < 900 <= tablet/laptop.
+const _szerokoscEkranu = Math.max(window.innerWidth, window.innerHeight);
+const _ekranMaly = _szerokoscEkranu < 900;
 let isAdmin = _chce_admina && !_ekranMaly;
 
-// Gdy ktoś wszedł z ?admin=1 w pionie - pokaż komunikat "obróć poziomo".
+// Gdy ktoś wszedł z ?admin=1 na telefonie - pokaż komunikat blokady.
 if (_chce_admina && _ekranMaly) {
   document.addEventListener('DOMContentLoaded', () => {
     const ov = document.getElementById('obrocAdmin');
