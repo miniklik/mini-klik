@@ -3022,7 +3022,7 @@ footer{
 }
 
 /* Mobile - panel na całą szerokość (działa w obu orientacjach) */
-@media (max-width: 1024px) and (pointer: coarse) {
+@media (max-width: 1024px) {
   .radar-panel{
     left:14px !important;
     right:14px !important;
@@ -3471,14 +3471,14 @@ html.tryb-noc .detail-sfera-wrapper {
 }
 
 /* =============================================================== */
-/* === MOBILE TOUCH PORTRAIT (telefon + tablet w pionie) === */
-/* Reguła: max-width: 1024px AND pointer: coarse (palec, nie myszka)        */
-/* Pointer: coarse = niemozliwe do oszukania - tylko prawdziwe              */
-/* urządzenia dotykowe. Komputer NIGDY nie spełni tego warunku.             */
-/* Reguły działają w OBU orientacjach (pion i poziom) - dawniej tylko       */
-/* portrait, ale w landscape telefon dostawał styl desktopowy = chaos.      */
+/* === MOBILE / WĄSKI EKRAN (telefon + tablet) === */
+/* Reguła: max-width: 1024px. Wcześniej był też warunek pointer:coarse,    */
+/* ale część telefonów/przeglądarek go nie raportuje pewnie - wtedy        */
+/* tryb mobilny się NIE włączał i strona wyglądała jak desktop wciśnięty   */
+/* w wąskie okno (header zostawał, mapa nie pełnoekranowa). Sama szerokość */
+/* ekranu działa wszędzie niezawodnie.                                     */
 /* =============================================================== */
-@media (max-width: 1024px) and (pointer: coarse) {
+@media (max-width: 1024px) {
 
   /* === KROK 2: MAPA PEŁEN EKRAN === */
 
@@ -4207,7 +4207,6 @@ html.tryb-noc .strefa-szukania-etykieta{
    obróci telefonu z powrotem na pionowo.
    Aktywuje się tylko gdy:
      - max-width: 1024px (telefon/tablet)
-     - pointer: coarse (dotykowe, nie myszka)
      - orientation: landscape (poziomo)
 */
 #obrocTelefon{
@@ -4351,7 +4350,7 @@ html.tryb-noc .strefa-szukania-etykieta{
   transition: transform 0.45s cubic-bezier(0.34, 1.30, 0.64, 1), opacity 0.3s;
   opacity: 0;
 }
-@media (max-width: 1024px) and (pointer: coarse) {
+@media (max-width: 1024px) {
   #szufladaWykryto {
     display: block;
   }
@@ -4439,7 +4438,7 @@ html.tryb-noc .sw-off {
 }
 
 /* Aktywacja: telefon w landscape */
-@media (max-width: 1024px) and (pointer: coarse) and (orientation: landscape) {
+@media (max-width: 1024px) and (orientation: landscape) {
   /* "Obróć telefon" - tylko dla GRACZA. Admin gra w poziomie,
      więc gdy jest tryb-admin nie pokazujemy mu tego overlaya. */
   html:not(.tryb-admin) #obrocTelefon{
@@ -4452,7 +4451,7 @@ html.tryb-noc .sw-off {
 }
 
 /* === BLOKADA ADMINA W PIONIE - dotykowe urządzenie pionowo === */
-@media (max-width: 1024px) and (pointer: coarse) and (orientation: portrait) {
+@media (max-width: 1024px) and (orientation: portrait) {
   html.tryb-admin #obrocAdmin{
     display:flex !important;
   }
@@ -4466,7 +4465,7 @@ html.tryb-noc .sw-off {
    urządzeniu. Bez tego header zostawał na górze, a mapa z przyciskami
    (top:14px) wsuwała się POD niego - przyciski GPS/⊙ zachodziły pod ramkę.
    W landscape nie ruszamy (tam admin/overlay mają własną logikę). */
-@media (max-width: 1024px) and (pointer: coarse) and (orientation: portrait) {
+@media (max-width: 1024px) and (orientation: portrait) {
   .wrapper > header,
   body > header,
   header {
@@ -4484,7 +4483,7 @@ html.tryb-noc .sw-off {
    tryb nocny nie zmienia wyglądu (klasa istnieje, ale style
    przez nią nie aktywują się bo są w @media mobile).
 */
-@media (max-width: 1024px) and (pointer: coarse) {
+@media (max-width: 1024px) {
   /* Body i mapa w nocy - ciemne tło "za mapą" gdy się ładuje */
   html.tryb-noc body{
     background:#1a1410 !important;
@@ -7305,8 +7304,15 @@ function pokazMatrix(kroki) {
     'Otwórz menu ☰ i kliknij następną tajemnicę'
   ];
   _matrixKrokIdx = 0;
+  // Callback ustawiany OSOBNO przez wywołującego (np. pokazMatrixPowitalny)
+  // PO wywołaniu pokazMatrix - patrz _matrixCallback niżej.
   _matrixPokazKrok();
 }
+
+// Funkcja uruchamiana gdy gracz zamknie Matrix ostatnim "Dalej".
+// Ustawiana przez pokazMatrixPowitalny - dzięki temu nawigacja włącza się
+// w obrębie kliknięcia gracza (user gesture), więc audio nie jest blokowane.
+let _matrixCallback = null;
 
 // === MATRIX POWITALNY - przy wejściu do gry (po ekranie startowym) ===
 // Treść zależna od postępu:
@@ -7334,6 +7340,15 @@ function pokazMatrixPowitalny() {
     ];
   }
   pokazMatrix(kroki);
+
+  // Po zamknięciu Matrixa powitalnego - automatycznie włącz nawigację.
+  // Callback odpala się w obrębie kliknięcia "Wróć na mapę" (user gesture),
+  // więc audio przewodnika nie zostanie zablokowane przez przeglądarkę.
+  _matrixCallback = function() {
+    if (typeof wlaczNawigacje === 'function' && !trybTurysta) {
+      wlaczNawigacje();
+    }
+  };
 }
 
 // Pokazuje aktualny komunikat. Na ostatnim kroku zmienia napis przycisku
@@ -7356,6 +7371,14 @@ function matrixDalej() {
     _matrixPokazKrok();
   } else {
     ukryjMatrix();
+    // Ostatni "Dalej" - jeśli ustawiono callback (np. włączenie nawigacji),
+    // odpalamy go TERAZ. Jesteśmy wciąż w obrębie kliknięcia gracza, więc
+    // przeglądarka pozwoli na autoplay audio i dostęp do GPS.
+    if (typeof _matrixCallback === 'function') {
+      const cb = _matrixCallback;
+      _matrixCallback = null; // jednorazowo - czyścimy przed wywołaniem
+      try { cb(); } catch (e) { console.warn('[matrix] callback:', e); }
+    }
   }
 }
 
