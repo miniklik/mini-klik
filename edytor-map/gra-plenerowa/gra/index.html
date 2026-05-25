@@ -7352,6 +7352,7 @@ let _matrixAnim = null;       // id requestAnimationFrame
 let _matrixTimery = [];       // setTimeout-y do posprzątania (deszcz nie używa, zostaje na wszelki wypadek)
 let _matrixKroki = [];        // lista komunikatów do pokazania po kolei
 let _matrixKrokIdx = 0;       // który komunikat jest teraz na ekranie
+let _matrixPowitalny = false; // true = Matrix powitalny (przycisk "Go ▶")
 
 function pokazMatrix(kroki) {
   const overlay = document.getElementById('matrixOverlay');
@@ -7408,6 +7409,7 @@ function pokazMatrix(kroki) {
     'Otwórz menu ☰ i kliknij następną tajemnicę'
   ];
   _matrixKrokIdx = 0;
+  _matrixPowitalny = false; // domyślnie - Matrix między tajemnicami
   // Callback ustawiany OSOBNO przez wywołującego (np. pokazMatrixPowitalny)
   // PO wywołaniu pokazMatrix - patrz _matrixCallback niżej.
   _matrixPokazKrok();
@@ -7433,17 +7435,22 @@ function pokazMatrixPowitalny() {
   if ((aktualnyEtapGry || 0) === 0) {
     // Nowa gra - gracz jeszcze nie wszedł w START
     kroki = [
-      '⚡ PRZYGODA SIĘ ZACZYNA',
-      'Idź do punktu START na mapie, by rozpocząć'
+      '⚡ WITAJ W PRZYGODZIE',
+      'Znajdź na mapie punkt START, by rozpocząć grę'
     ];
   } else {
     // Gra w toku - pokaż postęp
     kroki = [
       '⚡ WITAJ Z POWROTEM',
-      `Zdobyte tajemnice: ${zdobyte} / ${wszystkie}\nSzukaj kolejnej!`
+      `Zdobyte tajemnice: ${zdobyte} / ${wszystkie}\nInfo o tajemnicach znajdziesz w panelu bocznym`
     ];
   }
   pokazMatrix(kroki);
+  // To Matrix powitalny - przycisk ostatniego kroku ma być "Go ▶".
+  // pokazMatrix ustawił flagę na false, więc nadpisujemy PO nim i
+  // odświeżamy widok kroku, by przycisk od razu miał poprawny tekst.
+  _matrixPowitalny = true;
+  if (typeof _matrixPokazKrok === 'function') _matrixPokazKrok();
 
   // Po zamknięciu Matrixa powitalnego - automatycznie włącz nawigację.
   // Callback odpala się w obrębie kliknięcia "Wróć na mapę" (user gesture),
@@ -7455,8 +7462,9 @@ function pokazMatrixPowitalny() {
   };
 }
 
-// Pokazuje aktualny komunikat. Na ostatnim kroku zmienia napis przycisku
-// na "Wróć na mapę →" - żeby gracz wiedział, że to ostatni klik.
+// Pokazuje aktualny komunikat. Na ostatnim kroku zmienia napis przycisku.
+// Matrix powitalny (wejście do gry) -> "Go ▶". Matrix między tajemnicami
+// -> "Wróć na mapę →". Rozróżnia je flaga _matrixPowitalny.
 function _matrixPokazKrok() {
   const tekstEl = document.getElementById('matrixTekst');
   const btn = document.getElementById('matrixDalejBtn');
@@ -7464,7 +7472,11 @@ function _matrixPokazKrok() {
   tekstEl.textContent = _matrixKroki[_matrixKrokIdx] || '';
   if (btn) {
     const ostatni = _matrixKrokIdx >= _matrixKroki.length - 1;
-    btn.textContent = ostatni ? 'Wróć na mapę →' : 'Dalej →';
+    if (ostatni) {
+      btn.textContent = _matrixPowitalny ? 'Go ▶' : 'Wróć na mapę →';
+    } else {
+      btn.textContent = 'Dalej →';
+    }
   }
 }
 
@@ -8058,8 +8070,10 @@ function renderujOdkryteTajemnice() {
         iconAnchor: kotwica
       })
     });
-    // Klik na znacznik = od razu odtwórz audio tej tajemnicy
-    marker.on('click', () => odtworzKropke(kropka));
+    // Klik na znacznik = od razu odtwórz audio tej tajemnicy.
+    // zKlikniecia=true - ręczny klik w emotkę zdobytej tajemnicy
+    // omija blokadę auto i zawsze odtwarza nagranie.
+    marker.on('click', () => odtworzKropke(kropka, true));
     marker.addTo(mapa);
     _markeryOdkrytych.push(marker);
   }
@@ -8933,7 +8947,18 @@ function aktualizujPulsatoryAudio() {
   }
 }
 
-function odtworzKropke(kropka) {
+function odtworzKropke(kropka, zKlikniecia) {
+  // ZDOBYTA TAJEMNICA - audio NIE odpala się automatycznie przy wejściu
+  // w strefę. Gra tylko na żądanie - po kliknięciu w emotkę-trofeum.
+  // Zdobyta = tajemnica o numerze < aktualnyEtapGry (to samo kryterium,
+  // którym znika fala i stawiana jest emotka). zKlikniecia=true omija
+  // blokadę - ręczny klik w emotkę zawsze ma zagrać.
+  if (!zKlikniecia && kropka && typeof typKropki === 'function'
+      && typKropki(kropka) === 'tajemnica'
+      && kropka.numer && kropka.numer < aktualnyEtapGry) {
+    return; // zdobyta tajemnica + wejście automatyczne = cisza
+  }
+
   // Zatrzymaj poprzednie audio jeśli gra (jedno na raz)
   if (aktualneAudio) {
     aktualneAudio.pause();
@@ -9004,7 +9029,7 @@ function toggleAudioPauza() {
     if (aktualnaKropkaAudio) {
       // Reset flagi żeby kropka mogła znów zagrać
       kropkaJestOdtwarzana.delete(kluczOdtwarzaniaKropki(aktualnaKropkaAudio));
-      odtworzKropke(aktualnaKropkaAudio);
+      odtworzKropke(aktualnaKropkaAudio, true);
     }
     return;
   }
@@ -12922,8 +12947,9 @@ function radarKlikOdtworz(kropka) {
   }
 
   // Inna kropka - odtwórz (odtworzKropke automatycznie zatrzyma poprzednie)
+  // zKlikniecia=true - klik w panelu radaru to świadome żądanie użytkownika.
   kropkaJestOdtwarzana.delete(kropka.numer);
-  odtworzKropke(kropka);
+  odtworzKropke(kropka, true);
 
   // Hook na koniec audio - aktualizuj panel
   if (aktualneAudio) {
@@ -13870,7 +13896,7 @@ mapa.on('zoomend', () => {
        src ustawiany przez JS dopiero przy próbie odtworzenia - dzięki temu
        gdy pliku nie ma, NIE leci błąd 404 do konsoli przy wczytaniu strony.
        Jeśli pliku nie ma na serwerze - splash zostaje cichy. -->
-  <audio id="graIntroAudio" loop preload="none" data-src="audio/intro.mp3"></audio>
+  <audio id="graIntroAudio" preload="none" data-src="audio/intro.mp3"></audio>
 
   <!-- PERGAMINOWA KARTA z treścią -->
   <div class="gra-pergamin">
