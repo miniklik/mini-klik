@@ -5869,10 +5869,83 @@ html.tryb-admin #editorPasek { display: block; }
   }
   html.tryb-admin footer { color: var(--skarb-tekst-2); }
 }
+/* =========================================================
+   === BLOKADA ADMINA NA MAŁYM EKRANIE - overlay #obrocAdmin ===
+   =========================================================
+   Pokazywany gdy ktoś wejdzie z ?admin=1 na telefonie lub tablecie
+   w pionie. Tryb edytora działa tylko na dużym ekranie (komputer,
+   tablet poziomo). Overlay pokazuje JS - patrz skrypt (_ekranMaly).
+   Dodatkowo @media poniżej domyka go czysto na wąskich ekranach. */
+#obrocAdmin{
+  display:none;
+  position:fixed;
+  inset:0;
+  z-index:100000;
+  background:linear-gradient(135deg,#3d2817 0%,#1a0e08 100%);
+  color:#f5e8c8;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+  padding:30px;
+  font-family:'EB Garamond',serif;
+}
+#obrocAdmin-inner{ max-width:340px; }
+#obrocAdmin-ikona{
+  font-size:80px;
+  margin-bottom:20px;
+  display:block;
+}
+#obrocAdmin h2{
+  font-family:'Cinzel',serif;
+  font-size:24px;
+  margin:0 0 14px 0;
+  color:#d4a574;
+  letter-spacing:2px;
+}
+#obrocAdmin p{
+  font-size:17px;
+  line-height:1.5;
+  margin:0 0 8px 0;
+  color:#e8d5a8;
+}
+#obrocAdmin-mala{
+  font-size:14px !important;
+  font-style:italic;
+  opacity:0.7;
+  margin-top:20px !important;
+}
+#obrocAdmin-ozdoba{
+  color:#d4a574;
+  letter-spacing:8px;
+  font-size:18px;
+  margin:18px 0;
+}
+/* Domknięcie CSS-owe: na wąskim ekranie (krótszy bok < 900px) overlay
+   zasłania ekran. Działa w parze z blokadą JS - gdyby JS zawiódł,
+   CSS i tak nie wpuści admina na mały ekran. */
+@media (max-width: 899px) {
+  html.admin-zablokowany #obrocAdmin{ display:flex !important; }
+  html.admin-zablokowany body{ overflow:hidden !important; }
+}
 
 </style>
 </head>
 <body>
+
+<!-- ============================================================
+     === BLOKADA ADMINA NA MAŁYM EKRANIE ========================
+     ============================================================
+     Pokazywany gdy ktoś wejdzie z ?admin=1 na telefonie lub
+     tablecie w pionie. Tryb edytora wymaga dużego ekranu. -->
+<div id="obrocAdmin">
+  <div id="obrocAdmin-inner">
+    <span id="obrocAdmin-ikona">🗺️</span>
+    <h2>Tryb edytora</h2>
+    <div id="obrocAdmin-ozdoba">❦ ❦ ❦</div>
+    <p>Edytor audio-przewodnika działa na komputerze lub tablecie w poziomie.</p>
+    <p id="obrocAdmin-mala">Telefon i tablet w pionie mają za mało miejsca na panel edytora. Otwórz stronę na większym ekranie.</p>
+  </div>
+</div>
 
 <!-- ============================================================
      === EKRAN POWITALNY (Splash Welcome) ======================
@@ -6564,7 +6637,51 @@ function aktualizujPrzyciskCenter() {
 // Włącza się przez ?admin=1 w URL. Bez hasła, bez popupów - po prostu URL decyduje.
 // Edytor zawsze otwarty dla każdego kto wpisze ?admin=1.
 const _chce_admina = new URLSearchParams(window.location.search).get('admin') === '1';
-let isAdmin = _chce_admina;
+
+// BLOKADA ADMINA NA TELEFONIE / TABLECIE W PIONIE:
+// tryb budowania mapy działa tylko na szerokim ekranie - komputer,
+// laptop, tablet w POZIOMIE. Telefon (każda orientacja) i tablet
+// w PIONIE są zablokowane: edytor potrzebuje miejsca w poziomie.
+//
+// O blokadzie decyduje RZECZYWISTA szerokość okna (innerWidth),
+// nie dłuższy bok ekranu. Dzięki temu ten sam tablet:
+//   - trzymany pionowo  (innerWidth ~768-820) -> zablokowany
+//   - obrócony poziomo  (innerWidth ~1024+)   -> admin działa
+// Granica 900px: < 900 = za wąsko na edytor, >= 900 = OK.
+function _ekranZaMaly() {
+  return window.innerWidth < 900;
+}
+const _chce_admina_ekranMaly = _chce_admina && _ekranZaMaly();
+let isAdmin = _chce_admina && !_ekranZaMaly();
+
+// Gdy ktoś wszedł z ?admin=1 na małym ekranie - pokaż komunikat blokady.
+if (_chce_admina_ekranMaly) {
+  // Klasa na <html> uruchamia regułę CSS @media (domknięcie - gdyby JS zawiódł)
+  document.documentElement.classList.add('admin-zablokowany');
+  document.addEventListener('DOMContentLoaded', () => {
+    const ov = document.getElementById('obrocAdmin');
+    if (ov) ov.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+  });
+}
+
+// OBRÓT URZĄDZENIA: gdy ktoś wszedł z ?admin=1 na wąskim ekranie
+// (overlay blokady widoczny) i OBRÓCI urządzenie do poziomu tak,
+// że robi się dość miejsca - przeładowujemy stronę. Po przeładowaniu
+// isAdmin policzy się od nowa, już jako true, i edytor zbuduje się
+// w całości. To pewniejsze niż doklejanie skarbca do gotowej strony.
+if (_chce_admina) {
+  let _poprzednioMaly = _ekranZaMaly();
+  window.addEventListener('resize', () => {
+    const terazMaly = _ekranZaMaly();
+    // Zmiana stanu (był mały -> jest duży, albo odwrotnie) = przeładuj,
+    // żeby tryb admin policzył się na nowo dla aktualnego rozmiaru.
+    if (terazMaly !== _poprzednioMaly) {
+      _poprzednioMaly = terazMaly;
+      location.reload();
+    }
+  });
+}
 
 // === WARSTWY MAPY ===
 // Dwie warstwy: OpenStreetMap (drogowa) + Geoportal (ortofotomapa Polska)
