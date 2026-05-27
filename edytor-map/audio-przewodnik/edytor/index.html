@@ -6266,7 +6266,7 @@ html.tryb-admin #editorPasek { display: block; }
       </button>
     </div>
 
-    <!-- PRZEŁĄCZNIK KSZTAŁTU - okrąg (punkt + promień) vs strefa rysowana (wielokąt) -->
+    <!-- PRZEŁĄCZNIK KSZTAŁTU - okrąg / strefa rysowana / ścieżka audio -->
     <div class="ksztalt-kropki-wybor" id="ksztaltKropkiWybor" style="margin-bottom:14px">
       <button type="button" class="ksztalt-kropki-btn active" data-ksztalt="kolo" onclick="ustawKsztaltKropki('kolo')">
         <span class="ksztalt-kropki-ikona">⭕</span>
@@ -6277,6 +6277,11 @@ html.tryb-admin #editorPasek { display: block; }
         <span class="ksztalt-kropki-ikona">✏️</span>
         <span class="ksztalt-kropki-label">Rysuj kształt</span>
         <span class="ksztalt-kropki-podtytul">dowolny obrys</span>
+      </button>
+      <button type="button" class="ksztalt-kropki-btn" data-ksztalt="sciezka" onclick="ustawKsztaltKropki('sciezka')">
+        <span class="ksztalt-kropki-ikona">🛤️</span>
+        <span class="ksztalt-kropki-label">Ścieżka</span>
+        <span class="ksztalt-kropki-podtytul">trasa + szerokość</span>
       </button>
     </div>
 
@@ -6300,6 +6305,18 @@ html.tryb-admin #editorPasek { display: block; }
     <div id="adminKsztaltBlok" style="display:none">
       <div id="adminKsztaltInfo" style="font-size:12px;color:#7c3aed;margin:2px 0 8px 0;padding:8px 10px;background:rgba(124,58,237,0.08);border-left:3px solid #7c3aed;border-radius:3px;font-style:italic">
         Kliknij „✏️ Rysuj strefę na mapie", potem klikaj punkty po obrysie terenu.
+      </div>
+    </div>
+
+    <!-- BLOK ŚCIEŻKI AUDIO - widoczny tylko dla kształtu "ścieżka" -->
+    <div id="adminSciezkaBlok" style="display:none">
+      <div class="form-row">
+        <label>Szerokość ścieżki:</label>
+        <input type="range" id="adminSciezkaSzer" min="15" max="200" step="5" value="30">
+      </div>
+      <div class="promien-display"><span id="adminSciezkaSzerVal">30 m</span></div>
+      <div id="adminSciezkaInfo" style="font-size:12px;color:#7c3aed;margin:2px 0 8px 0;padding:8px 10px;background:rgba(124,58,237,0.08);border-left:3px solid #7c3aed;border-radius:3px;font-style:italic">
+        Kliknij „🛤️ Rysuj ścieżkę na mapie", potem klikaj punkty wzdłuż trasy (ulica, polna droga). Min. 15 m szerokości — zapas na niedokładność GPS.
       </div>
     </div>
 
@@ -7373,6 +7390,21 @@ let audioWyciszony = false; // toggle 'głośnik' w trybie wędrowca - audio NIE
 let audioMarkery = []; // markery kropek audio (Leaflet)
 let aktualneAudio = null; // aktualnie odtwarzany Audio()
 
+// =====================================================================
+// === ŚCIEŻKI AUDIO - silnik pauzy ====================================
+// =====================================================================
+// Zasada (wg projektu): dźwięk ścieżki PAUZUJE się przy wyjściu,
+// nie restartuje. Wraca od miejsca pauzy po ponownym wejściu.
+// Kasuje się dopiero, gdy turysta wejdzie w INNĄ strefę.
+//
+//   sciezkaGrajacaNumer  - numer ścieżki, której audio jest "w toku"
+//                          (gra LUB jest spauzowane). null = żadna.
+//   sciezkaPauzaTimer    - uchwyt setTimeout marginesu 4s przed pauzą.
+//                          Wejście z powrotem przed upływem czasu - anuluje.
+let sciezkaGrajacaNumer = null;
+let sciezkaPauzaTimer = null;
+const SCIEZKA_MARGINES_PAUZY_MS = 4000; // 4 s tolerancji na skok GPS
+
 // Sygnatura autorska - nie usuwać. Identyfikuje oryginalne pochodzenie kodu.
 const _sygnaturaAutora = 'Audio-poezja \u00a9 2026 Piotr Przebiorowski, Siedliszcze \u2014 mini-klik.pl';
 
@@ -7422,6 +7454,29 @@ function ustawTypKropki(typ) {
     btn.classList.toggle('active', btn.dataset.typ === typ);
   });
 
+  // ŚCIEŻKA działa tylko dla tła. Jeśli admin miał wybraną ścieżkę i przełącza
+  // typ na "wiersz" - kształt wraca na Okrąg (ścieżka-wiersz jest niedozwolona).
+  if (typ === 'wiersz' && aktualnyKsztaltKropki === 'sciezka') {
+    aktualnyKsztaltKropki = 'kolo';
+    // Przerwij ewentualne rysowanie ścieżki w toku
+    if (rysowanieStrefyAktywne) przerwijRysowanieStrefy();
+    strefaPunkty = [];
+    if (typeof wyczyscPodgladStrefy === 'function') wyczyscPodgladStrefy();
+    document.querySelectorAll('#ksztaltKropkiWybor .ksztalt-kropki-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.ksztalt === 'kolo');
+    });
+    const blokPromien = document.getElementById('adminPromienBlok');
+    const blokKsztalt = document.getElementById('adminKsztaltBlok');
+    const blokSciezka = document.getElementById('adminSciezkaBlok');
+    if (blokPromien) blokPromien.style.display = '';
+    if (blokKsztalt) blokKsztalt.style.display = 'none';
+    if (blokSciezka) blokSciezka.style.display = 'none';
+    if (typeof zaktualizujPrzyciskiHelpera === 'function') zaktualizujPrzyciskiHelpera();
+    alert('🛤️ Ścieżka audio działa tylko dla tła.\nKształt zmieniono na „Okrąg”, bo wybrałeś typ „Wiersz”.');
+  }
+  // Przygaś/odblokuj przycisk ścieżki w przełączniku
+  if (typeof zaktualizujDostepnoscSciezki === 'function') zaktualizujDostepnoscSciezki();
+
   // Dla tła sugeruj większy promień (turysta ma być długo w klimacie)
   // ale tylko dla NOWEJ kropki, nie podczas edycji istniejącej
   if (typeof edytowanaKropka !== 'undefined' && !edytowanaKropka) {
@@ -7452,9 +7507,26 @@ let strefaPunkty = [];
 let strefaWarstwaPodglad = null;
 let strefaMarkeryPunkty = [];
 
-// Przełącz kształt kropki (okrąg / wielokąt) - wizualnie + pokaż właściwy blok
+// Przełącz kształt kropki (okrąg / wielokąt / ścieżka) - wizualnie + pokaż właściwy blok.
+// ŚCIEŻKA jest dozwolona TYLKO dla typu "tło audio" - patrz komentarz niżej.
 function ustawKsztaltKropki(ksztalt) {
-  if (ksztalt !== 'kolo' && ksztalt !== 'wielokat') ksztalt = 'kolo';
+  if (ksztalt !== 'kolo' && ksztalt !== 'wielokat' && ksztalt !== 'sciezka') ksztalt = 'kolo';
+
+  // BLOKADA: ścieżka audio działa tylko jako TŁO, nie dla wierszy.
+  // Powód: wiersz to dźwięk pierwszego planu (jeden naraz, słuchany do końca) -
+  // ścieżka-wiersz kolidowałaby ze strefami-wierszami po drodze. Tło to warstwa
+  // klimatyczna pod spodem, można ją ręcznie wyłączyć i nie gryzie się z wierszami.
+  if (ksztalt === 'sciezka' && aktualnyTypKropki !== 'tlo') {
+    alert('🛤️ Ścieżka audio działa tylko dla TŁA.\n\n' +
+      'Najpierw ustaw typ na „Tło audio”, potem wybierz kształt ścieżki.\n\n' +
+      'Wiersze używają okręgu albo strefy rysowanej.');
+    // Przywróć przyciski do aktualnego (niezmienionego) kształtu
+    document.querySelectorAll('#ksztaltKropkiWybor .ksztalt-kropki-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.ksztalt === aktualnyKsztaltKropki);
+    });
+    return;
+  }
+
   aktualnyKsztaltKropki = ksztalt;
 
   // Aktualizuj wygląd przycisków przełącznika
@@ -7462,20 +7534,37 @@ function ustawKsztaltKropki(ksztalt) {
     btn.classList.toggle('active', btn.dataset.ksztalt === ksztalt);
   });
 
-  // Pokaż/ukryj bloki: promień (dla koła) vs strefa rysowana (dla wielokąta)
+  // Pokaż/ukryj bloki: promień (koło) / strefa rysowana (wielokąt) / ścieżka
   const blokPromien = document.getElementById('adminPromienBlok');
   const blokKsztalt = document.getElementById('adminKsztaltBlok');
+  const blokSciezka = document.getElementById('adminSciezkaBlok');
   if (blokPromien) blokPromien.style.display = (ksztalt === 'kolo') ? '' : 'none';
   if (blokKsztalt) blokKsztalt.style.display = (ksztalt === 'wielokat') ? '' : 'none';
+  if (blokSciezka) blokSciezka.style.display = (ksztalt === 'sciezka') ? '' : 'none';
 
-  // Przy przełączeniu na koło - przerwij ewentualne rysowanie strefy
+  // Przy przełączeniu na koło - przerwij ewentualne rysowanie strefy/ścieżki
   if (ksztalt === 'kolo' && rysowanieStrefyAktywne) {
     przerwijRysowanieStrefy();
   }
 
-  // Odśwież przyciski panelu (dochodzi/znika przycisk "Rysuj strefę")
+  // Przycisk "Ścieżka" w przełączniku - przygaszony, gdy typ to wiersz
+  zaktualizujDostepnoscSciezki();
+
+  // Odśwież przyciski panelu (dochodzi/znika przycisk "Rysuj strefę/ścieżkę")
   zaktualizujPrzyciskiHelpera();
   aktualizujKsztaltInfo();
+}
+
+// Przycisk "🛤️ Ścieżka" w przełączniku kształtu jest dostępny tylko dla tła.
+// Dla wiersza - przygaszamy go wizualnie (pełna blokada i tak jest w ustawKsztaltKropki).
+function zaktualizujDostepnoscSciezki() {
+  const btnSciezka = document.querySelector('#ksztaltKropkiWybor .ksztalt-kropki-btn[data-ksztalt="sciezka"]');
+  if (!btnSciezka) return;
+  const dozwolona = (aktualnyTypKropki === 'tlo');
+  btnSciezka.style.opacity = dozwolona ? '' : '0.4';
+  btnSciezka.title = dozwolona
+    ? 'Ścieżka audio - trasa o zadanej szerokości'
+    : 'Ścieżka audio działa tylko dla tła. Ustaw typ „Tło audio”.';
 }
 
 // Wyczyść podgląd rysowanej strefy z mapy (linia + markery wierzchołków)
@@ -7488,8 +7577,9 @@ function wyczyscPodgladStrefy() {
   strefaMarkeryPunkty = [];
 }
 
-// Przerysuj podgląd strefy - linia łącząca dotychczasowe punkty + kropki na wierzchołkach.
-// Gdy punktów >=3 pokazujemy domknięty wielokąt (półprzezroczyste wypełnienie).
+// Przerysuj podgląd strefy/ścieżki - linia łącząca dotychczasowe punkty + markery.
+// WIELOKĄT: gdy punktów >=3 pokazuje domknięty obrys (wypełnienie).
+// ŚCIEŻKA: zawsze linia otwarta (trasa), nie domyka się.
 function przerysujPodgladStrefy() {
   wyczyscPodgladStrefy();
   if (strefaPunkty.length === 0) return;
@@ -7497,17 +7587,39 @@ function przerysujPodgladStrefy() {
   // Kolor zależny od typu kropki (wiersz=fiolet, tło=zielony)
   const kolor = (aktualnyTypKropki === 'tlo') ? '#16a34a' : '#7c3aed';
   const kolorWyp = (aktualnyTypKropki === 'tlo') ? '#4ade80' : '#a78bfa';
+  const toSciezka = (aktualnyKsztaltKropki === 'sciezka');
 
-  // Linia / wielokąt na żywo
-  if (strefaPunkty.length >= 3) {
-    strefaWarstwaPodglad = L.polygon(strefaPunkty, {
-      color: kolor, weight: 3, opacity: 0.8,
-      fillColor: kolorWyp, fillOpacity: 0.18, dashArray: '6, 6'
-    }).addTo(mapa);
-  } else if (strefaPunkty.length === 2) {
-    strefaWarstwaPodglad = L.polyline(strefaPunkty, {
-      color: kolor, weight: 3, opacity: 0.8, dashArray: '6, 6'
-    }).addTo(mapa);
+  if (toSciezka) {
+    // ŚCIEŻKA: korytarz wzdłuż trasy. Rysujemy obrys jako WIELOKĄT
+    // (bufor wokół linii) - realny obszar w metrach, skaluje się z zoomem.
+    // Plus cienka oś trasy. Obie warstwy w grupie - czyszczone razem.
+    if (strefaPunkty.length >= 2) {
+      const szerM = parseInt((document.getElementById('adminSciezkaSzer') || {}).value) || 30;
+      const obrys = obrysKorytarza(strefaPunkty, szerM);
+      const korytarz = L.polygon(obrys, {
+        color: kolorWyp, weight: 1.5, opacity: 0.5,
+        fillColor: kolorWyp, fillOpacity: 0.22
+      });
+      const os = L.polyline(strefaPunkty, {
+        color: kolor, weight: 3, opacity: 0.9, dashArray: '6, 6'
+      });
+      // Grupa - obie warstwy czyszczone razem
+      strefaWarstwaPodglad = L.layerGroup([korytarz, os]).addTo(mapa);
+    } else if (strefaPunkty.length === 1) {
+      // Jeden punkt - jeszcze nie ma linii, podgląd tylko przez markery niżej
+    }
+  } else {
+    // WIELOKĄT / strefa zamknięta
+    if (strefaPunkty.length >= 3) {
+      strefaWarstwaPodglad = L.polygon(strefaPunkty, {
+        color: kolor, weight: 3, opacity: 0.8,
+        fillColor: kolorWyp, fillOpacity: 0.18, dashArray: '6, 6'
+      }).addTo(mapa);
+    } else if (strefaPunkty.length === 2) {
+      strefaWarstwaPodglad = L.polyline(strefaPunkty, {
+        color: kolor, weight: 3, opacity: 0.8, dashArray: '6, 6'
+      }).addTo(mapa);
+    }
   }
 
   // Małe markery na każdym wierzchołku (pierwszy wyróżniony - to "start")
@@ -7563,9 +7675,17 @@ function przerwijRysowanieStrefy() {
 
 // Zakończ rysowanie Z ZAPISEM - domyka wielokąt, punkty zostają w strefaPunkty,
 // panel wraca żeby admin wpisał numer/opis i kliknął Dodaj.
+// Minimalna liczba punktów dla aktualnego kształtu:
+// wielokąt potrzebuje 3 (obszar), ścieżka 2 (linia).
+function minPunktowKsztaltu() {
+  return (aktualnyKsztaltKropki === 'sciezka') ? 2 : 3;
+}
+
 function zakonczRysowanieStrefy() {
-  if (strefaPunkty.length < 3) {
-    alert('Strefa musi mieć co najmniej 3 punkty.\nKliknij jeszcze ' + (3 - strefaPunkty.length) + ' raz/y na mapie.');
+  const minP = minPunktowKsztaltu();
+  if (strefaPunkty.length < minP) {
+    const co = (aktualnyKsztaltKropki === 'sciezka') ? 'Ścieżka' : 'Strefa';
+    alert(co + ' musi mieć co najmniej ' + minP + ' punkty.\nKliknij jeszcze ' + (minP - strefaPunkty.length) + ' raz/y na mapie.');
     return;
   }
   rysowanieStrefyAktywne = false;
@@ -7595,16 +7715,23 @@ function cofnijPunktStrefy() {
   }
 }
 
-// Aktualizuj tekst w bloku info panelu (ile punktów ma strefa)
+// Aktualizuj tekst w bloku info panelu (ile punktów ma strefa/ścieżka)
 function aktualizujKsztaltInfo() {
-  const info = document.getElementById('adminKsztaltInfo');
+  const toSciezka = (aktualnyKsztaltKropki === 'sciezka');
+  const info = document.getElementById(toSciezka ? 'adminSciezkaInfo' : 'adminKsztaltInfo');
   if (!info) return;
-  if (strefaPunkty.length >= 3) {
-    info.innerHTML = `✅ Strefa narysowana: <b>${strefaPunkty.length} punktów</b>. Możesz teraz wpisać numer i opis, potem „➕ Dodaj”.`;
+  const minP = minPunktowKsztaltu();
+  const co = toSciezka ? 'Ścieżka' : 'Strefa';
+  const przyciskTekst = toSciezka ? '🛤️ Rysuj ścieżkę na mapie' : '✏️ Rysuj strefę na mapie';
+  const opisRys = toSciezka
+    ? 'klikaj punkty wzdłuż trasy (ulica, polna droga).'
+    : 'klikaj punkty po obrysie terenu.';
+  if (strefaPunkty.length >= minP) {
+    info.innerHTML = `✅ ${co} narysowana: <b>${strefaPunkty.length} punktów</b>. Wpisz numer i opis, potem „➕ Dodaj”.`;
   } else if (strefaPunkty.length > 0) {
-    info.innerHTML = `Strefa ma ${strefaPunkty.length} pkt. — potrzeba min. 3. Kliknij „✏️ Rysuj strefę na mapie”.`;
+    info.innerHTML = `${co} ma ${strefaPunkty.length} pkt. — potrzeba min. ${minP}. Kliknij „${przyciskTekst}”.`;
   } else {
-    info.innerHTML = 'Kliknij „✏️ Rysuj strefę na mapie”, potem klikaj punkty po obrysie terenu.';
+    info.innerHTML = `Kliknij „${przyciskTekst}”, potem ${opisRys}`;
   }
 }
 
@@ -7732,9 +7859,12 @@ function decyzjaSzuflady(wybor) {
       let minOdl = Infinity;
       for (const k of kropkiAudio) {
         if (k.numer !== wStrefieKropki) continue;
-        // Pozycja efektywna: strefa-wielokąt → środek, koło → pozycja
+        // Pozycja efektywna: ścieżka → środek linii, wielokąt → środek, koło → pozycja
         let pLat, pLng;
-        if (k.ksztalt && k.ksztalt.length >= 3) {
+        if (k.linia && k.linia.length >= 2) {
+          const sr = srodekLinii(k.linia);
+          pLat = sr[0]; pLng = sr[1];
+        } else if (k.ksztalt && k.ksztalt.length >= 3) {
           const sr = srodekWielokata(k.ksztalt);
           pLat = sr[0]; pLng = sr[1];
         } else if (k.pozycja) {
@@ -7784,17 +7914,20 @@ function renderujKropkiAudio() {
 
     // Czy to STREFA-WIELOKĄT (ma `ksztalt`) czy klasyczne KOŁO (ma `promien`)?
     const jestWielokat = !!(kropka.ksztalt && kropka.ksztalt.length >= 3);
+    const jestSciezka = !!(kropka.linia && kropka.linia.length >= 2);
     // Pozycja efektywna - punkt na który stawiamy marker-etykietę.
-    // Koło: jego środek. Wielokąt: środek obrysu (średnia wierzchołków).
-    const pozMarkera = jestWielokat
-      ? srodekWielokata(kropka.ksztalt)
-      : kropka.pozycja;
-    // Strefa-wielokąt bez poprawnego kształtu - pomiń (uszkodzone dane)
+    // Koło: jego środek. Wielokąt: środek obrysu. Ścieżka: środek trasy.
+    const pozMarkera = jestSciezka
+      ? srodekLinii(kropka.linia)
+      : (jestWielokat ? srodekWielokata(kropka.ksztalt) : kropka.pozycja);
+    // Kropka bez poprawnego kształtu - pomiń (uszkodzone dane)
     if (!pozMarkera) return;
-    // Opis "zasięgu" do popupów - inny tekst dla koła i wielokąta
-    const opisZasiegu = jestWielokat
-      ? `Strefa rysowana (${kropka.ksztalt.length} pkt.)`
-      : `Promień: ${kropka.promien} m`;
+    // Opis "zasięgu" do popupów - inny tekst dla koła, wielokąta i ścieżki
+    const opisZasiegu = jestSciezka
+      ? `Ścieżka audio (${kropka.linia.length} pkt., szer. ${kropka.szerokosc || 30} m)`
+      : (jestWielokat
+        ? `Strefa rysowana (${kropka.ksztalt.length} pkt.)`
+        : `Promień: ${kropka.promien} m`);
 
     // Sprawdź tryb (z migracją starych kropek: stare wartości → sredni)
     let tryb = kropka.trybKropki || 'sredni';
@@ -7817,7 +7950,7 @@ function renderujKropkiAudio() {
           <button class="popup-nav-btn" onclick="edytujKropkePoIdx(${idx});mapa.closePopup();">✏️ Edytuj tło</button>`;
       } else {
         const trybLabel = tryb === 'duzy' ? '📍 Duża' : (tryb === 'maly' ? '📍 Mała' : '📍 Średnia');
-        popupTresc = `<b>🎧 Audio #${kropka.numer}</b>${kropka.opis ? '<br>' + kropka.opis : ''}<br><em>📁 Plik: audio/${kropka.numer}.mp3<br>📏 ${opisZasiegu}${jestWielokat ? '' : ' · Rozmiar: ' + trybLabel}</em>${segInfo}
+        popupTresc = `<b>🎧 Audio #${kropka.numer}</b>${kropka.opis ? '<br>' + kropka.opis : ''}<br><em>📁 Plik: audio/${kropka.numer}.mp3<br>📏 ${opisZasiegu}${(jestWielokat || jestSciezka) ? '' : ' · Rozmiar: ' + trybLabel}</em>${segInfo}
           <button class="popup-nav-btn" onclick="edytujKropkePoIdx(${idx});mapa.closePopup();">✏️ Edytuj ten segment</button>`;
       }
     } else {
@@ -7853,7 +7986,20 @@ function renderujKropkiAudio() {
       const kolorObrysu = (typK === 'tlo') ? '#16a34a' : '#7c3aed';
       const kolorWypelnienia = (typK === 'tlo') ? '#4ade80' : '#a78bfa';
       let krag;
-      if (jestWielokat) {
+      if (jestSciezka) {
+        // ŚCIEŻKA: korytarz jako WIELOKĄT (bufor wokół trasy) - realny
+        // obszar w metrach. Plus cienka oś. Obie warstwy w grupie.
+        const szerM = kropka.szerokosc || 30;
+        const obrys = obrysKorytarza(kropka.linia, szerM);
+        const korytarz = L.polygon(obrys, {
+          color: kolorWypelnienia, weight: 1.5, opacity: 0.4,
+          fillColor: kolorWypelnienia, fillOpacity: 0.15
+        });
+        const os = L.polyline(kropka.linia, {
+          color: kolorObrysu, weight: 2, opacity: 0.7, dashArray: '4, 4'
+        });
+        krag = L.layerGroup([korytarz, os]).addTo(mapa);
+      } else if (jestWielokat) {
         // STREFA-WIELOKĄT: rysujemy obrys o dowolnym kształcie
         krag = L.polygon(kropka.ksztalt, {
           color: kolorObrysu,
@@ -7906,9 +8052,12 @@ function pokazListeAudio() {
   const wszystkie = [];
   zapisane.forEach(k => {
     if (edytowaneRef.has(k)) return; // pomiń - jest świeższa wersja zaplanowana
-    // Strefa-wielokąt: pozycja = środek obrysu. Koło: pole pozycja.
+    // Pozycja efektywna: ścieżka = środek linii, wielokąt = środek obrysu, koło = pozycja.
     let lat, lng;
-    if (k.ksztalt && k.ksztalt.length >= 3) {
+    if (k.linia && k.linia.length >= 2) {
+      const sr = srodekLinii(k.linia);
+      lat = sr[0]; lng = sr[1];
+    } else if (k.ksztalt && k.ksztalt.length >= 3) {
       const sr = srodekWielokata(k.ksztalt);
       lat = sr[0]; lng = sr[1];
     } else if (k.pozycja) {
@@ -7991,10 +8140,15 @@ function edytujKropkePoIdx(idx) {
   edytowanaKropka = kropka;
   edytowanyTyp = 'audio';
 
-  // Czy to strefa-wielokąt (ma `ksztalt`) czy klasyczne koło?
+  // Jaki kształt: ścieżka (linia) / wielokąt (ksztalt) / koło (pozycja)?
   const jestWielokat = !!(kropka.ksztalt && kropka.ksztalt.length >= 3);
+  const jestSciezka = !!(kropka.linia && kropka.linia.length >= 2);
 
-  if (jestWielokat) {
+  if (jestSciezka) {
+    const sr = srodekLinii(kropka.linia);
+    aktualnyKlik = { lat: sr[0], lng: sr[1] };
+    strefaPunkty = kropka.linia.map(p => [p[0], p[1]]); // kopia punktów trasy
+  } else if (jestWielokat) {
     const sr = srodekWielokata(kropka.ksztalt);
     aktualnyKlik = { lat: sr[0], lng: sr[1] };
     strefaPunkty = kropka.ksztalt.map(p => [p[0], p[1]]); // kopia wierzchołków
@@ -8014,17 +8168,24 @@ function edytujKropkePoIdx(idx) {
   aktualnyTypKropki = (kropka.typKropki === 'tlo') ? 'tlo' : 'wiersz';
 
   document.getElementById('adminNumer').value = kropka.numer;
-  // Promień: dla koła z danych, dla wielokąta wartość bez znaczenia (blok ukryty)
-  document.getElementById('adminPromien').value = jestWielokat ? 50 : kropka.promien;
-  const promDoWysw = jestWielokat ? 50 : kropka.promien;
+  // Promień: dla koła z danych, dla wielokąta/ścieżki bez znaczenia (blok ukryty)
+  document.getElementById('adminPromien').value = (jestWielokat || jestSciezka) ? 50 : kropka.promien;
+  const promDoWysw = (jestWielokat || jestSciezka) ? 50 : kropka.promien;
   const tekstPromien = promDoWysw >= 1000 ? (promDoWysw / 1000).toFixed(1).replace('.', ',') + ' km' : promDoWysw + ' m';
   document.getElementById('adminPromienVal').textContent = tekstPromien;
+  // Szerokość ścieżki - wczytaj jeśli to ścieżka
+  if (jestSciezka) {
+    const szerInput = document.getElementById('adminSciezkaSzer');
+    const szerVal = document.getElementById('adminSciezkaSzerVal');
+    if (szerInput) szerInput.value = kropka.szerokosc || 30;
+    if (szerVal) szerVal.textContent = (kropka.szerokosc || 30) + ' m';
+  }
   document.getElementById('adminOpis').value = kropka.opis || '';
   aktualizujKodKropki();
   ustawTypKropki(aktualnyTypKropki);
-  ustawKsztaltKropki(jestWielokat ? 'wielokat' : 'kolo');
-  // Pokaż podgląd istniejącej strefy na mapie
-  if (jestWielokat) { przerysujPodgladStrefy(); aktualizujKsztaltInfo(); }
+  ustawKsztaltKropki(jestSciezka ? 'sciezka' : (jestWielokat ? 'wielokat' : 'kolo'));
+  // Pokaż podgląd istniejącego kształtu na mapie
+  if (jestWielokat || jestSciezka) { przerysujPodgladStrefy(); aktualizujKsztaltInfo(); }
   document.getElementById('adminHelper').classList.add('visible');
 }
 
@@ -8037,10 +8198,14 @@ function edytujZaplanowanaPoIdx(idx) {
   edytowanaKropka = kropka;
   edytowanyTyp = 'planowana';
 
-  // Czy to strefa-wielokąt?
+  // Jaki kształt: ścieżka / wielokąt / koło?
   const jestWielokatZ = !!(kropka.ksztalt && kropka.ksztalt.length >= 3);
+  const jestSciezkaZ = !!(kropka.linia && kropka.linia.length >= 2);
 
-  if (jestWielokatZ) {
+  if (jestSciezkaZ) {
+    aktualnyKlik = { lat: kropka.lat, lng: kropka.lng };
+    strefaPunkty = kropka.linia.map(p => [p[0], p[1]]);
+  } else if (jestWielokatZ) {
     aktualnyKlik = { lat: kropka.lat, lng: kropka.lng };
     strefaPunkty = kropka.ksztalt.map(p => [p[0], p[1]]);
   } else {
@@ -8058,15 +8223,21 @@ function edytujZaplanowanaPoIdx(idx) {
   aktualnyTypKropki = (kropka.typKropki === 'tlo') ? 'tlo' : 'wiersz';
 
   document.getElementById('adminNumer').value = kropka.numer;
-  document.getElementById('adminPromien').value = jestWielokatZ ? 50 : kropka.promien;
-  const promDoWyswZ = jestWielokatZ ? 50 : kropka.promien;
+  document.getElementById('adminPromien').value = (jestWielokatZ || jestSciezkaZ) ? 50 : kropka.promien;
+  const promDoWyswZ = (jestWielokatZ || jestSciezkaZ) ? 50 : kropka.promien;
   const tekstPromien = promDoWyswZ >= 1000 ? (promDoWyswZ / 1000).toFixed(1).replace('.', ',') + ' km' : promDoWyswZ + ' m';
   document.getElementById('adminPromienVal').textContent = tekstPromien;
+  if (jestSciezkaZ) {
+    const szerInput = document.getElementById('adminSciezkaSzer');
+    const szerVal = document.getElementById('adminSciezkaSzerVal');
+    if (szerInput) szerInput.value = kropka.szerokosc || 30;
+    if (szerVal) szerVal.textContent = (kropka.szerokosc || 30) + ' m';
+  }
   document.getElementById('adminOpis').value = kropka.opis || '';
   aktualizujKodKropki();
   ustawTypKropki(aktualnyTypKropki);
-  ustawKsztaltKropki(jestWielokatZ ? 'wielokat' : 'kolo');
-  if (jestWielokatZ) { przerysujPodgladStrefy(); aktualizujKsztaltInfo(); }
+  ustawKsztaltKropki(jestSciezkaZ ? 'sciezka' : (jestWielokatZ ? 'wielokat' : 'kolo'));
+  if (jestWielokatZ || jestSciezkaZ) { przerysujPodgladStrefy(); aktualizujKsztaltInfo(); }
   document.getElementById('adminHelper').classList.add('visible');
 }
 
@@ -8098,6 +8269,21 @@ function sprawdzKropkiAudio() {
     // Brak marginesu antydrganiowego - wejście/wyjście jest binarne.
     if (kropka.ksztalt && kropka.ksztalt.length >= 3) {
       if (punktWWielokacie(userPozycja.lat, userPozycja.lng, kropka.ksztalt)) {
+        aktualneKropki.add(kropka.numer);
+      }
+      continue;
+    }
+
+    // ŚCIEŻKA AUDIO: korytarz wzdłuż linii trasy. Turysta jest "na ścieżce",
+    // gdy jego odległość od linii < połowa szerokości. Margines antydrganiowy
+    // +5m do połowy szerokości - tłumi skoki GPS na krawędzi ścieżki.
+    if (kropka.linia && kropka.linia.length >= 2) {
+      const odlOdLinii = dystansPunktDoLinii(userPozycja.lat, userPozycja.lng, kropka.linia);
+      const polSzer = (kropka.szerokosc || 20) / 2;
+      if (odlOdLinii <= polSzer) {
+        aktualneKropki.add(kropka.numer);
+      } else if (kropkiWZasiegu.has(kropka.numer) && odlOdLinii <= polSzer + 5) {
+        // Antydrganie - jeszcze przez 5m "na ścieżce"
         aktualneKropki.add(kropka.numer);
       }
       continue;
@@ -8147,8 +8333,11 @@ function sprawdzKropkiAudio() {
       // Reset flagi auto-odsłuchu - jeśli wejdziesz znowu w tę strefę
       // podczas auto, zostanie potraktowana jako "nowa" i zagra ponownie
       autoSesjaOdsluchane.delete(numer);
-      // Jeśli wyszliśmy ze strefy kropki która właśnie gra - zatrzymaj
-      if (aktualnaKropkaAudio && aktualnaKropkaAudio.numer === numer) {
+      // ŚCIEŻKI mają własny silnik pauzy (sekcja 2b) - ich audio NIE
+      // zatrzymujemy tutaj. Tu zatrzymujemy tylko koła i wielokąty.
+      const kropkaObj = kropkiAudio.find(kk => kk.numer === numer);
+      const toSciezka = kropkaObj && kropkaObj.linia && kropkaObj.linia.length >= 2;
+      if (!toSciezka && aktualnaKropkaAudio && aktualnaKropkaAudio.numer === numer) {
         if (aktualneAudio && !aktualneAudio.paused) {
           aktualneAudio.pause();
         }
@@ -8174,7 +8363,17 @@ function sprawdzKropkiAudio() {
   for (const numer of kropkiWZasiegu) {
     const k = kropkiAudio.find(kk => kk.numer === numer);
     if (!k) continue;
-    const odl = dystans(userPozycja.lat, userPozycja.lng, k.pozycja[0], k.pozycja[1]);
+    // Pozycja efektywna: ścieżka -> środek linii, wielokąt -> środek obrysu,
+    // koło -> pole pozycja.
+    let pLat, pLng;
+    if (k.linia && k.linia.length >= 2) {
+      const sr = srodekLinii(k.linia); pLat = sr[0]; pLng = sr[1];
+    } else if (k.ksztalt && k.ksztalt.length >= 3) {
+      const sr = srodekWielokata(k.ksztalt); pLat = sr[0]; pLng = sr[1];
+    } else if (k.pozycja) {
+      pLat = k.pozycja[0]; pLng = k.pozycja[1];
+    } else { continue; }
+    const odl = dystans(userPozycja.lat, userPozycja.lng, pLat, pLng);
     if (odl < minOdl) {
       najblizszaW = k;
       minOdl = odl;
@@ -8225,6 +8424,17 @@ function sprawdzKropkiTla() {
       continue;
     }
 
+    // ŚCIEŻKA tła: w zasięgu = turysta na korytarzu wzdłuż linii.
+    if (kropka.linia && kropka.linia.length >= 2) {
+      const polSzer = (kropka.szerokosc || 30) / 2;
+      const odlL = dystansPunktDoLinii(userPozycja.lat, userPozycja.lng, kropka.linia);
+      if (odlL <= polSzer && odlL < minOdlTla) {
+        najblizszaTla = kropka;
+        minOdlTla = odlL;
+      }
+      continue;
+    }
+
     // KOŁO tła: klasyczne punkt + promień.
     const odl = dystans(
       userPozycja.lat, userPozycja.lng,
@@ -8237,8 +8447,39 @@ function sprawdzKropkiTla() {
   }
 
   const numerNowej = najblizszaTla ? najblizszaTla.numer : null;
+  // Czy najbliższa strefa tła to ŚCIEŻKA? (ma własny silnik pauzy)
+  const nowaToSciezka = !!(najblizszaTla && najblizszaTla.linia && najblizszaTla.linia.length >= 2);
 
-  // Czy zmieniła się strefa tła?
+  // === ŚCIEŻKA-TŁO: osobny silnik (pauza 4 s + wznawianie od miejsca) ===
+  // Jeśli turysta jest na ścieżce-tle, obsługujemy ją silnikiem ścieżki,
+  // a nie zwykłym crossfade. Zwykłe strefy tła (koło/wielokąt) jak dotąd.
+  if (nowaToSciezka) {
+    // Wejście w inną strefę niż spauzowana ścieżka - skasuj tamtą ścieżkę
+    if (sciezkaGrajacaNumer !== null && sciezkaGrajacaNumer !== numerNowej) {
+      kasujSciezkeTlaGdyInnaStrefa(numerNowej);
+    }
+    wejscieNaSciezkeTla(najblizszaTla);
+    aktualnaKropkaTla = numerNowej;
+    zastosujDuckingTla();
+    return;
+  }
+
+  // Turysta NIE jest na ścieżce. Jeśli wcześniej grała ścieżka-tło:
+  if (sciezkaGrajacaNumer !== null) {
+    if (numerNowej === null) {
+      // Wyszedł ze ścieżki i nie wszedł w nic - uruchom margines pauzy 4 s
+      wyjscieZeSciezkiTla(sciezkaGrajacaNumer);
+      // aktualnaKropkaTla zostawiamy - ścieżka jest "w toku" (spauzowana)
+      zastosujDuckingTla();
+      return;
+    } else {
+      // Wszedł w INNĄ strefę tła (koło/wielokąt) - skasuj spauzowaną ścieżkę
+      kasujSciezkeTlaGdyInnaStrefa(numerNowej);
+      // dalej leci normalna obsługa zwykłej strefy tła niżej
+    }
+  }
+
+  // Czy zmieniła się strefa tła? (zwykłe strefy - koło / wielokąt)
   if (numerNowej !== aktualnaKropkaTla) {
     if (numerNowej === null) {
       // Wyszliśmy ze wszystkich stref tła - fade-out do ciszy
@@ -8448,9 +8689,11 @@ function aktualizujPulsatoryAudio() {
   // Dla każdego unikalnego numeru znajdź najbliższy segment
   const najblizszePerNumer = new Map(); // numer -> { kropka, odl }
   for (const k of kropkiAudio) {
-    // STREFY-WIELOKĄTY nie mają pulsatora "podejdź tu" - działają tylko
-    // na wejście/wyjście. Pomijamy je w silniku pulsatorów.
+    // STREFY-WIELOKĄTY i ŚCIEŻKI nie mają pulsatora "podejdź tu" - działają
+    // tylko na wejście/wyjście. Pomijamy je w silniku pulsatorów.
     if (k.ksztalt && k.ksztalt.length >= 3) continue;
+    if (k.linia && k.linia.length >= 2) continue;
+    if (!k.pozycja) continue; // brak pozycji - pomiń (uszkodzone dane)
     const odl = dystans(userPozycja.lat, userPozycja.lng, k.pozycja[0], k.pozycja[1]);
     const dotychczas = najblizszePerNumer.get(k.numer);
     if (!dotychczas || odl < dotychczas.odl) {
@@ -8659,6 +8902,81 @@ function odtworzKropke(kropka) {
     const popupBtn = document.querySelector('.popup-audio-btn[data-numer="' + kropka.numer + '"]');
     if (popupBtn) popupBtn.textContent = '▶ Posłuchaj';
   };
+}
+
+// =====================================================================
+// === ŚCIEŻKI AUDIO - funkcje silnika pauzy ===========================
+// =====================================================================
+
+// Turysta WSZEDŁ na ścieżkę. Trzy przypadki:
+//  a) To ta sama ścieżka, której audio jest spauzowane (krótko temu wyszedł)
+//     -> WZNÓW od miejsca pauzy. Anuluj timer pauzy, jeśli leciał.
+//  b) To ścieżka, która właśnie gra -> nic nie rób (już gra).
+//  c) Nowa ścieżka -> zatrzymaj cokolwiek grało wcześniej, zacznij od początku.
+// Turysta WSZEDŁ na ścieżkę-tło. Trzy przypadki:
+//  a) Ta sama ścieżka, audio tła SPAUZOWANE (krótko temu wyszedł)
+//     -> WZNÓW od miejsca pauzy. Anuluj timer pauzy.
+//  b) Ta ścieżka już gra -> nic nie rób.
+//  c) Nowa ścieżka -> crossfade na nowy podkład (odtworzAudioTlo).
+function wejscieNaSciezkeTla(kropka) {
+  // Anuluj odliczany timer pauzy - turysta wrócił na czas
+  if (sciezkaPauzaTimer) {
+    clearTimeout(sciezkaPauzaTimer);
+    sciezkaPauzaTimer = null;
+  }
+  // (b) Ta ścieżka-tło już gra realnie - nic nie robimy
+  if (sciezkaGrajacaNumer === kropka.numer && audioTlo && !audioTlo.paused) {
+    return;
+  }
+  // (a) Ta sama ścieżka, audio tła SPAUZOWANE -> wznów od miejsca
+  if (sciezkaGrajacaNumer === kropka.numer && audioTlo && audioTlo.paused) {
+    audioTlo.play().then(() => {
+      // Podgłośnij z powrotem do bazowej (była pauza, nie crossfade)
+      fadeAudioTloDo(audioTloDuckingActive
+        ? audioTloGloznoscBazowa * 0.3
+        : audioTloGloznoscBazowa);
+    }).catch(err => console.warn('Wznowienie ścieżki-tła nieudane:', err));
+    return;
+  }
+  // (c) Nowa ścieżka-tło - crossfade na jej podkład
+  sciezkaGrajacaNumer = kropka.numer;
+  odtworzAudioTlo(kropka.numer);
+}
+
+// Turysta WYSZEDŁ ze ścieżki-tła. NIE pauzujemy od razu - 4 s marginesu
+// na skok GPS. Wróci przed czasem -> wejscieNaSciezkeTla anuluje timer.
+// Po marginesie -> pauza (audioTlo czeka w miejscu, currentTime zachowane).
+function wyjscieZeSciezkiTla(numer) {
+  if (sciezkaGrajacaNumer !== numer) return; // to nie ta ścieżka
+  if (sciezkaPauzaTimer) return;             // timer już leci
+  sciezkaPauzaTimer = setTimeout(() => {
+    sciezkaPauzaTimer = null;
+    // Po 4 s nadal poza ścieżką -> pauza. NIE zerujemy currentTime -
+    // przy powrocie audio wznowi się dokładnie z tego miejsca.
+    if (audioTlo && !audioTlo.paused) {
+      audioTlo.pause();
+    }
+    // sciezkaGrajacaNumer ZOSTAJE - tło spauzowane, ale "w toku".
+    // Skasuje je dopiero wejście w INNĄ strefę tła.
+  }, SCIEZKA_MARGINES_PAUZY_MS);
+}
+
+// Wejście w INNĄ strefę tła (koło / wielokąt / inna ścieżka) kasuje
+// spauzowaną ścieżkę-tło na dobre - "kasuje się dopiero przy kolejnej strefie".
+function kasujSciezkeTlaGdyInnaStrefa(numerNowej) {
+  if (sciezkaGrajacaNumer === null) return;
+  if (sciezkaGrajacaNumer === numerNowej) return; // ta sama - nie kasuj
+  if (sciezkaPauzaTimer) {
+    clearTimeout(sciezkaPauzaTimer);
+    sciezkaPauzaTimer = null;
+  }
+  // Zamknij spauzowane audio tła ścieżki
+  if (audioTlo) {
+    audioTlo.pause();
+    audioTlo.currentTime = 0;
+    audioTlo = null;
+  }
+  sciezkaGrajacaNumer = null;
 }
 
 // =====================================================================
@@ -9260,10 +9578,12 @@ function autoPrezentacjaOdtworzBiezacy() {
     return;
   }
 
-  // Pozycja efektywna kropki (strefa-wielokąt → środek obrysu, koło → pozycja)
-  const pozKropki = (kropka.ksztalt && kropka.ksztalt.length >= 3)
-    ? srodekWielokata(kropka.ksztalt)
-    : (kropka.pozycja || null);
+  // Pozycja efektywna kropki (ścieżka → środek linii, wielokąt → środek obrysu, koło → pozycja)
+  const pozKropki = (kropka.linia && kropka.linia.length >= 2)
+    ? srodekLinii(kropka.linia)
+    : ((kropka.ksztalt && kropka.ksztalt.length >= 3)
+      ? srodekWielokata(kropka.ksztalt)
+      : (kropka.pozycja || null));
 
   // Wycentruj mapę na kropce (płynny przelot)
   if (typeof mapa !== 'undefined' && mapa && pozKropki) {
@@ -9765,11 +10085,14 @@ function renderujZaplanowane() {
 
   // Narysuj nowe
   zaplanowaneKropki.forEach((kropka, idx) => {
-    // Czy to strefa-wielokąt (ma `ksztalt`) czy koło (ma `promien`)?
+    // Jaki kształt: ścieżka (linia) / wielokąt (ksztalt) / koło (promien)?
     const jestWielokat = !!(kropka.ksztalt && kropka.ksztalt.length >= 3);
-    const opisZasiegu = jestWielokat
-      ? `Strefa rysowana (${kropka.ksztalt.length} pkt.)`
-      : `Promień: ${kropka.promien} m`;
+    const jestSciezka = !!(kropka.linia && kropka.linia.length >= 2);
+    const opisZasiegu = jestSciezka
+      ? `Ścieżka audio (${kropka.linia.length} pkt., szer. ${kropka.szerokosc || 30} m)`
+      : (jestWielokat
+        ? `Strefa rysowana (${kropka.ksztalt.length} pkt.)`
+        : `Promień: ${kropka.promien} m`);
 
     const popupTresc = `<b>📌 Zaplanowana kropka #${kropka.numer}</b>${kropka.opis || '(bez opisu)'}<em>📏 ${opisZasiegu}<br>📍 ${kropka.lat.toFixed(5)}, ${kropka.lng.toFixed(5)}</em>
       <button class="popup-nav-btn" onclick="edytujZaplanowanaPoIdx(${idx});mapa.closePopup();">✏️ Edytuj kropkę</button>`;
@@ -9783,16 +10106,28 @@ function renderujZaplanowane() {
       })
     }).bindPopup(popupTresc);
 
-    // Obrys strefy: wielokąt albo koło
+    // Obrys strefy: ścieżka (korytarz) / wielokąt / koło
     let krag;
-    if (jestWielokat) {
+    if (jestSciezka) {
+      // ŚCIEŻKA: korytarz jako WIELOKĄT (bufor wokół trasy) + oś
+      const szerM = kropka.szerokosc || 30;
+      const obrys = obrysKorytarza(kropka.linia, szerM);
+      const korytarz = L.polygon(obrys, {
+        color: '#4ade80', weight: 1.5, opacity: 0.5,
+        fillColor: '#4ade80', fillOpacity: 0.18
+      });
+      const os = L.polyline(kropka.linia, {
+        color: '#22c55e', weight: 2, opacity: 0.7, dashArray: '4, 4'
+      });
+      krag = L.layerGroup([korytarz, os]).addTo(mapa);
+    } else if (jestWielokat) {
       krag = L.polygon(kropka.ksztalt, {
         color: '#22c55e', weight: 2, opacity: 0.6,
         fillColor: '#4ade80', fillOpacity: 0.12, dashArray: '4, 4'
       }).addTo(mapa);
     } else {
       krag = L.circle([kropka.lat, kropka.lng], {
-        radius: kropka.promien,
+        radius: kropka.promien || 50,
         color: '#22c55e', weight: 2, opacity: 0.5,
         fillColor: '#4ade80', fillOpacity: 0.1, dashArray: '4, 4'
       }).addTo(mapa);
@@ -10461,6 +10796,26 @@ function planujKolejna() {
     // Wyczyść stan rysowania - strefa zapisana
     strefaPunkty = [];
     wyczyscPodgladStrefy();
+  } else if (aktualnyKsztaltKropki === 'sciezka') {
+    // === ŚCIEŻKA AUDIO ===
+    if (strefaPunkty.length < 2) {
+      alert('Najpierw narysuj ścieżkę na mapie (min. 2 punkty).\nKliknij „🛤️ Rysuj ścieżkę na mapie”.');
+      return;
+    }
+    const szer = parseInt(document.getElementById('adminSciezkaSzer').value) || 30;
+    const sr = srodekLinii(strefaPunkty);
+    zaplanowaneKropki.push({
+      numer: numer,
+      // lat/lng = środek trasy (dla zgodności z resztą kodu)
+      lat: sr[0],
+      lng: sr[1],
+      linia: strefaPunkty.slice(),     // kopia listy punktów trasy
+      szerokosc: szer,                  // szerokość korytarza w metrach
+      opis: opis,
+      typKropki: aktualnyTypKropki
+    });
+    strefaPunkty = [];
+    wyczyscPodgladStrefy();
   } else {
     // === KROPKA-KOŁO (klasyczna) ===
     if (!aktualnyKlik) return;
@@ -10685,6 +11040,8 @@ async function pobierzNowyIndex() {
         lng: k.pozycja ? k.pozycja[1] : (k.lng || 0),
         promien: k.promien,
         ksztalt: k.ksztalt || null,
+        linia: k.linia || null,
+        szerokosc: k.szerokosc || null,
         opis: k.opis || '',
         pokazFale: k.pokazFale === true,
         trybKropki: k.trybKropki || null,
@@ -10712,12 +11069,26 @@ async function pobierzNowyIndex() {
         return `  { numer: ${k.numer}, ksztalt: [${punkty}], opis: '${opis}'${typ} }`;
       }
 
+      // ŚCIEŻKA AUDIO: ma pole `linia` (lista [lat,lng]) + `szerokosc` (metry).
+      if (k.linia && k.linia.length >= 2) {
+        const punkty = k.linia
+          .map(p => `[${p[0].toFixed(5)}, ${p[1].toFixed(5)}]`)
+          .join(', ');
+        const szer = k.szerokosc || 30;
+        return `  { numer: ${k.numer}, linia: [${punkty}], szerokosc: ${szer}, opis: '${opis}'${typ} }`;
+      }
+
       // KROPKA-KOŁO: klasyczny zapis pozycja + promień.
       // pokazFale dodajemy TYLKO gdy true (oszczędność miejsca; brak pola = false)
       const fala = k.pokazFale === true ? ', pokazFale: true' : '';
       // trybKropki: zapisujemy TYLKO gdy różny od domyślnego 'sredni' (czyli 'maly' lub 'duzy')
       const tryb = (k.trybKropki && k.trybKropki !== 'sredni') ? `, trybKropki: '${k.trybKropki}'` : '';
-      return `  { numer: ${k.numer}, pozycja: [${k.lat.toFixed(5)}, ${k.lng.toFixed(5)}], promien: ${k.promien}, opis: '${opis}'${fala}${tryb}${typ} }`;
+      // Zabezpieczenie: lat/lng zawsze liczba (undefined -> 0). Bez tego
+      // .toFixed() wybucha i przerywa cały eksport.
+      const kLat = (typeof k.lat === 'number') ? k.lat : 0;
+      const kLng = (typeof k.lng === 'number') ? k.lng : 0;
+      const kProm = k.promien || 50;
+      return `  { numer: ${k.numer}, pozycja: [${kLat.toFixed(5)}, ${kLng.toFixed(5)}], promien: ${kProm}, opis: '${opis}'${fala}${tryb}${typ} }`;
     });
     const nowaTablicaKropek = `const kropkiAudio = [\n${linie.join(',\n')}\n];`;
 
@@ -10766,8 +11137,17 @@ async function pobierzNowyIndex() {
     if (aktualnaNazwa) {
       // Escape dla regex replacement (specjalnie $)
       const safeNazwa = aktualnaNazwa.replace(/\$/g, '$$$$');
-      // 1. Podmień <h1>...</h1> (pierwszy h1 w pliku)
-      tekst = tekst.replace(/<h1>([\s\S]*?)<\/h1>/, `<h1>${safeNazwa}</h1>`);
+      // 1. Podmień <h1>...</h1> w sekcji <header> (prawdziwy nagłówek strony).
+      //    UWAGA: NIE używamy gołego /<h1>...<\/h1>/ - w pliku jest tekst "<h1>"
+      //    w komentarzu CSS (linia "Nagłówek <h1> i pasek...") oraz w kodzie JS
+      //    (formatowanie markdown). Goły regex trafiłby w komentarz i połknął
+      //    cały HTML aż do następnego </h1> - razem z tagiem <body>. Skutek:
+      //    wygenerowany plik bez <body> = pusta strona. Dlatego celujemy
+      //    precyzyjnie: <h1> musi stać wewnątrz <header>.
+      tekst = tekst.replace(
+        /(<header>\s*<h1>)[\s\S]*?(<\/h1>)/,
+        `$1${safeNazwa}$2`
+      );
       // 2. Podmień fragment w <title> - zachowaj suffix po " · "
       tekst = tekst.replace(/<title>([^<]*)<\/title>/, (m, stary) => {
         const obecny = stary.trim();
@@ -11064,19 +11444,34 @@ function zapiszEdycje() {
     return; // nie zapisuj
   }
 
-  // Czy zapisujemy strefę-wielokąt czy kropkę-koło?
+  // Jaki kształt zapisujemy: ścieżka / wielokąt / koło?
+  const zapisSciezka = (aktualnyKsztaltKropki === 'sciezka');
   const zapisWielokat = (aktualnyKsztaltKropki === 'wielokat');
   if (zapisWielokat && strefaPunkty.length < 3) {
     alert('Strefa-wielokąt musi mieć min. 3 punkty. Narysuj strefę albo przełącz na „Okrąg”.');
     return;
   }
-  // Dla koła potrzebny punkt klik; dla wielokąta liczymy środek z obrysu
-  if (!zapisWielokat && !aktualnyKlik) return;
+  if (zapisSciezka && strefaPunkty.length < 2) {
+    alert('Ścieżka musi mieć min. 2 punkty. Narysuj ścieżkę albo przełącz na „Okrąg”.');
+    return;
+  }
+  // Dla koła potrzebny punkt klik; dla wielokąta/ścieżki liczymy środek
+  if (!zapisWielokat && !zapisSciezka && !aktualnyKlik) return;
+
   const ksztaltKopia = zapisWielokat ? strefaPunkty.map(p => [p[0], p[1]]) : null;
-  const sr = zapisWielokat ? srodekWielokata(ksztaltKopia) : null;
-  // Punkt reprezentatywny (lat/lng) - środek wielokąta albo punkt koła
-  const repLat = zapisWielokat ? sr[0] : aktualnyKlik.lat;
-  const repLng = zapisWielokat ? sr[1] : aktualnyKlik.lng;
+  const liniaKopia = zapisSciezka ? strefaPunkty.map(p => [p[0], p[1]]) : null;
+  const szerSciezki = zapisSciezka
+    ? (parseInt(document.getElementById('adminSciezkaSzer').value) || 30)
+    : null;
+  // Punkt reprezentatywny (lat/lng)
+  let repLat, repLng;
+  if (zapisWielokat) {
+    const sr = srodekWielokata(ksztaltKopia); repLat = sr[0]; repLng = sr[1];
+  } else if (zapisSciezka) {
+    const sr = srodekLinii(liniaKopia); repLat = sr[0]; repLng = sr[1];
+  } else {
+    repLat = aktualnyKlik.lat; repLng = aktualnyKlik.lng;
+  }
 
   if (edytowanyTyp === 'audio') {
     // Edytujemy kropkę z kodu - zapisujemy zmiany do listy zaplanowanych
@@ -11089,26 +11484,44 @@ function zapiszEdycje() {
       k.numer = numer;
       k.opis = opis;
       k.typKropki = aktualnyTypKropki;
-      if (zapisWielokat) {
-        // Strefa-wielokąt: ustaw ksztalt, usuń pola koła
+      if (zapisSciezka) {
+        // Ścieżka: ustaw linia+szerokosc, usuń pola koła i wielokąta
+        k.linia = liniaKopia;
+        k.szerokosc = szerSciezki;
+        k.pozycja = [repLat, repLng]; // środek - dla zgodności
+        delete k.ksztalt;
+        delete k.promien;
+        delete k.pokazFale;
+        delete k.trybKropki;
+      } else if (zapisWielokat) {
+        // Strefa-wielokąt: ustaw ksztalt, usuń pola koła i ścieżki
         k.ksztalt = ksztaltKopia;
-        k.pozycja = [repLat, repLng]; // środek - dla zgodności z resztą kodu
+        k.pozycja = [repLat, repLng];
+        delete k.linia;
+        delete k.szerokosc;
         delete k.promien;
         delete k.pokazFale;
         delete k.trybKropki;
       } else {
-        // Koło: ustaw pozycja+promień, usuń ksztalt
+        // Koło: ustaw pozycja+promień, usuń ksztalt i linię
         k.pozycja = [repLat, repLng];
         k.promien = promien;
         k.pokazFale = aktualnyPokazFale;
         k.trybKropki = aktualnyTrybKropki;
         delete k.ksztalt;
+        delete k.linia;
+        delete k.szerokosc;
       }
     }
     // Dodatkowo do zaplanowanych żeby trafiło do pobranego pliku.
-    const wpis = zapisWielokat
-      ? { numer, lat: repLat, lng: repLng, ksztalt: ksztaltKopia, opis, typKropki: aktualnyTypKropki, __ref: edytowanaKropka }
-      : { numer, lat: repLat, lng: repLng, promien, opis, pokazFale: aktualnyPokazFale, trybKropki: aktualnyTrybKropki, typKropki: aktualnyTypKropki, __ref: edytowanaKropka };
+    let wpis;
+    if (zapisSciezka) {
+      wpis = { numer, lat: repLat, lng: repLng, linia: liniaKopia, szerokosc: szerSciezki, opis, typKropki: aktualnyTypKropki, __ref: edytowanaKropka };
+    } else if (zapisWielokat) {
+      wpis = { numer, lat: repLat, lng: repLng, ksztalt: ksztaltKopia, opis, typKropki: aktualnyTypKropki, __ref: edytowanaKropka };
+    } else {
+      wpis = { numer, lat: repLat, lng: repLng, promien, opis, pokazFale: aktualnyPokazFale, trybKropki: aktualnyTrybKropki, typKropki: aktualnyTypKropki, __ref: edytowanaKropka };
+    }
     const istn = zaplanowaneKropki.findIndex(k => k.__ref === edytowanaKropka);
     if (istn >= 0) {
       zaplanowaneKropki[istn] = wpis;
@@ -11121,8 +11534,17 @@ function zapiszEdycje() {
     edytowanaKropka.lng = repLng;
     edytowanaKropka.opis = opis;
     edytowanaKropka.typKropki = aktualnyTypKropki;
-    if (zapisWielokat) {
+    if (zapisSciezka) {
+      edytowanaKropka.linia = liniaKopia;
+      edytowanaKropka.szerokosc = szerSciezki;
+      delete edytowanaKropka.ksztalt;
+      delete edytowanaKropka.promien;
+      delete edytowanaKropka.pokazFale;
+      delete edytowanaKropka.trybKropki;
+    } else if (zapisWielokat) {
       edytowanaKropka.ksztalt = ksztaltKopia;
+      delete edytowanaKropka.linia;
+      delete edytowanaKropka.szerokosc;
       delete edytowanaKropka.promien;
       delete edytowanaKropka.pokazFale;
       delete edytowanaKropka.trybKropki;
@@ -11131,6 +11553,8 @@ function zapiszEdycje() {
       edytowanaKropka.pokazFale = aktualnyPokazFale;
       edytowanaKropka.trybKropki = aktualnyTrybKropki;
       delete edytowanaKropka.ksztalt;
+      delete edytowanaKropka.linia;
+      delete edytowanaKropka.szerokosc;
     }
   }
 
@@ -11186,7 +11610,7 @@ function zaktualizujPrzyciskiHelpera() {
 
   // Wybór rozmiaru kropki (mała/średnia/duża) - dotyczy tylko KOŁA.
   // Dla strefy-wielokąta marker siada na środku obrysu, rozmiar nie ma sensu.
-  const blokRozmiaru = (aktualnyKsztaltKropki === 'wielokat') ? '' : `
+  const blokRozmiaru = (aktualnyKsztaltKropki !== 'kolo') ? '' : `
       <div class="rozmiar-wybor" id="trybKropkiWybor" style="margin-bottom:10px">
         <button type="button" class="rozmiar-btn" data-tryb="maly" onclick="ustawTrybKropki('maly')" title="Mała kropka - dla mniej istotnych punktów.">
           <span class="rozmiar-emoji" style="font-size:14px !important">📍</span>
@@ -11202,14 +11626,20 @@ function zaktualizujPrzyciskiHelpera() {
         </button>
       </div>`;
 
-  // Przycisk "Rysuj strefę na mapie" - tylko dla kształtu wielokąt.
-  // Tekst zależny od tego czy strefa już ma punkty (rysuj od nowa / popraw).
+  // Przycisk "Rysuj strefę/ścieżkę na mapie" - dla wielokąta i ścieżki.
+  // Tekst zależny od tego czy kształt już ma punkty (rysuj od nowa / popraw).
   let blokRysujStrefe = '';
   if (aktualnyKsztaltKropki === 'wielokat') {
     const maPunkty = strefaPunkty.length >= 3;
     blokRysujStrefe = `
       <button type="button" class="btn-rysuj-strefe" onclick="rozpocznijRysowanieStrefy()">
         ${maPunkty ? '✏️ Rysuj strefę od nowa' : '✏️ Rysuj strefę na mapie'}
+      </button>`;
+  } else if (aktualnyKsztaltKropki === 'sciezka') {
+    const maPunkty = strefaPunkty.length >= 2;
+    blokRysujStrefe = `
+      <button type="button" class="btn-rysuj-strefe" onclick="rozpocznijRysowanieStrefy()">
+        ${maPunkty ? '🛤️ Rysuj ścieżkę od nowa' : '🛤️ Rysuj ścieżkę na mapie'}
       </button>`;
   }
 
@@ -11714,6 +12144,17 @@ if (isAdmin) {
     aktualizujKodKropki();
   });
 
+  // Suwak szerokości ścieżki audio - aktualizuje wyświetlacz i podgląd korytarza
+  document.getElementById('adminSciezkaSzer')?.addEventListener('input', () => {
+    const v = parseInt(document.getElementById('adminSciezkaSzer').value, 10) || 30;
+    const val = document.getElementById('adminSciezkaSzerVal');
+    if (val) val.textContent = v + ' m';
+    // Jeśli ścieżka jest narysowana - przerysuj podgląd z nową szerokością
+    if (aktualnyKsztaltKropki === 'sciezka' && strefaPunkty.length >= 2) {
+      przerysujPodgladStrefy();
+    }
+  });
+
   // Listenery dla pól formularza miejsc
   ['miejsceNazwa','miejsceKategoria','miejsceIkona'].forEach(id => {
     const el = document.getElementById(id);
@@ -12182,6 +12623,125 @@ function srodekWielokata(wielokat) {
   let sumLat = 0, sumLng = 0;
   for (const p of wielokat) { sumLat += p[0]; sumLng += p[1]; }
   return [sumLat / wielokat.length, sumLng / wielokat.length];
+}
+
+// =====================================================================
+// === ŚCIEŻKI AUDIO - geometria =======================================
+// =====================================================================
+// Ścieżka audio to TRZECI kształt strefy (obok koła i wielokąta).
+// To "korytarz": linia narysowana po mapie (trasa) + szerokość w metrach.
+// Turysta jest "na ścieżce", gdy jego odległość od linii jest mniejsza
+// niż połowa szerokości ścieżki.
+//
+// Kropka-ścieżka ma pole `linia` (lista punktów [[lat,lng], ...] - trasa)
+// oraz `szerokosc` (szerokość korytarza w metrach).
+
+// Odległość punktu [lat,lng] od ODCINKA (a -> b), w metrach.
+// Rzutujemy punkt na odcinek; jeśli rzut wypada poza odcinek,
+// bierzemy bliższy koniec. Działa lokalnie (małe odległości),
+// więc używamy przybliżenia płaskiego z korektą cos(szerokości).
+function dystansPunktDoOdcinka(plat, plng, alat, alng, blat, blng) {
+  // Przelicz stopnie na metry lokalnie (1 stopień szerokości ~111320 m,
+  // długości - przeskalowane przez cos szerokości geograficznej).
+  const mPerLat = 111320;
+  const mPerLng = 111320 * Math.cos(plat * Math.PI / 180);
+  // Punkty w metrach względem punktu a
+  const ax = 0, ay = 0;
+  const bx = (blng - alng) * mPerLng, by = (blat - alat) * mPerLat;
+  const px = (plng - alng) * mPerLng, py = (plat - alat) * mPerLat;
+  // Wektor odcinka
+  const dx = bx - ax, dy = by - ay;
+  const dlugoscKw = dx * dx + dy * dy;
+  let t = 0;
+  if (dlugoscKw > 0) {
+    // Parametr rzutu (0 = początek odcinka, 1 = koniec)
+    t = ((px - ax) * dx + (py - ay) * dy) / dlugoscKw;
+    if (t < 0) t = 0;
+    if (t > 1) t = 1;
+  }
+  // Najbliższy punkt na odcinku
+  const rx = ax + t * dx, ry = ay + t * dy;
+  // Odległość od niego
+  return Math.sqrt((px - rx) * (px - rx) + (py - ry) * (py - ry));
+}
+
+// Odległość punktu od całej ŁAMANEJ (lista punktów trasy), w metrach.
+// To minimum z odległości do wszystkich odcinków łamanej.
+function dystansPunktDoLinii(plat, plng, linia) {
+  if (!linia || linia.length < 2) return Infinity;
+  let min = Infinity;
+  for (let i = 0; i < linia.length - 1; i++) {
+    const d = dystansPunktDoOdcinka(
+      plat, plng,
+      linia[i][0], linia[i][1],
+      linia[i + 1][0], linia[i + 1][1]
+    );
+    if (d < min) min = d;
+  }
+  return min;
+}
+
+// Czy turysta jest "na ścieżce"? Tak, gdy odległość od linii trasy
+// jest mniejsza niż połowa szerokości ścieżki.
+function naSciezce(plat, plng, linia, szerokosc) {
+  if (!linia || linia.length < 2) return false;
+  return dystansPunktDoLinii(plat, plng, linia) <= (szerokosc / 2);
+}
+
+// Środek linii - punkt mniej więcej w połowie trasy. Używane do
+// postawienia markera-etykiety ścieżki i sortowania w liście.
+function srodekLinii(linia) {
+  if (!linia || linia.length === 0) return null;
+  if (linia.length === 1) return [linia[0][0], linia[0][1]];
+  // Bierzemy punkt środkowy listy (przybliżenie - wystarczy do etykiety)
+  const i = Math.floor(linia.length / 2);
+  return [linia[i][0], linia[i][1]];
+}
+
+// Obrys KORYTARZA ścieżki - z linii trasy + szerokości tworzy wielokąt
+// (obszar) o brzegach oddalonych od osi o połowę szerokości w metrach.
+// Dzięki temu Leaflet rysuje go jako realny obszar w geo-współrzędnych -
+// skaluje się przy zoomie i wiernie oddaje szerokość (200 m != 60 m).
+// Wersja "A": prosty bufor - lewa krawędź wzdłuż trasy, prawa z powrotem.
+function obrysKorytarza(linia, szerokoscM) {
+  if (!linia || linia.length < 2) return null;
+  const polSzer = (szerokoscM || 30) / 2;
+  // Przelicznik metry -> stopnie (lokalnie). Szerokość: stała.
+  // Długość: skalowana przez cos(szerokości geograficznej).
+  const mPerLat = 111320;
+  const lewa = [];   // punkty lewej krawędzi (wzdłuż trasy)
+  const prawa = [];  // punkty prawej krawędzi
+
+  for (let i = 0; i < linia.length; i++) {
+    const lat = linia[i][0], lng = linia[i][1];
+    const mPerLng = 111320 * Math.cos(lat * Math.PI / 180);
+    // Kierunek w tym punkcie - średnia z odcinka przed i po (gładsze rogi)
+    let dxs = 0, dys = 0;
+    if (i > 0) {
+      // wektor od poprzedniego punktu (w metrach)
+      const vx = (lng - linia[i-1][1]) * mPerLng;
+      const vy = (lat - linia[i-1][0]) * mPerLat;
+      const d = Math.sqrt(vx*vx + vy*vy) || 1;
+      dxs += vx/d; dys += vy/d;
+    }
+    if (i < linia.length - 1) {
+      const vx = (linia[i+1][1] - lng) * mPerLng;
+      const vy = (linia[i+1][0] - lat) * mPerLat;
+      const d = Math.sqrt(vx*vx + vy*vy) || 1;
+      dxs += vx/d; dys += vy/d;
+    }
+    const dlen = Math.sqrt(dxs*dxs + dys*dys) || 1;
+    const kx = dxs/dlen, ky = dys/dlen;       // znormalizowany kierunek trasy
+    // Wektor prostopadły (obrót o 90 stopni)
+    const nx = -ky, ny = kx;
+    // Przesuń punkt o polSzer metrów w obie strony, przelicz metry->stopnie
+    const offLatL = (ny * polSzer) / mPerLat;
+    const offLngL = (nx * polSzer) / mPerLng;
+    lewa.push([lat + offLatL, lng + offLngL]);
+    prawa.push([lat - offLatL, lng - offLngL]);
+  }
+  // Obrys: lewa krawędź w przód + prawa krawędź w tył = zamknięty wielokąt
+  return lewa.concat(prawa.reverse());
 }
 
 function ikonaUzytkownika() {
@@ -13037,10 +13597,12 @@ function przeliczFiltrOdleglosci() {
   audioMarkery.forEach(m => {
     const k = m.kropka;
     if (!k) return;
-    // Pozycja efektywna: strefa-wielokąt → środek obrysu, koło → pozycja.
-    // Marker strefy i tak siedzi na środku, więc bierzemy jego latlng.
+    // Pozycja efektywna: ścieżka → środek linii, wielokąt → środek obrysu, koło → pozycja.
     let pLat, pLng;
-    if (k.ksztalt && k.ksztalt.length >= 3) {
+    if (k.linia && k.linia.length >= 2) {
+      const sr = srodekLinii(k.linia);
+      pLat = sr[0]; pLng = sr[1];
+    } else if (k.ksztalt && k.ksztalt.length >= 3) {
       const sr = srodekWielokata(k.ksztalt);
       pLat = sr[0]; pLng = sr[1];
     } else if (k.pozycja) {
