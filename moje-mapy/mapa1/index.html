@@ -11083,7 +11083,12 @@ async function pobierzNowyIndex() {
       const fala = k.pokazFale === true ? ', pokazFale: true' : '';
       // trybKropki: zapisujemy TYLKO gdy różny od domyślnego 'sredni' (czyli 'maly' lub 'duzy')
       const tryb = (k.trybKropki && k.trybKropki !== 'sredni') ? `, trybKropki: '${k.trybKropki}'` : '';
-      return `  { numer: ${k.numer}, pozycja: [${k.lat.toFixed(5)}, ${k.lng.toFixed(5)}], promien: ${k.promien}, opis: '${opis}'${fala}${tryb}${typ} }`;
+      // Zabezpieczenie: lat/lng zawsze liczba (undefined -> 0). Bez tego
+      // .toFixed() wybucha i przerywa cały eksport.
+      const kLat = (typeof k.lat === 'number') ? k.lat : 0;
+      const kLng = (typeof k.lng === 'number') ? k.lng : 0;
+      const kProm = k.promien || 50;
+      return `  { numer: ${k.numer}, pozycja: [${kLat.toFixed(5)}, ${kLng.toFixed(5)}], promien: ${kProm}, opis: '${opis}'${fala}${tryb}${typ} }`;
     });
     const nowaTablicaKropek = `const kropkiAudio = [\n${linie.join(',\n')}\n];`;
 
@@ -11132,8 +11137,17 @@ async function pobierzNowyIndex() {
     if (aktualnaNazwa) {
       // Escape dla regex replacement (specjalnie $)
       const safeNazwa = aktualnaNazwa.replace(/\$/g, '$$$$');
-      // 1. Podmień <h1>...</h1> (pierwszy h1 w pliku)
-      tekst = tekst.replace(/<h1>([\s\S]*?)<\/h1>/, `<h1>${safeNazwa}</h1>`);
+      // 1. Podmień <h1>...</h1> w sekcji <header> (prawdziwy nagłówek strony).
+      //    UWAGA: NIE używamy gołego /<h1>...<\/h1>/ - w pliku jest tekst "<h1>"
+      //    w komentarzu CSS (linia "Nagłówek <h1> i pasek...") oraz w kodzie JS
+      //    (formatowanie markdown). Goły regex trafiłby w komentarz i połknął
+      //    cały HTML aż do następnego </h1> - razem z tagiem <body>. Skutek:
+      //    wygenerowany plik bez <body> = pusta strona. Dlatego celujemy
+      //    precyzyjnie: <h1> musi stać wewnątrz <header>.
+      tekst = tekst.replace(
+        /(<header>\s*<h1>)[\s\S]*?(<\/h1>)/,
+        `$1${safeNazwa}$2`
+      );
       // 2. Podmień fragment w <title> - zachowaj suffix po " · "
       tekst = tekst.replace(/<title>([^<]*)<\/title>/, (m, stary) => {
         const obecny = stary.trim();
