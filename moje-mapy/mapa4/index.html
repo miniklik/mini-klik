@@ -5941,10 +5941,9 @@ body.duszki-gracz {
   overflow: hidden !important;
   margin: 0 !important;
   padding: 0 !important;
-  display: flex !important;
-  flex-direction: column !important;
-  align-items: center !important;
-  justify-content: center !important;
+  /* Body NIE jest flexem - kokpit pozycjonujemy fixed niezależnie.
+     Wcześniej body miało flex, ale to konfliktowało ze stylami
+     audio-przewodnika i kokpit był ściskany do paska. */
   min-height: 100vh !important;
   position: relative !important;
 }
@@ -5981,10 +5980,15 @@ body.duszki-gracz .duszki-znak-wodny {
 }
 
 /* KOKPIT - rama urządzenia */
+/* KOKPIT - rama urządzenia. Position fixed - na środku ekranu niezależnie
+   od stylów body i reszty audio-przewodnika. */
 body.duszki-gracz .duszki-kokpit {
-  position: relative;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
   width: min(94vw, 480px);
-  aspect-ratio: 9 / 14;
+  height: min(95vh, 720px);
   max-height: 95vh;
   background: linear-gradient(135deg, #0e1320 0%, #1a1f2e 50%, #0e1320 100%);
   border: 3px solid #2a3344;
@@ -6000,6 +6004,7 @@ body.duszki-gracz .duszki-kokpit {
   align-items: center;
   z-index: 10;
   box-sizing: border-box;
+  flex-shrink: 0;
 }
 
 /* Śrubki w rogach */
@@ -15403,121 +15408,6 @@ function splashPoetaStart() {
 // Funkcje zostają puste-no-op żeby nic nie pękło jeśli gdzieś były wołane.
 function splashStartZGPS() { splashPoetaStart(); }
 function splashStartBezGPS() { splashPoetaStart(); }
-
-// =====================================================================
-// === DUSZKI - tryb gracza (kokpit detektora) =========================
-// =====================================================================
-// Logika kokpitu Duszków. Aktywuje się TYLKO gdy gracz (NIE admin).
-// Admin widzi normalny edytor audio-przewodnika.
-// Stany kokpitu:
-//   CZUWA   - urządzenie włączone, ale gracz jeszcze nie kliknął SZUKAJ
-//   SKANUJE - kliknięto SZUKAJ, GPS aktywny, antenki/fale animowane
-//   KONTAKT - wejście w strefę, rozbłysk + napis "KONTAKT" + audio
-(function() {
-  // Aktywuj tryb gracza tylko gdy NIE jest adminem
-  // (isAdmin to zmienna z audio-przewodnika - true gdy ?admin=1)
-  if (typeof isAdmin !== 'undefined' && isAdmin) {
-    // Jesteśmy w trybie admina - nie ruszamy nic, edytor działa normalnie
-    return;
-  }
-
-  // Tryb GRACZA - aktywuj kokpit
-  document.body.classList.add('duszki-gracz');
-  document.body.classList.add('duszki-stan-czuwa');
-
-  // Stan kokpitu
-  let duszkiStan = 'czuwa'; // 'czuwa' | 'skanuje' | 'kontakt'
-  let kontaktTimer = null;
-
-  function duszkiUstawStan(nowy) {
-    if (duszkiStan === nowy) return;
-    document.body.classList.remove('duszki-stan-czuwa', 'duszki-stan-skanuje', 'duszki-stan-kontakt');
-    document.body.classList.add('duszki-stan-' + nowy);
-    duszkiStan = nowy;
-    const tekst = document.getElementById('duszkiStatusTekst');
-    if (tekst) {
-      tekst.textContent = nowy.toUpperCase();
-    }
-  }
-
-  // Przycisk SZUKAJ - uruchamia GPS i nawigację
-  const przycisk = document.getElementById('duszkiPrzyciskSzukaj');
-  let szukaActive = false;
-  if (przycisk) {
-    przycisk.addEventListener('click', function() {
-      if (!szukaActive) {
-        // Pierwszy klik - uruchom skanowanie
-        szukaActive = true;
-        przycisk.classList.add('aktywny');
-        przycisk.textContent = '⏸ ZATRZYMAJ SKAN';
-        duszkiUstawStan('skanuje');
-
-        // Uruchom GPS audio-przewodnika
-        // Funkcja wlaczGPS to istniejący mechanizm nawigacji
-        if (typeof wlaczGPS === 'function') {
-          wlaczGPS();
-        } else if (typeof aktywujGPS === 'function') {
-          aktywujGPS();
-        } else if (typeof startujGPS === 'function') {
-          startujGPS();
-        } else {
-          // Awaryjne: spróbuj uruchomić watchPosition bezpośrednio
-          if (navigator.geolocation && typeof aktualizujPozycje === 'function') {
-            navigator.geolocation.watchPosition(
-              aktualizujPozycje,
-              function(err) { console.warn('GPS:', err.message); },
-              { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 }
-            );
-          }
-        }
-      } else {
-        // Drugi klik - zatrzymaj
-        szukaActive = false;
-        przycisk.classList.remove('aktywny');
-        przycisk.textContent = '▶ SZUKAJ STREFY MROKU';
-        duszkiUstawStan('czuwa');
-        // Zatrzymaj audio
-        if (typeof zatrzymajAudioTloZFade === 'function') {
-          zatrzymajAudioTloZFade();
-        }
-      }
-    });
-  }
-
-  // EFEKT KONTAKT - wyzwalany przy wejściu w strefę
-  // Owiniemy oryginalną funkcję odtworzAudioTlo, żeby przed audio
-  // pokazać napis "KONTAKT" + rozbłysk, a audio puścić po 1 sekundzie.
-  if (typeof window.odtworzAudioTlo === 'function') {
-    const oryginalna = window.odtworzAudioTlo;
-    window.odtworzAudioTlo = function(numer) {
-      // Wejście w strefę - pokaż efekt KONTAKT
-      duszkiUstawStan('kontakt');
-
-      // Po 1 sekundzie - audio i powrót do stanu skanowania
-      if (kontaktTimer) clearTimeout(kontaktTimer);
-      kontaktTimer = setTimeout(function() {
-        // Uruchom oryginalną funkcję (audio)
-        try { oryginalna.call(this, numer); } catch (e) { console.warn('Audio:', e); }
-        // Wróć do stanu SKANUJE - jesteśmy w strefie, audio gra, ale efekt minął
-        duszkiUstawStan('skanuje');
-      }, 1000);
-    };
-  }
-
-  // Gdy wyjdziemy ze wszystkich stref - wracamy do SKANUJE
-  if (typeof window.zatrzymajAudioTloZFade === 'function') {
-    const oryginalnaStop = window.zatrzymajAudioTloZFade;
-    window.zatrzymajAudioTloZFade = function() {
-      try { oryginalnaStop.apply(this, arguments); } catch (e) {}
-      // Jeśli skan aktywny, wróć do SKANUJE; inaczej zostań w stanie obecnym
-      if (szukaActive && duszkiStan === 'kontakt') {
-        duszkiUstawStan('skanuje');
-      }
-    };
-  }
-
-  console.log('🎯 Duszki: tryb gracza aktywny');
-})();
 </script>
 
 <!-- TOAST - krótki komunikat wyskakujący (GPS wstrzymany / powrót do lokalizacji) -->
@@ -15606,6 +15496,107 @@ function splashStartBezGPS() { splashPoetaStart(); }
     </div>
   </div>
 </div>
+
+<!-- =====================================================================
+     === DUSZKI - logika kokpitu (NIEZALEŻNA od głównego skryptu) =====
+     ===================================================================== -->
+<script>
+(function() {
+  // Czekamy aż DOM się załaduje (gdyby skrypt główny wybuchł wcześniej)
+  function startDuszki() {
+    // Sprawdź czy tryb gracza (klasa już dodana wcześniejszym skryptem)
+    if (!document.body.classList.contains('duszki-gracz')) return;
+
+    let duszkiStan = 'czuwa';
+    let kontaktTimer = null;
+
+    function duszkiUstawStan(nowy) {
+      if (duszkiStan === nowy) return;
+      document.body.classList.remove('duszki-stan-czuwa', 'duszki-stan-skanuje', 'duszki-stan-kontakt');
+      document.body.classList.add('duszki-stan-' + nowy);
+      duszkiStan = nowy;
+      var tekst = document.getElementById('duszkiStatusTekst');
+      if (tekst) tekst.textContent = nowy.toUpperCase();
+    }
+
+    // Przycisk SZUKAJ
+    var przycisk = document.getElementById('duszkiPrzyciskSzukaj');
+    var szukaActive = false;
+    if (przycisk) {
+      przycisk.addEventListener('click', function() {
+        if (!szukaActive) {
+          szukaActive = true;
+          przycisk.classList.add('aktywny');
+          przycisk.textContent = '⏸ ZATRZYMAJ SKAN';
+          duszkiUstawStan('skanuje');
+
+          // Próbuj uruchomić GPS audio-przewodnika
+          try {
+            if (typeof wlaczGPS === 'function') wlaczGPS();
+            else if (typeof aktywujGPS === 'function') aktywujGPS();
+            else if (typeof startujGPS === 'function') startujGPS();
+            else if (navigator.geolocation && typeof aktualizujPozycje === 'function') {
+              navigator.geolocation.watchPosition(
+                aktualizujPozycje,
+                function(err) { console.warn('GPS:', err.message); },
+                { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 }
+              );
+            } else {
+              console.warn('Duszki: GPS audio-przewodnika niedostępny');
+            }
+          } catch (e) {
+            console.warn('Duszki: błąd uruchamiania GPS:', e);
+          }
+        } else {
+          szukaActive = false;
+          przycisk.classList.remove('aktywny');
+          przycisk.textContent = '▶ SZUKAJ STREFY MROKU';
+          duszkiUstawStan('czuwa');
+          try {
+            if (typeof zatrzymajAudioTloZFade === 'function') zatrzymajAudioTloZFade();
+          } catch (e) {}
+        }
+      });
+    }
+
+    // EFEKT KONTAKT - opakowanie odtworzAudioTlo (jeśli istnieje)
+    if (typeof window.odtworzAudioTlo === 'function') {
+      var oryginalna = window.odtworzAudioTlo;
+      window.odtworzAudioTlo = function(numer) {
+        duszkiUstawStan('kontakt');
+        if (kontaktTimer) clearTimeout(kontaktTimer);
+        kontaktTimer = setTimeout(function() {
+          try { oryginalna.call(window, numer); } catch (e) { console.warn('Audio:', e); }
+          duszkiUstawStan('skanuje');
+        }, 1000);
+      };
+    }
+
+    // Powrót do SKANUJE gdy wyjdziemy ze strefy
+    if (typeof window.zatrzymajAudioTloZFade === 'function') {
+      var oryginalnaStop = window.zatrzymajAudioTloZFade;
+      window.zatrzymajAudioTloZFade = function() {
+        try { oryginalnaStop.apply(window, arguments); } catch (e) {}
+        if (szukaActive && duszkiStan === 'kontakt') {
+          duszkiUstawStan('skanuje');
+        }
+      };
+    }
+
+    console.log('🎯 Duszki: tryb gracza aktywny');
+  }
+
+  // Czekamy chwilę po DOMContentLoaded - żeby główny skrypt audio-przewodnika
+  // zdążył zdefiniować swoje funkcje (odtworzAudioTlo, wlaczGPS itd.)
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', function() {
+      setTimeout(startDuszki, 200);
+    });
+  } else {
+    setTimeout(startDuszki, 200);
+  }
+})();
+</script>
 
 </body>
 </html>
