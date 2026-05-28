@@ -6044,6 +6044,11 @@ html.tryb-admin #editorPasek { display: block; }
 #duszkiKokpitWarstwa .dk-w { flex: 1; background: rgba(0,0,0,0.4); border: 1px solid rgba(110,231,183,0.2); border-radius: 6px; padding: 6px 4px; text-align: center; }
 #duszkiKokpitWarstwa .dk-w-label { color: rgba(110,231,183,0.5); font-size: 8px; margin-bottom: 3px; letter-spacing: 1px; }
 #duszkiKokpitWarstwa .dk-w-val { color: #fbbf24; font-size: 11px; font-weight: bold; text-shadow: 0 0 4px #fbbf24; }
+/* Wskaźnik OFF - klikalny, czerwony jak przycisk awaryjny */
+#duszkiKokpitWarstwa .dk-w-off { cursor: pointer; border-color: rgba(239,68,68,0.4) !important; transition: all 0.15s; }
+#duszkiKokpitWarstwa .dk-w-off:hover { border-color: rgba(239,68,68,0.8) !important; background: rgba(239,68,68,0.08) !important; }
+#duszkiKokpitWarstwa .dk-w-off:active { transform: scale(0.96); }
+#duszkiKokpitWarstwa .dk-w-off .dk-w-val { color: #ef4444 !important; text-shadow: 0 0 6px #ef4444 !important; }
 
 /* Przycisk */
 #duszkiKokpitWarstwa .dk-przycisk { margin-top: 18px; width: 90%; padding: 14px; background: linear-gradient(180deg, #1f2937, #0f1419); border: 2px solid #6ee7b7; border-radius: 8px; color: #6ee7b7; font-family: inherit; font-size: 13px; font-weight: bold; letter-spacing: 3px; text-shadow: 0 0 8px rgba(110,231,183,0.6); box-shadow: 0 0 16px rgba(110,231,183,0.25); cursor: pointer; position: relative; overflow: hidden; transition: all .2s; }
@@ -6060,6 +6065,28 @@ html.tryb-admin #editorPasek { display: block; }
 #duszkiKokpitWarstwa .dk-galka-obrot::after { content: ''; position: absolute; top: 4px; left: 50%; width: 3px; height: 12px; background: #fbbf24; transform: translateX(-50%); border-radius: 2px; box-shadow: 0 0 5px #fbbf24; }
 /* Etykieta pod pokrętłem (S1-S4) */
 #duszkiKokpitWarstwa .dk-galka-label { font-family: 'Courier New', monospace; font-size: 9px; letter-spacing: 1px; color: rgba(110,231,183,0.6); }
+
+/* === SONAR - blipy duszków na ekraniku === */
+/* Warstwa blipów - pełen ekranik, blipy pozycjonowane absolutnie wewnątrz.
+   Środek warstwy (50%, 50%) = pozycja gracza. Promień warstwy = 200m w terenie. */
+#duszkiKokpitWarstwa .dk-sonar-warstwa { position: absolute; inset: 0; pointer-events: none; z-index: 4; }
+#duszkiKokpitWarstwa .dk-blip { position: absolute; border-radius: 50%; transform: translate(-50%, -50%); transition: top 0.4s linear, left 0.4s linear, background 0.3s, box-shadow 0.3s, width 0.3s, height 0.3s; pointer-events: none; }
+/* Blipy domyślnie NIEWIDOCZNE - widać je tylko gdy wskazówka radaru je
+   "muśnie" (JS dodaje klasę .pingnij, CSS wyzwala rozbłysk + powolny zanik).
+   Kolor i rozmiar zależą od odległości (niebieski/żółty/czerwony). */
+#duszkiKokpitWarstwa .dk-blip { opacity: 0; }
+#duszkiKokpitWarstwa .dk-blip.daleko { width: 5px; height: 5px; background: #60a5fa; box-shadow: 0 0 4px #3b82f6; }
+#duszkiKokpitWarstwa .dk-blip.srednio { width: 9px; height: 9px; background: #fbbf24; box-shadow: 0 0 8px #f59e0b, 0 0 14px rgba(251,191,36,0.6); }
+#duszkiKokpitWarstwa .dk-blip.blisko { width: 9px; height: 9px; background: #ef4444; box-shadow: 0 0 10px #dc2626, 0 0 18px rgba(220,38,38,0.7); }
+/* Rozbłysk + zanik. Trwa cały obrót wskazówki (4s) - blip "tli się" i gaśnie,
+   aż wskazówka znów go muśnie. */
+#duszkiKokpitWarstwa .dk-blip.pingnij { animation: dk-ping 4s ease-out forwards; }
+@keyframes dk-ping {
+  0%   { opacity: 0; transform: translate(-50%, -50%) scale(0.6); }
+  4%   { opacity: 1; transform: translate(-50%, -50%) scale(1.4); }   /* rozbłysk */
+  10%  { opacity: 0.95; transform: translate(-50%, -50%) scale(1); }
+  100% { opacity: 0;    transform: translate(-50%, -50%) scale(1); }  /* zanik */
+}
 
 /* Napis wypukły w metalu - "PARANORMAL DETECTOR" */
 #duszkiKokpitWarstwa .dk-metal-napis { width: 100%; text-align: center; margin-top: 18px; margin-bottom: 4px; font-family: 'Courier New', monospace; font-size: clamp(13px, 3.2vw, 18px); font-weight: 900; letter-spacing: 4px; color: #38445a; text-shadow: 0 -1px 1px rgba(120,140,170,0.45), 0 1px 1px rgba(0,0,0,0.85), 0 2px 3px rgba(0,0,0,0.6); user-select: none; pointer-events: none; }
@@ -15068,13 +15095,14 @@ function splashStartBezGPS() { splashPoetaStart(); }
     <div class="dk-ekran-rama">
       <div class="dk-ekran">
         <div class="dk-wskazowka"></div>
+        <div class="dk-sonar-warstwa" id="dkSonarWarstwa"></div>
         <div class="dk-gracz"></div>
         <div class="dk-kontakt-napis">KONTAKT</div>
       </div>
     </div>
     <div class="dk-wskazniki">
       <div class="dk-w"><div class="dk-w-label">MOC</div><div class="dk-w-val">87%</div></div>
-      <div class="dk-w"><div class="dk-w-label">SYGNAŁ</div><div class="dk-w-val" id="dkSygnal">--</div></div>
+      <div class="dk-w dk-w-off" id="dkPrzyciskOff"><div class="dk-w-label">SYGNAŁ</div><div class="dk-w-val" id="dkSygnal">OFF</div></div>
       <div class="dk-w"><div class="dk-w-label">DUSZKI</div><div class="dk-w-val" id="dkLicznik">--</div></div>
     </div>
     <button class="dk-przycisk" id="dkPrzycisk">▶ SZUKAJ STREFY MROKU</button>
@@ -15124,41 +15152,57 @@ function splashStartBezGPS() { splashPoetaStart(); }
       if (s) s.textContent = nowy.toUpperCase();
     }
 
-    // Przycisk SZUKAJ -> uruchamia GPS audio-przewodnika
+    // === GŁÓWNY PRZYCISK + WYŁĄCZNIK OFF ===
+    // Cykl: pierwsze kliknięcie = SZUKAJ (start GPS, atmosfera, KONTAKT).
+    // Kolejne kliknięcia = ZAPYTAJ DETEKTOR (briefing lektorem - można pytać
+    // wielokrotnie podczas polowania).
+    // Wyłącznik to przycisk OFF na boku (zamiast wskaźnika SYGNAŁ) - kończy
+    // wszystko (GPS, atmosfera, wraca do CZUWA).
     var btn = document.getElementById('dkPrzycisk');
+    var btnOff = document.getElementById('dkPrzyciskOff');
     var aktywny = false;
+
+    function wlaczDetektor() {
+      if (aktywny) return;
+      aktywny = true;
+      btn.classList.add('aktywny');
+      btn.textContent = '🎙 ZAPYTAJ DETEKTOR';
+      ustawStan('kontakt');
+      setTimeout(function(){ if (aktywny) ustawStan('skanuje'); }, 4000);
+      setTimeout(function(){ if (aktywny) startAtmosfera(); }, 3000);
+      try {
+        if (typeof wlaczNawigacje === 'function') wlaczNawigacje();
+        else if (typeof toggleNawigacja === 'function') toggleNawigacja();
+        else if (typeof toggleTrybTurysty === 'function') toggleTrybTurysty();
+      } catch(e) { console.warn('Duszki GPS:', e); }
+    }
+
+    function wylaczDetektor() {
+      if (!aktywny) return;
+      aktywny = false;
+      btn.classList.remove('aktywny');
+      btn.textContent = '▶ SZUKAJ STREFY MROKU';
+      ustawStan('czuwa');
+      stopAtmosfera();
+      try { if (typeof wylaczNawigacje === 'function') wylaczNawigacje(); } catch(e) {}
+      // Zatrzymaj też lektora gdyby coś mówił
+      try { if (window.speechSynthesis) window.speechSynthesis.cancel(); } catch(e) {}
+    }
+
     if (btn) {
       btn.addEventListener('click', function() {
         if (!aktywny) {
-          aktywny = true;
-          btn.classList.add('aktywny');
-          btn.textContent = '⏸ ZATRZYMAJ SKAN';
-          // KONTAKT przy starcie (ten sam efekt co przy wejściu w strefę)
-          ustawStan('kontakt');
-          // Po 4s efekt KONTAKT mija -> SKANUJE
-          setTimeout(function(){ if (aktywny) ustawStan('skanuje'); }, 4000);
-          // Atmosfera (S1-S4) wchodzi po 3s - w trakcie KONTAKTU
-          setTimeout(function(){ if (aktywny) startAtmosfera(); }, 3000);
-          // Uruchom GPS/nawigację audio-przewodnika.
-          // Prawdziwa funkcja to wlaczNawigacje() (woła toggleTrybTurysty -
-          // która włącza GPS, audio, wykrywanie stref - wszystko naraz).
-          try {
-            if (typeof wlaczNawigacje === 'function') wlaczNawigacje();
-            else if (typeof toggleNawigacja === 'function') toggleNawigacja();
-            else if (typeof toggleTrybTurysty === 'function') toggleTrybTurysty();
-            else console.warn('Duszki: nie znaleziono funkcji nawigacji');
-          } catch(e) { console.warn('Duszki GPS:', e); }
+          // Pierwsze kliknięcie - SZUKAJ
+          wlaczDetektor();
         } else {
-          aktywny = false;
-          btn.classList.remove('aktywny');
-          btn.textContent = '▶ SZUKAJ STREFY MROKU';
-          ustawStan('czuwa');
-          stopAtmosfera();  // zatrzymaj 4 warstwy
-          // Wyłącz nawigację
-          try {
-            if (typeof wylaczNawigacje === 'function') wylaczNawigacje();
-          } catch(e) {}
+          // Kolejne kliknięcia - ZAPYTAJ DETEKTOR (briefing)
+          zapytajDetektor();
         }
+      });
+    }
+    if (btnOff) {
+      btnOff.addEventListener('click', function() {
+        if (aktywny) wylaczDetektor();
       });
     }
 
@@ -15280,6 +15324,419 @@ function splashStartBezGPS() { splashPoetaStart(); }
         document.addEventListener('mousemove', mv); document.addEventListener('mouseup', up);
       });
     });
+
+    // =====================================================================
+    // =====================================================================
+    // === BRIEFING DETEKTORA - lektor opowiada o warunkach paranormalnych ==
+    // =====================================================================
+    // Po pierwszym kliknięciu (SZUKAJ) główny przycisk zmienia się w "ZAPYTAJ
+    // DETEKTOR". Każde kolejne kliknięcie -> lektor mówi briefing oparty na:
+    //  - porze dnia/dniu (z zegara)
+    //  - pogodzie z Open-Meteo (bez klucza, darmowe)
+    //  - indeksie Kp z NOAA Space Weather (burze geomagnetyczne)
+    //  - fazie księżyca (wyliczonej z daty)
+    // Lektor = wbudowany Web Speech API przeglądarki (po polsku, bez API).
+
+    var briefingTrwa = false;          // blokada żeby nie zacząć dwóch naraz
+    var ostatnieDane = null;            // cache 10 min, żeby nie spamować API
+
+    // ---- 1. PORA DNIA ----
+    function poraDniaTekst() {
+      var h = new Date().getHours();
+      if (h >= 5 && h < 10) return { pora: 'poranek', opis: 'Wczesny poranek. Eter spokojny, ale wrażliwy.' };
+      if (h >= 10 && h < 14) return { pora: 'południe', opis: 'Środek dnia. Kanał słaby — anomalie się chowają.' };
+      if (h >= 14 && h < 18) return { pora: 'popołudnie', opis: 'Popołudnie. Czas, gdy granice cieńszą.' };
+      if (h >= 18 && h < 22) return { pora: 'wieczór', opis: 'Wieczór zapada. Sprzęt zaczyna szeptać.' };
+      return { pora: 'noc', opis: 'Noc. Najlepszy czas. Sygnał najczystszy.' };
+    }
+
+    // ---- 2. FAZA KSIĘŻYCA (wyliczona z daty, bez API) ----
+    function fazaKsiezyca() {
+      // Uproszczony algorytm - cykl synodyczny 29.53 dnia od znanej nowiu
+      var nowKnown = new Date(Date.UTC(2000, 0, 6, 18, 14));  // nów 6.1.2000
+      var diff = (Date.now() - nowKnown.getTime()) / 86400000;
+      var cykl = ((diff % 29.53059) + 29.53059) % 29.53059;
+      if (cykl < 1.5 || cykl > 28) return { nazwa: 'nów', opis: 'Księżyc w nowiu. Ciemność absolutna sprzyja obecności.' };
+      if (cykl < 7) return { nazwa: 'przybywający sierp', opis: 'Księżyc rośnie. Aktywność narasta.' };
+      if (cykl < 8.5) return { nazwa: 'pierwsza kwadra', opis: 'Pierwsza kwadra. Balans światła i cienia.' };
+      if (cykl < 14) return { nazwa: 'księżyc przybywający', opis: 'Księżyc niemal pełny. Sprzęt jest podekscytowany.' };
+      if (cykl < 16) return { nazwa: 'pełnia', opis: 'PEŁNIA. Maksymalna aktywność. Ostrożnie.' };
+      if (cykl < 22) return { nazwa: 'księżyc ubywający', opis: 'Księżyc maleje, ale duchy jeszcze pamiętają.' };
+      if (cykl < 23.5) return { nazwa: 'ostatnia kwadra', opis: 'Ostatnia kwadra. Eter ucisza się.' };
+      return { nazwa: 'ubywający sierp', opis: 'Ostatni cień księżyca. Spokój przed nowiem.' };
+    }
+
+    // ---- 3. POGODA (Open-Meteo, darmowe, bez klucza) ----
+    function pobierzPogode(lat, lng) {
+      var url = 'https://api.open-meteo.com/v1/forecast?latitude=' + lat +
+                '&longitude=' + lng +
+                '&current=temperature_2m,relative_humidity_2m,surface_pressure,wind_speed_10m';
+      return fetch(url).then(function(r){ return r.json(); }).then(function(d){
+        if (!d || !d.current) return null;
+        return {
+          temp: d.current.temperature_2m,
+          wilg: d.current.relative_humidity_2m,
+          cisn: d.current.surface_pressure,
+          wiatr: d.current.wind_speed_10m
+        };
+      }).catch(function(){ return null; });
+    }
+
+    function pogodaTekst(p) {
+      if (!p) return 'Czujniki pogody offline.';
+      var zdania = [];
+      // Temperatura
+      var t = Math.round(p.temp);
+      zdania.push('Temperatura ' + t + ' stopni.');
+      // Wilgotność
+      if (p.wilg > 85) zdania.push('Powietrze gęste od wilgoci — sprzyja transmisji.');
+      else if (p.wilg > 70) zdania.push('Wilgotność wysoka.');
+      else if (p.wilg < 40) zdania.push('Powietrze suche, sygnał czysty.');
+      // Ciśnienie
+      if (p.cisn < 1000) zdania.push('Ciśnienie niskie — anomalie prawdopodobne.');
+      else if (p.cisn > 1020) zdania.push('Ciśnienie wysokie — eter sztywny.');
+      // Wiatr
+      if (p.wiatr > 25) zdania.push('Silny wiatr maskuje delikatne sygnały.');
+      else if (p.wiatr < 3) zdania.push('Bezwietrznie. Dobra cisza dla pomiarów.');
+      return zdania.join(' ');
+    }
+
+    // ---- 4. INDEKS Kp (NOAA - burze geomagnetyczne, bez klucza) ----
+    function pobierzKp() {
+      var url = 'https://services.swpc.noaa.gov/products/noaa-planetary-k-index.json';
+      return fetch(url).then(function(r){ return r.json(); }).then(function(d){
+        // Format: pierwszy wiersz to nagłówki, ostatni wiersz to najnowszy pomiar
+        if (!Array.isArray(d) || d.length < 2) return null;
+        var ostatni = d[d.length - 1];
+        var kp = parseFloat(ostatni[1]);
+        if (isNaN(kp)) return null;
+        return kp;
+      }).catch(function(){ return null; });
+    }
+
+    function kpTekst(kp) {
+      if (kp === null) return 'Pomiar geomagnetyczny niedostępny.';
+      var k = Math.round(kp * 10) / 10;
+      if (kp >= 7) return 'Burza geomagnetyczna! Indeks K-p ' + k + '. Detektor będzie wariował.';
+      if (kp >= 5) return 'Aktywność geomagnetyczna podwyższona. K-p ' + k + '. Bardzo dobre warunki.';
+      if (kp >= 4) return 'Lekkie zaburzenia magnetyczne. K-p ' + k + '. Sprzęt czulszy niż zwykle.';
+      if (kp >= 2) return 'Pole magnetyczne stabilne. K-p ' + k + '. Warunki przeciętne.';
+      return 'Cisza geomagnetyczna. K-p ' + k + '. Tylko silne sygnały się przebiją.';
+    }
+
+    // ---- 5. ZJAWISKA NADPRZYRODZONE (lokalna baza, ton metafizyczny) ----
+    // Losowy wybór 2-3 fragmentów z różnych kategorii. Tony: eter, energie,
+    // obecności, węzły, granice. Bez konkretów - sugestia, nie fakt.
+    var zjawiskaPule = {
+      // ETERY i WIBRACJE - słyszalne stany przestrzeni
+      etery: [
+        'Eter wibruje w paśmie niskim.',
+        'Wibracje przestrzeni nierówne.',
+        'Kanał otwarty po stronie zachodu.',
+        'Eter szumi dziś inaczej.',
+        'Pole rezonuje na częstotliwości spoza widma.',
+        'Powietrze pamięta. Sygnał odbity.',
+        'Coś faluje na obrzeżach świadomości.'
+      ],
+      // OBECNOŚCI - ślady, echa, pamięć miejsca
+      obecnosci: [
+        'Ślady obecności sprzed wielu lat.',
+        'Echa kroków, których nie ma.',
+        'Ktoś tu był. Niedawno. Albo zawsze.',
+        'Pamięć miejsca wyraźna.',
+        'Cienie poruszają się wbrew słońcu.',
+        'Coś obserwuje. Spokojnie. Z daleka.',
+        'Dawni mieszkańcy nie odeszli całkiem.',
+        'W pobliżu unosi się obecność.'
+      ],
+      // ENERGIE i WĘZŁY - mistyczne lokalizacje
+      energie: [
+        'Lokalny węzeł energetyczny aktywny.',
+        'Linie sił przecinają się tutaj.',
+        'Energia ziemi podnosi się powoli.',
+        'Punkt mocy w pobliżu. Promień nieokreślony.',
+        'Granica między światami cieńszą.',
+        'Wir energetyczny stabilny ale głęboki.',
+        'Strefa zjawiska zlokalizowana. Niedaleko.'
+      ],
+      // GRANICE i ZJAWISKA - to, co się dzieje teraz
+      granice: [
+        'Zasłona między wymiarami uchylona.',
+        'Coś przeszło niedawno. Ślad jeszcze ciepły.',
+        'Anomalia czasowa zarejestrowana wcześniej tego dnia.',
+        'Wahania pola sugerują obecność istoty drugiego rzędu.',
+        'Detektor wyczuwa rezonans nieziemski.',
+        'Bramy lokalne uchylone. Cisza za nimi pełna.',
+        'Echo z drugiej strony powraca słabsze niż wczoraj.'
+      ],
+      // OSTRZEŻENIA - sugestie taktyczne
+      ostrzezenia: [
+        'Nie patrz długo w jeden punkt.',
+        'Słuchaj uważnie. To, czego nie słychać, też mówi.',
+        'Cisza jest sygnałem. Nie ignoruj jej.',
+        'Jeśli coś cię wzywa - zatrzymaj się.',
+        'Pamiętaj: detektor widzi więcej niż mówi.',
+        'Idź spokojnie. Pośpiech płoszy obecności.',
+        'Najgłośniejsze sygnały są najmniej prawdziwe.'
+      ]
+    };
+
+    function zjawiskaTekst() {
+      // Losuj 1-2 zdania z różnych kategorii - żeby się nie powtarzało
+      var kategorie = ['etery', 'obecnosci', 'energie', 'granice'];
+      // Wymieszaj i weź 2 różne kategorie
+      kategorie.sort(function(){ return Math.random() - 0.5; });
+      var wyniki = [];
+      for (var i = 0; i < 2; i++) {
+        var pula = zjawiskaPule[kategorie[i]];
+        wyniki.push(pula[Math.floor(Math.random() * pula.length)]);
+      }
+      // Z prawdopodobieństwem 40% - dodaj ostrzeżenie/sugestię
+      if (Math.random() < 0.4) {
+        var ostrz = zjawiskaPule.ostrzezenia;
+        wyniki.push(ostrz[Math.floor(Math.random() * ostrz.length)]);
+      }
+      return wyniki.join(' ');
+    }
+
+    // ---- 6. ZBIERANIE WSZYSTKIEGO I BUDOWANIE BRIEFINGU ----
+    function zbudujBriefing(pogoda, kp) {
+      var pora = poraDniaTekst();
+      var ksiezyc = fazaKsiezyca();
+
+      // Pula otwarć - losowane żeby się nie powtarzało (ton metafizyczny)
+      var otwarcia = [
+        'Detektor zbiera odczyty.',
+        'Czujniki słuchają.',
+        'Eter pod obserwacją.',
+        'Stan pola w tej chwili.',
+        'Sprzęt raportuje.'
+      ];
+      var zachety = [
+        'Ruszaj. Nie zwlekaj.',
+        'Wyrusz, póki kanał otwarty.',
+        'Możesz iść. Z otwartymi zmysłami.',
+        'Idź. Coś czeka.',
+        'Czas wyruszyć w teren.'
+      ];
+
+      var otw = otwarcia[Math.floor(Math.random() * otwarcia.length)];
+      var zacheta = zachety[Math.floor(Math.random() * zachety.length)];
+
+      // Briefing dwupiętrowy:
+      // 1) Warstwa "prawdziwa" - pora, pogoda, księżyc, Kp (z API i wyliczeń)
+      // 2) Warstwa "zjawisk" - losowa, metafizyczna (z lokalnej puli)
+      return otw + ' ' + pora.opis + ' ' +
+             pogodaTekst(pogoda) + ' ' +
+             ksiezyc.opis + ' ' +
+             kpTekst(kp) + ' ' +
+             zjawiskaTekst() + ' ' +
+             zacheta;
+    }
+
+    // ---- 7. LEKTOR (Web Speech API - wbudowany w przeglądarkę) ----
+    function mowLektorem(tekst) {
+      if (!window.speechSynthesis) {
+        console.warn('Lektor niedostępny w tej przeglądarce');
+        return;
+      }
+      // Zatrzymaj poprzednią wypowiedź (gdyby jeszcze trwała)
+      window.speechSynthesis.cancel();
+      var u = new SpeechSynthesisUtterance(tekst);
+      u.lang = 'pl-PL';
+      u.rate = 0.75;    // wolno - klimat mistyczny
+      u.pitch = 0.80;   // niżej - „głos z głębi"
+      u.volume = 1.0;
+      window.speechSynthesis.speak(u);
+    }
+
+    // ---- 8. GŁÓWNA FUNKCJA - wywoływana po kliknięciu „ZAPYTAJ DETEKTOR" ----
+    function zapytajDetektor() {
+      if (briefingTrwa) return;       // zapobiegaj nakładaniu się
+      briefingTrwa = true;
+
+      // Pozycja gracza (do API pogody) - jeśli GPS dał już sygnał
+      var lat = 51.19, lng = 23.17;    // domyślnie Siedliszcze
+      if (typeof userPozycja !== 'undefined' && userPozycja) {
+        lat = userPozycja.lat; lng = userPozycja.lng;
+      }
+
+      // Cache 10 min - jeśli niedawno pobraliśmy dane, użyj ich (zamiast spamować API)
+      var teraz = Date.now();
+      var uzyjCache = ostatnieDane && (teraz - ostatnieDane.czas < 10 * 60 * 1000);
+
+      var promise = uzyjCache
+        ? Promise.resolve(ostatnieDane)
+        : Promise.all([pobierzPogode(lat, lng), pobierzKp()]).then(function(wyniki){
+            ostatnieDane = { pogoda: wyniki[0], kp: wyniki[1], czas: teraz };
+            return ostatnieDane;
+          });
+
+      promise.then(function(d) {
+        var tekst = zbudujBriefing(d.pogoda, d.kp);
+        mowLektorem(tekst);
+        briefingTrwa = false;
+      }).catch(function(e) {
+        console.warn('Briefing - błąd pobierania danych:', e);
+        // Awaryjnie - briefing bez danych z API
+        var tekst = zbudujBriefing(null, null);
+        mowLektorem(tekst);
+        briefingTrwa = false;
+      });
+    }
+
+
+    // =====================================================================
+    // Co kilkaset ms czytamy userPozycja (GPS) i listę kropekAudio z mapy,
+    // liczymy odległość + kierunek każdej, i rysujemy blipy w sonarze.
+    // Pozycja gracza UŚREDNIONA z ostatnich 5 odczytów, żeby blipy nie skakały.
+    // Promień sonaru = 200m w terenie. Kolory: niebieski (200-100), żółty
+    // (100-50), czerwony (<50). Powyżej 200 nie pokazujemy.
+
+    var SONAR_PROMIEN_M = 200;
+    var SONAR_OBROT_MS = 4000;                   // 4s na pełen obrót wskazówki
+    var sonarWarstwa = document.getElementById('dkSonarWarstwa');
+    var sonarBlipy = {};                         // { klucz: { el, kat, klasa, baseX, baseY } }
+    var sonarStartCzas = Date.now();
+
+    function metrowDo(lat1, lng1, lat2, lng2) {
+      var R = 6371000;
+      var dLat = (lat2 - lat1) * Math.PI / 180;
+      var dLng = (lng2 - lng1) * Math.PI / 180;
+      var a = Math.sin(dLat/2)*Math.sin(dLat/2) +
+              Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*
+              Math.sin(dLng/2)*Math.sin(dLng/2);
+      return 2 * R * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    }
+
+    function azymutDo(lat1, lng1, lat2, lng2) {
+      var dLng = (lng2 - lng1) * Math.PI / 180;
+      var fi1 = lat1 * Math.PI / 180, fi2 = lat2 * Math.PI / 180;
+      var y = Math.sin(dLng) * Math.cos(fi2);
+      var x = Math.cos(fi1)*Math.sin(fi2) - Math.sin(fi1)*Math.cos(fi2)*Math.cos(dLng);
+      return Math.atan2(y, x);
+    }
+
+    function srodekStrefy(k) {
+      if (k.linia && k.linia.length >= 2) {
+        var i = Math.floor(k.linia.length / 2);
+        return { lat: k.linia[i][0], lng: k.linia[i][1] };
+      }
+      if (k.ksztalt && k.ksztalt.length >= 3) {
+        var sl = 0, sg = 0;
+        for (var i = 0; i < k.ksztalt.length; i++) { sl += k.ksztalt[i][0]; sg += k.ksztalt[i][1]; }
+        return { lat: sl / k.ksztalt.length, lng: sg / k.ksztalt.length };
+      }
+      if (k.pozycja) return { lat: k.pozycja[0], lng: k.pozycja[1] };
+      return null;
+    }
+
+    // Aktualizacja listy blipów - pozycje + kąty + kolory.
+    // Wywoływane co 500ms. GPS bierzemy WPROST (bez uśredniania) - bo bez mapy
+    // w tle nikt nie widzi, że pozycja drga, a tańczące blipy = klimat duchów.
+    function aktualizujSonar() {
+      var p = (typeof userPozycja !== 'undefined' && userPozycja)
+        ? { lat: userPozycja.lat, lng: userPozycja.lng } : null;
+      if (!p) return;
+
+      var strefy = (typeof kropkiAudio !== 'undefined' && Array.isArray(kropkiAudio))
+        ? kropkiAudio : [];
+      var widoczne = {};
+      var promienPx = sonarWarstwa.offsetWidth / 2;
+      var srodekX = sonarWarstwa.offsetWidth / 2;
+      var srodekY = sonarWarstwa.offsetHeight / 2;
+
+      strefy.forEach(function(k, idx) {
+        var sr = srodekStrefy(k);
+        if (!sr) return;
+        var d = metrowDo(p.lat, p.lng, sr.lat, sr.lng);
+        if (d > SONAR_PROMIEN_M) return;
+
+        var azRad = azymutDo(p.lat, p.lng, sr.lat, sr.lng);
+        var azStopnie = (azRad * 180 / Math.PI + 360) % 360;
+        var skala = d / SONAR_PROMIEN_M;
+        var dx = Math.sin(azRad) * skala * promienPx;
+        var dy = -Math.cos(azRad) * skala * promienPx;
+        var x = srodekX + dx;
+        var y = srodekY + dy;
+
+        var klasa = (d < 50) ? 'blisko' : (d < 100) ? 'srednio' : 'daleko';
+        var klucz = 'b' + idx;
+        widoczne[klucz] = true;
+        var rec = sonarBlipy[klucz];
+        if (!rec) {
+          var el = document.createElement('div');
+          el.className = 'dk-blip';
+          sonarWarstwa.appendChild(el);
+          rec = { el: el, kat: azStopnie, klasa: klasa, baseX: x, baseY: y };
+          sonarBlipy[klucz] = rec;
+        }
+        rec.kat = azStopnie;
+        rec.klasa = klasa;
+        // Zapamiętaj pozycję bazową - od niej dodajemy losowe drganie przy pingu
+        rec.baseX = x;
+        rec.baseY = y;
+      });
+
+      for (var kl in sonarBlipy) {
+        if (!widoczne[kl]) {
+          sonarBlipy[kl].el.remove();
+          delete sonarBlipy[kl];
+        }
+      }
+    }
+
+    // Pętla aktualizacji pozycji - co 500ms.
+    setInterval(function() {
+      if (warstwa.classList.contains('widoczny')) aktualizujSonar();
+    }, 500);
+
+    // === PĘTLA WSKAZÓWKI - wyzwala pingi gdy wskazówka muska blip ===
+    // Wskazówka kręci się co SONAR_OBROT_MS (4s). Liczymy jej aktualny kąt
+    // z czasu (synchronicznie z animacją CSS). Dla każdego blipa sprawdzamy:
+    // czy wskazówka właśnie przeszła przez jego kąt? Jeśli tak - ping.
+    var ostatniKat = 0;
+    function petlaWskazowki() {
+      if (warstwa.classList.contains('widoczny')) {
+        var t = (Date.now() - sonarStartCzas) % SONAR_OBROT_MS;
+        var katWskazowki = (t / SONAR_OBROT_MS) * 360;  // 0..360
+
+        for (var kl in sonarBlipy) {
+          var rec = sonarBlipy[kl];
+          // Sprawdź czy wskazówka przeszła przez kąt blipa od poprzedniej klatki
+          // (uwzględniamy przejście przez 360->0).
+          var minelo = katPrzeszedl(ostatniKat, katWskazowki, rec.kat);
+          if (minelo) {
+            // PING - rozbłysk + zanik. Plus lekkie LOSOWE DRGANIE pozycji,
+            // żeby duch nie pojawiał się dwa razy w tym samym miejscu.
+            // Klimat "żywej" kropki: tu mignie, za chwilę kilka pikseli obok.
+            var drgX = (Math.random() - 0.5) * 6;   // ±3 piksele
+            var drgY = (Math.random() - 0.5) * 6;
+            rec.el.style.left = (rec.baseX + drgX) + 'px';
+            rec.el.style.top  = (rec.baseY + drgY) + 'px';
+
+            rec.el.classList.remove('pingnij');
+            void rec.el.offsetWidth;   // wymuś restart animacji
+            rec.el.className = 'dk-blip ' + rec.klasa + ' pingnij';
+          }
+        }
+        ostatniKat = katWskazowki;
+      }
+      requestAnimationFrame(petlaWskazowki);
+    }
+
+    // Czy kąt blipa znajduje się między ostatnimKatem a katWskazowki?
+    // Uwzględnia przejście przez 360°.
+    function katPrzeszedl(od, doKata, blipKat) {
+      if (doKata >= od) {
+        return blipKat > od && blipKat <= doKata;
+      } else {
+        // przejście przez 360
+        return blipKat > od || blipKat <= doKata;
+      }
+    }
+
+    requestAnimationFrame(petlaWskazowki);
 
     console.log('🎯 Duszki: kokpit aktywny (tryb gracza)');
   }
