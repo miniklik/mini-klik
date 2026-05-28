@@ -15549,6 +15549,8 @@ function splashStartBezGPS() { splashPoetaStart(); }
       // że detektor pracuje (a nie zawiesił się), gdy czeka na dane API
       var elCzekaj = document.getElementById('dkCzekaj');
       if (elCzekaj) elCzekaj.classList.add('aktywny');
+      var czasStartu = Date.now();
+      var MIN_WIDOCZNOSCI = 1500;  // minimum 1.5s żeby gracz zauważył napis
 
       // Pozycja gracza (do API pogody) - jeśli GPS dał już sygnał
       var lat = 51.19, lng = 23.17;    // domyślnie Siedliszcze
@@ -15567,19 +15569,22 @@ function splashStartBezGPS() { splashPoetaStart(); }
             return ostatnieDane;
           });
 
+      // Funkcja kończąca - czeka aż minie minimum, potem ukrywa napis i mówi
+      function dokoncz(tekstBriefingu) {
+        var minelo = Date.now() - czasStartu;
+        var dopelnij = Math.max(0, MIN_WIDOCZNOSCI - minelo);
+        setTimeout(function() {
+          if (elCzekaj) elCzekaj.classList.remove('aktywny');
+          mowLektorem(tekstBriefingu);
+          briefingTrwa = false;
+        }, dopelnij);
+      }
+
       promise.then(function(d) {
-        // Ukryj napis CZEKAJ - lektor zaraz zacznie mówić
-        if (elCzekaj) elCzekaj.classList.remove('aktywny');
-        var tekst = zbudujBriefing(d.pogoda, d.kp);
-        mowLektorem(tekst);
-        briefingTrwa = false;
+        dokoncz(zbudujBriefing(d.pogoda, d.kp));
       }).catch(function(e) {
-        if (elCzekaj) elCzekaj.classList.remove('aktywny');
         console.warn('Briefing - błąd pobierania danych:', e);
-        // Awaryjnie - briefing bez danych z API
-        var tekst = zbudujBriefing(null, null);
-        mowLektorem(tekst);
-        briefingTrwa = false;
+        dokoncz(zbudujBriefing(null, null));   // awaryjnie - bez API
       });
     }
 
