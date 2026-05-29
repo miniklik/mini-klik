@@ -2,10 +2,10 @@
 <!--
   ══════════════════════════════════════════════════════════════
   
-   AUDIO-POEZJA / AUDIO-PRZEWODNIK
-   Interaktywna mapa z dźwiękiem — wiersze, opowieści i klimat miejsc.
+   DETEKTOR / DUSZKI
+   Interaktywna mapa z dźwiękiem — klimat miejsc.
    
-   © 2026 Piotr Przebiorowski — Siedliszcze
+   © 2026 mini-klik.pl
    Wszelkie prawa zastrzeżone.
    
    Ten kod oraz jego struktura są własnością autora.
@@ -51,7 +51,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=EB+Garamond:wght@400;500;600&family=Cinzel:wght@400;600&display=swap" rel="stylesheet">
 
 <style>
-/* Audio-poezja — arkusz stylów. © 2026 Piotr Przebiorowski, Siedliszcze. */
+/* Detektor — arkusz stylów. © 2026 mini-klik.pl */
 :root{
   --mapa-h:45vh;
   --paper:#f5efe2;
@@ -5929,43 +5929,35 @@ html.tryb-admin #editorPasek { display: block; }
 }
 
 /* =====================================================================
-   === DUSZKI - styl kokpitu (aktywny tylko dla gracza, nie admina) ===
+   === DUSZKI - warstwa kokpitu (wierzchnia, przykrywa mapę) ===========
    =====================================================================
-   Wszystkie style działają TYLKO gdy body ma klasę .duszki-gracz.
-   Admin tej klasy NIE ma - widzi normalny edytor audio-przewodnika.
-*/
-body.duszki-gracz {
+   Kokpit to JEDNA warstwa na samej górze (z-index max), pełny ekran,
+   nieprzezroczysta. Mapa, GPS, strefy - wszystko żyje pod spodem i działa.
+   Kokpit tylko je ZASŁANIA. Pokazuje się dopiero, gdy JS doda do niego
+   klasę .widoczny (robi to skrypt na dole, tylko w trybie gracza). */
+#duszkiKokpitWarstwa {
+  display: none;  /* domyślnie ukryty; JS pokaże w trybie gracza */
+}
+#duszkiKokpitWarstwa.widoczny {
+  display: flex !important;
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  z-index: 2147483647 !important;  /* maksymalny - nad wszystkim */
   background: #060810 !important;
-  font-family: 'Courier New', monospace !important;
-  color: #6ee7b7 !important;
-  overflow: hidden !important;
+  align-items: center !important;
+  justify-content: center !important;
   margin: 0 !important;
   padding: 0 !important;
-  /* Body NIE jest flexem - kokpit pozycjonujemy fixed niezależnie.
-     Wcześniej body miało flex, ale to konfliktowało ze stylami
-     audio-przewodnika i kokpit był ściskany do paska. */
-  min-height: 100vh !important;
-  position: relative !important;
+  font-family: 'Courier New', monospace !important;
+  overflow: hidden !important;
 }
 
-/* W trybie gracza CHOWAMY wszystko z audio-przewodnika */
-body.duszki-gracz > *:not(.duszki-kokpit):not(.duszki-znak-wodny):not(#mapa) {
-  display: none !important;
-}
-/* Mapa Leaflet - pracuje pod spodem (potrzebna do GPS), ale niewidoczna */
-body.duszki-gracz #mapa {
-  position: fixed !important;
-  top: -9999px !important;
-  left: -9999px !important;
-  width: 100px !important;
-  height: 100px !important;
-  visibility: hidden !important;
-  pointer-events: none !important;
-}
-
-/* Znak wodny w tle */
-body.duszki-gracz .duszki-znak-wodny {
-  position: fixed;
+/* Znak wodny w tle warstwy */
+#duszkiKokpitWarstwa .dk-znak {
+  position: absolute;
   top: 50%; left: 50%;
   transform: translate(-50%, -50%) rotate(-12deg);
   font-size: clamp(40px, 14vw, 140px);
@@ -5974,553 +5966,150 @@ body.duszki-gracz .duszki-znak-wodny {
   color: rgba(110, 231, 183, 0.04);
   pointer-events: none;
   white-space: nowrap;
-  text-shadow: 0 0 40px rgba(110, 231, 183, 0.08);
   z-index: 1;
-  display: block !important;
 }
 
-/* KOKPIT - rama urządzenia */
-/* KOKPIT - rama urządzenia. Position fixed - na środku ekranu niezależnie
-   od stylów body i reszty audio-przewodnika. */
-body.duszki-gracz .duszki-kokpit {
-  position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: min(94vw, 480px);
-  height: min(95vh, 720px);
-  max-height: 95vh;
+/* Kokpit - rama. Wysokość prowadzi, szerokość z proporcji telefonu. */
+#duszkiKokpitWarstwa .dk-kokpit {
+  position: relative;
+  height: 96vh;
+  width: auto;
+  aspect-ratio: 9 / 14;
+  max-width: 96vw;
   background: linear-gradient(135deg, #0e1320 0%, #1a1f2e 50%, #0e1320 100%);
   border: 3px solid #2a3344;
   border-radius: 24px;
-  box-shadow:
-    0 0 60px rgba(110, 231, 183, 0.08),
-    inset 0 2px 8px rgba(110, 231, 183, 0.06),
-    inset 0 -2px 8px rgba(0, 0, 0, 0.6),
-    0 20px 60px rgba(0, 0, 0, 0.8);
+  box-shadow: 0 0 60px rgba(110, 231, 183, 0.08), inset 0 2px 8px rgba(110, 231, 183, 0.06), inset 0 -2px 8px rgba(0,0,0,0.6), 0 20px 60px rgba(0,0,0,0.8);
   padding: 18px;
-  display: flex !important;
+  display: flex;
   flex-direction: column;
   align-items: center;
-  z-index: 10;
+  z-index: 2;
   box-sizing: border-box;
-  flex-shrink: 0;
+  overflow: hidden;
 }
+#duszkiKokpitWarstwa .dk-kokpit * { box-sizing: border-box; }
 
-/* Śrubki w rogach */
-.duszki-srubka {
-  position: absolute;
-  width: 14px; height: 14px;
-  border-radius: 50%;
-  background: radial-gradient(circle at 30% 30%, #555, #1a1a1a);
-  box-shadow: inset 0 0 4px rgba(0,0,0,0.8), 0 1px 2px rgba(0,0,0,0.5);
-}
-.duszki-srubka::after {
-  content: '';
-  position: absolute;
-  top: 50%; left: 20%; right: 20%;
-  height: 1.5px;
-  background: #0a0a0a;
-  transform: translateY(-50%) rotate(35deg);
-  border-radius: 1px;
-}
-.duszki-srubka.tl { top: 8px; left: 8px; }
-.duszki-srubka.tr { top: 8px; right: 8px; }
-.duszki-srubka.bl { bottom: 8px; left: 8px; }
-.duszki-srubka.br { bottom: 8px; right: 8px; }
+/* Śrubki */
+#duszkiKokpitWarstwa .dk-srubka { position: absolute; width: 14px; height: 14px; border-radius: 50%; background: radial-gradient(circle at 30% 30%, #555, #1a1a1a); box-shadow: inset 0 0 4px rgba(0,0,0,0.8); }
+#duszkiKokpitWarstwa .dk-srubka.tl { top: 8px; left: 8px; }
+#duszkiKokpitWarstwa .dk-srubka.tr { top: 8px; right: 8px; }
+#duszkiKokpitWarstwa .dk-srubka.bl { bottom: 8px; left: 8px; }
+#duszkiKokpitWarstwa .dk-srubka.br { bottom: 8px; right: 8px; }
 
 /* Górna belka */
-.duszki-gorna-belka {
-  width: 100%;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 4px 12px 12px;
-  border-bottom: 1px dashed rgba(110, 231, 183, 0.15);
-  margin-bottom: 14px;
-  font-size: 10px;
-  letter-spacing: 2px;
-}
-.duszki-marka {
-  color: #6ee7b7;
-  text-shadow: 0 0 6px rgba(110, 231, 183, 0.5);
-}
-.duszki-status {
-  display: flex; align-items: center; gap: 6px;
-  color: #a78bfa;
-  transition: color 0.4s;
-}
-.duszki-status-dot {
-  width: 8px; height: 8px;
-  border-radius: 50%;
-  background: #6b7280;
-  box-shadow: 0 0 6px #6b7280;
-  transition: all 0.4s;
-}
-/* Stan: CZUWA (szary, spokojny) */
-body.duszki-stan-czuwa .duszki-status-dot {
-  background: #6b7280;
-  box-shadow: 0 0 6px #6b7280;
-}
-/* Stan: SKANUJE (czerwony/żółty, pulsuje) */
-body.duszki-stan-skanuje .duszki-status-dot {
-  animation: duszki-status-pulse 2s ease-in-out infinite;
-}
-@keyframes duszki-status-pulse {
-  0%, 100% { background: #ef4444; box-shadow: 0 0 8px #ef4444; }
-  50% { background: #fbbf24; box-shadow: 0 0 12px #fbbf24; }
-}
-/* Stan: KONTAKT (krwistoczerwony, szybko pulsuje) */
-body.duszki-stan-kontakt .duszki-status-dot {
-  background: #dc2626;
-  box-shadow: 0 0 16px #dc2626, 0 0 32px rgba(220, 38, 38, 0.5);
-  animation: duszki-kontakt-pulse 0.6s ease-in-out infinite;
-}
-body.duszki-stan-kontakt .duszki-status {
-  color: #ef4444 !important;
-  text-shadow: 0 0 8px #ef4444;
-}
-@keyframes duszki-kontakt-pulse {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.3); }
+#duszkiKokpitWarstwa .dk-belka { width: 100%; display: flex; justify-content: space-between; align-items: center; padding: 4px 12px 12px; border-bottom: 1px dashed rgba(110,231,183,0.15); margin-bottom: 14px; font-size: 10px; letter-spacing: 2px; color: #6ee7b7; }
+#duszkiKokpitWarstwa .dk-status { display: flex; align-items: center; gap: 6px; color: #a78bfa; }
+#duszkiKokpitWarstwa .dk-dot { width: 8px; height: 8px; border-radius: 50%; background: #6b7280; box-shadow: 0 0 6px #6b7280; transition: all .4s; }
+#duszkiKokpitWarstwa.stan-skanuje .dk-dot { animation: dk-pulse 2s ease-in-out infinite; }
+#duszkiKokpitWarstwa.stan-kontakt .dk-dot { background: #dc2626; box-shadow: 0 0 16px #dc2626; animation: dk-pulse-fast .5s ease-in-out infinite; }
+@keyframes dk-pulse { 0%,100%{background:#ef4444;box-shadow:0 0 8px #ef4444;} 50%{background:#fbbf24;box-shadow:0 0 12px #fbbf24;} }
+@keyframes dk-pulse-fast { 0%,100%{transform:scale(1);} 50%{transform:scale(1.3);} }
+
+/* Antenki */
+#duszkiKokpitWarstwa .dk-antenki { width: 100%; display: flex; justify-content: space-between; padding: 0 18%; margin-bottom: -10px; position: relative; z-index: 3; }
+
+/* === WSKAZÓWKA-BAJER (między antenkami) === */
+/* Sama wskazówka bez tarczy. Buja się jak wahadło 10:00<->14:00. Napisy W-N-E. */
+#duszkiKokpitWarstwa .dk-wsk { position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 64px; height: 64px; z-index: 4; pointer-events: none; }
+#duszkiKokpitWarstwa .dk-wsk svg { display: block; width: 100%; height: 100%; overflow: visible; }
+#duszkiKokpitWarstwa .dk-wsk-litera { fill: rgba(110,231,183,0.4); font-family: 'Courier New', monospace; font-size: 10px; font-weight: bold; letter-spacing: 1px; text-anchor: middle; }
+#duszkiKokpitWarstwa .dk-wsk-litera.n { fill: rgba(251,191,36,0.55); }
+#duszkiKokpitWarstwa .dk-wsk-igla { transform-origin: 50px 52px; animation: dk-wsk-balans 4s ease-in-out infinite; }
+@keyframes dk-wsk-balans { 0%{transform:rotate(-60deg);} 50%{transform:rotate(60deg);} 100%{transform:rotate(-60deg);} }
+#duszkiKokpitWarstwa .dk-wsk-grot { fill: #fbbf24; filter: drop-shadow(0 0 4px rgba(251,191,36,0.9)); }
+#duszkiKokpitWarstwa .dk-wsk-ogon { fill: #1f2a3a; stroke: rgba(110,231,183,0.3); stroke-width: 0.5; }
+#duszkiKokpitWarstwa .dk-wsk-srodek { fill: #fde68a; filter: drop-shadow(0 0 5px rgba(251,191,36,1)); }
+#duszkiKokpitWarstwa .dk-antenka { position: relative; width: 14px; height: 50px; display: flex; flex-direction: column; align-items: center; }
+#duszkiKokpitWarstwa .dk-trzon { width: 3px; height: 38px; background: linear-gradient(to bottom, #6ee7b7, #2a3344); border-radius: 2px; box-shadow: 0 0 6px rgba(110,231,183,0.4); }
+#duszkiKokpitWarstwa .dk-kulka { width: 14px; height: 14px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #a7f3d0, #16a34a 60%, #0f4d2a); box-shadow: 0 0 16px rgba(110,231,183,0.8); margin-top: -4px; transition: all .4s; }
+#duszkiKokpitWarstwa.stan-skanuje .dk-kulka { animation: dk-kulka 3s ease-in-out infinite; }
+#duszkiKokpitWarstwa.stan-kontakt .dk-kulka { background: radial-gradient(circle at 35% 35%, #fecaca, #dc2626 60%, #7f1d1d) !important; box-shadow: 0 0 32px #dc2626 !important; }
+@keyframes dk-kulka { 0%,100%{box-shadow:0 0 16px rgba(110,231,183,0.8);} 50%{box-shadow:0 0 24px rgba(251,191,36,1);background:radial-gradient(circle at 35% 35%,#fef3c7,#d97706 60%,#78350f);} }
+
+/* Fale */
+#duszkiKokpitWarstwa .dk-fale { position: absolute; top: 8px; left: 50%; transform: translateX(-50%); pointer-events: none; }
+#duszkiKokpitWarstwa .dk-fala { position: absolute; width: 40px; height: 20px; border: 2px solid rgba(110,231,183,0.55); border-bottom: none; border-radius: 50% 50% 0 0 / 100% 100% 0 0; left: 50%; top: 0; transform: translateX(-50%); opacity: 0; }
+#duszkiKokpitWarstwa.stan-skanuje .dk-fala, #duszkiKokpitWarstwa.stan-kontakt .dk-fala { animation: dk-fala 3s linear infinite; }
+#duszkiKokpitWarstwa.stan-kontakt .dk-fala { border-color: rgba(220,38,38,0.75) !important; animation-duration: 1.3s !important; }
+@keyframes dk-fala { 0%{transform:translateX(-50%) scale(0.4);opacity:0;} 20%{opacity:0.7;} 100%{transform:translateX(-50%) scale(3.2);opacity:0;} }
+
+/* Ekranik */
+#duszkiKokpitWarstwa .dk-ekran-rama { width: 86%; aspect-ratio: 1; margin-top: 14px; padding: 8px; background: linear-gradient(135deg, #0a0d14, #1a1f2e); border-radius: 50%; box-shadow: inset 0 0 20px rgba(0,0,0,0.9); border: 2px solid #2a3344; position: relative; }
+#duszkiKokpitWarstwa .dk-ekran { width: 100%; height: 100%; background: radial-gradient(circle at center, #1a3a2a 0%, #0a1a14 60%, #050808 100%); border-radius: 50%; position: relative; overflow: hidden; box-shadow: inset 0 0 40px rgba(0,0,0,0.9); transition: all .4s; }
+#duszkiKokpitWarstwa.stan-kontakt .dk-ekran { background: radial-gradient(circle at center, #3a1a1a 0%, #1a0a0a 60%, #080505 100%) !important; box-shadow: inset 0 0 60px rgba(220,38,38,0.4) !important; }
+#duszkiKokpitWarstwa .dk-ekran::before { content: ''; position: absolute; inset: 0; background: linear-gradient(to right, transparent 49.5%, rgba(110,231,183,0.12) 50%, transparent 50.5%), linear-gradient(to bottom, transparent 49.5%, rgba(110,231,183,0.12) 50%, transparent 50.5%); border-radius: 50%; }
+#duszkiKokpitWarstwa .dk-ekran::after { content: ''; position: absolute; inset: 20%; border: 1px dashed rgba(110,231,183,0.2); border-radius: 50%; }
+#duszkiKokpitWarstwa .dk-wskazowka { position: absolute; top: 50%; left: 50%; width: 50%; height: 2px; background: linear-gradient(to right, transparent, rgba(110,231,183,0.8)); transform-origin: left center; box-shadow: 0 0 8px rgba(110,231,183,0.6); display: none; }
+#duszkiKokpitWarstwa.stan-skanuje .dk-wskazowka, #duszkiKokpitWarstwa.stan-kontakt .dk-wskazowka { display: block; animation: dk-skan 4s linear infinite; }
+@keyframes dk-skan { 0%{transform:rotate(0);} 100%{transform:rotate(360deg);} }
+#duszkiKokpitWarstwa .dk-gracz { position: absolute; top: 50%; left: 50%; width: 12px; height: 12px; transform: translate(-50%,-50%); border-radius: 50%; background: #6ee7b7; box-shadow: 0 0 16px #6ee7b7; animation: dk-gracz 2s ease-in-out infinite; z-index: 5; }
+@keyframes dk-gracz { 0%,100%{box-shadow:0 0 16px #6ee7b7;} 50%{box-shadow:0 0 24px #6ee7b7;} }
+
+/* Napis KONTAKT */
+#duszkiKokpitWarstwa .dk-kontakt-napis { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%) scale(0.5); font-size: clamp(22px,5.5vw,38px); font-weight: 900; letter-spacing: 6px; color: #fee2e2; text-shadow: 0 0 12px #dc2626, 0 0 24px #dc2626; opacity: 0; pointer-events: none; z-index: 20; white-space: nowrap; }
+/* Napis CZEKAJ - statyczny, na dole sonaru (gdy lektor czeka na dane API) */
+#duszkiKokpitWarstwa .dk-czekaj-napis { position: absolute; bottom: 12%; left: 50%; transform: translateX(-50%); font-size: clamp(10px,2.3vw,14px); font-weight: bold; letter-spacing: 3px; color: #6ee7b7; text-shadow: 0 0 8px rgba(110,231,183,0.7); opacity: 0; pointer-events: none; z-index: 19; white-space: nowrap; transition: opacity 0.3s; }
+#duszkiKokpitWarstwa .dk-czekaj-napis.aktywny { opacity: 0.9; animation: dk-czekaj-puls 2s ease-in-out infinite; }
+@keyframes dk-czekaj-puls { 0%,100%{opacity:0.25;} 50%{opacity:0.95;} }
+#duszkiKokpitWarstwa.stan-kontakt .dk-kontakt-napis { animation: dk-kontakt 4s ease-out forwards; }
+@keyframes dk-kontakt { 0%{opacity:0;transform:translate(-50%,-50%) scale(0.3);} 8%{opacity:1;transform:translate(-50%,-50%) scale(1.15);} 16%{transform:translate(-50%,-50%) scale(1);} 88%{opacity:0.9;transform:translate(-50%,-50%) scale(1);} 100%{opacity:0;transform:translate(-50%,-50%) scale(1);} }
+
+/* Wskaźniki */
+#duszkiKokpitWarstwa .dk-wskazniki { display: flex; justify-content: space-around; width: 100%; margin-top: 16px; gap: 8px; }
+#duszkiKokpitWarstwa .dk-w { flex: 1; background: rgba(0,0,0,0.4); border: 1px solid rgba(110,231,183,0.2); border-radius: 6px; padding: 6px 4px; text-align: center; }
+#duszkiKokpitWarstwa .dk-w-label { color: rgba(110,231,183,0.5); font-size: 8px; margin-bottom: 3px; letter-spacing: 1px; }
+#duszkiKokpitWarstwa .dk-w-val { color: #fbbf24; font-size: 11px; font-weight: bold; text-shadow: 0 0 4px #fbbf24; }
+/* Wskaźnik OFF - klikalny, czerwony jak przycisk awaryjny */
+#duszkiKokpitWarstwa .dk-w-off { cursor: pointer; border-color: rgba(239,68,68,0.4) !important; transition: all 0.15s; }
+#duszkiKokpitWarstwa .dk-w-off:hover { border-color: rgba(239,68,68,0.8) !important; background: rgba(239,68,68,0.08) !important; }
+#duszkiKokpitWarstwa .dk-w-off:active { transform: scale(0.96); }
+#duszkiKokpitWarstwa .dk-w-off .dk-w-val { color: #ef4444 !important; text-shadow: 0 0 6px #ef4444 !important; }
+
+/* Przycisk */
+#duszkiKokpitWarstwa .dk-przycisk { margin-top: 18px; width: 90%; padding: 14px; background: linear-gradient(180deg, #1f2937, #0f1419); border: 2px solid #6ee7b7; border-radius: 8px; color: #6ee7b7; font-family: inherit; font-size: 13px; font-weight: bold; letter-spacing: 3px; text-shadow: 0 0 8px rgba(110,231,183,0.6); box-shadow: 0 0 16px rgba(110,231,183,0.25); cursor: pointer; position: relative; overflow: hidden; transition: all .2s; }
+#duszkiKokpitWarstwa .dk-przycisk:active { transform: scale(0.97); }
+#duszkiKokpitWarstwa .dk-przycisk.aktywny { border-color: #fbbf24; color: #fbbf24; box-shadow: 0 0 20px rgba(251,191,36,0.4); }
+
+/* Gałki */
+#duszkiKokpitWarstwa .dk-galki { display: flex; justify-content: space-around; width: 100%; margin-top: 14px; padding: 0 4px; }
+/* Pokrętło - obudowa nie obraca się, obraca się tylko wskaźnik (.dk-galka-obrot) */
+#duszkiKokpitWarstwa .dk-galka-box { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+#duszkiKokpitWarstwa .dk-galka { width: 42px; height: 42px; border-radius: 50%; background: radial-gradient(circle at 30% 30%, #4a5568, #1a202c 70%); box-shadow: 0 2px 4px rgba(0,0,0,0.6), inset 0 -2px 4px rgba(0,0,0,0.5), inset 0 1px 2px rgba(255,255,255,0.1); position: relative; cursor: ns-resize; touch-action: none; }
+/* Wskaźnik pokrętła - to on się obraca (JS ustawia transform: rotate) */
+#duszkiKokpitWarstwa .dk-galka-obrot { position: absolute; inset: 0; border-radius: 50%; transition: transform 0.05s linear; }
+#duszkiKokpitWarstwa .dk-galka-obrot::after { content: ''; position: absolute; top: 4px; left: 50%; width: 3px; height: 12px; background: #fbbf24; transform: translateX(-50%); border-radius: 2px; box-shadow: 0 0 5px #fbbf24; }
+/* Etykieta pod pokrętłem (S1-S4) */
+#duszkiKokpitWarstwa .dk-galka-label { font-family: 'Courier New', monospace; font-size: 9px; letter-spacing: 1px; color: rgba(110,231,183,0.6); }
+
+/* === SONAR - blipy duszków na ekraniku === */
+/* Warstwa blipów - pełen ekranik, blipy pozycjonowane absolutnie wewnątrz.
+   Środek warstwy (50%, 50%) = pozycja gracza. Promień warstwy = 200m w terenie. */
+#duszkiKokpitWarstwa .dk-sonar-warstwa { position: absolute; inset: 0; pointer-events: none; z-index: 4; }
+#duszkiKokpitWarstwa .dk-blip { position: absolute; border-radius: 50%; transform: translate(-50%, -50%); transition: top 0.4s linear, left 0.4s linear, background 0.3s, box-shadow 0.3s, width 0.3s, height 0.3s; pointer-events: none; }
+/* Blipy domyślnie NIEWIDOCZNE - widać je tylko gdy wskazówka radaru je
+   "muśnie" (JS dodaje klasę .pingnij, CSS wyzwala rozbłysk + powolny zanik).
+   Kolor i rozmiar zależą od odległości (niebieski/żółty/czerwony). */
+#duszkiKokpitWarstwa .dk-blip { opacity: 0; }
+#duszkiKokpitWarstwa .dk-blip.daleko { width: 5px; height: 5px; background: #60a5fa; box-shadow: 0 0 4px #3b82f6; }
+#duszkiKokpitWarstwa .dk-blip.srednio { width: 9px; height: 9px; background: #fbbf24; box-shadow: 0 0 8px #f59e0b, 0 0 14px rgba(251,191,36,0.6); }
+#duszkiKokpitWarstwa .dk-blip.blisko { width: 9px; height: 9px; background: #ef4444; box-shadow: 0 0 10px #dc2626, 0 0 18px rgba(220,38,38,0.7); }
+/* Rozbłysk + zanik. Trwa cały obrót wskazówki (4s) - blip "tli się" i gaśnie,
+   aż wskazówka znów go muśnie. */
+#duszkiKokpitWarstwa .dk-blip.pingnij { animation: dk-ping 4s ease-out forwards; }
+@keyframes dk-ping {
+  0%   { opacity: 0; transform: translate(-50%, -50%) scale(0.6); }
+  4%   { opacity: 1; transform: translate(-50%, -50%) scale(1.4); }   /* rozbłysk */
+  10%  { opacity: 0.95; transform: translate(-50%, -50%) scale(1); }
+  100% { opacity: 0;    transform: translate(-50%, -50%) scale(1); }  /* zanik */
 }
 
-/* ANTENKI */
-.duszki-antenki {
-  width: 100%;
-  display: flex;
-  justify-content: space-between;
-  padding: 0 18%;
-  margin-bottom: -10px;
-  z-index: 11;
-  position: relative;
-  box-sizing: border-box;
-}
-.duszki-antenka {
-  position: relative;
-  width: 14px; height: 50px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-.duszki-antenka-trzon {
-  width: 3px; height: 38px;
-  background: linear-gradient(to bottom, #6ee7b7, #2a3344);
-  border-radius: 2px;
-  box-shadow: 0 0 6px rgba(110, 231, 183, 0.4);
-}
-.duszki-antenka-kulka {
-  width: 14px; height: 14px;
-  border-radius: 50%;
-  background: radial-gradient(circle at 35% 35%, #a7f3d0, #16a34a 60%, #0f4d2a);
-  box-shadow: 0 0 16px rgba(110, 231, 183, 0.8), inset 0 -2px 4px rgba(0,0,0,0.4);
-  margin-top: -4px;
-  transition: background 0.4s, box-shadow 0.4s;
-}
-body.duszki-stan-skanuje .duszki-antenka-kulka {
-  animation: duszki-kulka-glow 3s ease-in-out infinite;
-}
-body.duszki-stan-skanuje .duszki-antenka.prawa .duszki-antenka-kulka { animation-delay: 1.5s; }
-@keyframes duszki-kulka-glow {
-  0%, 100% {
-    background: radial-gradient(circle at 35% 35%, #a7f3d0, #16a34a 60%, #0f4d2a);
-    box-shadow: 0 0 16px rgba(110, 231, 183, 0.8), inset 0 -2px 4px rgba(0,0,0,0.4);
-  }
-  50% {
-    background: radial-gradient(circle at 35% 35%, #fef3c7, #d97706 60%, #78350f);
-    box-shadow: 0 0 24px rgba(251, 191, 36, 1), inset 0 -2px 4px rgba(0,0,0,0.4);
-  }
-}
-/* W trybie KONTAKT - antenki krwistoczerwone */
-body.duszki-stan-kontakt .duszki-antenka-kulka {
-  background: radial-gradient(circle at 35% 35%, #fecaca, #dc2626 60%, #7f1d1d) !important;
-  box-shadow: 0 0 32px #dc2626, 0 0 64px rgba(220, 38, 38, 0.6), inset 0 -2px 4px rgba(0,0,0,0.4) !important;
-  animation: duszki-kontakt-kulka 0.5s ease-in-out infinite !important;
-}
-@keyframes duszki-kontakt-kulka {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.25); }
-}
-
-/* Fale półokrągłe wychodzące z antenek */
-.duszki-fale-wrap {
-  position: absolute;
-  top: 8px;
-  left: 50%;
-  transform: translateX(-50%);
-  pointer-events: none;
-}
-.duszki-fala {
-  position: absolute;
-  border: 2px solid rgba(110, 231, 183, 0.6);
-  border-bottom: none;
-  border-radius: 50% 50% 0 0 / 100% 100% 0 0;
-  left: 50%;
-  top: 0;
-  transform: translateX(-50%);
-  opacity: 0;
-}
-body.duszki-stan-skanuje .duszki-fala,
-body.duszki-stan-kontakt .duszki-fala {
-  animation: duszki-fala-emit 3s linear infinite;
-}
-body.duszki-stan-kontakt .duszki-fala {
-  border-color: rgba(220, 38, 38, 0.8) !important;
-  animation-duration: 1.2s !important;
-}
-.duszki-fala-1 { width: 40px; height: 20px; animation-delay: 0s; }
-.duszki-fala-2 { width: 40px; height: 20px; animation-delay: 1s; }
-.duszki-fala-3 { width: 40px; height: 20px; animation-delay: 2s; }
-@keyframes duszki-fala-emit {
-  0% { transform: translateX(-50%) scale(0.4); opacity: 0; }
-  20% { opacity: 0.8; }
-  100% { transform: translateX(-50%) scale(3.5); opacity: 0; }
-}
-
-/* EKRANIK */
-.duszki-ekranik-rama {
-  width: 86%;
-  aspect-ratio: 1;
-  margin-top: 14px;
-  padding: 8px;
-  background: linear-gradient(135deg, #0a0d14, #1a1f2e);
-  border-radius: 50%;
-  box-shadow:
-    inset 0 0 20px rgba(0,0,0,0.9),
-    0 0 30px rgba(110, 231, 183, 0.1);
-  border: 2px solid #2a3344;
-  position: relative;
-  box-sizing: border-box;
-}
-.duszki-ekranik {
-  width: 100%; height: 100%;
-  background:
-    radial-gradient(circle at center, #1a3a2a 0%, #0a1a14 60%, #050808 100%);
-  border-radius: 50%;
-  position: relative;
-  overflow: hidden;
-  box-shadow:
-    inset 0 0 40px rgba(0, 0, 0, 0.9),
-    inset 0 0 20px rgba(110, 231, 183, 0.15);
-  transition: background 0.4s, box-shadow 0.4s;
-}
-body.duszki-stan-kontakt .duszki-ekranik {
-  background: radial-gradient(circle at center, #3a1a1a 0%, #1a0a0a 60%, #080505 100%) !important;
-  box-shadow: inset 0 0 60px rgba(220, 38, 38, 0.4), inset 0 0 30px rgba(220, 38, 38, 0.5) !important;
-}
-.duszki-ekranik::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background:
-    linear-gradient(to right, transparent 49.5%, rgba(110, 231, 183, 0.12) 50%, transparent 50.5%),
-    linear-gradient(to bottom, transparent 49.5%, rgba(110, 231, 183, 0.12) 50%, transparent 50.5%);
-  border-radius: 50%;
-}
-.duszki-ekranik::after {
-  content: '';
-  position: absolute;
-  inset: 20%;
-  border: 1px dashed rgba(110, 231, 183, 0.2);
-  border-radius: 50%;
-}
-
-/* Wskazówka skanująca - tylko w stanie SKANUJE */
-.duszki-wskazowka {
-  position: absolute;
-  top: 50%; left: 50%;
-  width: 50%; height: 2px;
-  background: linear-gradient(to right, transparent, rgba(110, 231, 183, 0.8));
-  transform-origin: left center;
-  box-shadow: 0 0 8px rgba(110, 231, 183, 0.6);
-  display: none;
-}
-body.duszki-stan-skanuje .duszki-wskazowka {
-  display: block;
-  animation: duszki-skanowanie 4s linear infinite;
-}
-@keyframes duszki-skanowanie {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-
-/* Gracz w środku - punkt */
-.duszki-gracz {
-  position: absolute;
-  top: 50%; left: 50%;
-  width: 12px; height: 12px;
-  transform: translate(-50%, -50%);
-  border-radius: 50%;
-  background: #6ee7b7;
-  box-shadow: 0 0 16px #6ee7b7, 0 0 32px rgba(110, 231, 183, 0.5);
-  animation: duszki-gracz-puls 2s ease-in-out infinite;
-  z-index: 5;
-}
-@keyframes duszki-gracz-puls {
-  0%, 100% { box-shadow: 0 0 16px #6ee7b7, 0 0 32px rgba(110, 231, 183, 0.5); }
-  50% { box-shadow: 0 0 24px #6ee7b7, 0 0 48px rgba(110, 231, 183, 0.8); }
-}
-
-/* NAPIS "KONTAKT" - pojawia się tylko w stanie KONTAKT */
-.duszki-napis-kontakt {
-  position: absolute;
-  top: 50%; left: 50%;
-  transform: translate(-50%, -50%) scale(0.5);
-  font-family: 'Courier New', monospace;
-  font-size: clamp(22px, 5.5vw, 38px);
-  font-weight: 900;
-  letter-spacing: 6px;
-  color: #fee2e2;
-  text-shadow:
-    0 0 12px #dc2626,
-    0 0 24px #dc2626,
-    0 0 48px rgba(220, 38, 38, 0.8);
-  opacity: 0;
-  pointer-events: none;
-  z-index: 20;
-  white-space: nowrap;
-}
-body.duszki-stan-kontakt .duszki-napis-kontakt {
-  animation: duszki-napis-kontakt-anim 1s ease-out forwards;
-}
-@keyframes duszki-napis-kontakt-anim {
-  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.3); }
-  30% { opacity: 1; transform: translate(-50%, -50%) scale(1.15); }
-  60% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
-  100% { opacity: 0.85; transform: translate(-50%, -50%) scale(1); }
-}
-
-/* Rozbłysk podczas wykrycia */
-.duszki-rozblysk {
-  position: absolute;
-  inset: 0;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(254, 226, 226, 0.9) 0%, rgba(220, 38, 38, 0.4) 30%, transparent 70%);
-  opacity: 0;
-  pointer-events: none;
-  z-index: 15;
-}
-body.duszki-stan-kontakt .duszki-rozblysk {
-  animation: duszki-rozblysk-anim 1.2s ease-out forwards;
-}
-@keyframes duszki-rozblysk-anim {
-  0% { opacity: 0; }
-  10% { opacity: 1; }
-  100% { opacity: 0; }
-}
-
-/* Wskaźniki pod ekranikiem */
-.duszki-wskazniki {
-  display: flex;
-  justify-content: space-around;
-  width: 100%;
-  margin-top: 16px;
-  gap: 8px;
-}
-.duszki-wskaznik {
-  flex: 1;
-  background: rgba(0,0,0,0.4);
-  border: 1px solid rgba(110, 231, 183, 0.2);
-  border-radius: 6px;
-  padding: 6px 4px;
-  text-align: center;
-  font-size: 9px;
-  letter-spacing: 1px;
-}
-.duszki-wskaznik-label {
-  color: rgba(110, 231, 183, 0.5);
-  font-size: 8px;
-  margin-bottom: 3px;
-}
-.duszki-wskaznik-wartosc {
-  color: #fbbf24;
-  font-size: 11px;
-  font-weight: bold;
-  text-shadow: 0 0 4px #fbbf24;
-}
-
-/* Główny przycisk SZUKAJ */
-.duszki-przycisk-szukaj {
-  margin-top: 18px;
-  width: 90%;
-  padding: 14px;
-  background: linear-gradient(180deg, #1f2937 0%, #0f1419 100%);
-  border: 2px solid #6ee7b7;
-  border-radius: 8px;
-  color: #6ee7b7;
-  font-family: inherit;
-  font-size: 13px;
-  font-weight: bold;
-  letter-spacing: 3px;
-  text-shadow: 0 0 8px rgba(110, 231, 183, 0.6);
-  box-shadow:
-    0 0 16px rgba(110, 231, 183, 0.25),
-    inset 0 0 12px rgba(110, 231, 183, 0.1);
-  cursor: pointer;
-  position: relative;
-  overflow: hidden;
-  transition: all 0.2s;
-  flex-shrink: 0;
-}
-.duszki-przycisk-szukaj:active {
-  transform: scale(0.97);
-}
-.duszki-przycisk-szukaj.aktywny {
-  border-color: #fbbf24;
-  color: #fbbf24;
-  text-shadow: 0 0 8px rgba(251, 191, 36, 0.8);
-  box-shadow: 0 0 20px rgba(251, 191, 36, 0.4), inset 0 0 16px rgba(251, 191, 36, 0.15);
-}
-.duszki-przycisk-szukaj::before {
-  content: '';
-  position: absolute;
-  top: 0; left: -100%;
-  width: 100%; height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(110, 231, 183, 0.2), transparent);
-  animation: duszki-bly-przycisk 3s ease-in-out infinite;
-}
-@keyframes duszki-bly-przycisk {
-  0%, 100% { left: -100%; }
-  50% { left: 100%; }
-}
-
-/* Gałki na dole */
-.duszki-galki {
-  display: flex;
-  justify-content: space-around;
-  width: 100%;
-  margin-top: 14px;
-  padding: 0 8px;
-}
-.duszki-galka {
-  width: 38px; height: 38px;
-  border-radius: 50%;
-  background: radial-gradient(circle at 30% 30%, #4a5568, #1a202c 70%);
-  box-shadow:
-    0 2px 4px rgba(0,0,0,0.6),
-    inset 0 -2px 4px rgba(0,0,0,0.5),
-    inset 0 1px 2px rgba(255,255,255,0.1);
-  position: relative;
-  cursor: pointer;
-}
-.duszki-galka::after {
-  content: '';
-  position: absolute;
-  top: 4px; left: 50%;
-  width: 2px; height: 10px;
-  background: #fbbf24;
-  transform: translateX(-50%);
-  border-radius: 1px;
-  box-shadow: 0 0 4px #fbbf24;
-}
-
-/* Wersja na dole */
-.duszki-wersja {
-  position: absolute;
-  bottom: 4px;
-  right: 12px;
-  font-size: 8px;
-  color: rgba(110, 231, 183, 0.3);
-  letter-spacing: 2px;
-  z-index: 11;
-}
+/* Napis wypukły w metalu - "PARANORMAL DETECTOR" */
+#duszkiKokpitWarstwa .dk-metal-napis { width: 100%; text-align: center; margin-top: 18px; margin-bottom: 4px; font-family: 'Courier New', monospace; font-size: clamp(13px, 3.2vw, 18px); font-weight: 900; letter-spacing: 4px; color: #38445a; text-shadow: 0 -1px 1px rgba(120,140,170,0.45), 0 1px 1px rgba(0,0,0,0.85), 0 2px 3px rgba(0,0,0,0.6); user-select: none; pointer-events: none; }
 
 </style>
 </head>
 <body>
-
-<!-- Bardzo wczesny skrypt - dodaje klasę 'duszki-gracz' JESZCZE PRZED
-     załadowaniem mapy. Bez tego mapa by mignęła użytkownikowi zanim
-     główny skrypt zdążyłby ją schować. -->
-<script>
-  (function() {
-    var p = new URLSearchParams(window.location.search);
-    if (p.get('admin') !== '1') {
-      document.body.classList.add('duszki-gracz');
-      document.body.classList.add('duszki-stan-czuwa');
-    }
-  })();
-</script>
-
-<!-- ============================================================
-     === DUSZKI - kokpit gracza ==================================
-     ============================================================
-     Pokazuje się TYLKO gdy body ma klasę .duszki-gracz
-     (czyli tryb gracza, NIE admin). W trybie admina ten kokpit
-     jest po prostu schowany - admin widzi normalny edytor. -->
-<div class="duszki-znak-wodny">STREFA MROKU</div>
-
-<div class="duszki-kokpit">
-  <div class="duszki-srubka tl"></div>
-  <div class="duszki-srubka tr"></div>
-  <div class="duszki-srubka bl"></div>
-  <div class="duszki-srubka br"></div>
-
-  <div class="duszki-gorna-belka">
-    <div class="duszki-marka">◈ DUSZKI v0.1</div>
-    <div class="duszki-status">
-      <div class="duszki-status-dot"></div>
-      <span id="duszkiStatusTekst">CZUWA</span>
-    </div>
-  </div>
-
-  <div class="duszki-antenki">
-    <div class="duszki-antenka lewa">
-      <div class="duszki-fale-wrap">
-        <div class="duszki-fala duszki-fala-1"></div>
-        <div class="duszki-fala duszki-fala-2"></div>
-        <div class="duszki-fala duszki-fala-3"></div>
-      </div>
-      <div class="duszki-antenka-trzon"></div>
-      <div class="duszki-antenka-kulka"></div>
-    </div>
-    <div class="duszki-antenka prawa">
-      <div class="duszki-fale-wrap">
-        <div class="duszki-fala duszki-fala-1" style="animation-delay: 0.5s"></div>
-        <div class="duszki-fala duszki-fala-2" style="animation-delay: 1.5s"></div>
-        <div class="duszki-fala duszki-fala-3" style="animation-delay: 2.5s"></div>
-      </div>
-      <div class="duszki-antenka-trzon"></div>
-      <div class="duszki-antenka-kulka"></div>
-    </div>
-  </div>
-
-  <div class="duszki-ekranik-rama">
-    <div class="duszki-ekranik">
-      <div class="duszki-wskazowka"></div>
-      <div class="duszki-rozblysk"></div>
-      <div class="duszki-gracz"></div>
-      <div class="duszki-napis-kontakt">KONTAKT</div>
-    </div>
-  </div>
-
-  <div class="duszki-wskazniki">
-    <div class="duszki-wskaznik">
-      <div class="duszki-wskaznik-label">MOC</div>
-      <div class="duszki-wskaznik-wartosc">87%</div>
-    </div>
-    <div class="duszki-wskaznik">
-      <div class="duszki-wskaznik-label">SYGNAŁ</div>
-      <div class="duszki-wskaznik-wartosc" id="duszkiSygnal">--</div>
-    </div>
-    <div class="duszki-wskaznik">
-      <div class="duszki-wskaznik-label">DUSZKI</div>
-      <div class="duszki-wskaznik-wartosc" id="duszkiLicznik">--</div>
-    </div>
-  </div>
-
-  <button class="duszki-przycisk-szukaj" id="duszkiPrzyciskSzukaj">▶ SZUKAJ STREFY MROKU</button>
-
-  <div class="duszki-galki">
-    <div class="duszki-galka"></div>
-    <div class="duszki-galka"></div>
-    <div class="duszki-galka"></div>
-    <div class="duszki-galka"></div>
-  </div>
-
-  <div class="duszki-wersja">SN-0001</div>
-</div>
-<!-- === KONIEC kokpitu Duszków === -->
 
 <!-- ============================================================
      === BLOKADA ADMINA NA MAŁYM EKRANIE ========================
@@ -6560,7 +6149,7 @@ body.duszki-stan-kontakt .duszki-rozblysk {
       </div>
       <!-- Nakładka z tytułem i opisem (od środka w dół) -->
       <div class="splash-poeta-nakladka">
-        <div class="splash-poeta-tytul" id="splashPoetaTytul">Audio-poezja</div>
+        <div class="splash-poeta-tytul" id="splashPoetaTytul">Detektor</div>
         <div class="splash-poeta-opis" id="splashPoetaOpis">Włącz lokalizację i ruszaj na poetycki spacer</div>
       </div>
       <!-- UKRYTY magazyn linków poety - NIE wyświetlany na splash, tylko nośnik danych.
@@ -6672,7 +6261,7 @@ body.duszki-stan-kontakt .duszki-rozblysk {
        przez co modal się nie pokazywał. Teraz są niezależne. -->
   <div class="nazwa-edytor" id="nazwaEdytor">
     <label class="nazwa-edytor-label">Nazwa strony:</label>
-    <input type="text" id="nazwaStronyInput" maxlength="60" placeholder="np. Siedliszcze">
+    <input type="text" id="nazwaStronyInput" maxlength="60" placeholder="np. nazwa miejsca">
     <div class="nazwa-edytor-akcje">
       <button class="nazwa-zapisz" onclick="zapiszNazweStrony()">✓ Zapisz</button>
       <button class="nazwa-anuluj" onclick="zamknijEdytorNazwy()">Anuluj</button>
@@ -6682,7 +6271,7 @@ body.duszki-stan-kontakt .duszki-rozblysk {
 
   <div class="nazwa-edytor" id="opisStronyEdytor">
     <label class="nazwa-edytor-label">Tytuł sekcji:</label>
-    <input type="text" id="opisStronyTytulInput" maxlength="80" placeholder="np. O Siedliszczu">
+    <input type="text" id="opisStronyTytulInput" maxlength="80" placeholder="np. opis">
     <label class="nazwa-edytor-label" style="margin-top:8px">Treść (akapity oddziel pustą linią):</label>
     <textarea id="opisStronyTrescInput" rows="8" placeholder="Tekst akapit po akapicie. Pustą linią oddzielisz jeden akapit od drugiego.&#10;&#10;Możesz używać **pogrubienia** dla wyróżnień."></textarea>
     <div class="nazwa-edytor-akcje">
@@ -6773,7 +6362,7 @@ body.duszki-stan-kontakt .duszki-rozblysk {
         <button id="opisStronyBtn" onclick="otworzEdytorOpisuStrony()" style="background:#a04510;font-size:11px">📜 Opis strony</button>
 
         <!-- === SPLASH POETY - tytuł i opis pokazywany na ekranie startowym === -->
-        <button id="splashPoetyBtn" onclick="otworzEdytorSplashPoety()" style="background:#7c3aed;font-size:11px">🎭 Splash poety</button>
+        <button id="splashPoetyBtn" onclick="otworzEdytorSplashPoety()" style="background:#7c3aed;font-size:11px">🎭 Ekran startowy</button>
 
         <button onclick="wyczyscWszystkoEdytor()" style="background:#dc2626;color:#fff;border-color:#dc2626;font-size:11px;margin-top:10px;font-weight:700" title="Wyczyść wszystkie dane edytora - kropki audio, nazwę, opis">🗑️ Wyczyść wszystko</button>
       </div>
@@ -6782,7 +6371,7 @@ body.duszki-stan-kontakt .duszki-rozblysk {
     <aside class="sidebar">
       <!-- SEKCJA POETY - tytuł + opis (te same dane co splash i menu hamburgera) -->
       <div class="sidebar-poeta" id="sidebarPoeta">
-        <div class="sidebar-poeta-tytul" id="sidebarPoetaTytul">Audio-poezja</div>
+        <div class="sidebar-poeta-tytul" id="sidebarPoetaTytul">Detektor</div>
         <div class="sidebar-poeta-ramka">
           <div class="sidebar-poeta-opis" id="sidebarPoetaOpis">Włącz lokalizację i ruszaj na poetycki spacer</div>
         </div>
@@ -6817,7 +6406,7 @@ body.duszki-stan-kontakt .duszki-rozblysk {
 
       <!-- SEKCJA POETY - tytuł audio-wiersza + opis (te same dane co splash) -->
       <div class="menu-poeta" id="menuPoeta">
-        <div class="menu-poeta-tytul" id="menuPoetaTytul">Audio-poezja</div>
+        <div class="menu-poeta-tytul" id="menuPoetaTytul">Detektor</div>
         <div class="menu-poeta-ramka">
           <img class="menu-poeta-foto" id="menuPoetaFoto" src="img/artysta.jpg" alt="" onerror="menuPoetaSprobujFoto(this)">
           <div class="menu-poeta-opis" id="menuPoetaOpis">Włącz lokalizację i ruszaj na poetycki spacer</div>
@@ -6947,7 +6536,7 @@ body.duszki-stan-kontakt .duszki-rozblysk {
     <a href="../" class="back">← powrót</a>
   </div>
 
-  <footer>— audio-poezja · mini-klik.pl · 2026 —</footer>
+  <footer>— mini-klik.pl · 2026 —</footer>
 
 </div>
 
@@ -7996,7 +7585,7 @@ let sciezkaPauzaTimer = null;
 const SCIEZKA_MARGINES_PAUZY_MS = 4000; // 4 s tolerancji na skok GPS
 
 // Sygnatura autorska - nie usuwać. Identyfikuje oryginalne pochodzenie kodu.
-const _sygnaturaAutora = 'Audio-poezja \u00a9 2026 Piotr Przebiorowski, Siedliszcze \u2014 mini-klik.pl';
+const _sygnaturaAutora = 'Detektor \u00a9 2026 mini-klik.pl';
 
 
 // Licznik prób formatu zdjęcia poety w menu (jpg→png→webp).
@@ -8026,6 +7615,7 @@ let aktualnaKropkaTla = null; // numer obecnie odtwarzanej kropki tła
 let audioTloGloznoscBazowa = 0.5; // 50% - tło ma być cicho, w tle wiersza
 let audioTloDuckingActive = false; // czy ducking jest aktywny (wiersz gra)
 let audioTloFadeInterval = null; // ID setInterval crossfade (żeby anulować)
+let tloPauzaTimer = null; // ID setTimeout pauzy 120s między powtórzeniami komunikatu tła
 
 // Czy tło audio jest włączone (przełącznik ON/OFF na mapie).
 // OFF = żadne tło nie zagra dopóki user nie włączy z powrotem.
@@ -8969,7 +8559,17 @@ function sprawdzKropkiAudio() {
       minOdl = odl;
     }
   }
+  const poprzWStrefie = wStrefieKropki;
   wStrefieKropki = najblizszaW ? najblizszaW.numer : null;
+
+  // KONTAKT w kokpicie przy WEJŚCIU w nowy punkt (zmiana strefy na nową).
+  // Tylko dla punktów NIE-tło: strefy-tło mają własny KONTAKT (przez
+  // przechwycone odtworzAudioTlo), więc tu je pomijamy, by efekt się nie dublował.
+  if (wStrefieKropki !== null && wStrefieKropki !== poprzWStrefie
+      && najblizszaW && najblizszaW.typKropki !== 'tlo'
+      && typeof window.dkKontaktNaPunkt === 'function') {
+    window.dkKontaktNaPunkt();
+  }
 
   // 7. Aktualizuj nowy panel "W zasięgu"
   aktualizujPanelRadaru();
@@ -9110,6 +8710,7 @@ function przelaczTloAudio() {
     }
     aktualnaKropkaTla = null;
     audioTloDuckingActive = false;
+    if (tloPauzaTimer) { clearTimeout(tloPauzaTimer); tloPauzaTimer = null; }
     if (audioTloFadeInterval) { clearInterval(audioTloFadeInterval); audioTloFadeInterval = null; }
     if (typeof audioTloDuckInterval !== 'undefined' && audioTloDuckInterval) {
       clearInterval(audioTloDuckInterval);
@@ -9136,9 +8737,26 @@ function odtworzAudioTlo(numer) {
 
   // Nowe audio tła
   const noweAudio = new Audio(sciezka);
-  noweAudio.loop = true;
+  noweAudio.loop = false; // NIE w pętli - komunikat gra raz, potem pauza 120s
   noweAudio.volume = 0; // zaczynamy od ciszy, podgłośnimy w crossfade
   audioTlo = noweAudio;
+
+  // PAUZA 120s: po zakończeniu komunikatu odczekaj 2 min, potem odtwórz
+  // ten sam komunikat ponownie - ale TYLKO jeśli gracz wciąż jest w tej
+  // strefie. Bez tego byłaby ciągła pętla (słychać że to nagranie).
+  // Wyjście+wejście resetuje (bo to nowa zmiana strefy -> nowy start).
+  if (tloPauzaTimer) { clearTimeout(tloPauzaTimer); tloPauzaTimer = null; }
+  noweAudio.onended = function() {
+    if (tloPauzaTimer) { clearTimeout(tloPauzaTimer); }
+    tloPauzaTimer = setTimeout(function() {
+      tloPauzaTimer = null;
+      // Powtórz tylko jeśli gracz NADAL jest w tej samej strefie tła
+      // i tło jest włączone przełącznikiem.
+      if (tloAudioWlaczone && aktualnaKropkaTla === numer) {
+        odtworzAudioTlo(numer);
+      }
+    }, 120000); // 120 s = 2 minuty ciszy od zakończenia komunikatu
+  };
 
   noweAudio.play().catch(err => {
     console.warn('Audio tła nie zagrało (' + sciezka + '):', err);
@@ -9184,6 +8802,8 @@ function odtworzAudioTlo(numer) {
 
 // Zatrzymaj audio tła płynnie (fade-out 3s) - gdy turysta wyszedł ze stref
 function zatrzymajAudioTloZFade() {
+  // Skasuj oczekującą pauzę 120s - gracz wyszedł, komunikat nie ma się powtórzyć
+  if (tloPauzaTimer) { clearTimeout(tloPauzaTimer); tloPauzaTimer = null; }
   if (audioTloFadeInterval) {
     clearInterval(audioTloFadeInterval);
     audioTloFadeInterval = null;
@@ -9834,12 +9454,12 @@ function zapiszZaplanowane() {
 
 // =====================================================================
 // EDYTOR NAZWY STRONY (tryb admin)
-// Nazwa strony to wielki napis na górze (np. "Siedliszcze") + tytuł zakładki.
+// Nazwa strony to wielki napis na górze + tytuł zakładki.
 // Zapisywana w localStorage (robocza) i w pliku po pobraniu nowego index.html.
 // =====================================================================
 const KEY_NAZWA_STRONY = 'admin-nazwa-strony';
 
-// === DANE POETY (wspólne dla całej trasy audio-poezja) ===
+// === DANE (wspólne dla całej trasy) ===
 // Tytuł i opis pokazują się na splash powitalnym.
 // Zdjęcie nie jest tu zapisywane - leży statycznie w img/artysta.{jpg,png,webp}.
 const KEY_POETA_TYTUL = 'admin-poeta-tytul';
@@ -10299,7 +9919,7 @@ function zamknijEdytorSplashPoety() {
   if (modal) modal.classList.remove('visible');
 }
 
-// --- Modal informacyjny "Pliki przewodnika" (tylko do czytania) ---
+// --- Modal informacyjny "Pliki i audio" (tylko do czytania) ---
 function otworzEdytorPlikow() {
   const modal = document.getElementById('plikiPrzewodnikaModal');
   if (modal) modal.classList.add('visible');
@@ -11588,8 +11208,8 @@ function wytnijAdmina(tekst) {
   const blokiDoWyciecia = [
     ['ADMIN-HELPER:START', 'ADMIN-HELPER:END'],   // formularz dodawania kropki
     ['ADMIN-LIST:START',   'ADMIN-LIST:END'],     // panel admina (liczniki, przyciski)
-    ['ADMIN-MODAL:START',  'ADMIN-MODAL:END'],    // modal Splash poety
-    ['ADMIN-PLIKI:START',  'ADMIN-PLIKI:END']     // modal informacyjny "Pliki przewodnika"
+    ['ADMIN-MODAL:START',  'ADMIN-MODAL:END'],    // modal ekranu startowego
+    ['ADMIN-PLIKI:START',  'ADMIN-PLIKI:END']     // modal informacyjny "Pliki i audio"
   ];
   for (const [start, end] of blokiDoWyciecia) {
     // Regex: od komentarza START do komentarza END włącznie (z zawartością)
@@ -12619,10 +12239,10 @@ function zbudujPasekEdytora() {
           <span class="ed-btn-ikona">📜</span><span>Opis strony</span>
         </button>
         <button class="ed-btn ed-btn-kategorie" onclick="otworzEdytorPlikow()">
-          <span class="ed-btn-ikona">📁</span><span>Pliki przewodnika</span>
+          <span class="ed-btn-ikona">📁</span><span>Pliki i audio</span>
         </button>
         <button class="ed-btn ed-btn-splash" onclick="otworzEdytorSplashPoety()">
-          <span class="ed-btn-ikona">🎭</span><span>Splash poety</span>
+          <span class="ed-btn-ikona">🎭</span><span>Ekran startowy</span>
         </button>
         <button class="ed-btn ed-btn-wyczysc" onclick="wyczyscWszystkoEdytor()">
           <span class="ed-btn-ikona">🗑️</span><span>Wyczyść wszystko</span>
@@ -15426,7 +15046,7 @@ function splashStartBezGPS() { splashPoetaStart(); }
 <div class="splash-poety-modal-backdrop" id="splashPoetyModal" onclick="if(event.target===this)zamknijEdytorSplashPoety()">
   <div class="splash-poety-modal">
     <button class="splash-poety-modal-close" onclick="zamknijEdytorSplashPoety()" aria-label="Zamknij">✕</button>
-    <h2>🎭 Splash poety</h2>
+    <h2>🎭 Ekran startowy</h2>
     <p class="splash-poety-modal-sub">Tytuł i opis pokazują się na ekranie powitalnym (splash).</p>
 
     <div class="splash-poety-modal-pole">
@@ -15459,7 +15079,7 @@ function splashStartBezGPS() { splashPoetaStart(); }
 <div class="splash-poety-modal-backdrop" id="plikiPrzewodnikaModal" onclick="if(event.target===this)zamknijEdytorPlikow()">
   <div class="splash-poety-modal">
     <button class="splash-poety-modal-close" onclick="zamknijEdytorPlikow()" aria-label="Zamknij">✕</button>
-    <h2>📁 Pliki przewodnika</h2>
+    <h2>📁 Pliki i audio</h2>
     <p class="splash-poety-modal-sub">Jakie pliki wrzucić i pod jaką nazwą, żeby przewodnik je rozpoznał.</p>
 
     <div class="splash-poety-modal-pole">
@@ -15498,102 +15118,717 @@ function splashStartBezGPS() { splashPoetaStart(); }
 </div>
 
 <!-- =====================================================================
-     === DUSZKI - logika kokpitu (NIEZALEŻNA od głównego skryptu) =====
+     === DUSZKI - warstwa kokpitu (wierzchnia) ========================
      ===================================================================== -->
+<div id="duszkiKokpitWarstwa">
+  <div class="dk-znak">STREFA MROKU</div>
+  <div class="dk-kokpit">
+    <div class="dk-srubka tl"></div><div class="dk-srubka tr"></div>
+    <div class="dk-srubka bl"></div><div class="dk-srubka br"></div>
+    <div class="dk-belka">
+      <div>◈ DUSZKI v0.1</div>
+      <div class="dk-status"><div class="dk-dot"></div><span id="dkStatus">CZUWA</span></div>
+    </div>
+    <div class="dk-antenki">
+      <div class="dk-antenka">
+        <div class="dk-fale"><div class="dk-fala"></div><div class="dk-fala" style="animation-delay:1s"></div><div class="dk-fala" style="animation-delay:2s"></div></div>
+        <div class="dk-trzon"></div><div class="dk-kulka"></div>
+      </div>
+      <div class="dk-antenka">
+        <div class="dk-fale"><div class="dk-fala" style="animation-delay:.5s"></div><div class="dk-fala" style="animation-delay:1.5s"></div><div class="dk-fala" style="animation-delay:2.5s"></div></div>
+        <div class="dk-trzon"></div><div class="dk-kulka"></div>
+      </div>
+      <div class="dk-wsk">
+        <svg viewBox="0 0 100 100">
+          <text class="dk-wsk-litera n" x="50" y="14">N</text>
+          <text class="dk-wsk-litera" x="14" y="54">W</text>
+          <text class="dk-wsk-litera" x="86" y="54">E</text>
+          <g class="dk-wsk-igla">
+            <polygon class="dk-wsk-grot" points="50,18 45,52 55,52"/>
+            <polygon class="dk-wsk-ogon" points="50,82 45,52 55,52"/>
+            <circle class="dk-wsk-srodek" cx="50" cy="52" r="3.2"/>
+          </g>
+        </svg>
+      </div>
+    </div>
+    <div class="dk-ekran-rama">
+      <div class="dk-ekran">
+        <div class="dk-wskazowka"></div>
+        <div class="dk-sonar-warstwa" id="dkSonarWarstwa"></div>
+        <div class="dk-gracz"></div>
+        <div class="dk-kontakt-napis">KONTAKT</div>
+        <div class="dk-czekaj-napis" id="dkCzekaj">SZUKAM SYGNAŁU</div>
+      </div>
+    </div>
+    <div class="dk-wskazniki">
+      <div class="dk-w"><div class="dk-w-label">MOC</div><div class="dk-w-val">87%</div></div>
+      <div class="dk-w dk-w-off" id="dkPrzyciskOff"><div class="dk-w-label">SYGNAŁ</div><div class="dk-w-val" id="dkSygnal">OFF</div></div>
+      <div class="dk-w"><div class="dk-w-label">DUSZKI</div><div class="dk-w-val" id="dkLicznik">--</div></div>
+    </div>
+    <button class="dk-przycisk" id="dkPrzycisk">▶ SZUKAJ STREFY MROKU</button>
+    <div class="dk-galki">
+      <div class="dk-galka-box"><div class="dk-galka" data-kanal="0"><div class="dk-galka-obrot"></div></div><div class="dk-galka-label">S1</div></div>
+      <div class="dk-galka-box"><div class="dk-galka" data-kanal="1"><div class="dk-galka-obrot"></div></div><div class="dk-galka-label">S2</div></div>
+      <div class="dk-galka-box"><div class="dk-galka" data-kanal="2"><div class="dk-galka-obrot"></div></div><div class="dk-galka-label">S3</div></div>
+      <div class="dk-galka-box"><div class="dk-galka" data-kanal="3"><div class="dk-galka-obrot"></div></div><div class="dk-galka-label">S4</div></div>
+    </div>
+    <div class="dk-metal-napis">PARANORMAL DETECTOR</div>
+  </div>
+</div>
+
 <script>
+// === DUSZKI - skrypt sterujący warstwą kokpitu ===
+// Kokpit pokazuje się TYLKO w trybie gracza (gdy _chce_admina === false).
+// W edytorze (?admin=1) _chce_admina === true -> kokpit ukryty, widać edytor.
 (function() {
-  // Czekamy aż DOM się załaduje (gdyby skrypt główny wybuchł wcześniej)
-  function startDuszki() {
-    // Sprawdź czy tryb gracza (klasa już dodana wcześniejszym skryptem)
-    if (!document.body.classList.contains('duszki-gracz')) return;
+  function startKokpit() {
+    var warstwa = document.getElementById('duszkiKokpitWarstwa');
+    if (!warstwa) return;
 
-    let duszkiStan = 'czuwa';
-    let kontaktTimer = null;
-
-    function duszkiUstawStan(nowy) {
-      if (duszkiStan === nowy) return;
-      document.body.classList.remove('duszki-stan-czuwa', 'duszki-stan-skanuje', 'duszki-stan-kontakt');
-      document.body.classList.add('duszki-stan-' + nowy);
-      duszkiStan = nowy;
-      var tekst = document.getElementById('duszkiStatusTekst');
-      if (tekst) tekst.textContent = nowy.toUpperCase();
+    // Czy tryb gracza? Sprawdzamy _chce_admina (globalna z audio-przewodnika).
+    // W wygenerowanym pliku eksport ustawia ją na false -> kokpit się pokaże.
+    // W edytorze z ?admin=1 jest true -> kokpit zostaje ukryty.
+    var graczTryb = true;
+    try {
+      if (typeof _chce_admina !== 'undefined' && _chce_admina === true) graczTryb = false;
+    } catch(e) {
+      // _chce_admina nie istnieje - sprawdź URL bezpośrednio
+      graczTryb = (new URLSearchParams(window.location.search).get('admin') !== '1');
     }
 
-    // Przycisk SZUKAJ
-    var przycisk = document.getElementById('duszkiPrzyciskSzukaj');
-    var szukaActive = false;
-    if (przycisk) {
-      przycisk.addEventListener('click', function() {
-        if (!szukaActive) {
-          szukaActive = true;
-          przycisk.classList.add('aktywny');
-          przycisk.textContent = '⏸ ZATRZYMAJ SKAN';
-          duszkiUstawStan('skanuje');
+    if (!graczTryb) return; // admin - nie pokazuj kokpitu
 
-          // Próbuj uruchomić GPS audio-przewodnika
-          try {
-            if (typeof wlaczGPS === 'function') wlaczGPS();
-            else if (typeof aktywujGPS === 'function') aktywujGPS();
-            else if (typeof startujGPS === 'function') startujGPS();
-            else if (navigator.geolocation && typeof aktualizujPozycje === 'function') {
-              navigator.geolocation.watchPosition(
-                aktualizujPozycje,
-                function(err) { console.warn('GPS:', err.message); },
-                { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 }
-              );
-            } else {
-              console.warn('Duszki: GPS audio-przewodnika niedostępny');
-            }
-          } catch (e) {
-            console.warn('Duszki: błąd uruchamiania GPS:', e);
-          }
+    // POKAŻ KOKPIT (przykrywa mapę, która żyje pod spodem)
+    warstwa.classList.add('widoczny');
+    warstwa.classList.add('stan-czuwa');
+
+    var stan = 'czuwa';
+    function ustawStan(nowy) {
+      if (stan === nowy) return;
+      warstwa.classList.remove('stan-czuwa','stan-skanuje','stan-kontakt');
+      warstwa.classList.add('stan-' + nowy);
+      stan = nowy;
+      var s = document.getElementById('dkStatus');
+      if (s) s.textContent = nowy.toUpperCase();
+    }
+
+    // === GŁÓWNY PRZYCISK + WYŁĄCZNIK OFF ===
+    // Cykl: pierwsze kliknięcie = SZUKAJ (start GPS, atmosfera, KONTAKT).
+    // Kolejne kliknięcia = ZAPYTAJ DETEKTOR (briefing lektorem - można pytać
+    // wielokrotnie podczas polowania).
+    // Wyłącznik to przycisk OFF na boku (zamiast wskaźnika SYGNAŁ) - kończy
+    // wszystko (GPS, atmosfera, wraca do CZUWA).
+    var btn = document.getElementById('dkPrzycisk');
+    var btnOff = document.getElementById('dkPrzyciskOff');
+    var aktywny = false;
+
+    function wlaczDetektor() {
+      if (aktywny) return;
+      aktywny = true;
+      btn.classList.add('aktywny');
+      btn.textContent = '🎙 ZAPYTAJ DETEKTOR';
+      ustawStan('kontakt');
+      setTimeout(function(){ if (aktywny) ustawStan('skanuje'); }, 4000);
+      setTimeout(function(){ if (aktywny) startAtmosfera(); }, 3000);
+      try {
+        if (typeof wlaczNawigacje === 'function') wlaczNawigacje();
+        else if (typeof toggleNawigacja === 'function') toggleNawigacja();
+        else if (typeof toggleTrybTurysty === 'function') toggleTrybTurysty();
+      } catch(e) { console.warn('Duszki GPS:', e); }
+    }
+
+    function wylaczDetektor() {
+      if (!aktywny) return;
+      aktywny = false;
+      btn.classList.remove('aktywny');
+      btn.textContent = '▶ SZUKAJ STREFY MROKU';
+      ustawStan('czuwa');
+      stopAtmosfera();
+      try { if (typeof wylaczNawigacje === 'function') wylaczNawigacje(); } catch(e) {}
+      // Zatrzymaj też lektora gdyby coś mówił
+      try { if (window.speechSynthesis) window.speechSynthesis.cancel(); } catch(e) {}
+    }
+
+    if (btn) {
+      btn.addEventListener('click', function() {
+        if (!aktywny) {
+          // Pierwsze kliknięcie - SZUKAJ
+          wlaczDetektor();
         } else {
-          szukaActive = false;
-          przycisk.classList.remove('aktywny');
-          przycisk.textContent = '▶ SZUKAJ STREFY MROKU';
-          duszkiUstawStan('czuwa');
-          try {
-            if (typeof zatrzymajAudioTloZFade === 'function') zatrzymajAudioTloZFade();
-          } catch (e) {}
+          // Kolejne kliknięcia - ZAPYTAJ DETEKTOR (briefing)
+          zapytajDetektor();
         }
       });
     }
+    if (btnOff) {
+      btnOff.addEventListener('click', function() {
+        if (aktywny) wylaczDetektor();
+      });
+    }
 
-    // EFEKT KONTAKT - opakowanie odtworzAudioTlo (jeśli istnieje)
+    // EFEKT KONTAKT - opakuj odtworzAudioTlo (start audio w strefie)
     if (typeof window.odtworzAudioTlo === 'function') {
-      var oryginalna = window.odtworzAudioTlo;
+      var orig = window.odtworzAudioTlo;
       window.odtworzAudioTlo = function(numer) {
-        duszkiUstawStan('kontakt');
-        if (kontaktTimer) clearTimeout(kontaktTimer);
-        kontaktTimer = setTimeout(function() {
-          try { oryginalna.call(window, numer); } catch (e) { console.warn('Audio:', e); }
-          duszkiUstawStan('skanuje');
-        }, 1000);
+        ustawStan('kontakt');
+        // Audio duszka rusza po 2s - najpierw "wykrywam coś" (KONTAKT,
+        // czerwień, fale), potem dopiero odzywa się głos. Buduje napięcie.
+        setTimeout(function() {
+          try { orig.call(window, numer); } catch(e) {}
+        }, 2000);
+        // Efekt wizualny KONTAKT trzyma się pełne 4 sekundy.
+        setTimeout(function() {
+          ustawStan('skanuje');
+        }, 4000);
       };
     }
 
-    // Powrót do SKANUJE gdy wyjdziemy ze strefy
-    if (typeof window.zatrzymajAudioTloZFade === 'function') {
-      var oryginalnaStop = window.zatrzymajAudioTloZFade;
-      window.zatrzymajAudioTloZFade = function() {
-        try { oryginalnaStop.apply(window, arguments); } catch (e) {}
-        if (szukaActive && duszkiStan === 'kontakt') {
-          duszkiUstawStan('skanuje');
+    // EFEKT KONTAKT dla zwykłych PUNKTÓW (kropek z promieniem, nie stref-tła).
+    // Wywoływane z sprawdzKropkiAudio przy wejściu w nowy punkt. Strefy-tło
+    // mają już swój KONTAKT (wyżej), więc tu obsługujemy tylko resztę -
+    // dzięki temu efekt nie podwaja się dla stref-tła.
+    window.dkKontaktNaPunkt = function() {
+      if (!aktywny) return;            // tylko gdy detektor włączony
+      ustawStan('kontakt');
+      setTimeout(function() {
+        if (aktywny) ustawStan('skanuje');
+      }, 4000);
+    };
+
+    // =====================================================================
+    // === ATMOSFERA - 4 warstwy dźwięku (S1-S4) regulowane pokrętłami =====
+    // =====================================================================
+    // 4 pliki audio/S1-S4.mp3 grają RAZEM, w pętli. Każda warstwa ma osobne
+    // pokrętło głośności. Startują 3s po kliknięciu SZUKAJ (w trakcie KONTAKTU).
+    // Pokrętło: godz.7 = cisza (0%), godz.12 = 50%, godz.17 = max (100%).
+    // Domyślne pozycje: S1=godz.11, S2=godz.12, S3=godz.15, S4=godz.10.
+
+    // Mapowanie "godzina na zegarze" -> głośność (0..1) i kąt obrotu (stopnie).
+    // Zakres ruchu pokrętła: godz.7 (-150°) ... godz.17 (+150°), czyli 300° łuku.
+    // Głośność liniowo: godz.7=0%, godz.12=50%, godz.17=100%.
+    function godzinaNaParametry(godz) {
+      // godz: 7..17 (7=min lewo, 12=środek/góra, 17=max prawo)
+      var t = (godz - 7) / 10;          // 0..1
+      if (t < 0) t = 0; if (t > 1) t = 1;
+      var glosnosc = t;                  // 0..1 liniowo
+      var kat = -150 + t * 300;          // -150°..+150°
+      return { glosnosc: glosnosc, kat: kat };
+    }
+
+    // Domyślne ustawienia pokręteł (godziny) - "dla bajeru" gra od razu z tym miksem
+    var domyslneGodziny = [11, 12, 15, 10];  // S1, S2, S3, S4
+    var kanaly = [];   // obiekty { audio, glosnosc, kat, godz, elObrot }
+    var atmosferaWlaczona = false;
+
+    // Przygotuj 4 kanały audio (jeszcze nie grają)
+    for (var i = 0; i < 4; i++) {
+      var p = godzinaNaParametry(domyslneGodziny[i]);
+      var a = new Audio('audio/S' + (i + 1) + '.mp3');
+      a.loop = true;        // zapętlenie
+      a.volume = p.glosnosc;
+      a.preload = 'auto';
+      kanaly.push({ audio: a, glosnosc: p.glosnosc, kat: p.kat, godz: domyslneGodziny[i], elObrot: null });
+    }
+
+    // Ustaw wizualny obrót wskaźników pokręteł na pozycje startowe
+    var galki = warstwa.querySelectorAll('.dk-galka');
+    galki.forEach(function(galka) {
+      var kanal = parseInt(galka.getAttribute('data-kanal'), 10);
+      var obrot = galka.querySelector('.dk-galka-obrot');
+      if (kanaly[kanal] && obrot) {
+        kanaly[kanal].elObrot = obrot;
+        obrot.style.transform = 'rotate(' + kanaly[kanal].kat + 'deg)';
+      }
+    });
+
+    // Start atmosfery - wszystkie 4 warstwy razem, w pętli
+    function startAtmosfera() {
+      if (atmosferaWlaczona) return;
+      atmosferaWlaczona = true;
+      kanaly.forEach(function(k) {
+        k.audio.volume = k.glosnosc;
+        var pr = k.audio.play();
+        if (pr && pr.catch) pr.catch(function(e){ console.warn('Atmosfera S:', e); });
+      });
+    }
+    function stopAtmosfera() {
+      if (!atmosferaWlaczona) return;
+      atmosferaWlaczona = false;
+      kanaly.forEach(function(k){ try { k.audio.pause(); k.audio.currentTime = 0; } catch(e){} });
+    }
+
+    // Obsługa pokręteł - przeciąganie palcem/myszą GÓRA = głośniej, DÓŁ = ciszej
+    galki.forEach(function(galka) {
+      var kanal = parseInt(galka.getAttribute('data-kanal'), 10);
+      var ciagnie = false;
+      var startY = 0;
+      var startGodz = 0;
+
+      function naStart(y) {
+        ciagnie = true;
+        startY = y;
+        startGodz = kanaly[kanal].godz;
+      }
+      function naRuch(y) {
+        if (!ciagnie) return;
+        var delta = startY - y;            // w górę = dodatnie
+        // 100 px ruchu = pełen zakres (10 godzin). Czuły, ale nie za bardzo.
+        var nowaGodz = startGodz + (delta / 100) * 10;
+        if (nowaGodz < 7) nowaGodz = 7;
+        if (nowaGodz > 17) nowaGodz = 17;
+        var p = godzinaNaParametry(nowaGodz);
+        kanaly[kanal].godz = nowaGodz;
+        kanaly[kanal].glosnosc = p.glosnosc;
+        kanaly[kanal].kat = p.kat;
+        if (kanaly[kanal].elObrot) kanaly[kanal].elObrot.style.transform = 'rotate(' + p.kat + 'deg)';
+        kanaly[kanal].audio.volume = p.glosnosc;
+      }
+      function naKoniec() { ciagnie = false; }
+
+      // Dotyk (telefon)
+      galka.addEventListener('touchstart', function(e){ e.preventDefault(); naStart(e.touches[0].clientY); }, {passive:false});
+      galka.addEventListener('touchmove', function(e){ e.preventDefault(); naRuch(e.touches[0].clientY); }, {passive:false});
+      galka.addEventListener('touchend', naKoniec);
+      // Mysz (komputer)
+      galka.addEventListener('mousedown', function(e){ e.preventDefault(); naStart(e.clientY);
+        function mv(ev){ naRuch(ev.clientY); }
+        function up(){ naKoniec(); document.removeEventListener('mousemove', mv); document.removeEventListener('mouseup', up); }
+        document.addEventListener('mousemove', mv); document.addEventListener('mouseup', up);
+      });
+    });
+
+    // =====================================================================
+    // =====================================================================
+    // === BRIEFING DETEKTORA - lektor opowiada o warunkach paranormalnych ==
+    // =====================================================================
+    // Po pierwszym kliknięciu (SZUKAJ) główny przycisk zmienia się w "ZAPYTAJ
+    // DETEKTOR". Każde kolejne kliknięcie -> lektor mówi briefing oparty na:
+    //  - porze dnia/dniu (z zegara)
+    //  - pogodzie z Open-Meteo (bez klucza, darmowe)
+    //  - indeksie Kp z NOAA Space Weather (burze geomagnetyczne)
+    //  - fazie księżyca (wyliczonej z daty)
+    // Lektor = wbudowany Web Speech API przeglądarki (po polsku, bez API).
+
+    var briefingTrwa = false;          // blokada żeby nie zacząć dwóch naraz
+    var ostatnieDane = null;            // cache 10 min, żeby nie spamować API
+
+    // === BRIEFING DETEKTORA - dane wczytywane z dane/briefing.json ===
+    // Plik JSON zawiera puły zdań. Wczytujemy go raz przy starcie.
+    // Gdy się nie załaduje (np. brak sieci) - awaryjne minimalne pule
+    // wbudowane w kod, żeby lektor i tak coś powiedział.
+    var DANE_LEKTORA = null;
+
+    function zaladujDaneLektora() {
+      return fetch('dane/briefing.json')
+        .then(function(r){ return r.json(); })
+        .then(function(d){ DANE_LEKTORA = d; console.log('Duszki: lektor załadowany'); })
+        .catch(function(e){
+          console.warn('Duszki: nie udało się załadować dane/briefing.json. Używam wbudowanych zdań.', e);
+          DANE_LEKTORA = DANE_AWARYJNE;
+        });
+    }
+
+    // Awaryjne minimalne pule - gdyby JSON się nie załadował.
+    // Tylko po kilka zdań, żeby coś było. Pełna baza w JSONie.
+    var DANE_AWARYJNE = {
+      pory_dnia: {
+        poranek: ['Wczesny poranek. Eter spokojny, ale wrażliwy.'],
+        poludnie: ['Środek dnia. Kanał słaby.'],
+        popoludnie: ['Popołudnie. Granice cieńszą.'],
+        wieczor: ['Wieczór zapada. Sprzęt zaczyna szeptać.'],
+        noc: ['Noc. Najlepszy czas.']
+      },
+      fazy_ksiezyca: {
+        now: ['Księżyc w nowiu. Ciemność absolutna.'],
+        przybywajacy_sierp: ['Księżyc rośnie.'],
+        pierwsza_kwadra: ['Pierwsza kwadra.'],
+        ksiezyc_przybywajacy: ['Księżyc niemal pełny.'],
+        pelnia: ['Pełnia. Maksymalna aktywność.'],
+        ksiezyc_ubywajacy: ['Księżyc maleje.'],
+        ostatnia_kwadra: ['Ostatnia kwadra.'],
+        ubywajacy_sierp: ['Ostatni cień księżyca.']
+      },
+      otwarcia: ['Detektor analizuje.'],
+      zachety: ['Ruszaj w drogę.'],
+      zjawiska: {
+        etery: ['Eter wibruje.'],
+        obecnosci: ['Coś tu było.'],
+        energie: ['Węzeł energetyczny aktywny.'],
+        granice: ['Zasłona uchylona.'],
+        ostrzezenia: ['Słuchaj uważnie.']
+      }
+    };
+
+    // Pomocnik - losowy element z tablicy
+    function losuj(tab) {
+      if (!tab || tab.length === 0) return '';
+      return tab[Math.floor(Math.random() * tab.length)];
+    }
+
+    // ---- 1. PORA DNIA ----
+    function poraDniaTekst() {
+      var dane = DANE_LEKTORA || DANE_AWARYJNE;
+      var h = new Date().getHours();
+      var klucz;
+      if (h >= 5 && h < 10) klucz = 'poranek';
+      else if (h >= 10 && h < 14) klucz = 'poludnie';
+      else if (h >= 14 && h < 18) klucz = 'popoludnie';
+      else if (h >= 18 && h < 22) klucz = 'wieczor';
+      else klucz = 'noc';
+      return { pora: klucz, opis: losuj(dane.pory_dnia[klucz]) };
+    }
+
+    // ---- 2. FAZA KSIĘŻYCA (wyliczona z daty, bez API) ----
+    function fazaKsiezyca() {
+      var dane = DANE_LEKTORA || DANE_AWARYJNE;
+      // Uproszczony algorytm - cykl synodyczny 29.53 dnia od znanej nowiu
+      var nowKnown = new Date(Date.UTC(2000, 0, 6, 18, 14));
+      var diff = (Date.now() - nowKnown.getTime()) / 86400000;
+      var cykl = ((diff % 29.53059) + 29.53059) % 29.53059;
+      var klucz;
+      if (cykl < 1.5 || cykl > 28) klucz = 'now';
+      else if (cykl < 7) klucz = 'przybywajacy_sierp';
+      else if (cykl < 8.5) klucz = 'pierwsza_kwadra';
+      else if (cykl < 14) klucz = 'ksiezyc_przybywajacy';
+      else if (cykl < 16) klucz = 'pelnia';
+      else if (cykl < 22) klucz = 'ksiezyc_ubywajacy';
+      else if (cykl < 23.5) klucz = 'ostatnia_kwadra';
+      else klucz = 'ubywajacy_sierp';
+      return { nazwa: klucz, opis: losuj(dane.fazy_ksiezyca[klucz]) };
+    }
+
+    // ---- 3. POGODA (Open-Meteo, darmowe, bez klucza) ----
+    function pobierzPogode(lat, lng) {
+      var url = 'https://api.open-meteo.com/v1/forecast?latitude=' + lat +
+                '&longitude=' + lng +
+                '&current=temperature_2m,relative_humidity_2m,surface_pressure,wind_speed_10m';
+      return fetch(url).then(function(r){ return r.json(); }).then(function(d){
+        if (!d || !d.current) return null;
+        return {
+          temp: d.current.temperature_2m,
+          wilg: d.current.relative_humidity_2m,
+          cisn: d.current.surface_pressure,
+          wiatr: d.current.wind_speed_10m
+        };
+      }).catch(function(){ return null; });
+    }
+
+    function pogodaTekst(p) {
+      if (!p) return 'Czujniki pogody offline.';
+      var zdania = [];
+      // Temperatura
+      var t = Math.round(p.temp);
+      zdania.push('Temperatura ' + t + ' stopni.');
+      // Wilgotność
+      if (p.wilg > 85) zdania.push('Powietrze gęste od wilgoci — sprzyja transmisji.');
+      else if (p.wilg > 70) zdania.push('Wilgotność wysoka.');
+      else if (p.wilg < 40) zdania.push('Powietrze suche, sygnał czysty.');
+      // Ciśnienie
+      if (p.cisn < 1000) zdania.push('Ciśnienie niskie — anomalie prawdopodobne.');
+      else if (p.cisn > 1020) zdania.push('Ciśnienie wysokie — eter sztywny.');
+      // Wiatr
+      if (p.wiatr > 25) zdania.push('Silny wiatr maskuje delikatne sygnały.');
+      else if (p.wiatr < 3) zdania.push('Bezwietrznie. Dobra cisza dla pomiarów.');
+      return zdania.join(' ');
+    }
+
+    // ---- 4. INDEKS Kp (NOAA - burze geomagnetyczne, bez klucza) ----
+    function pobierzKp() {
+      var url = 'https://services.swpc.noaa.gov/products/noaa-planetary-k-index.json';
+      return fetch(url).then(function(r){ return r.json(); }).then(function(d){
+        // Format: pierwszy wiersz to nagłówki, ostatni wiersz to najnowszy pomiar
+        if (!Array.isArray(d) || d.length < 2) return null;
+        var ostatni = d[d.length - 1];
+        var kp = parseFloat(ostatni[1]);
+        if (isNaN(kp)) return null;
+        return kp;
+      }).catch(function(){ return null; });
+    }
+
+    function kpTekst(kp) {
+      if (kp === null) return 'Pomiar geomagnetyczny niedostępny.';
+      var k = Math.round(kp * 10) / 10;
+      if (kp >= 7) return 'Burza geomagnetyczna! Indeks K-p ' + k + '. Detektor będzie wariował.';
+      if (kp >= 5) return 'Aktywność geomagnetyczna podwyższona. K-p ' + k + '. Bardzo dobre warunki.';
+      if (kp >= 4) return 'Lekkie zaburzenia magnetyczne. K-p ' + k + '. Sprzęt czulszy niż zwykle.';
+      if (kp >= 2) return 'Pole magnetyczne stabilne. K-p ' + k + '. Warunki przeciętne.';
+      return 'Cisza geomagnetyczna. K-p ' + k + '. Tylko silne sygnały się przebiją.';
+    }
+
+    // ---- 5. ZJAWISKA NADPRZYRODZONE (z JSON) ----
+    // Losuje 2 zdania z różnych kategorii + czasem ostrzeżenie.
+    function zjawiskaTekst() {
+      var dane = DANE_LEKTORA || DANE_AWARYJNE;
+      var z = dane.zjawiska;
+      var kategorie = ['etery', 'obecnosci', 'energie', 'granice'];
+      kategorie.sort(function(){ return Math.random() - 0.5; });
+      var wyniki = [];
+      for (var i = 0; i < 2; i++) {
+        wyniki.push(losuj(z[kategorie[i]]));
+      }
+      if (Math.random() < 0.4) {
+        wyniki.push(losuj(z.ostrzezenia));
+      }
+      return wyniki.filter(function(s){ return s; }).join(' ');
+    }
+
+    // ---- 6. ZBIERANIE WSZYSTKIEGO I BUDOWANIE BRIEFINGU ----
+    function zbudujBriefing(pogoda, kp) {
+      var dane = DANE_LEKTORA || DANE_AWARYJNE;
+      var pora = poraDniaTekst();
+      var ksiezyc = fazaKsiezyca();
+      var otw = losuj(dane.otwarcia);
+      var zacheta = losuj(dane.zachety);
+
+      // Briefing dwupiętrowy:
+      // 1) Warstwa "prawdziwa" - pora, pogoda, księżyc, Kp (z API i wyliczeń)
+      // 2) Warstwa "zjawisk" - losowa, metafizyczna (z lokalnej puli)
+      return otw + ' ' + pora.opis + ' ' +
+             pogodaTekst(pogoda) + ' ' +
+             ksiezyc.opis + ' ' +
+             kpTekst(kp) + ' ' +
+             zjawiskaTekst() + ' ' +
+             zacheta;
+    }
+
+    // ---- 7. LEKTOR (Web Speech API - wbudowany w przeglądarkę) ----
+    function mowLektorem(tekst) {
+      if (!window.speechSynthesis) {
+        console.warn('Lektor niedostępny w tej przeglądarce');
+        return;
+      }
+      // Zatrzymaj poprzednią wypowiedź (gdyby jeszcze trwała)
+      window.speechSynthesis.cancel();
+      var u = new SpeechSynthesisUtterance(tekst);
+      u.lang = 'pl-PL';
+      u.rate = 0.75;    // wolno - klimat mistyczny
+      u.pitch = 0.80;   // niżej - „głos z głębi"
+      u.volume = 1.0;
+      window.speechSynthesis.speak(u);
+    }
+
+    // ---- 8. GŁÓWNA FUNKCJA - wywoływana po kliknięciu „ZAPYTAJ DETEKTOR" ----
+    function zapytajDetektor() {
+      if (briefingTrwa) return;       // zapobiegaj nakładaniu się
+      briefingTrwa = true;
+
+      // Pokaż pulsujący napis "SZUKAM SYGNAŁU" na sonarze - gracz wie,
+      // że detektor pracuje (a nie zawiesił się), gdy czeka na dane API
+      var elCzekaj = document.getElementById('dkCzekaj');
+      if (elCzekaj) elCzekaj.classList.add('aktywny');
+      var czasStartu = Date.now();
+      var MIN_WIDOCZNOSCI = 1500;  // minimum 1.5s żeby gracz zauważył napis
+
+      // Pozycja gracza (do API pogody) - jeśli GPS dał już sygnał
+      var lat = 51.19, lng = 23.17;    // domyślne współrzędne
+      if (typeof userPozycja !== 'undefined' && userPozycja) {
+        lat = userPozycja.lat; lng = userPozycja.lng;
+      }
+
+      // Cache 10 min - jeśli niedawno pobraliśmy dane, użyj ich (zamiast spamować API)
+      var teraz = Date.now();
+      var uzyjCache = ostatnieDane && (teraz - ostatnieDane.czas < 10 * 60 * 1000);
+
+      var promise = uzyjCache
+        ? Promise.resolve(ostatnieDane)
+        : Promise.all([pobierzPogode(lat, lng), pobierzKp()]).then(function(wyniki){
+            ostatnieDane = { pogoda: wyniki[0], kp: wyniki[1], czas: teraz };
+            return ostatnieDane;
+          });
+
+      // Funkcja kończąca - czeka aż minie minimum, potem ukrywa napis i mówi
+      function dokoncz(tekstBriefingu) {
+        var minelo = Date.now() - czasStartu;
+        var dopelnij = Math.max(0, MIN_WIDOCZNOSCI - minelo);
+        setTimeout(function() {
+          if (elCzekaj) elCzekaj.classList.remove('aktywny');
+          mowLektorem(tekstBriefingu);
+          briefingTrwa = false;
+        }, dopelnij);
+      }
+
+      promise.then(function(d) {
+        dokoncz(zbudujBriefing(d.pogoda, d.kp));
+      }).catch(function(e) {
+        console.warn('Briefing - błąd pobierania danych:', e);
+        dokoncz(zbudujBriefing(null, null));   // awaryjnie - bez API
+      });
+    }
+
+
+    // =====================================================================
+    // Co kilkaset ms czytamy userPozycja (GPS) i listę kropekAudio z mapy,
+    // liczymy odległość + kierunek każdej, i rysujemy blipy w sonarze.
+    // Pozycja gracza UŚREDNIONA z ostatnich 5 odczytów, żeby blipy nie skakały.
+    // Promień sonaru = 200m w terenie. Kolory: niebieski (200-100), żółty
+    // (100-50), czerwony (<50). Powyżej 200 nie pokazujemy.
+
+    var SONAR_PROMIEN_M = 200;
+    var SONAR_OBROT_MS = 4000;                   // 4s na pełen obrót wskazówki
+    var sonarWarstwa = document.getElementById('dkSonarWarstwa');
+    var sonarBlipy = {};                         // { klucz: { el, kat, klasa, baseX, baseY } }
+    var sonarStartCzas = Date.now();
+
+    function metrowDo(lat1, lng1, lat2, lng2) {
+      var R = 6371000;
+      var dLat = (lat2 - lat1) * Math.PI / 180;
+      var dLng = (lng2 - lng1) * Math.PI / 180;
+      var a = Math.sin(dLat/2)*Math.sin(dLat/2) +
+              Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*
+              Math.sin(dLng/2)*Math.sin(dLng/2);
+      return 2 * R * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    }
+
+    function azymutDo(lat1, lng1, lat2, lng2) {
+      var dLng = (lng2 - lng1) * Math.PI / 180;
+      var fi1 = lat1 * Math.PI / 180, fi2 = lat2 * Math.PI / 180;
+      var y = Math.sin(dLng) * Math.cos(fi2);
+      var x = Math.cos(fi1)*Math.sin(fi2) - Math.sin(fi1)*Math.cos(fi2)*Math.cos(dLng);
+      return Math.atan2(y, x);
+    }
+
+    function srodekStrefy(k) {
+      if (k.linia && k.linia.length >= 2) {
+        var i = Math.floor(k.linia.length / 2);
+        return { lat: k.linia[i][0], lng: k.linia[i][1] };
+      }
+      if (k.ksztalt && k.ksztalt.length >= 3) {
+        var sl = 0, sg = 0;
+        for (var i = 0; i < k.ksztalt.length; i++) { sl += k.ksztalt[i][0]; sg += k.ksztalt[i][1]; }
+        return { lat: sl / k.ksztalt.length, lng: sg / k.ksztalt.length };
+      }
+      if (k.pozycja) return { lat: k.pozycja[0], lng: k.pozycja[1] };
+      return null;
+    }
+
+    // Aktualizacja listy blipów - pozycje + kąty + kolory.
+    // Wywoływane co 500ms. GPS bierzemy WPROST (bez uśredniania) - bo bez mapy
+    // w tle nikt nie widzi, że pozycja drga, a tańczące blipy = klimat duchów.
+    function aktualizujSonar() {
+      var p = (typeof userPozycja !== 'undefined' && userPozycja)
+        ? { lat: userPozycja.lat, lng: userPozycja.lng } : null;
+      if (!p) return;
+
+      var strefy = (typeof kropkiAudio !== 'undefined' && Array.isArray(kropkiAudio))
+        ? kropkiAudio : [];
+      var widoczne = {};
+      var promienPx = sonarWarstwa.offsetWidth / 2;
+      var srodekX = sonarWarstwa.offsetWidth / 2;
+      var srodekY = sonarWarstwa.offsetHeight / 2;
+
+      strefy.forEach(function(k, idx) {
+        var sr = srodekStrefy(k);
+        if (!sr) return;
+        var d = metrowDo(p.lat, p.lng, sr.lat, sr.lng);
+        if (d > SONAR_PROMIEN_M) return;
+
+        var azRad = azymutDo(p.lat, p.lng, sr.lat, sr.lng);
+        var azStopnie = (azRad * 180 / Math.PI + 360) % 360;
+        var skala = d / SONAR_PROMIEN_M;
+        var dx = Math.sin(azRad) * skala * promienPx;
+        var dy = -Math.cos(azRad) * skala * promienPx;
+        var x = srodekX + dx;
+        var y = srodekY + dy;
+
+        var klasa = (d < 50) ? 'blisko' : (d < 100) ? 'srednio' : 'daleko';
+        var klucz = 'b' + idx;
+        widoczne[klucz] = true;
+        var rec = sonarBlipy[klucz];
+        if (!rec) {
+          var el = document.createElement('div');
+          el.className = 'dk-blip';
+          sonarWarstwa.appendChild(el);
+          rec = { el: el, kat: azStopnie, klasa: klasa, baseX: x, baseY: y };
+          sonarBlipy[klucz] = rec;
         }
-      };
+        rec.kat = azStopnie;
+        rec.klasa = klasa;
+        // Zapamiętaj pozycję bazową - od niej dodajemy losowe drganie przy pingu
+        rec.baseX = x;
+        rec.baseY = y;
+      });
+
+      for (var kl in sonarBlipy) {
+        if (!widoczne[kl]) {
+          sonarBlipy[kl].el.remove();
+          delete sonarBlipy[kl];
+        }
+      }
+
+      // Licznik duszków - ile blipów widać teraz w zasięgu sonaru (200m).
+      var ile = 0;
+      for (var k2 in sonarBlipy) { ile++; }
+      var elLicznik = document.getElementById('dkLicznik');
+      if (elLicznik) elLicznik.textContent = ile;
     }
 
-    console.log('🎯 Duszki: tryb gracza aktywny');
+    // Pętla aktualizacji pozycji - co 500ms.
+    setInterval(function() {
+      if (warstwa.classList.contains('widoczny')) aktualizujSonar();
+    }, 500);
+
+    // === PĘTLA WSKAZÓWKI - wyzwala pingi gdy wskazówka muska blip ===
+    // Wskazówka kręci się co SONAR_OBROT_MS (4s). Liczymy jej aktualny kąt
+    // z czasu (synchronicznie z animacją CSS). Dla każdego blipa sprawdzamy:
+    // czy wskazówka właśnie przeszła przez jego kąt? Jeśli tak - ping.
+    var ostatniKat = 0;
+    function petlaWskazowki() {
+      // Pinguj TYLKO gdy wskazówka faktycznie się kręci (skanuje/kontakt).
+      // W stanie 'czuwa' wskazówki nie widać - bez tego warunku blipy
+      // migałyby same, bez widocznej wskazówki przelatującej przez nie.
+      if (warstwa.classList.contains('widoczny') &&
+          (warstwa.classList.contains('stan-skanuje') ||
+           warstwa.classList.contains('stan-kontakt'))) {
+        var t = (Date.now() - sonarStartCzas) % SONAR_OBROT_MS;
+        var katWskazowki = (t / SONAR_OBROT_MS) * 360;  // 0..360
+
+        for (var kl in sonarBlipy) {
+          var rec = sonarBlipy[kl];
+          // Sprawdź czy wskazówka przeszła przez kąt blipa od poprzedniej klatki
+          // (uwzględniamy przejście przez 360->0).
+          var minelo = katPrzeszedl(ostatniKat, katWskazowki, rec.kat);
+          if (minelo) {
+            // PING - rozbłysk + zanik. Plus lekkie LOSOWE DRGANIE pozycji,
+            // żeby duch nie pojawiał się dwa razy w tym samym miejscu.
+            // Klimat "żywej" kropki: tu mignie, za chwilę kilka pikseli obok.
+            var drgX = (Math.random() - 0.5) * 6;   // ±3 piksele
+            var drgY = (Math.random() - 0.5) * 6;
+            rec.el.style.left = (rec.baseX + drgX) + 'px';
+            rec.el.style.top  = (rec.baseY + drgY) + 'px';
+
+            rec.el.classList.remove('pingnij');
+            void rec.el.offsetWidth;   // wymuś restart animacji
+            rec.el.className = 'dk-blip ' + rec.klasa + ' pingnij';
+          }
+        }
+        ostatniKat = katWskazowki;
+      }
+      requestAnimationFrame(petlaWskazowki);
+    }
+
+    // Czy kąt blipa znajduje się między ostatnimKatem a katWskazowki?
+    // Uwzględnia przejście przez 360°.
+    function katPrzeszedl(od, doKata, blipKat) {
+      if (doKata >= od) {
+        return blipKat > od && blipKat <= doKata;
+      } else {
+        // przejście przez 360
+        return blipKat > od || blipKat <= doKata;
+      }
+    }
+
+    requestAnimationFrame(petlaWskazowki);
+
+    // Załaduj bazę tekstów lektora (asynchronicznie, w tle)
+    zaladujDaneLektora();
+
+    console.log('🎯 Duszki: kokpit aktywny (tryb gracza)');
   }
 
-  // Czekamy chwilę po DOMContentLoaded - żeby główny skrypt audio-przewodnika
-  // zdążył zdefiniować swoje funkcje (odtworzAudioTlo, wlaczGPS itd.)
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', function() {
-      setTimeout(startDuszki, 200);
-    });
+    document.addEventListener('DOMContentLoaded', function(){ setTimeout(startKokpit, 300); });
   } else {
-    setTimeout(startDuszki, 200);
+    setTimeout(startKokpit, 300);
   }
 })();
 </script>
