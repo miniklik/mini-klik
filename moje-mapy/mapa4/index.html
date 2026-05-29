@@ -6568,19 +6568,22 @@ html.tryb-admin #editorPasek { display: block; }
 })();
 
 (function() {
-  const FLAGA_RESETU = '_edytor_zresetowany_v1';
+  // v2: ponowny reset starych tekstów po audio-poezji (link YouTube,
+  // "poetycki spacer", "moja poezja" itd.) - ALE ZACHOWUJE strefy/punkty.
+  const FLAGA_RESETU = '_edytor_zresetowany_v2';
   try {
     if (!localStorage.getItem(FLAGA_RESETU)) {
       const klucze_do_usuniecia = [
         'admin-miejsca',
-        'admin-kropki-zaplanowane',
+        // 'admin-kropki-zaplanowane' - NIE USUWAĆ, to strefy detektora
         'admin-nazwa-strony',
         'admin-opis-strony-tytul',
         'admin-opis-strony-tresc',
         'admin-poeta-tytul',
         'admin-poeta-opis',
         'kategorie_robocze_v1',
-        'rysunki_mapy_v1'
+        'rysunki_mapy_v1',
+        '_edytor_zresetowany_v1'   // posprzątaj starą flagę z poprzedniej wersji
       ];
       for (const k of klucze_do_usuniecia) {
         try { localStorage.removeItem(k); } catch(e) {}
@@ -9453,6 +9456,120 @@ function zapiszZaplanowane() {
 }
 
 // =====================================================================
+// === ZAPISZ / WCZYTAJ JSON - kopia robocza stref i punktów ============
+// =====================================================================
+// Pozwala zapisać stan edytora (wszystkie strefy/punkty/kropki audio) do
+// pliku .json na dysku i wczytać go z powrotem później - by kontynuować
+// pracę nad detektorem przez wiele dni bez ryzyka utraty danych.
+//
+// JSON zawiera: kropkiAudio (z kodu) + zaplanowaneKropki (robocze z localStorage),
+// czyli pełen aktualny stan mapy. Po wczytaniu wszystko ląduje w zaplanowaneKropki
+// (bo kropkiAudio jest const i nie można jej nadpisać) - dla mapy i eksportu
+// to bez różnicy.
+function zapiszJSON() {
+  try {
+    const dane = {
+      _typ: 'duszki-backup',
+      _wersja: 1,
+      _data: new Date().toISOString(),
+      kropkiAudio: (typeof kropkiAudio !== 'undefined' && Array.isArray(kropkiAudio)) ? kropkiAudio : [],
+      zaplanowaneKropki: (typeof zaplanowaneKropki !== 'undefined' && Array.isArray(zaplanowaneKropki)) ? zaplanowaneKropki : []
+    };
+    const tekst = JSON.stringify(dane, null, 2);
+    const blob = new Blob([tekst], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+
+    // Nazwa pliku z datą - duszki-backup-2026-05-29-12-34.json
+    const teraz = new Date();
+    const pad = n => String(n).padStart(2, '0');
+    const nazwa = 'duszki-backup-'
+      + teraz.getFullYear() + '-'
+      + pad(teraz.getMonth()+1) + '-'
+      + pad(teraz.getDate()) + '-'
+      + pad(teraz.getHours()) + '-'
+      + pad(teraz.getMinutes()) + '.json';
+
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = nazwa;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+
+    const liczba = dane.kropkiAudio.length + dane.zaplanowaneKropki.length;
+    alert('✓ Zapisano ' + liczba + ' stref/punktów do pliku:\n\n' + nazwa);
+  } catch(err) {
+    alert('⚠️ Błąd zapisu JSON: ' + err.message);
+  }
+}
+
+function wczytajJSON() {
+  // Niewidoczny input pliku - klik wywoła wybór pliku z dysku
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.json,application/json';
+  input.style.display = 'none';
+  document.body.appendChild(input);
+
+  input.addEventListener('change', function(ev) {
+    const plik = ev.target.files && ev.target.files[0];
+    if (!plik) { document.body.removeChild(input); return; }
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      try {
+        const dane = JSON.parse(e.target.result);
+
+        // Sprawdź czy to nasz format
+        if (dane._typ !== 'duszki-backup') {
+          if (!confirm('⚠️ To nie wygląda na backup detektora.\n\nKontynuować mimo wszystko?')) {
+            document.body.removeChild(input);
+            return;
+          }
+        }
+
+        const wczKropki = Array.isArray(dane.kropkiAudio) ? dane.kropkiAudio : [];
+        const wczZapl = Array.isArray(dane.zaplanowaneKropki) ? dane.zaplanowaneKropki : [];
+        const lacznie = wczKropki.length + wczZapl.length;
+
+        // Ostrzeżenie - wczytanie NADPISUJE obecny stan
+        const obecne = (typeof zaplanowaneKropki !== 'undefined') ? zaplanowaneKropki.length : 0;
+        const obecneKod = (typeof kropkiAudio !== 'undefined') ? kropkiAudio.length : 0;
+        const tekst = 'Wczytać ' + lacznie + ' stref/punktów z pliku?\n\n'
+          + 'UWAGA: NADPISZE obecny stan edytora.\n'
+          + 'Obecnie w edytorze: ' + (obecne + obecneKod) + ' (' + obecneKod + ' z kodu + ' + obecne + ' roboczych)\n\n'
+          + 'Po wczytaniu wszystko trafi do roboczych - dla mapy i eksportu bez różnicy.\n'
+          + 'Strona przeładuje się po wczytaniu.';
+        if (!confirm(tekst)) {
+          document.body.removeChild(input);
+          return;
+        }
+
+        // Wszystko ląduje w zaplanowaneKropki (kropkiAudio jest const, nie nadpisać)
+        const wszystkie = wczKropki.concat(wczZapl);
+
+        // Zapisz do localStorage i przeładuj stronę - najpewniejszy sposób
+        // żeby cała mapa, lista i markery odświeżyły się prawidłowo.
+        localStorage.setItem(KEY_ZAPLANOWANE, JSON.stringify(wszystkie));
+        alert('✓ Wczytano ' + wszystkie.length + ' stref/punktów.\n\nStrona za chwilę się odświeży.');
+        location.reload();
+      } catch(err) {
+        alert('⚠️ Błąd wczytywania JSON: ' + err.message);
+      }
+      document.body.removeChild(input);
+    };
+    reader.onerror = function() {
+      alert('⚠️ Nie udało się odczytać pliku.');
+      document.body.removeChild(input);
+    };
+    reader.readAsText(plik);
+  });
+
+  input.click();
+}
+
+// =====================================================================
 // EDYTOR NAZWY STRONY (tryb admin)
 // Nazwa strony to wielki napis na górze + tytuł zakładki.
 // Zapisywana w localStorage (robocza) i w pliku po pobraniu nowego index.html.
@@ -12232,17 +12349,11 @@ function zbudujPasekEdytora() {
       <div class="ed-tytul-podpis">tryb edytora — kliknij przycisk poniżej</div>
 
       <div class="ed-przyciski">
-        <button class="ed-btn ed-btn-nazwa" onclick="otworzModalEdytora('nazwa')">
-          <span class="ed-btn-ikona">✏️</span><span>Nazwa strony</span>
+        <button class="ed-btn ed-btn-nazwa" onclick="zapiszJSON()">
+          <span class="ed-btn-ikona">💾</span><span>Zapisz JSON</span>
         </button>
-        <button class="ed-btn ed-btn-opis" onclick="otworzModalEdytora('opis')">
-          <span class="ed-btn-ikona">📜</span><span>Opis strony</span>
-        </button>
-        <button class="ed-btn ed-btn-kategorie" onclick="otworzEdytorPlikow()">
-          <span class="ed-btn-ikona">📁</span><span>Pliki i audio</span>
-        </button>
-        <button class="ed-btn ed-btn-splash" onclick="otworzEdytorSplashPoety()">
-          <span class="ed-btn-ikona">🎭</span><span>Ekran startowy</span>
+        <button class="ed-btn ed-btn-opis" onclick="wczytajJSON()">
+          <span class="ed-btn-ikona">📂</span><span>Wczytaj JSON</span>
         </button>
         <button class="ed-btn ed-btn-wyczysc" onclick="wyczyscWszystkoEdytor()">
           <span class="ed-btn-ikona">🗑️</span><span>Wyczyść wszystko</span>
