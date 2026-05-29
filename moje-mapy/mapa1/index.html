@@ -6063,6 +6063,7 @@ html.tryb-admin #editorPasek { display: block; }
 #duszkiKokpitWarstwa .dk-czekaj-napis { position: absolute; bottom: 12%; left: 50%; transform: translateX(-50%); font-size: clamp(10px,2.3vw,14px); font-weight: bold; letter-spacing: 3px; color: #6ee7b7; text-shadow: 0 0 8px rgba(110,231,183,0.7); opacity: 0; pointer-events: none; z-index: 19; white-space: nowrap; transition: opacity 0.3s; }
 #duszkiKokpitWarstwa .dk-czekaj-napis.aktywny { opacity: 0.9; animation: dk-czekaj-puls 2s ease-in-out infinite; }
 @keyframes dk-czekaj-puls { 0%,100%{opacity:0.25;} 50%{opacity:0.95;} }
+#duszkiKokpitWarstwa .dk-diag-napis { position: absolute; top: 8%; left: 50%; transform: translateX(-50%); font-size: 9px; letter-spacing: 1px; color: #fbbf24; text-shadow: 0 0 6px rgba(251,191,36,0.6); opacity: 0.85; pointer-events: none; z-index: 20; white-space: nowrap; font-family: 'Courier New', monospace; }
 #duszkiKokpitWarstwa.stan-kontakt .dk-kontakt-napis { animation: dk-kontakt 4s ease-out forwards; }
 @keyframes dk-kontakt { 0%{opacity:0;transform:translate(-50%,-50%) scale(0.3);} 8%{opacity:1;transform:translate(-50%,-50%) scale(1.15);} 16%{transform:translate(-50%,-50%) scale(1);} 88%{opacity:0.9;transform:translate(-50%,-50%) scale(1);} 100%{opacity:0;transform:translate(-50%,-50%) scale(1);} }
 
@@ -15161,6 +15162,7 @@ function splashStartBezGPS() { splashPoetaStart(); }
         <div class="dk-gracz"></div>
         <div class="dk-kontakt-napis">KONTAKT</div>
         <div class="dk-czekaj-napis" id="dkCzekaj">SZUKAM SYGNAŁU</div>
+        <div class="dk-diag-napis" id="dkDiagNapis"></div>
       </div>
     </div>
     <div class="dk-wskazniki">
@@ -15702,42 +15704,71 @@ function splashStartBezGPS() { splashPoetaStart(); }
     }
 
     // --- ŹRÓDŁO 1: MAGNETOMETR (deviceorientation) ---
+    // Tryb diagnostyczny - pokazuje surowe dane czujnika na sonarze.
+    // Ustaw na false gdy kompas już działa.
+    var KOMP_DIAGNOSTYKA = true;
+    var kompMaAbsolutny = false;   // czy dostaliśmy event z prawdziwą północą
+
+    function dkDiag(txt) {
+      if (!KOMP_DIAGNOSTYKA) return;
+      var el = document.getElementById('dkDiagNapis');
+      if (el) el.textContent = txt;
+    }
+
     function dkObslugaOrientacji(e) {
       var heading = null;
+      var typ = e.type;
       // iOS: webkitCompassHeading = kierunek wskazywany (0=N), już skorygowany
       if (typeof e.webkitCompassHeading === 'number' && !isNaN(e.webkitCompassHeading)) {
         heading = e.webkitCompassHeading;
+        kompMaAbsolutny = true;
       } else if (typeof e.alpha === 'number' && e.alpha !== null) {
-        // Android: alpha rośnie przeciwnie - przeliczamy na kierunek kompasu
-        heading = (360 - e.alpha) % 360;
+        // Android: używaj TYLKO gdy event ma prawdziwe odniesienie do północy.
+        // 'deviceorientationabsolute' lub flaga e.absolute === true.
+        var absolutny = (typ === 'deviceorientationabsolute') || (e.absolute === true);
+        if (absolutny) {
+          // alpha rośnie przeciwnie do wskazówek - przeliczamy na kierunek kompasu
+          heading = (360 - e.alpha) % 360;
+          kompMaAbsolutny = true;
+        } else if (!kompMaAbsolutny) {
+          // mamy tylko event względny (bez północy) - pokaż w diagnostyce,
+          // ale NIE obracaj kompasu (dryfowałby bez sensu)
+          dkDiag('CZUJNIK: wzgledny α=' + Math.round(e.alpha) + '° (brak N)');
+          return;
+        } else {
+          return; // mamy już lepszy, absolutny - ignoruj względny
+        }
       }
-      if (heading === null) return;
+      if (heading === null) { dkDiag('CZUJNIK: brak danych'); return; }
       kompZrodlo = 'magneto';
+      dkDiag('KOMPAS: ' + Math.round(heading) + '° ' + (typ === 'deviceorientationabsolute' ? '(abs)' : '(α)'));
       dkRysujKompas(heading, KOMP_WYGLADZ_MAG);
     }
 
     // Prośba o magnetometr - WYWOŁYWANA Z KLIKNIĘCIA (wymóg iPhone).
-    // Zwraca true jeśli nasłuch podpięty (lub czeka na zgodę).
     function dkProsbaOMagnetometr() {
-      if (typeof DeviceOrientationEvent === 'undefined') return false; // brak czujnika
+      if (typeof DeviceOrientationEvent === 'undefined') { dkDiag('CZUJNIK: brak w przegladarce'); return false; }
+      function podepnij() {
+        // ABSOLUTNY pierwszy (Android - zna północ), zwykły jako zapas (iOS).
+        if ('ondeviceorientationabsolute' in window) {
+          window.addEventListener('deviceorientationabsolute', dkObslugaOrientacji, true);
+        }
+        window.addEventListener('deviceorientation', dkObslugaOrientacji, true);
+        dkDiag('CZUJNIK: czekam na dane...');
+      }
       try {
-        // iPhone 13+/Safari: trzeba poprosić o zgodę
+        // iPhone 13+/Safari: osobna zgoda na orientację
         if (typeof DeviceOrientationEvent.requestPermission === 'function') {
           DeviceOrientationEvent.requestPermission().then(function(stan) {
-            if (stan === 'granted') {
-              window.addEventListener('deviceorientation', dkObslugaOrientacji, true);
-            } else {
-              console.warn('Kompas: brak zgody na orientację - fallback GPS');
-            }
-          }).catch(function(){ console.warn('Kompas: błąd zgody - fallback GPS'); });
+            if (stan === 'granted') podepnij();
+            else dkDiag('KOMPAS: brak zgody - tryb GPS');
+          }).catch(function(){ dkDiag('KOMPAS: blad zgody - tryb GPS'); });
         } else {
-          // Android / starsze - bez zgody
-          window.addEventListener('deviceorientationabsolute', dkObslugaOrientacji, true);
-          window.addEventListener('deviceorientation', dkObslugaOrientacji, true);
+          podepnij(); // Android - bez osobnej zgody
         }
         return true;
       } catch(err) {
-        console.warn('Kompas magnetometr - błąd:', err);
+        dkDiag('KOMPAS: blad czujnika');
         return false;
       }
     }
