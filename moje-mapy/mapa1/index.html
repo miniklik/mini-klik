@@ -30,7 +30,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 
-<title>Nazwa strony · mini-klik.pl</title>
+<title>Paranormal Detector · mini-klik.pl</title>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css"/>
@@ -2375,6 +2375,12 @@ footer{
   border-color:#15803d;
   color:#fff;
   box-shadow:0 3px 10px rgba(22,163,74,0.4);
+}
+.admin-helper .typ-kropki-wybor button.typ-kropki-btn.active[data-typ="duchy"]{
+  background:linear-gradient(135deg, #ef4444, #b91c1c);
+  border-color:#991b1b;
+  color:#fff;
+  box-shadow:0 3px 10px rgba(220,38,38,0.4);
 }
 .typ-kropki-ikona{
   font-size:20px;
@@ -6032,6 +6038,8 @@ html.tryb-admin #editorPasek { display: block; }
 #duszkiKokpitWarstwa .dk-fala { position: absolute; width: 40px; height: 20px; border: 2px solid rgba(110,231,183,0.55); border-bottom: none; border-radius: 50% 50% 0 0 / 100% 100% 0 0; left: 50%; top: 0; transform: translateX(-50%); opacity: 0; }
 #duszkiKokpitWarstwa.stan-skanuje .dk-fala, #duszkiKokpitWarstwa.stan-kontakt .dk-fala { animation: dk-fala 3s linear infinite; }
 #duszkiKokpitWarstwa.stan-kontakt .dk-fala { border-color: rgba(220,38,38,0.75) !important; animation-duration: 1.3s !important; }
+/* Stan "duchy" - tylko fale anten czerwone i szybsze. Reszta kokpitu (sonar, ekran) zostaje zielona. */
+#duszkiKokpitWarstwa.stan-duchy .dk-fala { border-color: rgba(220,38,38,0.85) !important; animation-duration: 1.1s !important; }
 @keyframes dk-fala { 0%{transform:translateX(-50%) scale(0.4);opacity:0;} 20%{opacity:0.7;} 100%{transform:translateX(-50%) scale(3.2);opacity:0;} }
 
 /* Ekranik */
@@ -6256,7 +6264,7 @@ html.tryb-admin #editorPasek { display: block; }
   </div>
 
   <header>
-    <h1>Nazwa strony</h1>
+    <h1>Paranormal Detector</h1>
   </header>
 
   <!-- KONTROLKI -->
@@ -6397,13 +6405,18 @@ html.tryb-admin #editorPasek { display: block; }
     <div class="typ-kropki-wybor" id="typKropkiWybor" style="margin-bottom:14px">
       <button type="button" class="typ-kropki-btn active" data-typ="wiersz" onclick="ustawTypKropki('wiersz')">
         <span class="typ-kropki-ikona">🎙</span>
-        <span class="typ-kropki-label">Wiersz</span>
+        <span class="typ-kropki-label">Kontakt</span>
         <span class="typ-kropki-podtytul">odtwarzane raz</span>
       </button>
       <button type="button" class="typ-kropki-btn" data-typ="tlo" onclick="ustawTypKropki('tlo')">
         <span class="typ-kropki-ikona">🌳</span>
-        <span class="typ-kropki-label">Tło audio</span>
+        <span class="typ-kropki-label">Strefa X</span>
         <span class="typ-kropki-podtytul">pętla, klimat</span>
+      </button>
+      <button type="button" class="typ-kropki-btn" data-typ="duchy" onclick="ustawTypKropki('duchy')">
+        <span class="typ-kropki-ikona">👻</span>
+        <span class="typ-kropki-label">Duchy</span>
+        <span class="typ-kropki-podtytul">losowe głosy</span>
       </button>
     </div>
 
@@ -6464,6 +6477,13 @@ html.tryb-admin #editorPasek { display: block; }
     <div class="form-row">
       <label>Opis:</label>
       <input type="text" id="adminOpis" placeholder="np. Stary dąb pomnikowy" maxlength="60">
+    </div>
+
+    <!-- Pole folderu duchów - widoczne tylko gdy typ = "duchy" -->
+    <div class="form-row" id="adminFolderDuchowRow" style="display:none">
+      <label>Folder duchów:</label>
+      <input type="number" id="adminFolderDuchow" min="1" max="99" value="1" style="max-width:80px" oninput="var p=document.getElementById('adminFolderDuchowPodglad');if(p)p.textContent=this.value||'1';">
+      <span style="font-size:11px;opacity:0.7;margin-left:8px">audio/duchy_<span id="adminFolderDuchowPodglad">1</span>/</span>
     </div>
 
     <!-- Przyciski są wstrzykiwane przez zaktualizujPrzyciskiHelpera() -->
@@ -6797,7 +6817,15 @@ function aktualizujPrzyciskCenter() {
 // === TRYB ADMINA ===
 // Włącza się przez ?admin=1 w URL. Bez hasła, bez popupów - po prostu URL decyduje.
 // Edytor zawsze otwarty dla każdego kto wpisze ?admin=1.
-const _chce_admina = new URLSearchParams(window.location.search).get('admin') === '1';
+const _chce_admina = (function() {
+  // Tryb edytora to teraz domyślny - wystarczy wejść na stronę.
+  // ?gra=1 wymusza tryb gracza (do podglądu jak to wygląda dla użytkowników).
+  // ?admin=1 też zostawiamy (zachowanie wsteczne).
+  const p = new URLSearchParams(window.location.search);
+  if (p.get('gra') === '1') return false;       // wymuszony tryb gracza
+  if (p.get('admin') === '1') return true;      // wymuszony admin (jak dawniej)
+  return true;                                  // brak parametru = admin (domyślnie)
+})();
 
 // BLOKADA ADMINA NA TELEFONIE / TABLECIE W PIONIE:
 // tryb budowania mapy działa tylko na szerokim ekranie - komputer,
@@ -7591,7 +7619,7 @@ let aktualnyTypKropki = 'wiersz';
 
 // Przełącz typ kropki w formularzu admina - wizualnie + zmienna
 function ustawTypKropki(typ) {
-  if (typ !== 'wiersz' && typ !== 'tlo') typ = 'wiersz';
+  if (typ !== 'wiersz' && typ !== 'tlo' && typ !== 'duchy') typ = 'wiersz';
   aktualnyTypKropki = typ;
 
   // Aktualizuj wygląd przycisków
@@ -7632,6 +7660,10 @@ function ustawTypKropki(typ) {
       if (promienVal) promienVal.textContent = '300 m';
     }
   }
+
+  // Pole folderu duchów - widoczne tylko gdy typ = 'duchy'
+  const rzedFolder = document.getElementById('adminFolderDuchowRow');
+  if (rzedFolder) rzedFolder.style.display = (typ === 'duchy') ? '' : 'none';
 }
 
 // =====================================================================
@@ -7730,8 +7762,8 @@ function przerysujPodgladStrefy() {
   if (strefaPunkty.length === 0) return;
 
   // Kolor zależny od typu kropki (wiersz=fiolet, tło=zielony)
-  const kolor = (aktualnyTypKropki === 'tlo') ? '#16a34a' : '#7c3aed';
-  const kolorWyp = (aktualnyTypKropki === 'tlo') ? '#4ade80' : '#a78bfa';
+  const kolor = (aktualnyTypKropki === 'tlo') ? '#16a34a' : (aktualnyTypKropki === 'duchy') ? '#dc2626' : '#7c3aed';
+  const kolorWyp = (aktualnyTypKropki === 'tlo') ? '#4ade80' : (aktualnyTypKropki === 'duchy') ? '#ef4444' : '#a78bfa';
   const toSciezka = (aktualnyKsztaltKropki === 'sciezka');
 
   if (toSciezka) {
@@ -8128,8 +8160,8 @@ function renderujKropkiAudio() {
 
     // Obrys strefy GPS - TYLKO dla admina (turysta nie potrzebuje widzieć stref).
     if (isAdmin) {
-      const kolorObrysu = (typK === 'tlo') ? '#16a34a' : '#7c3aed';
-      const kolorWypelnienia = (typK === 'tlo') ? '#4ade80' : '#a78bfa';
+      const kolorObrysu = (typK === 'tlo') ? '#16a34a' : (typK === 'duchy') ? '#dc2626' : '#7c3aed';
+      const kolorWypelnienia = (typK === 'tlo') ? '#4ade80' : (typK === 'duchy') ? '#ef4444' : '#a78bfa';
       let krag;
       if (jestSciezka) {
         // ŚCIEŻKA: korytarz jako WIELOKĄT (bufor wokół trasy) - realny
@@ -8309,8 +8341,10 @@ function edytujKropkePoIdx(idx) {
   if (stareTrybyMig.indexOf(trybZapisany) !== -1) trybZapisany = 'sredni';
   if (trybZapisany !== 'maly' && trybZapisany !== 'sredni' && trybZapisany !== 'duzy') trybZapisany = 'sredni';
   aktualnyTrybKropki = trybZapisany;
-  // Wczytaj typ kropki (wiersz/tlo) - domyślnie 'wiersz' dla starych kropek
-  aktualnyTypKropki = (kropka.typKropki === 'tlo') ? 'tlo' : 'wiersz';
+  // Wczytaj typ kropki (wiersz/tlo/duchy) - domyślnie 'wiersz' dla starych kropek
+  if (kropka.typKropki === 'tlo') aktualnyTypKropki = 'tlo';
+  else if (kropka.typKropki === 'duchy') aktualnyTypKropki = 'duchy';
+  else aktualnyTypKropki = 'wiersz';
 
   document.getElementById('adminNumer').value = kropka.numer;
   // Promień: dla koła z danych, dla wielokąta/ścieżki bez znaczenia (blok ukryty)
@@ -8364,8 +8398,17 @@ function edytujZaplanowanaPoIdx(idx) {
   if (stareTrybyMigZ.indexOf(trybZapisanyZ) !== -1) trybZapisanyZ = 'sredni';
   if (trybZapisanyZ !== 'maly' && trybZapisanyZ !== 'sredni' && trybZapisanyZ !== 'duzy') trybZapisanyZ = 'sredni';
   aktualnyTrybKropki = trybZapisanyZ;
-  // Wczytaj typ kropki (wiersz/tlo)
-  aktualnyTypKropki = (kropka.typKropki === 'tlo') ? 'tlo' : 'wiersz';
+  // Wczytaj typ kropki (wiersz/tlo/duchy)
+  if (kropka.typKropki === 'tlo') aktualnyTypKropki = 'tlo';
+  else if (kropka.typKropki === 'duchy') aktualnyTypKropki = 'duchy';
+  else aktualnyTypKropki = 'wiersz';
+  // Wczytaj numer folderu duchów (jeśli to strefa duchów)
+  const folInpEdit = document.getElementById('adminFolderDuchow');
+  if (folInpEdit) {
+    folInpEdit.value = (typeof kropka.folderDuchow === 'number') ? kropka.folderDuchow : 1;
+    const folPodglad = document.getElementById('adminFolderDuchowPodglad');
+    if (folPodglad) folPodglad.textContent = folInpEdit.value;
+  }
 
   document.getElementById('adminNumer').value = kropka.numer;
   document.getElementById('adminPromien').value = (jestWielokatZ || jestSciezkaZ) ? 50 : kropka.promien;
@@ -8409,6 +8452,7 @@ function sprawdzKropkiAudio() {
   const aktualneKropki = new Set();
   for (const kropka of kropkiAudio) {
     if (kropka.typKropki === 'tlo') continue; // tło ma swój silnik
+    if (kropka.typKropki === 'duchy') continue; // strefy duchów mają swój silnik
 
     // STREFA-WIELOKĄT: liczy się czy turysta stoi wewnątrz obrysu.
     // Brak marginesu antydrganiowego - wejście/wyjście jest binarne.
@@ -8544,6 +8588,51 @@ function sprawdzKropkiAudio() {
 
   // 9. Silnik audio TŁA - osobny, niezależny (crossfade między strefami + ducking)
   sprawdzKropkiTla();
+
+  // 10. Silnik STREF DUCHÓW (losowe głosy) - osobny, współpracuje z tłem
+  sprawdzStrefyDuchow();
+}
+
+// =====================================================================
+// === SILNIK STREFY DUCHÓW (losowe głosy) =============================
+// =====================================================================
+// Iteruje po strefach typu 'duchy' (kształt wielokąt). Jeśli gracz w środku
+// jednej z nich - powiadamia silnik kokpitu o wejściu (numer folderu).
+// Po wyjściu - powiadamia o wyjściu.
+let aktualnaStrefaDuchow = null; // numer folderu strefy w której gracz jest, lub null
+
+function sprawdzStrefyDuchow() {
+  if (!audioPrzewodnikWlaczony || !userPozycja) return;
+
+  let nowaStrefa = null;
+  for (const kropka of kropkiAudio) {
+    if (kropka.typKropki !== 'duchy') continue;
+    if (kropka.ksztalt && kropka.ksztalt.length >= 3) {
+      if (punktWWielokacie(userPozycja.lat, userPozycja.lng, kropka.ksztalt)) {
+        // folder zapisany w polu 'folderDuchow' (numer), domyślnie numer strefy
+        nowaStrefa = (typeof kropka.folderDuchow === 'number') ? kropka.folderDuchow : kropka.numer;
+        break;
+      }
+    } else if (kropka.pozycja) {
+      // koło - zasięg = promien
+      const odl = dystans(userPozycja.lat, userPozycja.lng, kropka.pozycja[0], kropka.pozycja[1]);
+      if (odl <= (kropka.promien || 50)) {
+        nowaStrefa = (typeof kropka.folderDuchow === 'number') ? kropka.folderDuchow : kropka.numer;
+        break;
+      }
+    }
+  }
+
+  if (nowaStrefa !== aktualnaStrefaDuchow) {
+    if (nowaStrefa === null) {
+      // wyszliśmy
+      if (typeof window.dkWyjscieZeStrefyDuchow === 'function') window.dkWyjscieZeStrefyDuchow();
+    } else {
+      // weszliśmy w nową
+      if (typeof window.dkWejscieDoStrefyDuchow === 'function') window.dkWejscieDoStrefyDuchow(nowaStrefa);
+    }
+    aktualnaStrefaDuchow = nowaStrefa;
+  }
 }
 
 // =====================================================================
@@ -8567,7 +8656,6 @@ function sprawdzKropkiTla() {
   let minOdlTla = Infinity;
   for (const kropka of kropkiAudio) {
     if (kropka.typKropki !== 'tlo') continue;
-
     // STREFA-WIELOKĄT tła: w zasięgu = turysta wewnątrz obrysu.
     // Dystans do środka służy tylko do wyboru gdy nakłada się kilka stref.
     if (kropka.ksztalt && kropka.ksztalt.length >= 3) {
@@ -11072,7 +11160,7 @@ function planujKolejna() {
       return;
     }
     const sr = srodekWielokata(strefaPunkty);
-    zaplanowaneKropki.push({
+    const wpisStrefy = {
       numer: numer,
       // lat/lng = środek obrysu - reszta kodu czasem czyta te pola,
       // dla wielokąta to po prostu punkt środkowy.
@@ -11081,7 +11169,12 @@ function planujKolejna() {
       ksztalt: strefaPunkty.slice(),  // kopia listy wierzchołków
       opis: opis,
       typKropki: aktualnyTypKropki
-    });
+    };
+    if (aktualnyTypKropki === 'duchy') {
+      const folInp = document.getElementById('adminFolderDuchow');
+      wpisStrefy.folderDuchow = folInp ? (parseInt(folInp.value) || 1) : 1;
+    }
+    zaplanowaneKropki.push(wpisStrefy);
     // Wyczyść stan rysowania - strefa zapisana
     strefaPunkty = [];
     wyczyscPodgladStrefy();
@@ -11109,7 +11202,7 @@ function planujKolejna() {
     // === KROPKA-KOŁO (klasyczna) ===
     if (!aktualnyKlik) return;
     const promien = parseInt(document.getElementById('adminPromien').value) || 50;
-    zaplanowaneKropki.push({
+    const wpisKoло = {
       numer: numer,
       lat: aktualnyKlik.lat,
       lng: aktualnyKlik.lng,
@@ -11118,7 +11211,12 @@ function planujKolejna() {
       pokazFale: aktualnyPokazFale,
       trybKropki: aktualnyTrybKropki,
       typKropki: aktualnyTypKropki
-    });
+    };
+    if (aktualnyTypKropki === 'duchy') {
+      const folInp2 = document.getElementById('adminFolderDuchow');
+      wpisKoло.folderDuchow = folInp2 ? (parseInt(folInp2.value) || 1) : 1;
+    }
+    zaplanowaneKropki.push(wpisKoло);
   }
 
   zapiszZaplanowane();
@@ -11300,11 +11398,21 @@ function wytnijAdmina(tekst) {
   }
 
   // 2. Wymuś isAdmin = false na stałe.
-  //    Podmieniamy linię odczytu ?admin=1 - w wersji publicznej zawsze false.
-  wynik = wynik.replace(
-    /const\s+_chce_admina\s*=\s*new\s+URLSearchParams[^;]*;/,
-    'const _chce_admina = false; // wersja publiczna - tryb admin wyłączony na stałe'
-  );
+  //    Podmieniamy linię/blok odczytu trybu admin - w wersji publicznej zawsze false.
+  //    Regex obsługuje obie wersje: starą jednoliniową (new URLSearchParams...)
+  //    i nową wielolinijkową IIFE ((function(){...})()).
+  // Najpierw spróbuj nowej (IIFE wielolinijkowej):
+  const regexIIFE = /const\s+_chce_admina\s*=\s*\(function\(\)\s*\{[\s\S]*?\}\)\(\)\s*;/;
+  if (regexIIFE.test(wynik)) {
+    wynik = wynik.replace(regexIIFE,
+      'const _chce_admina = false; // wersja publiczna - tryb admin wyłączony na stałe');
+  } else {
+    // Fallback - stara wersja (jednoliniowa)
+    wynik = wynik.replace(
+      /const\s+_chce_admina\s*=\s*new\s+URLSearchParams[^;]*;/,
+      'const _chce_admina = false; // wersja publiczna - tryb admin wyłączony na stałe'
+    );
+  }
 
   return wynik;
 }
@@ -11347,15 +11455,20 @@ async function pobierzNowyIndex() {
     // Wygeneruj kod nowej tablicy kropek audio
     const linie = finalne.map(k => {
       const opis = (k.opis || '').replace(/'/g, "\\'");
-      // typKropki: zapisujemy TYLKO gdy 'tlo' (domyślny 'wiersz' nie zajmuje miejsca)
-      const typ = (k.typKropki === 'tlo') ? `, typKropki: 'tlo'` : '';
+      // typKropki: zapisujemy TYLKO gdy 'tlo' lub 'duchy' (domyślny 'wiersz' nie zajmuje miejsca)
+      let typ = '';
+      if (k.typKropki === 'tlo') typ = `, typKropki: 'tlo'`;
+      else if (k.typKropki === 'duchy') typ = `, typKropki: 'duchy'`;
+      // folderDuchow: zapisujemy TYLKO dla typu 'duchy' (numer folderu audio/duchy_N/)
+      const folDuch = (k.typKropki === 'duchy' && typeof k.folderDuchow === 'number')
+        ? `, folderDuchow: ${k.folderDuchow}` : '';
 
       // STREFA-WIELOKĄT: ma pole `ksztalt` (lista [lat,lng]). Bez promienia i trybu.
       if (k.ksztalt && k.ksztalt.length >= 3) {
         const punkty = k.ksztalt
           .map(p => `[${p[0].toFixed(5)}, ${p[1].toFixed(5)}]`)
           .join(', ');
-        return `  { numer: ${k.numer}, ksztalt: [${punkty}], opis: '${opis}'${typ} }`;
+        return `  { numer: ${k.numer}, ksztalt: [${punkty}], opis: '${opis}'${typ}${folDuch} }`;
       }
 
       // ŚCIEŻKA AUDIO: ma pole `linia` (lista [lat,lng]) + `szerokosc` (metry).
@@ -11377,7 +11490,7 @@ async function pobierzNowyIndex() {
       const kLat = (typeof k.lat === 'number') ? k.lat : 0;
       const kLng = (typeof k.lng === 'number') ? k.lng : 0;
       const kProm = k.promien || 50;
-      return `  { numer: ${k.numer}, pozycja: [${kLat.toFixed(5)}, ${kLng.toFixed(5)}], promien: ${kProm}, opis: '${opis}'${fala}${tryb}${typ} }`;
+      return `  { numer: ${k.numer}, pozycja: [${kLat.toFixed(5)}, ${kLng.toFixed(5)}], promien: ${kProm}, opis: '${opis}'${fala}${tryb}${typ}${folDuch} }`;
     });
     const nowaTablicaKropek = `const kropkiAudio = [\n${linie.join(',\n')}\n];`;
 
@@ -12307,7 +12420,7 @@ function zbudujPasekEdytora() {
 
   pasek.innerHTML = `
     <div class="ed-tytul-blok">
-      <h2 class="ed-tytul-nazwa" id="edPasekNazwa">Nazwa strony</h2>
+      <h2 class="ed-tytul-nazwa" id="edPasekNazwa">Paranormal Detector</h2>
       <div class="ed-tytul-podpis">tryb edytora — kliknij przycisk poniżej</div>
 
       <div class="ed-przyciski">
@@ -15347,12 +15460,126 @@ function splashStartBezGPS() { splashPoetaStart(); }
     };
 
     // =====================================================================
+    // === SILNIK STREFY DUCHÓW (losowe głosy) =============================
+    // =====================================================================
+    // Gracz wszedł w strefę typu 'duchy' (numer folderu N).
+    //  - cisza losowo 30s-2min
+    //  - potem losowy plik z audio/duchy_N/ (próbujemy 1.mp3, 2.mp3, ... aż się nie załaduje)
+    //  - podczas głosu: stan-duchy = fale anten czerwone
+    //  - po głosie: znów losowanie 30s-2min, znów głos, itd.
+    //  - wyjście ze strefy = stop, czyść
+    //  - wejście z powrotem = świeży licznik od zera
+    //  - WSPÓŁPRACUJE ze strefą-tło (oba grają jednocześnie)
+
+    var duchyAktualnyFolder = null;        // numer folderu (np. 3) lub null gdy poza strefą
+    var duchyAktualneAudio = null;         // grający w tej chwili plik (Audio())
+    var duchyTimer = null;                 // setTimeout do następnego głosu
+    var duchyZnaneFoldery = {};            // cache: { '3': [1,2,4,5], ... } - dostępne numery plików
+    var DUCHY_MIN_CISZY_MS = 30000;        // 30 s
+    var DUCHY_MAX_CISZY_MS = 120000;       // 2 min
+
+    // Wykrywa jakie pliki są w folderze audio/duchy_N/ próbując ładować 1,2,3...
+    // do pierwszej porażki. Zwraca Promise z listą dostępnych numerów.
+    function duchyWykryjPliki(numerFolderu) {
+      if (duchyZnaneFoldery[numerFolderu]) {
+        return Promise.resolve(duchyZnaneFoldery[numerFolderu]);
+      }
+      return new Promise(function(resolve) {
+        var dostepne = [];
+        var i = 1;
+        function probuj() {
+          if (i > 30) { // bezpieczne ograniczenie - max 30 plików/folder
+            duchyZnaneFoldery[numerFolderu] = dostepne;
+            resolve(dostepne);
+            return;
+          }
+          var test = new Audio('audio/duchy_' + numerFolderu + '/' + i + '.mp3');
+          test.addEventListener('canplaythrough', function onOK() {
+            test.removeEventListener('canplaythrough', onOK);
+            dostepne.push(i);
+            i++;
+            probuj();
+          }, { once: true });
+          test.addEventListener('error', function onErr() {
+            test.removeEventListener('error', onErr);
+            duchyZnaneFoldery[numerFolderu] = dostepne;
+            resolve(dostepne);
+          }, { once: true });
+          test.load();
+        }
+        probuj();
+      });
+    }
+
+    function duchyOdtworzLosowy(numerFolderu) {
+      if (!aktywny || duchyAktualnyFolder !== numerFolderu) return;
+      duchyWykryjPliki(numerFolderu).then(function(pliki) {
+        if (!aktywny || duchyAktualnyFolder !== numerFolderu) return;
+        if (!pliki.length) {
+          console.warn('Strefa duchów: brak plików w audio/duchy_' + numerFolderu + '/');
+          return;
+        }
+        var n = pliki[Math.floor(Math.random() * pliki.length)];
+        var sciezka = 'audio/duchy_' + numerFolderu + '/' + n + '.mp3';
+        duchyAktualneAudio = new Audio(sciezka);
+        // Fale anten czerwone podczas głosu
+        warstwa.classList.add('stan-duchy');
+        duchyAktualneAudio.addEventListener('ended', function() {
+          warstwa.classList.remove('stan-duchy');
+          duchyAktualneAudio = null;
+          // następna runda - znów losowy czas ciszy
+          duchyZaplanujKolejny(numerFolderu);
+        });
+        duchyAktualneAudio.addEventListener('error', function() {
+          warstwa.classList.remove('stan-duchy');
+          duchyAktualneAudio = null;
+          duchyZaplanujKolejny(numerFolderu);
+        });
+        duchyAktualneAudio.play().catch(function(e) {
+          console.warn('Duch nie zagrał:', e);
+          warstwa.classList.remove('stan-duchy');
+          duchyAktualneAudio = null;
+          duchyZaplanujKolejny(numerFolderu);
+        });
+      });
+    }
+
+    function duchyZaplanujKolejny(numerFolderu) {
+      if (duchyTimer) { clearTimeout(duchyTimer); duchyTimer = null; }
+      if (!aktywny || duchyAktualnyFolder !== numerFolderu) return;
+      var czas = DUCHY_MIN_CISZY_MS + Math.random() * (DUCHY_MAX_CISZY_MS - DUCHY_MIN_CISZY_MS);
+      duchyTimer = setTimeout(function() {
+        duchyTimer = null;
+        duchyOdtworzLosowy(numerFolderu);
+      }, czas);
+    }
+
+    // PUBLICZNE API - wołane z sprawdzKropkiAudio (silnik główny GPS)
+    window.dkWejscieDoStrefyDuchow = function(numerFolderu) {
+      if (!aktywny) return;
+      if (duchyAktualnyFolder === numerFolderu) return; // już w tej strefie - nic nie robimy
+      window.dkWyjscieZeStrefyDuchow(); // wyczyść poprzednią jeśli była
+      duchyAktualnyFolder = numerFolderu;
+      duchyZaplanujKolejny(numerFolderu);
+    };
+
+    window.dkWyjscieZeStrefyDuchow = function() {
+      duchyAktualnyFolder = null;
+      if (duchyTimer) { clearTimeout(duchyTimer); duchyTimer = null; }
+      if (duchyAktualneAudio) {
+        try { duchyAktualneAudio.pause(); } catch(e) {}
+        duchyAktualneAudio = null;
+      }
+      warstwa.classList.remove('stan-duchy');
+    };
+
+    // =====================================================================
     // === ATMOSFERA - 4 warstwy dźwięku (S1-S4) regulowane pokrętłami =====
     // =====================================================================
     // 4 pliki audio/S1-S4.mp3 grają RAZEM, w pętli. Każda warstwa ma osobne
     // pokrętło głośności. Startują 3s po kliknięciu SZUKAJ (w trakcie KONTAKTU).
     // Pokrętło: godz.7 = cisza (0%), godz.12 = 50%, godz.17 = max (100%).
-    // Domyślne pozycje: S1=godz.11, S2=godz.12, S3=godz.15, S4=godz.10.
+    // Domyślne pozycje: S1=godz.11 (40%), S2=godz.8 (10%), S3=godz.7 (0%), S4=godz.8 (10%).
 
     // Mapowanie "godzina na zegarze" -> głośność (0..1) i kąt obrotu (stopnie).
     // Zakres ruchu pokrętła: godz.7 (-150°) ... godz.17 (+150°), czyli 300° łuku.
@@ -15367,7 +15594,8 @@ function splashStartBezGPS() { splashPoetaStart(); }
     }
 
     // Domyślne ustawienia pokręteł (godziny) - "dla bajeru" gra od razu z tym miksem
-    var domyslneGodziny = [11, 12, 15, 10];  // S1, S2, S3, S4
+    // S1=godz.11 (40%), S2=godz.8 (10%), S3=godz.7 (cisza, 0%), S4=godz.8 (10%)
+    var domyslneGodziny = [11, 8, 7, 8];  // S1, S2, S3, S4
     var kanaly = [];   // obiekty { audio, glosnosc, kat, godz, elObrot }
     var atmosferaWlaczona = false;
 
