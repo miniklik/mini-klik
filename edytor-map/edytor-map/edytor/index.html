@@ -782,6 +782,44 @@ body.dotyk.tryb-admin .menu-edytor{display:block}
   background:linear-gradient(180deg,var(--zloto),#b8821f);color:var(--tlo);
 }
 
+/* Separator na pasku edytora */
+.pasek-separator{
+  width:1px;align-self:stretch;background:rgba(243,205,130,0.3);margin:0 4px;
+}
+/* Kolory przycisków zapisu */
+.ed-btn-wczytaj{background:linear-gradient(180deg,#3a5a9c,#243a6c);border-color:rgba(120,160,230,0.6);color:#dce8ff}
+.ed-btn-json{background:linear-gradient(180deg,#5a3a1f,#382414)}
+.ed-btn-html{background:linear-gradient(180deg,#3d5a32,#243a1f);border-color:rgba(120,200,110,0.6);color:#d8f3c8}
+.ed-btn-reset{background:linear-gradient(180deg,#5a2a28,#381a18);border-color:rgba(230,120,110,0.6);color:#f3cdc8}
+.btn-reset-menu{background:linear-gradient(180deg,#5a2a28,#381a18)!important;border-color:rgba(230,120,110,0.6)!important;color:#f3cdc8!important}
+
+/* PRAWY hamburger - tylko telefon + admin */
+.hamburger-prawy{left:auto;right:16px;display:none}
+.hamburger-prawy .ikona-zapis{font-size:22px;line-height:1}
+body.dotyk.tryb-admin .hamburger-prawy{display:flex}
+
+/* PRAWY sidebar (menu zapisu) - wysuwa z prawej */
+.sidebar-prawy{
+  display:none;
+}
+body.dotyk .sidebar-prawy{
+  display:block;
+  position:fixed;top:0;right:0;left:auto;z-index:1150;
+  width:min(82vw,360px);height:100vh;height:100dvh;
+  max-height:none;border-radius:0;
+  border:none;border-left:2px solid var(--obrys);
+  transform:translateX(100%);
+  transition:transform 0.32s cubic-bezier(.4,0,.2,1);
+  padding-top:74px;
+}
+body.dotyk .sidebar-prawy.open{transform:translateX(0)}
+body.dotyk .sidebar-prawy::before,
+body.dotyk .sidebar-prawy::after{display:none}
+.zapis-info{
+  margin-top:18px;font-size:13px;color:var(--tekst-2);font-style:italic;
+  line-height:1.5;text-align:center;
+}
+
 </style>
 </head>
 <body>
@@ -793,6 +831,22 @@ body.dotyk.tryb-admin .menu-edytor{display:block}
 
 <!-- Tło pod wysuniętym panelem -->
 <div class="panel-backdrop" id="panelBackdrop" onclick="zamknijPanel()"></div>
+
+<!-- PRAWY hamburger - menu zapisu (dotyk + tryb admin) -->
+<div class="hamburger hamburger-prawy" id="hamburgerPrawy" onclick="przelacznikPaneluZapis()" aria-label="Zapis">
+  <span class="ikona-zapis">💾</span>
+</div>
+<div class="panel-backdrop" id="panelBackdropZapis" onclick="zamknijPanelZapis()"></div>
+<aside class="sidebar sidebar-prawy" id="sidebarZapis">
+  <div class="sidebar-tytul">⚜ Zapis ⚜</div>
+  <div class="menu-stack">
+    <button onclick="menuZapis('wczytaj')">📂 Wczytaj JSON</button>
+    <button onclick="menuZapis('json')">💾 Zapisz JSON</button>
+    <button onclick="menuZapis('html')">📄 Zapisz HTML</button>
+    <button onclick="menuZapis('reset')" class="btn-reset-menu">🗑️ Wyczyść wszystko</button>
+  </div>
+  <p class="zapis-info">JSON = kopia robocza (przenoszenie / backup).<br>HTML = gotowy plik na serwer.</p>
+</aside>
 
 <!-- Blokada orientacji poziomej (tylko dotyk) -->
 <div class="obroc-overlay" id="obrocOverlay">
@@ -907,6 +961,11 @@ body.dotyk.tryb-admin .menu-edytor{display:block}
     <div class="pasek-rzad">
       <button class="ed-btn" id="btnYT" onclick="wlaczTrybDodawaniaYT()">🎬 YT</button>
       <button class="ed-btn" id="btn360" onclick="wlaczTrybDodawania360()">🌐 Sfera 360</button>
+      <span class="pasek-separator"></span>
+      <button class="ed-btn ed-btn-wczytaj" onclick="wczytajJSON()">📂 Wczytaj JSON</button>
+      <button class="ed-btn ed-btn-json" onclick="zapiszJSON()">💾 Zapisz JSON</button>
+      <button class="ed-btn ed-btn-html" onclick="zapiszHTML()">📄 Zapisz HTML</button>
+      <button class="ed-btn ed-btn-reset" onclick="wyczyscWszystko()">🗑️ Wyczyść wszystko</button>
     </div>
   </div>
 
@@ -948,6 +1007,9 @@ body.dotyk.tryb-admin .menu-edytor{display:block}
   <footer>Skarbiec · fundament wyglądu</footer>
 
 </div>
+
+<!-- Osadzone miejsca (wypełniane przy "Zapisz HTML"). Pusta tablica = brak. -->
+<script id="daneMiejsc" type="application/json">[]</script>
 
 <script>
 // ============================================================
@@ -1244,13 +1306,174 @@ let miejsca = [];
 let markery = [];
 
 function wczytajMiejsca() {
+  // 1) Najpierw robocze zmiany z localStorage (edycja admina)
   try {
     const raw = localStorage.getItem(KEY_MIEJSCA);
-    if (raw) miejsca = JSON.parse(raw);
+    if (raw) { miejsca = JSON.parse(raw); return; }
+  } catch(e) {}
+  // 2) Brak roboczych -> wczytaj dane osadzone w pliku (po "Zapisz HTML")
+  try {
+    const el = document.getElementById('daneMiejsc');
+    if (el && el.textContent.trim()) {
+      const dane = JSON.parse(el.textContent);
+      if (Array.isArray(dane)) miejsca = dane;
+    }
   } catch(e) { miejsca = []; }
 }
 function zapiszMiejsca() {
   try { localStorage.setItem(KEY_MIEJSCA, JSON.stringify(miejsca)); } catch(e) {}
+}
+
+// ============================================================
+// ZAPIS / WCZYTANIE - mechanizm jak w Paranormal Detector
+// JSON = kopia robocza (backup/przenoszenie). HTML = gotowy plik na serwer.
+// ============================================================
+
+// --- ZAPISZ JSON: pobiera plik z miejscami + datą w nazwie ---
+function zapiszJSON() {
+  try {
+    const dane = {
+      _typ: 'skarbiec-mapa',
+      _wersja: 1,
+      _data: new Date().toISOString(),
+      miejsca: Array.isArray(miejsca) ? miejsca : []
+    };
+    const tekst = JSON.stringify(dane, null, 2);
+    const blob = new Blob([tekst], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+
+    const teraz = new Date();
+    const pad = n => String(n).padStart(2, '0');
+    const nazwa = 'skarbiec-mapa-'
+      + teraz.getFullYear() + '-'
+      + pad(teraz.getMonth()+1) + '-'
+      + pad(teraz.getDate()) + '-'
+      + pad(teraz.getHours()) + '-'
+      + pad(teraz.getMinutes()) + '.json';
+
+    const a = document.createElement('a');
+    a.href = url; a.download = nazwa;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+
+    alert('✓ Zapisano ' + dane.miejsca.length + ' miejsc do pliku:\n\n' + nazwa);
+  } catch(err) {
+    alert('⚠️ Błąd zapisu JSON: ' + err.message);
+  }
+}
+
+// --- WCZYTAJ JSON: wybór pliku z dysku -> nadpisuje miejsca ---
+function wczytajJSON() {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.json,application/json';
+  input.style.display = 'none';
+  document.body.appendChild(input);
+
+  input.addEventListener('change', function(ev) {
+    const plik = ev.target.files && ev.target.files[0];
+    if (!plik) { document.body.removeChild(input); return; }
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      try {
+        const dane = JSON.parse(e.target.result);
+        if (dane._typ !== 'skarbiec-mapa') {
+          if (!confirm('⚠️ To nie wygląda na backup tej mapy.\n\nKontynuować mimo wszystko?')) {
+            document.body.removeChild(input); return;
+          }
+        }
+        const wczMiejsca = Array.isArray(dane.miejsca) ? dane.miejsca : [];
+        const tekst = 'Wczytać ' + wczMiejsca.length + ' miejsc z pliku?\n\n'
+          + 'UWAGA: NADPISZE obecny stan (teraz: ' + miejsca.length + ' miejsc).\n'
+          + 'Strona przeładuje się po wczytaniu.';
+        if (!confirm(tekst)) { document.body.removeChild(input); return; }
+
+        localStorage.setItem(KEY_MIEJSCA, JSON.stringify(wczMiejsca));
+        alert('✓ Wczytano ' + wczMiejsca.length + ' miejsc.\n\nStrona za chwilę się odświeży.');
+        location.reload();
+      } catch(err) {
+        alert('⚠️ Błąd wczytywania JSON: ' + err.message);
+      }
+      document.body.removeChild(input);
+    };
+    reader.onerror = function() {
+      alert('⚠️ Nie udało się odczytać pliku.');
+      document.body.removeChild(input);
+    };
+    reader.readAsText(plik);
+  });
+
+  input.click();
+}
+
+// --- ZAPISZ HTML: gotowy index.html z wbudowanymi miejscami ---
+// Bierze BIEŻĄCY dokument, podmienia osadzone dane miejsc na aktualne,
+// i pobiera jako index.html (do wgrania na serwer na stałe).
+function zapiszHTML() {
+  try {
+    let html = document.documentElement.outerHTML;
+    const blokDanych = `<script id="daneMiejsc" type="application/json">${JSON.stringify(miejsca)}<\/script>`;
+    // Podmień istniejący blok danych albo wstaw nowy przed głównym skryptem
+    if (/<script id="daneMiejsc"[^>]*>[\s\S]*?<\/script>/.test(html)) {
+      html = html.replace(/<script id="daneMiejsc"[^>]*>[\s\S]*?<\/script>/, blokDanych);
+    }
+    html = '<!DOCTYPE html>\n' + html;
+
+    const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'index.html';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+
+    alert('✓ Pobrano index.html z ' + miejsca.length + ' miejscami.\n\nWgraj go na serwer (zastąp stary).');
+  } catch(err) {
+    alert('⚠️ Błąd zapisu HTML: ' + err.message);
+  }
+}
+
+// --- PRAWY hamburger (menu zapisu na telefonie) ---
+function przelacznikPaneluZapis() {
+  const s = document.getElementById('sidebarZapis');
+  const h = document.getElementById('hamburgerPrawy');
+  const b = document.getElementById('panelBackdropZapis');
+  const otwarty = s.classList.toggle('open');
+  h.classList.toggle('open', otwarty);
+  b.classList.toggle('open', otwarty);
+}
+function zamknijPanelZapis() {
+  document.getElementById('sidebarZapis').classList.remove('open');
+  document.getElementById('hamburgerPrawy').classList.remove('open');
+  document.getElementById('panelBackdropZapis').classList.remove('open');
+}
+function menuZapis(co) {
+  zamknijPanelZapis();
+  if (co === 'wczytaj') wczytajJSON();
+  else if (co === 'json') zapiszJSON();
+  else if (co === 'html') zapiszHTML();
+  else if (co === 'reset') wyczyscWszystko();
+}
+
+// --- WYCZYŚĆ WSZYSTKO: usuwa wszystkie miejsca (z potwierdzeniem) ---
+function wyczyscWszystko() {
+  if (miejsca.length === 0) {
+    alert('Nie ma czego czyścić — lista miejsc jest pusta.');
+    return;
+  }
+  const ile = miejsca.length;
+  if (!confirm('⚠️ USUNĄĆ WSZYSTKIE miejsca?\n\nUsuniesz ' + ile + ' miejsc. Tej operacji NIE DA SIĘ cofnąć.\n\nWskazówka: jeśli chcesz zachować kopię, najpierw użyj „Zapisz JSON".')) {
+    return;
+  }
+  // drugie potwierdzenie - to nieodwracalne
+  if (!confirm('Na pewno? To ostatnie ostrzeżenie.\n\nKliknij OK aby usunąć wszystkie ' + ile + ' miejsc.')) {
+    return;
+  }
+  miejsca = [];
+  zapiszMiejsca();
+  renderujMiejsca();
+  zamknijDetail && zamknijDetail();
+  alert('✓ Usunięto wszystkie miejsca (' + ile + ').');
 }
 
 // --- Wyciągnij ID filmu z dowolnego linku YouTube ---
