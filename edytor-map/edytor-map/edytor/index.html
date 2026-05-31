@@ -469,6 +469,18 @@ body.dotyk.tryb-admin #pasekEdytora{display:none}
 }
 .tryb-info.visible{display:block}
 
+/* Na telefonie: pływający komunikat na dole środka (nie zasłania hamburgera),
+   znika sam po chwili (fadeout sterowany z JS) */
+body.dotyk .tryb-info{
+  top:auto;bottom:80px;left:50%;right:auto;
+  transform:translateX(-50%);
+  width:max-content;max-width:88vw;
+  border-radius:24px;padding:10px 18px;font-size:14px;
+  box-shadow:0 6px 20px rgba(0,0,0,0.5);
+  transition:opacity 0.4s;
+}
+body.dotyk .tryb-info.znika{opacity:0}
+
 /* ============================================================
    PANEL DODAWANIA (modal) - jeden wspólny szablon
    ============================================================ */
@@ -1187,6 +1199,28 @@ mapa.on('dragstart', () => {
 
 aktualizujWidocznoscWysrodkowania();
 
+// Pokaż pasek-info. Na telefonie: toast znikający po 2s. Na komputerze: stały.
+let infoTimer = null;
+function pokazInfo(tekst) {
+  const info = document.getElementById('trybInfo');
+  info.textContent = tekst;
+  info.classList.remove('znika');
+  info.classList.add('visible');
+  if (infoTimer) { clearTimeout(infoTimer); infoTimer = null; }
+  if (document.body.classList.contains('dotyk')) {
+    // telefon: po 2s rozpocznij zanikanie, potem ukryj
+    infoTimer = setTimeout(() => {
+      info.classList.add('znika');
+      setTimeout(() => { info.classList.remove('visible','znika'); }, 450);
+    }, 2000);
+  }
+}
+function ukryjInfo() {
+  const info = document.getElementById('trybInfo');
+  info.classList.remove('visible','znika');
+  if (infoTimer) { clearTimeout(infoTimer); infoTimer = null; }
+}
+
 // Z menu mobilnego (hamburger) - wybór co dodać
 function menuDodaj(typ) {
   if (typeof zamknijPanel === 'function') zamknijPanel(); // zamknij wysuwane menu
@@ -1257,10 +1291,9 @@ function wlaczTrybDodawaniaYT() {
   btn.classList.toggle('aktywny', trybDodawaniaYT);
   syncMenuPrzyciski();
   if (trybDodawaniaYT) {
-    info.textContent = '🎬 Kliknij na mapie miejsce, gdzie dodać film YouTube';
-    info.classList.add('visible');
+    pokazInfo('🎬 Kliknij na mapie miejsce, gdzie dodać film YouTube');
   } else {
-    info.classList.remove('visible');
+    ukryjInfo();
   }
 }
 
@@ -1391,7 +1424,7 @@ function zatwierdzYT() {
   // wyłącz tryb dodawania po dodaniu
   trybDodawaniaYT = false;
   document.getElementById('btnYT').classList.remove('aktywny');
-  document.getElementById('trybInfo').classList.remove('visible');
+  ukryjInfo();
 }
 
 // ============================================================
@@ -1561,10 +1594,9 @@ function wlaczTrybDodawania360() {
   btn.classList.toggle('aktywny', trybDodawania360);
   syncMenuPrzyciski();
   if (trybDodawania360) {
-    info.textContent = '🌐 Kliknij na mapie miejsce, gdzie dodać panoramę 360°';
-    info.classList.add('visible');
+    pokazInfo('🌐 Kliknij na mapie miejsce, gdzie dodać panoramę 360°');
   } else {
-    info.classList.remove('visible');
+    ukryjInfo();
   }
 }
 
@@ -1644,7 +1676,7 @@ function zatwierdz360() {
   zamknijPanel360();
   trybDodawania360 = false;
   document.getElementById('btn360').classList.remove('aktywny');
-  document.getElementById('trybInfo').classList.remove('visible');
+  ukryjInfo();
 }
 
 function ikona360(rozmiar, klucz) {
