@@ -635,6 +635,19 @@ body.dotyk .tryb-info.znika{opacity:0}
   transition:transform 0.15s;
 }
 .pin-360-inner:hover{transform:scale(1.12)}
+/* Pinezka zwykłego zdjęcia - zielona, kwadratowa */
+.pin-foto-inner{
+  border-radius:8px!important;
+  background:linear-gradient(180deg,#3d7a4a,#245232)!important;
+}
+.karta-badge.sfoto{background:linear-gradient(180deg,#3d7a4a,#245232);border-radius:5px}
+/* Zwykłe zdjęcie w panelu szczegółów */
+.detail-foto{
+  width:100%;border:2px solid var(--obrys);border-radius:8px;overflow:hidden;
+  margin-bottom:10px;background:#0a0a0a;
+  display:flex;align-items:center;justify-content:center;
+}
+.detail-foto img{width:100%;height:auto;display:block;max-height:70vh;object-fit:contain}
 
 /* Kontener panoramy w popupie */
 .popup-360-wrap{
@@ -897,28 +910,32 @@ body.dotyk .sidebar-prawy::after{display:none}
 <!-- Panel dodawania Sfera 360 (modal) -->
 <div class="panel-backdrop2" id="panelBackdrop360" onclick="zamknijPanel360()"></div>
 <div class="panel-modal" id="panel360">
-  <h2>🌐 Dodaj panoramę 360°</h2>
+  <h2 id="panel360Tytul">📷 Dodaj zdjęcie</h2>
+
+  <label class="panel-label">Rodzaj zdjęcia</label>
+  <div class="rozmiar-wybor" id="s360TypWybor">
+    <div class="rozmiar-opcja wybrany" data-typ="panorama" onclick="ustawTypFoto('panorama')">
+      <span class="ikona">🌐</span>Panorama 360°
+    </div>
+    <div class="rozmiar-opcja" data-typ="zwykle" onclick="ustawTypFoto('zwykle')">
+      <span class="ikona">🖼️</span>Zwykłe zdjęcie
+    </div>
+  </div>
 
   <label class="panel-label">Nazwa</label>
   <input type="text" id="s360Nazwa" maxlength="80" placeholder="np. Rynek">
 
   <label class="panel-label">Nazwa pliku zdjęcia</label>
-  <input type="text" id="s360Plik" maxlength="80" placeholder="np. rynek (bez -360.jpg)">
+  <input type="text" id="s360Plik" maxlength="80" placeholder="np. rynek">
 
   <!-- INSTRUKCJA wgrywania (rozwijana) -->
   <div class="instrukcja-360" id="instr360">
     <div class="instr-tytul" onclick="document.getElementById('instr360').classList.toggle('otwarta')">
-      <span>📷 Jak dodać zdjęcie sferyczne?</span>
+      <span id="instrNaglowek">📷 Jak dodać zdjęcie?</span>
       <span class="strzalka">▼</span>
     </div>
-    <div class="instr-tresc">
-      <ol>
-        <li>Zrób zdjęcie 360° (np. aplikacją Google Street View) — format <b>sferyczny / equirectangular</b>, proporcje <b>2:1</b>.</li>
-        <li>Zmień nazwę pliku na: <code id="s360Przyklad">rynek-360.jpg</code></li>
-        <li>Wgraj plik do folderu <code>img/</code> na serwerze (obok pliku <code>index.html</code>).</li>
-        <li>Gotowe — pinezka 🌐 pokaże panoramę po kliknięciu płatka.</li>
-      </ol>
-      <p class="instr-uwaga">Dozwolone formaty: <code>.jpg</code>, <code>.png</code>, <code>.webp</code>. W polu wpisz samą nazwę (bez <code>-360.jpg</code>).</p>
+    <div class="instr-tresc" id="instrTresc">
+      <!-- wypełniane przez ustawTypFoto -->
     </div>
   </div>
 
@@ -960,7 +977,7 @@ body.dotyk .sidebar-prawy::after{display:none}
     <div class="pasek-tytul">⚜ Tryb edytora ⚜</div>
     <div class="pasek-rzad">
       <button class="ed-btn" id="btnYT" onclick="wlaczTrybDodawaniaYT()">🎬 YT</button>
-      <button class="ed-btn" id="btn360" onclick="wlaczTrybDodawania360()">🌐 Sfera 360</button>
+      <button class="ed-btn" id="btn360" onclick="wlaczTrybDodawania360()">📷 Zdjęcie</button>
       <span class="pasek-separator"></span>
       <button class="ed-btn ed-btn-wczytaj" onclick="wczytajJSON()">📂 Wczytaj JSON</button>
       <button class="ed-btn ed-btn-json" onclick="zapiszJSON()">💾 Zapisz JSON</button>
@@ -984,7 +1001,7 @@ body.dotyk .sidebar-prawy::after{display:none}
         <div class="sidebar-tytul">⚜ Edytor ⚜</div>
         <div class="menu-stack">
           <button onclick="menuDodaj('yt')">🎬 Dodaj film YouTube</button>
-          <button onclick="menuDodaj('360')">🌐 Dodaj panoramę 360°</button>
+          <button onclick="menuDodaj('360')">📷 Dodaj zdjęcie</button>
         </div>
       </div>
 
@@ -1719,9 +1736,10 @@ function otworzPlatek(klucz, akcja) {
     tytulEl.innerHTML = '🎬 ' + escapeHTML(m.nazwa);
     content.innerHTML = trescFilm(m);
   } else if (akcja === 'panorama') {
-    tytulEl.innerHTML = '🌐 ' + escapeHTML(m.nazwa);
+    const zwykle = (m.fotoTyp === 'zwykle');
+    tytulEl.innerHTML = (zwykle ? '🖼️ ' : '🌐 ') + escapeHTML(m.nazwa);
     content.innerHTML = trescPanorama(m);
-    setTimeout(() => uruchomSfere('detail-sfera-' + m.klucz, m.plik, m.nazwa), 150);
+    if (!zwykle) setTimeout(() => uruchomSfere('detail-sfera-' + m.klucz, m.plik, m.nazwa), 150);
   } else { // opis
     tytulEl.innerHTML = '📜 ' + escapeHTML(m.nazwa);
     content.innerHTML = trescOpis(m);
@@ -1766,6 +1784,16 @@ function trescFilm(m) {
 
 // Treść PANORAMA (panel)
 function trescPanorama(m) {
+  if (m.fotoTyp === 'zwykle') {
+    // Zwykłe zdjęcie - próbuje img/{plik}.jpg/.png/.webp
+    return `<div class="detail-foto" id="detail-foto-${m.klucz}">
+        <img src="img/${m.plik}.jpg"
+          onerror="this.onerror=null;this.src='img/${m.plik}.png';this.onerror=function(){this.onerror=null;this.src='img/${m.plik}.webp';this.onerror=function(){this.parentElement.innerHTML='<p class=&quot;detail-opis&quot; style=&quot;text-align:center;font-style:italic;color:var(--tekst-2)&quot;>Zdjęcie <code>img/${m.plik}.jpg</code> nie zostało jeszcze wgrane.</p>';};};"
+          alt="${escapeHTML(m.nazwa)}">
+      </div>
+      ${m.opis && m.opis.trim() ? opisAkapity(m.opis) : ''}`;
+  }
+  // Panorama 360
   return `<div class="detail-360-info">🔄 Wirtualny spacer 360° — obracaj palcem / myszką dookoła</div>
     <div class="detail-sfera" id="detail-sfera-${m.klucz}"></div>
     ${m.opis && m.opis.trim() ? opisAkapity(m.opis) : ''}`;
@@ -1833,7 +1861,7 @@ function otworzPanel360() {
   document.getElementById('s360Nazwa').value = '';
   document.getElementById('s360Plik').value = '';
   document.getElementById('s360Opis').value = '';
-  document.getElementById('s360Przyklad').textContent = 'rynek-360.jpg';
+  ustawTypFoto('panorama');
   ustawRozmiar360('s');
   pokazPozycjeWPanelu('360');
   document.getElementById('panelBackdrop360').classList.add('visible');
@@ -1843,6 +1871,43 @@ function zamknijPanel360() {
   document.getElementById('panelBackdrop360').classList.remove('visible');
   document.getElementById('panel360').classList.remove('visible');
   edytowanyKlucz = null;
+}
+
+// Wybrany rodzaj zdjęcia: 'panorama' (360) albo 'zwykle' (płaskie)
+let wybranyTypFoto = 'panorama';
+function ustawTypFoto(t) {
+  wybranyTypFoto = t;
+  document.querySelectorAll('#s360TypWybor .rozmiar-opcja').forEach(o => {
+    o.classList.toggle('wybrany', o.dataset.typ === t);
+  });
+  // Tytuł panelu + instrukcja zależnie od typu
+  const tytul = document.getElementById('panel360Tytul');
+  const nagl = document.getElementById('instrNaglowek');
+  const tresc = document.getElementById('instrTresc');
+  const nazwaPliku = (document.getElementById('s360Plik').value.trim() || 'rynek');
+  if (t === 'panorama') {
+    tytul.innerHTML = '🌐 Dodaj panoramę 360°';
+    nagl.textContent = '📷 Jak dodać zdjęcie sferyczne?';
+    tresc.innerHTML = `
+      <ol>
+        <li>Zrób zdjęcie 360° (np. aplikacją Google Street View) — format <b>sferyczny / equirectangular</b>, proporcje <b>2:1</b>.</li>
+        <li>Zmień nazwę pliku na: <code id="s360Przyklad">${nazwaPliku}-360.jpg</code></li>
+        <li>Wgraj plik do folderu <code>img/</code> na serwerze (obok <code>index.html</code>).</li>
+        <li>Gotowe — pinezka 🌐 pokaże panoramę po kliknięciu płatka.</li>
+      </ol>
+      <p class="instr-uwaga">Formaty: <code>.jpg</code>, <code>.png</code>, <code>.webp</code>. W polu wpisz samą nazwę (bez <code>-360.jpg</code>).</p>`;
+  } else {
+    tytul.innerHTML = '🖼️ Dodaj zwykłe zdjęcie';
+    nagl.textContent = '📷 Jak dodać zwykłe zdjęcie?';
+    tresc.innerHTML = `
+      <ol>
+        <li>Zrób zwykłe zdjęcie (telefonem, aparatem — dowolne).</li>
+        <li>Zmień nazwę pliku na: <code id="s360Przyklad">${nazwaPliku}.jpg</code></li>
+        <li>Wgraj plik do folderu <code>img/</code> na serwerze (obok <code>index.html</code>).</li>
+        <li>Gotowe — pinezka 🖼️ pokaże zdjęcie po kliknięciu płatka.</li>
+      </ol>
+      <p class="instr-uwaga">Formaty: <code>.jpg</code>, <code>.png</code>, <code>.webp</code>. W polu wpisz samą nazwę (bez rozszerzenia).</p>`;
+  }
 }
 
 let wybranyRozmiar360 = 's';
@@ -1858,7 +1923,7 @@ document.addEventListener('input', (e) => {
   if (e.target && e.target.id === 's360Plik') {
     const v = e.target.value.trim() || 'rynek';
     const el = document.getElementById('s360Przyklad');
-    if (el) el.textContent = v + '-360.jpg';
+    if (el) el.textContent = v + (wybranyTypFoto === 'panorama' ? '-360.jpg' : '.jpg');
   }
 });
 
@@ -1872,13 +1937,14 @@ function zatwierdz360() {
     return;
   }
   if (!/^[a-zA-Z0-9_-]+$/.test(plik)) {
-    alert('Nazwa pliku może zawierać tylko litery a-z, cyfry, myślnik i podkreślenie (bez spacji i -360.jpg).');
+    alert('Nazwa pliku może zawierać tylko litery a-z, cyfry, myślnik i podkreślenie (bez spacji i rozszerzenia).');
     return;
   }
 
   if (edytowanyKlucz) {
     const m = miejsca.find(x => x.klucz === edytowanyKlucz);
     if (m) { m.nazwa = nazwa; m.plik = plik; m.opis = opis; m.rozmiar = wybranyRozmiar360;
+      m.fotoTyp = wybranyTypFoto;
       if (kliknietaPozycja) m.pozycja = kliknietaPozycja; }
     edytowanyKlucz = null;
   } else {
@@ -1886,6 +1952,7 @@ function zatwierdz360() {
     miejsca.push({
       klucz: '360-' + Date.now(),
       typ: '360',
+      fotoTyp: wybranyTypFoto,   // 'panorama' | 'zwykle'
       nazwa: nazwa,
       plik: plik,
       opis: opis,
@@ -1902,13 +1969,17 @@ function zatwierdz360() {
   ukryjInfo();
 }
 
-function ikona360(rozmiar, klucz) {
+function ikona360(m) {
+  const rozmiar = m.rozmiar, klucz = m.klucz;
+  const zwykle = (m.fotoTyp === 'zwykle');
   const px = rozmiar === 'm' ? 40 : 30;
-  const font = rozmiar === 'm' ? 12 : 10;
+  const font = rozmiar === 'm' ? (zwykle ? 11 : 12) : (zwykle ? 9 : 10);
 
   const platki = [
-    { ikona:'🌐', nazwa:'Panorama', dx:-46, dy:-44, akcja:'panorama' },
-    { ikona:'📜', nazwa:'Opis',     dx: 46, dy:-44, akcja:'opis' }
+    zwykle
+      ? { ikona:'🖼️', nazwa:'Zdjęcie', dx:-46, dy:-44, akcja:'panorama' }
+      : { ikona:'🌐', nazwa:'Panorama', dx:-46, dy:-44, akcja:'panorama' },
+    { ikona:'📜', nazwa:'Opis', dx: 46, dy:-44, akcja:'opis' }
   ];
   if (isAdmin) platki.push({ ikona:'🛠', nazwa:'Edytuj', dx:0, dy:-62, akcja:'edytuj' });
 
@@ -1919,11 +1990,14 @@ function ikona360(rozmiar, klucz) {
       <div class="platek-nazwa">${p.nazwa}</div>
     </div>`).join('');
 
+  const etykieta = zwykle ? 'FOTO' : '360';
+  const klasaInner = zwykle ? 'pin-360-inner pin-foto-inner' : 'pin-360-inner';
+
   return L.divIcon({
     className: 'pin-360',
     html: `<div style="position:relative;width:${px}px;height:${px}px">
-        <div class="pin-360-inner" style="width:${px}px;height:${px}px;font-size:${font}px"
-             onclick="event.stopPropagation();togglePlatki('${klucz}')">360</div>
+        <div class="${klasaInner}" style="width:${px}px;height:${px}px;font-size:${font}px"
+             onclick="event.stopPropagation();togglePlatki('${klucz}')">${etykieta}</div>
         <div class="platki-wrapper" id="platki-${klucz}">${platkiHTML}</div>
       </div>`,
     iconSize: [px, px],
@@ -1974,7 +2048,7 @@ function edytuj360(klucz) {
   document.getElementById('s360Nazwa').value = m.nazwa || '';
   document.getElementById('s360Plik').value = m.plik || '';
   document.getElementById('s360Opis').value = m.opis || '';
-  document.getElementById('s360Przyklad').textContent = (m.plik || 'rynek') + '-360.jpg';
+  ustawTypFoto(m.fotoTyp === 'zwykle' ? 'zwykle' : 'panorama');
   ustawRozmiar360(m.rozmiar || 's');
   const el = document.getElementById('s360PozycjaTekst');
   if (el && m.pozycja) el.innerHTML = `📌 <b>${m.pozycja[0].toFixed(5)}, ${m.pozycja[1].toFixed(5)}</b>`;
@@ -2020,15 +2094,16 @@ function renderujMiejsca() {
     }
 
     else if (m.typ === '360') {
-      const marker = L.marker(m.pozycja, { icon: ikona360(m.rozmiar, m.klucz) }).addTo(mapa);
+      const marker = L.marker(m.pozycja, { icon: ikona360(m) }).addTo(mapa);
 
       marker.miejsce = m;
       markery.push(marker);
 
       const card = document.createElement('div');
       card.className = 'miejsce-card';
-      card.innerHTML = `<div class="nazwa"><span class="karta-badge s360">360</span>${escapeHTML(m.nazwa)}</div>
-        <div class="opis">${escapeHTML((m.opis || '').slice(0,80)) || 'Panorama 360°'}</div>`;
+      const zwykle360 = (m.fotoTyp === 'zwykle');
+      card.innerHTML = `<div class="nazwa"><span class="karta-badge ${zwykle360?'sfoto':'s360'}">${zwykle360?'FOTO':'360'}</span>${escapeHTML(m.nazwa)}</div>
+        <div class="opis">${escapeHTML((m.opis || '').slice(0,80)) || (zwykle360?'Zdjęcie':'Panorama 360°')}</div>`;
       card.onclick = () => {
         autoCenterAktywny = false;
         aktualizujPrzyciskCenter();
