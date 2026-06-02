@@ -1404,13 +1404,58 @@ function wczytajJSON() {
           }
         }
         const wczMiejsca = Array.isArray(dane.miejsca) ? dane.miejsca : [];
-        const tekst = 'Wczytać ' + wczMiejsca.length + ' miejsc z pliku?\n\n'
-          + 'UWAGA: NADPISZE obecny stan (teraz: ' + miejsca.length + ' miejsc).\n'
-          + 'Strona przeładuje się po wczytaniu.';
-        if (!confirm(tekst)) { document.body.removeChild(input); return; }
+        if (wczMiejsca.length === 0) {
+          alert('Plik nie zawiera żadnych miejsc.');
+          document.body.removeChild(input); return;
+        }
 
-        localStorage.setItem(KEY_MIEJSCA, JSON.stringify(wczMiejsca));
-        alert('✓ Wczytano ' + wczMiejsca.length + ' miejsc.\n\nStrona za chwilę się odświeży.');
+        // Jeśli mapa jest pusta - po prostu wczytaj (bez pytania o łączenie)
+        if (miejsca.length === 0) {
+          localStorage.setItem(KEY_MIEJSCA, JSON.stringify(wczMiejsca));
+          alert('✓ Wczytano ' + wczMiejsca.length + ' miejsc.\n\nStrona za chwilę się odświeży.');
+          location.reload();
+          return;
+        }
+
+        // Mapa NIE jest pusta - pytamy: połączyć czy nowa mapa?
+        const polacz = confirm(
+          'Masz już ' + miejsca.length + ' miejsc na mapie.\n\n'
+          + 'Wczytujesz plik z ' + wczMiejsca.length + ' miejscami.\n\n'
+          + '➡ OK = POŁĄCZ (dodaj nowe do obecnych)\n'
+          + '➡ Anuluj = NOWA MAPA (zastąp wszystko wczytanymi)'
+        );
+
+        let wynik, komunikat;
+        if (polacz) {
+          // POŁĄCZ - dodaj tylko te których jeszcze nie ma (pomiń duplikaty)
+          const sygnatura = m => (m.klucz || '') + '|' + m.typ + '|' +
+            (m.pozycja ? m.pozycja[0].toFixed(5) + ',' + m.pozycja[1].toFixed(5) : '') + '|' + (m.nazwa||'');
+          const istniejace = new Set(miejsca.map(sygnatura));
+          let dodane = 0, pominiete = 0;
+          const polaczone = miejsca.slice();
+          wczMiejsca.forEach(m => {
+            if (istniejace.has(sygnatura(m))) { pominiete++; }
+            else {
+              // upewnij się że klucz jest unikalny
+              if (!m.klucz || polaczone.some(x => x.klucz === m.klucz)) {
+                m.klucz = (m.typ || 'pkt') + '-' + Date.now() + '-' + Math.floor(Math.random()*1000);
+              }
+              polaczone.push(m); dodane++;
+            }
+          });
+          wynik = polaczone;
+          komunikat = '✓ Połączono mapy.\n\nDodano: ' + dodane + ' nowych\nPominięto duplikatów: ' + pominiete + '\nRazem: ' + wynik.length + ' miejsc.';
+        } else {
+          // NOWA MAPA - zastąp
+          if (!confirm('Na pewno ZASTĄPIĆ obecne ' + miejsca.length + ' miejsc?\n\nObecna mapa zniknie. (Jeśli chcesz ją zachować — najpierw Zapisz JSON.)')) {
+            document.body.removeChild(input); return;
+          }
+          wynik = wczMiejsca;
+          komunikat = '✓ Wczytano nową mapę: ' + wynik.length + ' miejsc.';
+        }
+
+        localStorage.setItem(KEY_MIEJSCA, JSON.stringify(wynik));
+        alert(komunikat + '\n\nStrona za chwilę się odświeży.');
         location.reload();
       } catch(err) {
         alert('⚠️ Błąd wczytywania JSON: ' + err.message);
