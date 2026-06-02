@@ -1432,9 +1432,19 @@ function wczytajJSON() {
 // i pobiera jako index.html (do wgrania na serwer na stałe).
 function zapiszHTML() {
   try {
-    let html = document.documentElement.outerHTML;
+    // Pracujemy na KOPII <html>, żeby nie ruszać żywej strony.
+    const klon = document.documentElement.cloneNode(true);
+    // Wygenerowany plik ma być DLA GOŚCI - zdejmujemy tryb admin i otwarte panele,
+    // żeby ktoś kto go otworzy bez ?admin=1 widział czystą mapę.
+    if (klon.querySelector('body')) {
+      const b = klon.querySelector('body');
+      b.classList.remove('tryb-admin', 'dotyk');
+      // pozamykaj ewentualnie otwarte wysuwane panele/modale w kopii
+      klon.querySelectorAll('.open, .visible').forEach(el => el.classList.remove('open','visible'));
+    }
+    let html = klon.outerHTML;
+
     const blokDanych = `<script id="daneMiejsc" type="application/json">${JSON.stringify(miejsca)}<\/script>`;
-    // Podmień istniejący blok danych albo wstaw nowy przed głównym skryptem
     if (/<script id="daneMiejsc"[^>]*>[\s\S]*?<\/script>/.test(html)) {
       html = html.replace(/<script id="daneMiejsc"[^>]*>[\s\S]*?<\/script>/, blokDanych);
     }
@@ -1447,7 +1457,7 @@ function zapiszHTML() {
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
     setTimeout(() => URL.revokeObjectURL(url), 1000);
 
-    alert('✓ Pobrano index.html z ' + miejsca.length + ' miejscami.\n\nWgraj go na serwer (zastąp stary).');
+    alert('✓ Pobrano index.html z ' + miejsca.length + ' miejscami.\n\nTo wersja DLA GOŚCI (bez edytora).\nWgraj ją na serwer — zastąp stary plik.');
   } catch(err) {
     alert('⚠️ Błąd zapisu HTML: ' + err.message);
   }
@@ -1628,13 +1638,20 @@ function zatwierdzYT() {
   const link  = document.getElementById('ytAdres').value.trim();
   const opis  = document.getElementById('ytOpis').value.trim();
 
-  if (!nazwa || !link) {
-    alert('Wypełnij przynajmniej Nazwę i Adres YT.');
+  if (!nazwa) {
+    alert('Wpisz przynajmniej Nazwę miejsca.');
     return;
   }
-  if (!youtubeId(link)) {
-    alert('To nie wygląda na poprawny link YouTube.\nUżyj np. https://youtube.com/watch?v=...');
+  // Adres YT jest opcjonalny - można dodać punkt teraz, a film później przez edycję.
+  if (link && !youtubeId(link)) {
+    alert('To nie wygląda na poprawny link YouTube.\nUżyj np. https://youtube.com/watch?v=...\n\n(Możesz też zostawić adres pusty i dodać film później przez edycję.)');
     return;
+  }
+  // Przypomnienie gdy dodajemy NOWY punkt bez adresu
+  if (!link && !edytowanyKlucz) {
+    if (!confirm('Dodajesz punkt na mapie BEZ adresu YouTube.\n\nFilm dodasz później — edytuj to miejsce (płatek 🛠) i wklej adres.\n\nDodać punkt teraz?')) {
+      return;
+    }
   }
   if (edytowanyKlucz) {
     // Tryb EDYCJI - aktualizuj istniejące miejsce
@@ -1779,7 +1796,7 @@ function trescFilm(m) {
       allowfullscreen></iframe></div>`;
     html += `<a class="detail-yt-link" href="${escapeHTML(m.link)}" target="_blank" rel="noopener">📺 Otwórz w YouTube</a>`;
   } else {
-    html += `<p class="detail-opis">Brak poprawnego linku do filmu.</p>`;
+    html += `<p class="detail-opis" style="font-style:italic;color:var(--tekst-2);text-align:center;padding:14px">🎬 Film nie został jeszcze dodany.${isAdmin ? '<br>Edytuj to miejsce (🛠) i wklej adres YouTube.' : ''}</p>`;
   }
   if (m.opis && m.opis.trim()) html += opisAkapity(m.opis);
   return html;
