@@ -908,6 +908,57 @@ body.dotyk .sidebar-prawy::after{display:none}
   line-height:1.5;text-align:center;
 }
 
+/* ===== PANEL RYSOWANIA ===== */
+#panelRysowania{
+  display:none;flex-wrap:wrap;align-items:center;gap:8px;
+  background:linear-gradient(180deg,var(--panel-2),var(--panel));
+  border:1px solid rgba(243,205,130,0.3);border-radius:12px;
+  padding:12px 14px;margin-bottom:14px;
+}
+#panelRysowania.visible{display:flex}
+.btn-narzedzie{
+  display:inline-flex;align-items:center;gap:5px;
+  padding:8px 13px;border-radius:8px;
+  border:1.5px solid rgba(243,205,130,0.5);
+  background:linear-gradient(180deg,#5a3a1f,#382414);
+  color:var(--zloto-2);font-family:'EB Garamond',serif;font-size:14px;font-weight:600;
+  cursor:pointer;transition:all 0.15s;
+}
+.btn-narzedzie:hover{filter:brightness(1.12)}
+.btn-narzedzie.active{
+  background:linear-gradient(180deg,var(--zloto),#b8821f);color:var(--tlo);
+  border-color:var(--zloto-2);box-shadow:0 0 12px rgba(224,169,85,0.4);
+}
+.btn-rys-czerwony{background:linear-gradient(180deg,#5a2a28,#381a18);border-color:rgba(230,120,110,0.6);color:#f3cdc8}
+.rys-divider{width:1px;align-self:stretch;background:rgba(243,205,130,0.3);margin:0 3px}
+.rys-kolor{
+  width:42px;height:36px;border:1.5px solid rgba(243,205,130,0.5);border-radius:8px;
+  background:none;cursor:pointer;padding:2px;
+}
+#panelRysowaniaInfo{
+  flex-basis:100%;font-size:13px;color:var(--tekst-2);font-style:italic;
+  text-align:center;margin-top:4px;
+}
+/* grot strzałki */
+.rysunek-strzalka-grot{background:transparent!important;border:none!important}
+/* etykieta tekstowa na mapie */
+.rysunek-etykieta-marker{background:transparent!important;border:none!important}
+.rysunek-etykieta{
+  background:linear-gradient(180deg,var(--panel-2),var(--panel));
+  border:1.5px solid var(--obrys);border-radius:6px;
+  padding:5px 11px;font-family:'EB Garamond',serif;font-size:14px;font-weight:600;
+  box-shadow:0 2px 8px rgba(0,0,0,0.5);white-space:nowrap;cursor:default;
+}
+/* uchwyty strzałki - przeciągane (ogon zielony, grot czerwony) */
+.strzalka-uchwyt-marker{background:transparent!important;border:none!important}
+.strzalka-uchwyt{
+  width:18px;height:18px;border-radius:50%;border:3px solid #fff;
+  box-shadow:0 2px 6px rgba(0,0,0,0.45);cursor:grab;box-sizing:border-box;
+}
+.strzalka-uchwyt:active{cursor:grabbing}
+.strzalka-uchwyt.ogon{background:#3a6a4a}
+.strzalka-uchwyt.grot{background:#dc2626}
+
 </style>
 </head>
 <body>
@@ -1112,12 +1163,27 @@ body.dotyk .sidebar-prawy::after{display:none}
       <button class="ed-btn" id="btnYT" onclick="wlaczTrybDodawaniaYT()">🎬 YT</button>
       <button class="ed-btn" id="btn360" onclick="wlaczTrybDodawania360()">📷 Zdjęcie</button>
       <button class="ed-btn" id="btnAudio" onclick="wlaczTrybDodawaniaAudio()">🎧 Audio</button>
+      <button class="ed-btn" id="btnRysuj" onclick="toggleRysowanie()">🎨 Rysuj</button>
       <span class="pasek-separator"></span>
       <button class="ed-btn ed-btn-wczytaj" onclick="wczytajJSON()">📂 Wczytaj JSON</button>
       <button class="ed-btn ed-btn-json" onclick="zapiszJSON()">💾 Zapisz JSON</button>
       <button class="ed-btn ed-btn-html" onclick="zapiszHTML()">📄 Zapisz HTML</button>
       <button class="ed-btn ed-btn-reset" onclick="wyczyscWszystko()">🗑️ Wyczyść wszystko</button>
     </div>
+  </div>
+
+  <!-- PANEL NARZĘDZI RYSOWANIA (pokazuje się po kliknięciu 🎨 Rysuj) -->
+  <div id="panelRysowania">
+    <button class="btn-narzedzie" data-narzedzie="linia" onclick="wybierzNarzedzie('linia')">✏️ Linia</button>
+    <button class="btn-narzedzie" data-narzedzie="strzalka" onclick="wybierzNarzedzie('strzalka')">➡️ Strzałka</button>
+    <button class="btn-narzedzie" data-narzedzie="tekst" onclick="wybierzNarzedzie('tekst')">📝 Tekst</button>
+    <button class="btn-narzedzie" data-narzedzie="gumka" onclick="wybierzNarzedzie('gumka')">🧽 Gumka</button>
+    <span class="rys-divider"></span>
+    <input type="color" id="rysKolor" class="rys-kolor" value="#e0a955" title="Kolor rysunku">
+    <span class="rys-divider"></span>
+    <button class="btn-narzedzie" onclick="zakonczLinie()" id="btnZakonczLinie" style="display:none">✓ Zakończ linię</button>
+    <button class="btn-narzedzie btn-rys-czerwony" onclick="wyczyscRysunki()">🗑 Wyczyść rysunki</button>
+    <div id="panelRysowaniaInfo">Wybierz narzędzie i klikaj na mapie.</div>
   </div>
 
   <div class="layout">
@@ -1137,6 +1203,7 @@ body.dotyk .sidebar-prawy::after{display:none}
           <button onclick="menuDodaj('yt')">🎬 Dodaj film YouTube</button>
           <button onclick="menuDodaj('360')">📷 Dodaj zdjęcie</button>
           <button onclick="menuDodaj('audio')">🎧 Dodaj kropkę audio</button>
+          <button onclick="menuDodaj('rysuj')">🎨 Rysuj na mapie</button>
         </div>
       </div>
 
@@ -1447,6 +1514,7 @@ function menuDodaj(typ) {
   if (typ === 'yt') wlaczTrybDodawaniaYT();
   else if (typ === '360') wlaczTrybDodawania360();
   else if (typ === 'audio') wlaczTrybDodawaniaAudio();
+  else if (typ === 'rysuj') toggleRysowanie();
 }
 
 // ============================================================
@@ -2480,6 +2548,234 @@ function edytujAudio(klucz) {
   document.getElementById('panelAudio').classList.add('visible');
 }
 
+// ============================================================
+// RYSOWANIE - Linia, Strzałka, Gumka + kolor. Z index__33_, uproszczone.
+// Rysunki trzymane w `miejsca` jako { typ:'rysunek', ksztalt, ... }
+// żeby szły razem z zapisem JSON/HTML i łączeniem map.
+// ============================================================
+var trybRysowaniaWlaczony = false;
+var aktualneNarzedzie = null;        // 'linia' | 'strzalka' | 'gumka' | null
+let warstwaRysunkow = L.layerGroup();
+let aktualnaLinia = null;            // { punkty:[...], kolor, tymczasowa }
+
+function toggleRysowanie() {
+  // wyłącz tryby dodawania punktów
+  if (trybDodawaniaYT) wlaczTrybDodawaniaYT();
+  if (trybDodawania360) wlaczTrybDodawania360();
+  if (trybDodawaniaAudio) wlaczTrybDodawaniaAudio();
+
+  trybRysowaniaWlaczony = !trybRysowaniaWlaczony;
+  const panel = document.getElementById('panelRysowania');
+  const btn = document.getElementById('btnRysuj');
+  if (trybRysowaniaWlaczony) {
+    panel.classList.add('visible');
+    if (btn) btn.classList.add('aktywny');
+    warstwaRysunkow.addTo(mapa);
+    if (mapa.doubleClickZoom) mapa.doubleClickZoom.disable();
+  } else {
+    panel.classList.remove('visible');
+    if (btn) btn.classList.remove('aktywny');
+    wybierzNarzedzie(null);
+    if (mapa.doubleClickZoom) mapa.doubleClickZoom.enable();
+  }
+  if (typeof zamknijPanel === 'function') zamknijPanel();
+}
+
+function wybierzNarzedzie(narz) {
+  // anuluj rozpoczętą linię
+  if (aktualnaLinia && aktualnaLinia.tymczasowa) {
+    warstwaRysunkow.removeLayer(aktualnaLinia.tymczasowa);
+  }
+  aktualnaLinia = null;
+  strzalkaStart = null;
+  if (typeof odznaczStrzalke === 'function') odznaczStrzalke();
+  aktualneNarzedzie = narz;
+  document.querySelectorAll('#panelRysowania .btn-narzedzie[data-narzedzie]').forEach(b => {
+    b.classList.toggle('active', b.dataset.narzedzie === narz);
+  });
+  document.getElementById('btnZakonczLinie').style.display = (narz === 'linia') ? '' : 'none';
+  const info = document.getElementById('panelRysowaniaInfo');
+  const k = {
+    linia: 'Klikaj punkty trasy. Gdy skończysz — „✓ Zakończ linię”.',
+    strzalka: 'Kliknij początek, potem koniec strzałki.',
+    tekst: 'Kliknij miejsce na mapie i wpisz tekst.',
+    gumka: 'Kliknij rysunek, aby go usunąć.',
+    null: 'Wybierz narzędzie i klikaj na mapie.'
+  };
+  info.textContent = k[narz] ?? k[null];
+}
+
+let strzalkaStart = null;
+let zaznaczonaStrzalka = null;   // referencja do rysunku strzałki w trakcie edycji
+let strzalkaUchwyty = [];        // markery-uchwyty na mapie
+
+function odznaczStrzalke() {
+  zaznaczonaStrzalka = null;
+  strzalkaUchwyty.forEach(u => { try { mapa.removeLayer(u); } catch(e){} });
+  strzalkaUchwyty = [];
+}
+
+function zaznaczStrzalke(r) {
+  odznaczStrzalke();
+  zaznaczonaStrzalka = r;
+  przerysujRysunki();   // pogrubi zaznaczoną
+  function utworzUchwyt(ktory) {
+    const poz = r[ktory];
+    const czyGrot = (ktory === 'koniec');
+    const uchwyt = L.marker([poz[0], poz[1]], {
+      draggable: true,
+      icon: L.divIcon({
+        className: 'strzalka-uchwyt-marker',
+        html: '<div class="strzalka-uchwyt ' + (czyGrot ? 'grot' : 'ogon') + '"></div>',
+        iconSize: [22,22], iconAnchor: [11,11]
+      }),
+      zIndexOffset: 1000
+    });
+    uchwyt.on('drag', (e) => {
+      const ll = e.target.getLatLng();
+      r[ktory] = [ll.lat, ll.lng];
+      przerysujRysunki();
+    });
+    uchwyt.on('dragend', () => {
+      zapiszMiejsca();
+      if (zaznaczonaStrzalka === r) zaznaczStrzalke(r);
+    });
+    uchwyt.addTo(mapa);
+    strzalkaUchwyty.push(uchwyt);
+  }
+  utworzUchwyt('start');
+  utworzUchwyt('koniec');
+}
+
+// Klik w mapę podczas rysowania
+mapa.on('click', (e) => {
+  if (!trybRysowaniaWlaczony || !aktualneNarzedzie) return;
+  if (aktualneNarzedzie === 'gumka') return; // gumka działa na klik w rysunek
+  const kolor = document.getElementById('rysKolor').value || '#e0a955';
+  const punkt = [e.latlng.lat, e.latlng.lng];
+
+  if (aktualneNarzedzie === 'linia') {
+    if (!aktualnaLinia) aktualnaLinia = { punkty:[punkt], kolor, tymczasowa:null };
+    else aktualnaLinia.punkty.push(punkt);
+    if (aktualnaLinia.tymczasowa) warstwaRysunkow.removeLayer(aktualnaLinia.tymczasowa);
+    if (aktualnaLinia.punkty.length >= 2) {
+      aktualnaLinia.tymczasowa = L.polyline(aktualnaLinia.punkty, {
+        color: kolor, weight:4, opacity:0.6, dashArray:'6,6'
+      }).addTo(warstwaRysunkow);
+    }
+  }
+  else if (aktualneNarzedzie === 'strzalka') {
+    // Jeśli jakaś strzałka jest zaznaczona - klik w pustą mapę ją odznacza
+    if (zaznaczonaStrzalka) {
+      odznaczStrzalke();
+      przerysujRysunki();
+      document.getElementById('panelRysowaniaInfo').textContent = 'Kliknij w mapę aby wstawić strzałkę, lub w istniejącą aby ją edytować.';
+      return;
+    }
+    // Wstaw gotową strzałkę (ogon w kliknięciu, grot ~80m na wschód), od razu do edycji
+    const dlugosc = 0.0010;
+    const nowa = { klucz:'rys-'+Date.now(), typ:'rysunek', ksztalt:'strzalka',
+      start:[punkt[0], punkt[1]], koniec:[punkt[0], punkt[1]+dlugosc], kolor };
+    miejsca.push(nowa);
+    zapiszMiejsca();
+    przerysujRysunki();
+    zaznaczStrzalke(nowa);
+    document.getElementById('panelRysowaniaInfo').textContent = 'Przeciągaj uchwyty: 🔴 grot obraca i wydłuża, 🟢 ogon przesuwa początek.';
+  }
+  else if (aktualneNarzedzie === 'tekst') {
+    const tresc = prompt('Wpisz tekst do wstawienia na mapie:', '');
+    if (tresc && tresc.trim()) {
+      miejsca.push({ klucz:'rys-'+Date.now(), typ:'rysunek', ksztalt:'tekst',
+        pozycja: punkt, tresc: tresc.trim(), kolor });
+      zapiszMiejsca();
+      przerysujRysunki();
+    }
+  }
+});
+
+function zakonczLinie() {
+  if (aktualnaLinia && aktualnaLinia.punkty.length >= 2) {
+    miejsca.push({ klucz:'rys-'+Date.now(), typ:'rysunek', ksztalt:'linia',
+      punkty: aktualnaLinia.punkty.slice(), kolor: aktualnaLinia.kolor });
+    zapiszMiejsca();
+  }
+  if (aktualnaLinia && aktualnaLinia.tymczasowa) warstwaRysunkow.removeLayer(aktualnaLinia.tymczasowa);
+  aktualnaLinia = null;
+  przerysujRysunki();
+  document.getElementById('panelRysowaniaInfo').textContent = 'Linia zapisana. Klikaj punkty kolejnej trasy.';
+}
+
+// Narysuj wszystkie rysunki z `miejsca` na warstwie
+function przerysujRysunki() {
+  warstwaRysunkow.clearLayers();
+  miejsca.forEach(r => {
+    if (r.typ !== 'rysunek') return;
+    if (r.ksztalt === 'linia' && r.punkty && r.punkty.length >= 2) {
+      const linia = L.polyline(r.punkty, { color:r.kolor||'#e0a955', weight:4, opacity:0.85,
+        lineCap:'round', lineJoin:'round', dashArray:'10,8' }).addTo(warstwaRysunkow);
+      linia.on('click', (e) => {
+        if (aktualneNarzedzie === 'gumka') { L.DomEvent.stopPropagation(e); usunRysunek(r); }
+      });
+    }
+    else if (r.ksztalt === 'strzalka' && r.start && r.koniec) {
+      const zazn = (r === zaznaczonaStrzalka);
+      const linia = L.polyline([r.start, r.koniec], { color:r.kolor||'#e0a955', weight:zazn?6:4, opacity:0.9, lineCap:'round' }).addTo(warstwaRysunkow);
+      linia.on('click', (e) => {
+        if (aktualneNarzedzie === 'gumka') { L.DomEvent.stopPropagation(e); usunRysunek(r); return; }
+        if (aktualneNarzedzie === 'strzalka') { L.DomEvent.stopPropagation(e); zaznaczStrzalke(r); }
+      });
+      // grot - kąt w pikselach ekranu
+      let katPx = 0;
+      try {
+        const pS = mapa.latLngToLayerPoint(L.latLng(r.start[0], r.start[1]));
+        const pK = mapa.latLngToLayerPoint(L.latLng(r.koniec[0], r.koniec[1]));
+        katPx = Math.atan2(pK.y - pS.y, pK.x - pS.x) * 180 / Math.PI;
+      } catch(e){}
+      const grot = L.divIcon({
+        className:'rysunek-strzalka-grot',
+        html:'<div style="transform:rotate('+(katPx+90)+'deg);width:0;height:0;'
+          +'border-left:9px solid transparent;border-right:9px solid transparent;'
+          +'border-bottom:16px solid '+(r.kolor||'#e0a955')+';"></div>',
+        iconSize:[18,16], iconAnchor:[9,8]
+      });
+      const grotM = L.marker(r.koniec, { icon:grot }).addTo(warstwaRysunkow);
+      grotM.on('click', (e) => {
+        if (aktualneNarzedzie === 'gumka') { L.DomEvent.stopPropagation(e); usunRysunek(r); }
+      });
+    }
+    else if (r.ksztalt === 'tekst' && r.pozycja && r.tresc) {
+      const ikona = L.divIcon({
+        className: 'rysunek-etykieta-marker',
+        html: '<div class="rysunek-etykieta" style="border-color:' + (r.kolor||'#e0a955') + ';color:' + (r.kolor||'#e0a955') + '">' + escapeHTML(r.tresc) + '</div>',
+        iconSize: null, iconAnchor: [0,0]
+      });
+      const et = L.marker(r.pozycja, { icon: ikona }).addTo(warstwaRysunkow);
+      et.on('click', (e) => {
+        if (aktualneNarzedzie === 'gumka') { L.DomEvent.stopPropagation(e); usunRysunek(r); }
+      });
+    }
+  });
+}
+
+function usunRysunek(r) {
+  if (r === zaznaczonaStrzalka) odznaczStrzalke();
+  miejsca = miejsca.filter(x => x !== r);
+  zapiszMiejsca();
+  przerysujRysunki();
+}
+
+function wyczyscRysunki() {
+  const ile = miejsca.filter(m => m.typ === 'rysunek').length;
+  if (ile === 0) { alert('Nie ma żadnych rysunków do usunięcia.'); return; }
+  if (!confirm('Usunąć wszystkie rysunki (' + ile + ')?\n\n(Punkty YT/zdjęcia/audio zostają.)')) return;
+  miejsca = miejsca.filter(m => m.typ !== 'rysunek');
+  zapiszMiejsca();
+  przerysujRysunki();
+}
+
+// Przerysuj rysunki przy zmianie skali (grot zależy od pikseli)
+mapa.on('zoomend', () => { if (typeof przerysujRysunki === 'function') przerysujRysunki(); });
+
 function renderujMiejsca() {
   // usuń stare markery
   markery.forEach(mk => { try { mapa.removeLayer(mk); } catch(e){} });
@@ -2571,6 +2867,8 @@ function renderujMiejsca() {
 // Start: wczytaj zapisane miejsca i narysuj
 wczytajMiejsca();
 renderujMiejsca();
+warstwaRysunkow.addTo(mapa);
+przerysujRysunki();
 </script>
 
 </body>
