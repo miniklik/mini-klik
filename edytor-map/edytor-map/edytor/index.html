@@ -683,6 +683,25 @@ body.dotyk .tryb-info.znika{opacity:0}
 }
 .pin-miejsce-inner:hover{transform:scale(1.12)}
 
+/* ===== TRASA - przyciski pod opisem + etykieta na mapie ===== */
+.route-buttons{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap}
+.route-btn{
+  flex:1;min-width:150px;padding:12px 16px;border-radius:9px;cursor:pointer;
+  font-family:'EB Garamond',serif;font-size:15px;font-weight:600;
+  border:1.5px solid var(--obrys);transition:filter 0.15s;
+}
+.route-btn:hover{filter:brightness(1.12)}
+.route-btn-tutaj{background:linear-gradient(180deg,#a04510,#7a340c);color:#f3e0c8}
+.route-btn-mapy{background:linear-gradient(180deg,var(--panel-2),var(--panel));color:var(--zloto-2)}
+.route-info{margin-top:10px;font-size:14px;color:var(--tekst);text-align:center;min-height:1px}
+.trasa-etykieta-marker{background:transparent!important;border:none!important}
+.trasa-etykieta{
+  background:linear-gradient(180deg,var(--zloto),#b8821f);color:var(--tlo);
+  border:1.5px solid var(--zloto-2);border-radius:16px;
+  padding:5px 13px;font-family:'EB Garamond',serif;font-size:13px;font-weight:700;
+  white-space:nowrap;box-shadow:0 3px 10px rgba(0,0,0,0.5);
+}
+
 /* Opis trybu pod przyciskami */
 .tryb-opis{font-size:13px;color:var(--tekst-2);font-style:italic;margin-top:8px;text-align:center}
 .akcent-zasieg{color:var(--zloto-2);font-weight:600;font-style:normal}
@@ -2154,8 +2173,18 @@ function trescPanorama(m) {
 
 // Treść OPIS (panel)
 function trescOpis(m) {
-  if (m.opis && m.opis.trim()) return opisAkapity(m.opis);
-  return `<p class="detail-opis" style="font-style:italic;color:var(--tekst-2)">Opis jeszcze nie został dodany.</p>`;
+  let html = (m.opis && m.opis.trim())
+    ? opisAkapity(m.opis)
+    : `<p class="detail-opis" style="font-style:italic;color:var(--tekst-2);text-align:center;padding:10px">📝 Opis tego miejsca jeszcze nie został dodany.</p>`;
+  // Przyciski trasy - gdy punkt ma pozycję
+  if (m.pozycja && m.klucz) {
+    html += `<div class="route-buttons">
+        <button class="route-btn route-btn-tutaj" onclick="pokazTraseTutaj('${m.klucz}')">🥾 Pokaż trasę tutaj</button>
+        <button class="route-btn route-btn-mapy" onclick="otworzWMapach('${m.klucz}')">🧭 Otwórz w Mapach</button>
+      </div>
+      <div class="route-info"></div>`;
+  }
+  return html;
 }
 
 // Pomocnik: akapity opisu
@@ -3044,6 +3073,102 @@ function edytujMiejsce(klucz) {
   document.getElementById('panelMiejsceTytul').textContent = '🏛️ Edytuj miejsce';
   document.getElementById('panelBackdropMiejsce').classList.add('visible');
   document.getElementById('panelMiejsce').classList.add('visible');
+}
+
+// ============================================================
+// TRASA DO MIEJSCA - 🥾 trasa piesza na mapie (OSRM) + 🧭 Otwórz w Mapach
+// Przeniesione z index__24_, uproszczone. Przyciski pod opisem.
+// ============================================================
+let aktualnaTrasa = null;
+let aktualnaEtykietaTrasy = null;
+
+// 🧭 Otwórz w zewnętrznych mapach (Google / Apple na iOS)
+function otworzWMapach(klucz) {
+  const m = miejsca.find(x => x.klucz === klucz);
+  if (!m || !m.pozycja) return;
+  const [lat, lng] = m.pozycja;
+  const nazwa = m.nazwa || '';
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+  const url = isIOS
+    ? `https://maps.apple.com/?daddr=${lat},${lng}&q=${encodeURIComponent(nazwa)}`
+    : `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
+  window.open(url, '_blank', 'noopener,noreferrer');
+}
+
+// 🥾 Pokaż trasę pieszą na NASZEJ mapie (OSRM, darmowe, bez klucza)
+function pokazTraseTutaj(klucz) {
+  const m = miejsca.find(x => x.klucz === klucz);
+  if (!m || !m.pozycja) return;
+
+  if (!userPozycja) {
+    // Włącz nawigację i poczekaj aż GPS złapie pozycję
+    if (typeof togglePozycja === 'function') togglePozycja();
+    const info = document.querySelector('.route-info');
+    if (info) info.innerHTML = '⏳ Włączam nawigację… (zezwól na lokalizację)';
+    let proby = 0;
+    const interval = setInterval(() => {
+      proby++;
+      if (userPozycja) { clearInterval(interval); rysujTrase(m); }
+      else if (proby > 30) {
+        clearInterval(interval);
+        if (info) info.innerHTML = '⚠️ Nie udało się pobrać Twojej pozycji. Sprawdź GPS.';
+      }
+    }, 500);
+    return;
+  }
+  rysujTrase(m);
+}
+
+async function rysujTrase(m) {
+  wyczyscTrase();
+  const start = userPozycja;
+  const [endLat, endLng] = m.pozycja;
+  const info = document.querySelector('.route-info');
+  if (info) info.innerHTML = '⏳ Wyznaczam trasę pieszą…';
+
+  const url = `https://router.project-osrm.org/route/v1/foot/${start.lng},${start.lat};${endLng},${endLat}?overview=full&geometries=geojson`;
+  try {
+    const resp = await fetch(url);
+    if (!resp.ok) throw new Error('serwer tras');
+    const data = await resp.json();
+    if (!data.routes || !data.routes.length) throw new Error('brak trasy');
+
+    const route = data.routes[0];
+    const punkty = route.geometry.coordinates.map(c => [c[1], c[0]]);
+
+    const cien = L.polyline(punkty, { color:'#3a2818', weight:8, opacity:0.25, lineCap:'round', lineJoin:'round' }).addTo(mapa);
+    aktualnaTrasa = L.polyline(punkty, { color:'#c98b3a', weight:5, opacity:0.9, dashArray:'8,6', lineCap:'round', lineJoin:'round' }).addTo(mapa);
+    aktualnaTrasa._cien = cien;
+
+    const dystans = formatDystans(Math.round(route.distance));
+    const minuty = Math.max(1, Math.round(route.distance / 1000 / 4 * 60));
+    const czas = minuty < 60 ? `${minuty} min` : `${Math.floor(minuty/60)}h ${minuty%60}min`;
+
+    // Etykieta dystansu/czasu na środku trasy
+    const srodek = punkty[Math.floor(punkty.length/2)];
+    aktualnaEtykietaTrasy = L.marker(srodek, {
+      icon: L.divIcon({ className:'trasa-etykieta-marker',
+        html:`<div class="trasa-etykieta">🥾 ${dystans} · ~${czas}</div>`, iconSize:null, iconAnchor:[0,0] }),
+      interactive:false
+    }).addTo(mapa);
+
+    const bounds = L.latLngBounds([start.lat, start.lng], [endLat, endLng]);
+    mapa.fitBounds(bounds, { padding:[70,70] });
+    setTimeout(() => { document.getElementById('mapa').scrollIntoView({ behavior:'smooth', block:'start' }); }, 200);
+
+    if (info) info.innerHTML = `✓ Trasa: <b>${dystans}</b> · ~${czas} pieszo · <a onclick="wyczyscTrase()" style="color:var(--zloto-2);cursor:pointer;text-decoration:underline">Ukryj</a>`;
+  } catch(err) {
+    if (info) info.innerHTML = '⚠️ Nie udało się wyznaczyć trasy. Spróbuj „Otwórz w Mapach”.';
+  }
+}
+
+function wyczyscTrase() {
+  if (aktualnaTrasa) {
+    if (aktualnaTrasa._cien) { try { mapa.removeLayer(aktualnaTrasa._cien); } catch(e){} }
+    try { mapa.removeLayer(aktualnaTrasa); } catch(e){}
+    aktualnaTrasa = null;
+  }
+  if (aktualnaEtykietaTrasy) { try { mapa.removeLayer(aktualnaEtykietaTrasy); } catch(e){} aktualnaEtykietaTrasy = null; }
 }
 
 function renderujMiejsca() {
