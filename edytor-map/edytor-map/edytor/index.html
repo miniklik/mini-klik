@@ -519,6 +519,10 @@ body.dotyk .tryb-info.znika{opacity:0}
 .panel-modal input:focus,.panel-modal textarea:focus{
   outline:none;border-color:var(--zloto-2);
 }
+.panel-modal input.zajeta{
+  border-color:#e0584f!important;background:rgba(180,60,50,0.18)!important;color:#ffd9d4!important;
+}
+.btn-zatwierdz.zablokowany{opacity:0.4;pointer-events:none;filter:grayscale(0.5)}
 .panel-modal textarea{resize:vertical;min-height:80px;line-height:1.45}
 
 /* Wybór rozmiaru pinezki - kompaktowy */
@@ -538,6 +542,29 @@ body.dotyk .tryb-info.znika{opacity:0}
 
 /* Przyciski akcji panelu */
 .panel-akcje{display:flex;gap:10px;margin-top:22px}
+
+/* ===== TELEFON: większe, czytelniejsze PANELIKI (bez ruszania hamburgerów) =====
+   Kluczowe: inputy min. 16px, bo poniżej iOS sam powiększa stronę przy kliknięciu pola. */
+@media (max-width:900px){
+  .panel-modal{ width:min(94vw,460px); padding:20px 22px; }
+  .panel-modal h2{ font-size:28px; margin-bottom:16px; }
+  .panel-label{ font-size:12px; margin:14px 0 6px; }
+  .panel-modal input[type=text],
+  .panel-modal input[type=url],
+  .panel-modal textarea{
+    font-size:16px; padding:12px 14px;
+  }
+  .panel-modal textarea{ min-height:90px; line-height:1.5; }
+  .rozmiar-opcja{ font-size:15px; padding:11px 10px; }
+  .rozmiar-opcja .ikona{ font-size:18px; }
+  .panel-akcje button{ font-size:16px; padding:13px 16px; }
+  .btn-pozycja{ font-size:15px; padding:11px 14px; }
+  .pozycja-tekst{ font-size:15px; }
+  .instr-tytul{ font-size:15px; }
+  .instr-tresc{ font-size:14px; }
+  .akcent-zasieg{ font-size:16px; }
+  .tryb-opis{ font-size:14px; }
+}
 .panel-akcje button{
   flex:1;padding:12px;border-radius:10px;cursor:pointer;
   font-family:'EB Garamond',serif;font-size:15px;font-weight:600;
@@ -684,7 +711,9 @@ body.dotyk .tryb-info.znika{opacity:0}
 .pin-miejsce-inner:hover{transform:scale(1.12)}
 
 /* ===== TRASA - przyciski pod opisem + etykieta na mapie ===== */
-.route-buttons{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap}
+.route-buttons{display:flex;gap:10px;margin-top:0;flex-wrap:wrap}
+#detailTrasa{padding:0 0 2px}
+#detailTrasa:not(:empty){margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid rgba(243,205,130,0.2)}
 .route-btn{
   flex:1;min-width:150px;padding:12px 16px;border-radius:9px;cursor:pointer;
   font-family:'EB Garamond',serif;font-size:15px;font-weight:600;
@@ -1114,7 +1143,7 @@ body.dotyk .sidebar-prawy::after{display:none}
   </div>
 
   <div class="panel-akcje">
-    <button class="btn-zatwierdz" onclick="zatwierdz360()">✓ Zatwierdź</button>
+    <button class="btn-zatwierdz" id="btnZatwierdz360" onclick="zatwierdz360()">✓ Zatwierdź</button>
     <button class="btn-anuluj" onclick="zamknijPanel360()">✕ Anuluj</button>
   </div>
 </div>
@@ -1174,7 +1203,7 @@ body.dotyk .sidebar-prawy::after{display:none}
   </div>
 
   <div class="panel-akcje">
-    <button class="btn-zatwierdz" onclick="zatwierdzAudio()">✓ Zatwierdź</button>
+    <button class="btn-zatwierdz" id="btnZatwierdzAudio" onclick="zatwierdzAudio()">✓ Zatwierdź</button>
     <button class="btn-anuluj" onclick="zamknijPanelAudio()">✕ Anuluj</button>
   </div>
 </div>
@@ -1229,7 +1258,7 @@ body.dotyk .sidebar-prawy::after{display:none}
   </div>
 
   <div class="panel-akcje">
-    <button class="btn-zatwierdz" onclick="zatwierdzMiejsce()">✓ Zatwierdź</button>
+    <button class="btn-zatwierdz" id="btnZatwierdzMiejsce" onclick="zatwierdzMiejsce()">✓ Zatwierdź</button>
     <button class="btn-anuluj" onclick="zamknijPanelMiejsce()">✕ Anuluj</button>
   </div>
 </div>
@@ -1308,6 +1337,7 @@ body.dotyk .sidebar-prawy::after{display:none}
       <h2 id="detailTytul">Szczegóły</h2>
       <button class="detail-close" onclick="zamknijDetail()" aria-label="Zamknij">×</button>
     </div>
+    <div id="detailTrasa"></div>
     <div class="detail-content" id="detailContent"></div>
   </div>
 
@@ -1332,7 +1362,7 @@ body.dotyk .sidebar-prawy::after{display:none}
 const mapa = L.map('mapa', {
   center: [51.0, 19.0],   // środek Polski
   zoom: 6,
-  zoomControl: true
+  zoomControl: false
 });
 
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -1847,6 +1877,18 @@ function wyczyscWszystko() {
   alert('✓ Usunięto wszystkie miejsca (' + ile + ').');
 }
 
+// Sprawdź czy nazwa pliku jest już użyta przez inny punkt (foto/audio/miejsce).
+// pomijanyKlucz = klucz edytowanego punktu (żeby nie blokował sam siebie).
+function nazwaPlikuZajeta(plik, pomijanyKlucz) {
+  if (!plik) return false;
+  const p = plik.trim().toLowerCase();
+  return miejsca.some(m =>
+    (m.typ === '360' || m.typ === 'audio' || m.typ === 'miejsce') &&
+    m.klucz !== pomijanyKlucz &&
+    m.plik && m.plik.trim().toLowerCase() === p
+  );
+}
+
 // --- Wyciągnij ID filmu z dowolnego linku YouTube ---
 function youtubeId(link) {
   if (!link) return null;
@@ -2117,13 +2159,27 @@ function otworzPlatek(klucz, akcja) {
     content.innerHTML = trescOpis(m);
   }
 
-  pokazDetail();
+  pokazDetail(m);
 }
 
-function pokazDetail() {
+function ustawPasekTrasy(m) {
+  const bar = document.getElementById('detailTrasa');
+  if (!bar) return;
+  if (m && m.pozycja && m.klucz) {
+    bar.innerHTML = `<div class="route-buttons">
+        <button class="route-btn route-btn-tutaj" onclick="pokazTraseTutaj('${m.klucz}')">🥾 Pokaż trasę tutaj</button>
+        <button class="route-btn route-btn-mapy" onclick="otworzWMapach('${m.klucz}')">🧭 Otwórz w Mapach</button>
+      </div>
+      <div class="route-info"></div>`;
+  } else {
+    bar.innerHTML = '';
+  }
+}
+
+function pokazDetail(m) {
+  if (typeof m === 'object' && m) ustawPasekTrasy(m);
   const panel = document.getElementById('detailPanel');
   panel.classList.add('visible');
-  // na komputerze przewiń do panelu; na telefonie i tak full-screen
   setTimeout(() => {
     if (!document.body.classList.contains('dotyk')) {
       panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -2134,8 +2190,9 @@ function pokazDetail() {
 function zamknijDetail() {
   const panel = document.getElementById('detailPanel');
   panel.classList.remove('visible');
-  // zatrzymaj film/panoramę czyszcząc zawartość
   document.getElementById('detailContent').innerHTML = '';
+  const bar = document.getElementById('detailTrasa');
+  if (bar) bar.innerHTML = '';
 }
 
 // Treść FILM (panel)
@@ -2173,18 +2230,8 @@ function trescPanorama(m) {
 
 // Treść OPIS (panel)
 function trescOpis(m) {
-  let html = (m.opis && m.opis.trim())
-    ? opisAkapity(m.opis)
-    : `<p class="detail-opis" style="font-style:italic;color:var(--tekst-2);text-align:center;padding:10px">📝 Opis tego miejsca jeszcze nie został dodany.</p>`;
-  // Przyciski trasy - gdy punkt ma pozycję
-  if (m.pozycja && m.klucz) {
-    html += `<div class="route-buttons">
-        <button class="route-btn route-btn-tutaj" onclick="pokazTraseTutaj('${m.klucz}')">🥾 Pokaż trasę tutaj</button>
-        <button class="route-btn route-btn-mapy" onclick="otworzWMapach('${m.klucz}')">🧭 Otwórz w Mapach</button>
-      </div>
-      <div class="route-info"></div>`;
-  }
-  return html;
+  if (m.opis && m.opis.trim()) return opisAkapity(m.opis);
+  return `<p class="detail-opis" style="font-style:italic;color:var(--tekst-2);text-align:center;padding:10px">📝 Opis tego miejsca jeszcze nie został dodany.</p>`;
 }
 
 // Pomocnik: akapity opisu
@@ -2248,6 +2295,7 @@ function otworzPanel360() {
   pokazPozycjeWPanelu('360');
   document.getElementById('panelBackdrop360').classList.add('visible');
   document.getElementById('panel360').classList.add('visible');
+  sprawdzNazwePliku('s360Plik');
 }
 function zamknijPanel360() {
   document.getElementById('panelBackdrop360').classList.remove('visible');
@@ -2309,6 +2357,26 @@ document.addEventListener('input', (e) => {
   }
 });
 
+// Sprawdzanie nazwy pliku NA ŻYWO - pole czerwone + blokada Zatwierdź gdy zajęta.
+const POLA_PLIKU = {
+  's360Plik': 'btnZatwierdz360',
+  'audPlik':  'btnZatwierdzAudio',
+  'mscPlik':  'btnZatwierdzMiejsce'
+};
+document.addEventListener('input', (e) => {
+  if (!e.target || !(e.target.id in POLA_PLIKU)) return;
+  sprawdzNazwePliku(e.target.id);
+});
+function sprawdzNazwePliku(idPola) {
+  const pole = document.getElementById(idPola);
+  const btn = document.getElementById(POLA_PLIKU[idPola]);
+  if (!pole || !btn) return;
+  const v = pole.value.trim();
+  const zajeta = nazwaPlikuZajeta(v, edytowanyKlucz);
+  pole.classList.toggle('zajeta', zajeta);
+  btn.classList.toggle('zablokowany', zajeta);
+}
+
 function zatwierdz360() {
   const nazwa = document.getElementById('s360Nazwa').value.trim();
   const plik  = document.getElementById('s360Plik').value.trim();
@@ -2320,6 +2388,10 @@ function zatwierdz360() {
   }
   if (!/^[a-zA-Z0-9_-]+$/.test(plik)) {
     alert('Nazwa pliku może zawierać tylko litery a-z, cyfry, myślnik i podkreślenie (bez spacji i rozszerzenia).');
+    return;
+  }
+  if (nazwaPlikuZajeta(plik, edytowanyKlucz)) {
+    alert('⚠️ Nazwa pliku „' + plik + '" jest już użyta przez inne miejsce.\n\nKażde miejsce musi mieć inną nazwę pliku — inaczej zdjęcia/nagrania nadpisałyby się w folderze. Zmień nazwę.');
     return;
   }
 
@@ -2436,6 +2508,7 @@ function edytuj360(klucz) {
   if (el && m.pozycja) el.innerHTML = `📌 <b>${m.pozycja[0].toFixed(5)}, ${m.pozycja[1].toFixed(5)}</b>`;
   document.getElementById('panelBackdrop360').classList.add('visible');
   document.getElementById('panel360').classList.add('visible');
+  sprawdzNazwePliku('s360Plik');
 }
 
 // ============================================================
@@ -2480,6 +2553,7 @@ function otworzPanelAudio() {
   document.getElementById('panelAudioTytul').textContent = '🎧 Dodaj kropkę audio';
   document.getElementById('panelBackdropAudio').classList.add('visible');
   document.getElementById('panelAudio').classList.add('visible');
+  sprawdzNazwePliku('audPlik');
 }
 function zamknijPanelAudio() {
   document.getElementById('panelBackdropAudio').classList.remove('visible');
@@ -2534,6 +2608,10 @@ function zatwierdzAudio() {
   if (!nazwa) { alert('Wpisz przynajmniej Nazwę.'); return; }
   if (plik && !/^[a-zA-Z0-9_-]+$/.test(plik)) {
     alert('Nazwa pliku może zawierać tylko litery a-z, cyfry, myślnik i podkreślenie (bez spacji i .mp3).');
+    return;
+  }
+  if (nazwaPlikuZajeta(plik, edytowanyKlucz)) {
+    alert('⚠️ Nazwa pliku „' + plik + '" jest już użyta przez inne miejsce.\n\nKażde miejsce musi mieć inną nazwę pliku — inaczej nagrania nadpisałyby się w folderze. Zmień nazwę.');
     return;
   }
   if (!plik && !edytowanyKlucz) {
@@ -2645,6 +2723,7 @@ function edytujAudio(klucz) {
   document.getElementById('panelAudioTytul').textContent = '🎧 Edytuj kropkę audio';
   document.getElementById('panelBackdropAudio').classList.add('visible');
   document.getElementById('panelAudio').classList.add('visible');
+  sprawdzNazwePliku('audPlik');
 }
 
 // ============================================================
@@ -2918,6 +2997,7 @@ function otworzPanelMiejsce() {
   document.getElementById('panelMiejsceTytul').textContent = '🏛️ Miejsce na mapie';
   document.getElementById('panelBackdropMiejsce').classList.add('visible');
   document.getElementById('panelMiejsce').classList.add('visible');
+  sprawdzNazwePliku('mscPlik');
 }
 function zamknijPanelMiejsce() {
   document.getElementById('panelBackdropMiejsce').classList.remove('visible');
@@ -2954,6 +3034,10 @@ function zatwierdzMiejsce() {
   }
   if ((mscFotoTyp !== 'brak' || mscMaMp3 === 'tak') && !plik) {
     alert('Podałeś zdjęcie lub audio — wpisz nazwę pliku.');
+    return;
+  }
+  if (nazwaPlikuZajeta(plik, edytowanyKlucz)) {
+    alert('⚠️ Nazwa pliku „' + plik + '" jest już użyta przez inne miejsce.\n\nKażde miejsce musi mieć inną nazwę pliku — inaczej zdjęcia/nagrania nadpisałyby się w folderze. Zmień nazwę.');
     return;
   }
 
@@ -3052,7 +3136,7 @@ function otworzPlatekMiejsce(klucz, akcja) {
     tytulEl.innerHTML = '📜 ' + escapeHTML(m.nazwa);
     content.innerHTML = trescOpis(m);
   }
-  pokazDetail();
+  pokazDetail(m);
 }
 
 function edytujMiejsce(klucz) {
@@ -3073,6 +3157,7 @@ function edytujMiejsce(klucz) {
   document.getElementById('panelMiejsceTytul').textContent = '🏛️ Edytuj miejsce';
   document.getElementById('panelBackdropMiejsce').classList.add('visible');
   document.getElementById('panelMiejsce').classList.add('visible');
+  sprawdzNazwePliku('mscPlik');
 }
 
 // ============================================================
