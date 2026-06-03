@@ -1047,6 +1047,26 @@ body.dotyk .sidebar-prawy::after{display:none}
   border-color:var(--zloto-2);box-shadow:0 0 12px rgba(224,169,85,0.4);
 }
 .btn-rys-czerwony{background:linear-gradient(180deg,#5a2a28,#381a18);border-color:rgba(230,120,110,0.6);color:#f3cdc8}
+
+/* TELEFON: panel rysowania = pionowa kolumna samych ikon przy lewej ściance */
+@media (max-width:900px){
+  #panelRysowania.visible{
+    display:flex;flex-direction:column;gap:8px;
+    position:fixed;left:10px;top:50%;transform:translateY(-50%);
+    z-index:1250;width:auto;margin:0;padding:8px;
+    background:rgba(46,32,23,0.62);backdrop-filter:blur(3px);
+    border:1px solid rgba(243,205,130,0.4);border-radius:14px;
+    box-shadow:0 6px 20px rgba(0,0,0,0.5);
+  }
+  #panelRysowania .btn-narzedzie{
+    width:46px;height:46px;padding:0;justify-content:center;
+    font-size:20px;border-radius:11px;
+  }
+  #panelRysowania .rys-txt{display:none}      /* same ikony */
+  #panelRysowania .rys-divider{width:60%;height:1px;align-self:center;margin:2px 0}
+  #panelRysowania .rys-kolor{width:46px;height:40px}
+  #panelRysowaniaInfo{display:none}           /* opis chowamy - mało miejsca */
+}
 .rys-divider{width:1px;align-self:stretch;background:rgba(243,205,130,0.3);margin:0 3px}
 .rys-kolor{
   width:42px;height:36px;border:1.5px solid rgba(243,205,130,0.5);border-radius:8px;
@@ -1378,15 +1398,15 @@ body.dotyk .sidebar-prawy::after{display:none}
 
   <!-- PANEL NARZĘDZI RYSOWANIA (pokazuje się po kliknięciu 🎨 Rysuj) -->
   <div id="panelRysowania">
-    <button class="btn-narzedzie" data-narzedzie="linia" onclick="wybierzNarzedzie('linia')">✏️ Linia</button>
-    <button class="btn-narzedzie" data-narzedzie="strzalka" onclick="wybierzNarzedzie('strzalka')">➡️ Strzałka</button>
-    <button class="btn-narzedzie" data-narzedzie="tekst" onclick="wybierzNarzedzie('tekst')">📝 Tekst</button>
-    <button class="btn-narzedzie" data-narzedzie="gumka" onclick="wybierzNarzedzie('gumka')">🧽 Gumka</button>
+    <button class="btn-narzedzie" data-narzedzie="linia" onclick="wybierzNarzedzie('linia')">✏️<span class="rys-txt"> Linia</span></button>
+    <button class="btn-narzedzie" data-narzedzie="strzalka" onclick="wybierzNarzedzie('strzalka')">➡️<span class="rys-txt"> Strzałka</span></button>
+    <button class="btn-narzedzie" data-narzedzie="tekst" onclick="wybierzNarzedzie('tekst')">📝<span class="rys-txt"> Tekst</span></button>
+    <button class="btn-narzedzie" data-narzedzie="gumka" onclick="wybierzNarzedzie('gumka')">🧽<span class="rys-txt"> Gumka</span></button>
     <span class="rys-divider"></span>
     <input type="color" id="rysKolor" class="rys-kolor" value="#e0a955" title="Kolor rysunku">
     <span class="rys-divider"></span>
-    <button class="btn-narzedzie" onclick="zakonczLinie()" id="btnZakonczLinie" style="display:none">✓ Zakończ linię</button>
-    <button class="btn-narzedzie btn-rys-czerwony" onclick="wyczyscRysunki()">🗑 Wyczyść rysunki</button>
+    <button class="btn-narzedzie" onclick="zakonczLinie()" id="btnZakonczLinie" style="display:none">✓<span class="rys-txt"> Zakończ linię</span></button>
+    <button class="btn-narzedzie btn-rys-czerwony" onclick="wyczyscRysunki()">🗑<span class="rys-txt"> Wyczyść rysunki</span></button>
     <div id="panelRysowaniaInfo">Wybierz narzędzie i klikaj na mapie.</div>
   </div>
 
@@ -1471,6 +1491,18 @@ mapa.attributionControl.setPrefix('');
 
 // Po załadowaniu layoutu wymuś poprawne wymiary mapy
 setTimeout(() => mapa.invalidateSize(), 200);
+
+// Kliknięcia w nakładki nad mapą (przyciski GPS, panel rysowania) NIE mają
+// przeciekać do mapy - inaczej klik w przycisk stawiałby punkt na mapie pod spodem.
+setTimeout(() => {
+  ['gpsBtn', 'centerBtn', 'panelRysowania', 'gpsStatus'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el && window.L && L.DomEvent) {
+      L.DomEvent.disableClickPropagation(el);
+      L.DomEvent.disableScrollPropagation(el);
+    }
+  });
+}, 300);
 
 // ============================================================
 // URZĄDZENIA DOTYKOWE - wykrycie + zachowanie
