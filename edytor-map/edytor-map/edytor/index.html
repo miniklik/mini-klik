@@ -2002,6 +2002,20 @@ function zapiszHTML() {
       // pozamykaj ewentualnie otwarte wysuwane panele/modale w kopii
       klon.querySelectorAll('.open, .visible').forEach(el => el.classList.remove('open','visible'));
     }
+    // WAŻNE: Leaflet wstrzykuje do #mapa kafle i warstwy. Gdyby trafiły do zapisanego
+    // pliku, po otwarciu nałożyłaby się druga, "duchowa" mapa (rozjazd przy przesuwaniu).
+    // Czyścimy kontener mapy w kopii - skrypt zbuduje mapę od nowa przy starcie.
+    const mapaKlon = klon.querySelector('#mapa');
+    if (mapaKlon) {
+      // zostaw tylko nakładki własne (przyciski GPS, panel rysowania); usuń elementy Leaflet
+      mapaKlon.querySelectorAll('.leaflet-pane, .leaflet-control-container, .leaflet-proxy, .leaflet-overlay-pane, .leaflet-tile-pane').forEach(el => el.remove());
+      // dla pewności usuń wszystko co Leaflet oznacza swoimi klasami
+      mapaKlon.querySelectorAll('[class*="leaflet-"]').forEach(el => el.remove());
+      mapaKlon.className = mapaKlon.className.replace(/leaflet-[^\s]+/g, '').trim();
+      mapaKlon.removeAttribute('style');
+    }
+    // wyczyść też ewentualny widok panoramy (Pannellum)
+    klon.querySelectorAll('.pnlm-container, .detail-sfera > div').forEach(el => el.remove());
     let html = klon.outerHTML;
 
     const blokDanych = `<script id="daneMiejsc" type="application/json">${JSON.stringify(miejsca)}<\/script>`;
