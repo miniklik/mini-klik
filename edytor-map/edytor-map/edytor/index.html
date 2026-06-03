@@ -948,6 +948,22 @@ body.dotyk.tryb-admin .menu-edytor{display:block}
 .btn-tytul-menu{background:linear-gradient(180deg,#4a3a6c,#2e2447)!important;border-color:rgba(170,150,230,0.6)!important;color:#e2dcff!important}
 .menu-kreska{height:1px;background:rgba(243,205,130,0.25);margin:12px 4px}
 
+/* Filtry kategorii (gość) */
+#filtryKategorii{margin-bottom:16px}
+.filtr-tytul{font-size:13px;color:var(--tekst-2);font-style:italic;margin-bottom:8px}
+.filtry-rzad{display:flex;flex-wrap:wrap;gap:8px}
+.filtr-btn{
+  padding:8px 12px;border-radius:8px;cursor:pointer;
+  font-family:'EB Garamond',serif;font-size:14px;font-weight:600;
+  border:1.5px solid rgba(243,205,130,0.4);
+  background:rgba(0,0,0,0.25);color:var(--tekst-2);
+  transition:all 0.15s;opacity:0.5;
+}
+.filtr-btn.aktywny{
+  background:linear-gradient(180deg,var(--zloto),#b8821f);color:var(--tlo);
+  border-color:var(--zloto-2);opacity:1;
+}
+
 /* Opis strony pod mapą (komputer) */
 #opisStronyPodMapa{margin-top:18px}
 #opisStronyPodMapa:not(:empty){
@@ -1437,6 +1453,18 @@ body.dotyk .sidebar-prawy::after{display:none}
       </div>
 
       <div class="sidebar-tytul">❦ Miejsca ❦</div>
+
+      <!-- FILTRY KATEGORII - tylko tryb wędrowca (gość). Pokazywane przez JS. -->
+      <div id="filtryKategorii" style="display:none">
+        <div class="filtr-tytul">Pokaż na mapie:</div>
+        <div class="filtry-rzad">
+          <button class="filtr-btn aktywny" data-kat="yt" onclick="przelaczFiltr('yt')">🎬 YT</button>
+          <button class="filtr-btn aktywny" data-kat="foto" onclick="przelaczFiltr('foto')">📷 Foto</button>
+          <button class="filtr-btn aktywny" data-kat="audio" onclick="przelaczFiltr('audio')">🎧 Audio</button>
+          <button class="filtr-btn aktywny" data-kat="miejsce" onclick="przelaczFiltr('miejsce')">🏛️ Miejsce</button>
+        </div>
+      </div>
+
       <div id="lista-miejsc">
         <div class="pusto">Tu pojawi się lista miejsc.<br>Funkcje dodamy po kolei.</div>
       </div>
@@ -3473,6 +3501,31 @@ function zamknijOpisStrony() {
   document.getElementById('opisStronyModal').classList.remove('visible');
 }
 
+// ============================================================
+// FILTRY KATEGORII (tylko gość) - włączanie/wyłączanie typów na mapie
+// ============================================================
+let filtryAktywne = { yt:true, foto:true, audio:true, miejsce:true };
+
+// Typ punktu -> kategoria filtra
+function kategoriaPunktu(m) {
+  if (m.typ === 'yt') return 'yt';
+  if (m.typ === '360') return 'foto';
+  if (m.typ === 'audio') return 'audio';
+  if (m.typ === 'miejsce') return 'miejsce';
+  return null;  // rysunki itp. - nie filtrujemy
+}
+function punktWidoczny(m) {
+  const k = kategoriaPunktu(m);
+  if (!k) return true;            // nie-kategoria (rysunek) zawsze widoczna
+  return filtryAktywne[k];
+}
+function przelaczFiltr(kat) {
+  filtryAktywne[kat] = !filtryAktywne[kat];
+  const btn = document.querySelector(`#filtryKategorii .filtr-btn[data-kat="${kat}"]`);
+  if (btn) btn.classList.toggle('aktywny', filtryAktywne[kat]);
+  renderujMiejsca();
+}
+
 function renderujMiejsca() {
   // usuń stare markery
   markery.forEach(mk => { try { mapa.removeLayer(mk); } catch(e){} });
@@ -3481,6 +3534,13 @@ function renderujMiejsca() {
   const lista = document.getElementById('lista-miejsc');
   lista.innerHTML = '';
 
+  // Filtry kategorii - tylko gość, i tylko gdy są jakieś punkty z kategorią
+  const filtry = document.getElementById('filtryKategorii');
+  if (filtry) {
+    const maKategorie = miejsca.some(m => kategoriaPunktu(m));
+    filtry.style.display = (!isAdmin && maKategorie) ? '' : 'none';
+  }
+
   if (miejsca.length === 0) {
     lista.innerHTML = '<div class="pusto">Brak miejsc.<br>' +
       (isAdmin ? 'Kliknij 🎬 YT, 📷 Zdjęcie lub 🎧 Audio i wskaż punkt na mapie.' : 'Wkrótce pojawią się tutaj.') + '</div>';
@@ -3488,6 +3548,8 @@ function renderujMiejsca() {
   }
 
   miejsca.forEach(m => {
+    // Filtr kategorii (gość) - pomiń punkty wyłączonej kategorii
+    if (!punktWidoczny(m)) return;
     if (m.typ === 'yt') {
       const marker = L.marker(m.pozycja, { icon: ikonaYT(m.rozmiar, m.klucz) }).addTo(mapa);
 
