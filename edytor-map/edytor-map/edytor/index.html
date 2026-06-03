@@ -649,6 +649,78 @@ body.dotyk .tryb-info.znika{opacity:0}
 }
 .detail-foto img{width:100%;height:auto;display:block;max-height:70vh;object-fit:contain}
 
+/* ===== KROPKA AUDIO ===== */
+.pin-audio{background:transparent!important;border:none!important}
+.pin-audio-inner{
+  display:flex;align-items:center;justify-content:center;
+  font-size:16px;color:#fff;
+  background:linear-gradient(180deg,#8e44c9,#6322a0);
+  border:2px solid #fff;border-radius:50%;
+  box-shadow:0 3px 10px rgba(0,0,0,0.6);cursor:pointer;
+  transition:transform 0.15s;
+}
+.pin-audio-inner:hover{transform:scale(1.12)}
+/* Tryb FALA - pulsujące pierścienie wokół kropki */
+.pin-audio-fala::before,.pin-audio-fala::after{
+  content:'';position:absolute;top:50%;left:50%;
+  width:100%;height:100%;border-radius:50%;
+  border:2px solid rgba(142,68,201,0.6);
+  transform:translate(-50%,-50%);
+  animation:audioFala 2.6s ease-out infinite;
+}
+.pin-audio-fala::after{animation-delay:1.3s}
+@keyframes audioFala{
+  0%{width:100%;height:100%;opacity:0.7}
+  100%{width:320%;height:320%;opacity:0}
+}
+.karta-badge.saudio{background:linear-gradient(180deg,#8e44c9,#6322a0);border-radius:50%;padding:2px 6px}
+
+/* Opis trybu pod przyciskami */
+.tryb-opis{font-size:13px;color:var(--tekst-2);font-style:italic;margin-top:8px;text-align:center}
+.akcent-zasieg{color:var(--zloto-2);font-weight:600;font-style:normal}
+
+/* Suwak zasięgu */
+.suwak-zasieg{
+  width:100%;margin-top:8px;height:6px;border-radius:5px;
+  -webkit-appearance:none;appearance:none;
+  background:linear-gradient(90deg,var(--zloto),var(--panel-2));
+  outline:none;
+}
+.suwak-zasieg::-webkit-slider-thumb{
+  -webkit-appearance:none;appearance:none;width:22px;height:22px;border-radius:50%;
+  background:radial-gradient(circle at 35% 30%, var(--zloto-2), var(--zloto));
+  border:2px solid var(--tlo);cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,0.5);
+}
+.suwak-zasieg::-moz-range-thumb{
+  width:22px;height:22px;border-radius:50%;
+  background:var(--zloto);border:2px solid var(--tlo);cursor:pointer;
+}
+
+/* Odtwarzacz audio (pasek na dole) */
+.audio-player{
+  display:none;position:fixed;bottom:0;left:0;right:0;z-index:3000;
+  background:linear-gradient(180deg,var(--panel-2),var(--panel));
+  border-top:2px solid var(--obrys);
+  padding:14px 18px;align-items:center;gap:14px;
+  box-shadow:0 -6px 24px rgba(0,0,0,0.5);
+}
+.audio-player.visible{display:flex}
+.audio-player-info{
+  flex:1;font-family:'Cormorant Garamond',serif;font-size:19px;color:var(--zloto-2);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.audio-player-btn{
+  flex-shrink:0;background:linear-gradient(180deg,var(--zloto),#b8821f);color:var(--tlo);
+  border:none;border-radius:8px;padding:10px 16px;cursor:pointer;
+  font-family:'EB Garamond',serif;font-size:15px;font-weight:600;
+}
+.audio-player-btn:hover{filter:brightness(1.1)}
+.audio-player-zamknij{
+  flex-shrink:0;background:transparent;border:1.5px solid var(--obrys);color:var(--zloto-2);
+  width:38px;height:38px;border-radius:50%;cursor:pointer;font-size:20px;
+}
+.audio-player-zamknij:hover{background:var(--zloto);color:var(--tlo)}
+
 /* Kontener panoramy w popupie */
 .popup-360-wrap{
   width:100%;height:220px;border-radius:8px;overflow:hidden;
@@ -967,7 +1039,65 @@ body.dotyk .sidebar-prawy::after{display:none}
   </div>
 </div>
 
-<div class="wrapper">
+<!-- Panel dodawania KROPKI AUDIO (modal) -->
+<div class="panel-backdrop2" id="panelBackdropAudio" onclick="zamknijPanelAudio()"></div>
+<div class="panel-modal" id="panelAudio">
+  <h2 id="panelAudioTytul">🎧 Dodaj kropkę audio</h2>
+
+  <label class="panel-label">Nazwa</label>
+  <input type="text" id="audNazwa" maxlength="80" placeholder="np. Legenda o dębie">
+
+  <label class="panel-label">Nazwa pliku audio</label>
+  <input type="text" id="audPlik" maxlength="80" placeholder="np. dab">
+
+  <!-- INSTRUKCJA wgrywania (rozwijana) -->
+  <div class="instrukcja-360" id="instrAudio">
+    <div class="instr-tytul" onclick="document.getElementById('instrAudio').classList.toggle('otwarta')">
+      <span>🎧 Jak dodać nagranie?</span>
+      <span class="strzalka">▼</span>
+    </div>
+    <div class="instr-tresc">
+      <ol>
+        <li>Nagraj dźwięk (dyktafonem, telefonem — dowolnie) w formacie <b>MP3</b>.</li>
+        <li>Zmień nazwę pliku na: <code id="audPrzyklad">dab.mp3</code></li>
+        <li>Wgraj plik do folderu <code>audio/</code> na serwerze (obok <code>index.html</code>).</li>
+        <li>Gotowe — kliknięcie kropki 🎧 odtworzy nagranie.</li>
+      </ol>
+      <p class="instr-uwaga">W polu wpisz samą nazwę (bez <code>.mp3</code>).</p>
+    </div>
+  </div>
+
+  <label class="panel-label">Zasięg odtwarzania dźwięku: <span id="audZasiegLabel" class="akcent-zasieg">500 m</span></label>
+  <input type="range" id="audZasieg" min="50" max="5000" step="50" value="500" class="suwak-zasieg" oninput="aktualizujZasiegLabel()">
+
+  <label class="panel-label">Tryb kropki</label>
+  <div class="rozmiar-wybor" id="audTrybWybor">
+    <div class="rozmiar-opcja" data-tryb="fala" onclick="ustawTrybAudio('fala')">
+      <span class="ikona">🌊</span>Fala
+    </div>
+    <div class="rozmiar-opcja wybrany" data-tryb="zawsze" onclick="ustawTrybAudio('zawsze')">
+      <span class="ikona">📍</span>Zawsze
+    </div>
+  </div>
+  <p class="tryb-opis" id="audTrybOpis">Zawsze widoczna kropka na mapie.</p>
+
+  <!-- Suwak fali - pojawia się TYLKO przy trybie Fala -->
+  <div id="audFalaWiersz" style="display:none">
+    <label class="panel-label">Od kiedy pokazuje się fala: <span id="audFalaLabel" class="akcent-zasieg">2 km</span></label>
+    <input type="range" id="audFalaZasieg" min="500" max="6000" step="100" value="2000" class="suwak-zasieg" oninput="aktualizujFalaLabel()">
+  </div>
+
+  <label class="panel-label">Lokalizacja</label>
+  <div class="pozycja-wiersz">
+    <div class="pozycja-tekst" id="audPozycjaTekst">Kliknij miejsce na mapie lub użyj GPS</div>
+    <button class="btn-pozycja" onclick="uzyjMojejPozycji('audio')">📍 Moja pozycja</button>
+  </div>
+
+  <div class="panel-akcje">
+    <button class="btn-zatwierdz" onclick="zatwierdzAudio()">✓ Zatwierdź</button>
+    <button class="btn-anuluj" onclick="zamknijPanelAudio()">✕ Anuluj</button>
+  </div>
+</div>
 
   <header>
     <div class="ornament">✦ ✦ ✦</div>
@@ -981,6 +1111,7 @@ body.dotyk .sidebar-prawy::after{display:none}
     <div class="pasek-rzad">
       <button class="ed-btn" id="btnYT" onclick="wlaczTrybDodawaniaYT()">🎬 YT</button>
       <button class="ed-btn" id="btn360" onclick="wlaczTrybDodawania360()">📷 Zdjęcie</button>
+      <button class="ed-btn" id="btnAudio" onclick="wlaczTrybDodawaniaAudio()">🎧 Audio</button>
       <span class="pasek-separator"></span>
       <button class="ed-btn ed-btn-wczytaj" onclick="wczytajJSON()">📂 Wczytaj JSON</button>
       <button class="ed-btn ed-btn-json" onclick="zapiszJSON()">💾 Zapisz JSON</button>
@@ -1005,6 +1136,7 @@ body.dotyk .sidebar-prawy::after{display:none}
         <div class="menu-stack">
           <button onclick="menuDodaj('yt')">🎬 Dodaj film YouTube</button>
           <button onclick="menuDodaj('360')">📷 Dodaj zdjęcie</button>
+          <button onclick="menuDodaj('audio')">🎧 Dodaj kropkę audio</button>
         </div>
       </div>
 
@@ -1025,7 +1157,13 @@ body.dotyk .sidebar-prawy::after{display:none}
   </div>
 
   <footer>Skarbiec · fundament wyglądu</footer>
+</div>
 
+<!-- Pasek ODTWARZACZA AUDIO (na dole, pojawia się przy odtwarzaniu) -->
+<div class="audio-player" id="audioPlayer">
+  <div class="audio-player-info" id="audioPlayerInfo">🎧 Audio</div>
+  <button class="audio-player-btn" id="audioPauseBtn" onclick="toggleAudioPauza()">⏸ Pauza</button>
+  <button class="audio-player-zamknij" onclick="zamknijAudio()" aria-label="Zamknij">×</button>
 </div>
 
 <!-- Osadzone miejsca (wypełniane przy "Zapisz HTML"). Pusta tablica = brak. -->
@@ -1308,6 +1446,7 @@ function menuDodaj(typ) {
   if (typeof zamknijPanel === 'function') zamknijPanel(); // zamknij wysuwane menu
   if (typ === 'yt') wlaczTrybDodawaniaYT();
   else if (typ === '360') wlaczTrybDodawania360();
+  else if (typ === 'audio') wlaczTrybDodawaniaAudio();
 }
 
 // ============================================================
@@ -1597,9 +1736,10 @@ function wlaczTrybDodawaniaYT() {
 
 // Synchronizuj podświetlenie przycisków w menu mobilnym z trybami
 function syncMenuPrzyciski() {
-  const btns = document.querySelectorAll('.menu-stack button');
+  const btns = document.querySelectorAll('.menu-edytor .menu-stack button');
   if (btns[0]) btns[0].classList.toggle('aktywny', !!trybDodawaniaYT);
   if (btns[1]) btns[1].classList.toggle('aktywny', !!trybDodawania360);
+  if (btns[2]) btns[2].classList.toggle('aktywny', !!trybDodawaniaAudio);
 }
 
 // Klik w mapę w trybie dodawania -> zapamiętaj pozycję, otwórz panel
@@ -1632,9 +1772,13 @@ function ustawRozmiarYT(r) {
   });
 }
 
+// Mapowanie typu -> id elementu tekstu pozycji i id panelu
+function idPozycji(typ){ return typ === '360' ? 's360PozycjaTekst' : (typ === 'audio' ? 'audPozycjaTekst' : 'ytPozycjaTekst'); }
+function idPanelu(typ){ return typ === '360' ? 'panel360' : (typ === 'audio' ? 'panelAudio' : 'panelYT'); }
+
 // Pokaż wybraną pozycję w panelu (współrzędne albo zachęta)
 function pokazPozycjeWPanelu(typ) {
-  const el = document.getElementById(typ === '360' ? 's360PozycjaTekst' : 'ytPozycjaTekst');
+  const el = document.getElementById(idPozycji(typ));
   if (!el) return;
   if (kliknietaPozycja) {
     el.innerHTML = `📌 <b>${kliknietaPozycja[0].toFixed(5)}, ${kliknietaPozycja[1].toFixed(5)}</b>`;
@@ -1645,7 +1789,6 @@ function pokazPozycjeWPanelu(typ) {
 
 // 📍 Wstaw aktualną pozycję GPS jako lokalizację punktu
 function uzyjMojejPozycji(typ) {
-  // jeśli nawigacja już śledzi i mamy pozycję - użyj od razu
   if (userPozycja) {
     kliknietaPozycja = [userPozycja.lat, userPozycja.lng];
     pokazPozycjeWPanelu(typ);
@@ -1655,8 +1798,8 @@ function uzyjMojejPozycji(typ) {
     alert('Twoja przeglądarka nie obsługuje GPS.');
     return;
   }
-  const btn = document.querySelector(`#${typ === '360' ? 'panel360' : 'panelYT'} .btn-pozycja`);
-  const el = document.getElementById(typ === '360' ? 's360PozycjaTekst' : 'ytPozycjaTekst');
+  const btn = document.querySelector(`#${idPanelu(typ)} .btn-pozycja`);
+  const el = document.getElementById(idPozycji(typ));
   if (btn) { btn.classList.add('szukam'); btn.textContent = '⏳ Szukam…'; }
   if (el) el.textContent = 'Pobieram lokalizację z GPS…';
 
@@ -1790,7 +1933,14 @@ function otworzPlatek(klucz, akcja) {
 
   if (akcja === 'edytuj') {
     if (m.typ === '360') edytuj360(klucz);
+    else if (m.typ === 'audio') edytujAudio(klucz);
     else edytujYT(klucz);
+    return;
+  }
+
+  // Płatek "Posłuchaj" - odtwórz audio, nie otwiera panelu szczegółów
+  if (akcja === 'audio') {
+    odtworzAudio(m);
     return;
   }
 
@@ -2121,6 +2271,215 @@ function edytuj360(klucz) {
   document.getElementById('panel360').classList.add('visible');
 }
 
+// ============================================================
+// KROPKA AUDIO - przeniesione z index__24_, uproszczone.
+// Tryby: inkognito / fala / zawsze. Plik: audio/{plik}.mp3
+// Odtwarzanie przez klik (płatek 🎧 Posłuchaj). Auto-GPS później.
+// ============================================================
+var trybDodawaniaAudio = false;
+let wybranyTrybAudio = 'zawsze';
+let wybranyZasiegAudio = 500;
+let wybranyFalaZasieg = 2000;
+let aktualneAudio = null;  // obiekt Audio aktualnie grający
+
+function wlaczTrybDodawaniaAudio() {
+  // wyłącz inne tryby
+  if (trybDodawaniaYT) { trybDodawaniaYT = false; const b=document.getElementById('btnYT'); if(b) b.classList.remove('aktywny'); }
+  if (trybDodawania360) { trybDodawania360 = false; const b=document.getElementById('btn360'); if(b) b.classList.remove('aktywny'); }
+  trybDodawaniaAudio = !trybDodawaniaAudio;
+  const btn = document.getElementById('btnAudio');
+  if (btn) btn.classList.toggle('aktywny', trybDodawaniaAudio);
+  syncMenuPrzyciski();
+  if (trybDodawaniaAudio) pokazInfo('🎧 Kliknij na mapie miejsce, gdzie dodać kropkę audio');
+  else ukryjInfo();
+}
+
+mapa.on('click', (e) => {
+  if (!trybDodawaniaAudio) return;
+  kliknietaPozycja = [e.latlng.lat, e.latlng.lng];
+  otworzPanelAudio();
+});
+
+function otworzPanelAudio() {
+  document.getElementById('audNazwa').value = '';
+  document.getElementById('audPlik').value = '';
+  document.getElementById('audPrzyklad').textContent = 'dab.mp3';
+  document.getElementById('audZasieg').value = 500;
+  document.getElementById('audFalaZasieg').value = 2000;
+  aktualizujZasiegLabel();
+  aktualizujFalaLabel();
+  ustawTrybAudio('zawsze');
+  pokazPozycjeWPanelu('audio');
+  document.getElementById('panelAudioTytul').textContent = '🎧 Dodaj kropkę audio';
+  document.getElementById('panelBackdropAudio').classList.add('visible');
+  document.getElementById('panelAudio').classList.add('visible');
+}
+function zamknijPanelAudio() {
+  document.getElementById('panelBackdropAudio').classList.remove('visible');
+  document.getElementById('panelAudio').classList.remove('visible');
+  edytowanyKlucz = null;
+}
+
+function aktualizujZasiegLabel() {
+  const v = parseInt(document.getElementById('audZasieg').value) || 500;
+  wybranyZasiegAudio = v;
+  document.getElementById('audZasiegLabel').textContent = formatDystans(v);
+}
+function aktualizujFalaLabel() {
+  const v = parseInt(document.getElementById('audFalaZasieg').value) || 2000;
+  wybranyFalaZasieg = v;
+  document.getElementById('audFalaLabel').textContent = formatDystans(v);
+}
+function formatDystans(v) {
+  return v >= 1000 ? (v/1000).toFixed(v%1000===0?0:1) + ' km' : v + ' m';
+}
+
+const OPISY_TRYBOW = {
+  fala: 'Pulsujące fale przyciągają uwagę gdy podchodzisz w pobliże.',
+  zawsze: 'Zawsze widoczna kropka na mapie.'
+};
+function ustawTrybAudio(t) {
+  if (t !== 'fala' && t !== 'zawsze') t = 'zawsze';
+  wybranyTrybAudio = t;
+  document.querySelectorAll('#audTrybWybor .rozmiar-opcja').forEach(o => {
+    o.classList.toggle('wybrany', o.dataset.tryb === t);
+  });
+  const opis = document.getElementById('audTrybOpis');
+  if (opis) opis.textContent = OPISY_TRYBOW[t];
+  // Suwak fali pokazuje się tylko przy Fali
+  const falaWiersz = document.getElementById('audFalaWiersz');
+  if (falaWiersz) falaWiersz.style.display = (t === 'fala') ? 'block' : 'none';
+}
+
+// Aktualizuj przykład nazwy pliku audio na żywo
+document.addEventListener('input', (e) => {
+  if (e.target && e.target.id === 'audPlik') {
+    const v = e.target.value.trim() || 'dab';
+    const el = document.getElementById('audPrzyklad');
+    if (el) el.textContent = v + '.mp3';
+  }
+});
+
+function zatwierdzAudio() {
+  const nazwa = document.getElementById('audNazwa').value.trim();
+  const plik  = document.getElementById('audPlik').value.trim();
+
+  if (!nazwa) { alert('Wpisz przynajmniej Nazwę.'); return; }
+  if (plik && !/^[a-zA-Z0-9_-]+$/.test(plik)) {
+    alert('Nazwa pliku może zawierać tylko litery a-z, cyfry, myślnik i podkreślenie (bez spacji i .mp3).');
+    return;
+  }
+  if (!plik && !edytowanyKlucz) {
+    if (!confirm('Dodajesz kropkę BEZ pliku audio.\n\nNagranie dodasz później — edytuj (🛠) i wpisz nazwę pliku.\n\nDodać teraz?')) return;
+  }
+
+  if (edytowanyKlucz) {
+    const m = miejsca.find(x => x.klucz === edytowanyKlucz);
+    if (m) {
+      m.nazwa = nazwa; m.plik = plik;
+      m.zasieg = wybranyZasiegAudio; m.tryb = wybranyTrybAudio;
+      m.falaZasieg = (wybranyTrybAudio === 'fala') ? wybranyFalaZasieg : null;
+      if (kliknietaPozycja) m.pozycja = kliknietaPozycja;
+    }
+    edytowanyKlucz = null;
+  } else {
+    if (!kliknietaPozycja) { alert('Brak lokalizacji — kliknij najpierw miejsce na mapie.'); return; }
+    miejsca.push({
+      klucz: 'audio-' + Date.now(),
+      typ: 'audio',
+      nazwa: nazwa, plik: plik,
+      zasieg: wybranyZasiegAudio,
+      tryb: wybranyTrybAudio,
+      falaZasieg: (wybranyTrybAudio === 'fala') ? wybranyFalaZasieg : null,
+      pozycja: kliknietaPozycja
+    });
+  }
+  zapiszMiejsca();
+  renderujMiejsca();
+  zamknijPanelAudio();
+  trybDodawaniaAudio = false;
+  document.getElementById('btnAudio').classList.remove('aktywny');
+  ukryjInfo();
+}
+
+// Ikona kropki audio (BEZ płatków). Klik: admin edytuje, gość słucha.
+function ikonaAudio(m) {
+  const klucz = m.klucz;
+  const tryb = m.tryb || 'zawsze';
+  const px = 30;
+  const klasaFala = (tryb === 'fala') ? ' pin-audio-fala' : '';
+  const akcja = isAdmin ? `edytujAudio('${klucz}')` : `odtworzAudioKlucz('${klucz}')`;
+
+  return L.divIcon({
+    className: 'pin-audio',
+    html: `<div style="position:relative;width:${px}px;height:${px}px">
+        <div class="pin-audio-inner${klasaFala}" style="width:${px}px;height:${px}px"
+             onclick="event.stopPropagation();${akcja}">🎧</div>
+      </div>`,
+    iconSize: [px, px],
+    iconAnchor: [px/2, px/2]
+  });
+}
+// Pomocnik: odtwórz audio po kluczu (dla onclick w ikonie)
+function odtworzAudioKlucz(klucz) {
+  const m = miejsca.find(x => x.klucz === klucz);
+  if (m) odtworzAudio(m);
+}
+
+// Odtwórz nagranie kropki (płatek 🎧 Posłuchaj)
+function odtworzAudio(m) {
+  if (aktualneAudio) { try { aktualneAudio.pause(); } catch(e){} aktualneAudio = null; }
+  if (!m.plik) {
+    alert('Ta kropka nie ma jeszcze pliku audio.' + (isAdmin ? '\nEdytuj ją (🛠) i wpisz nazwę pliku.' : ''));
+    return;
+  }
+  const sciezka = `audio/${m.plik}.mp3`;
+  aktualneAudio = new Audio(sciezka);
+
+  const player = document.getElementById('audioPlayer');
+  const info = document.getElementById('audioPlayerInfo');
+  const btn = document.getElementById('audioPauseBtn');
+  info.textContent = '🎧 ' + (m.nazwa || 'Audio');
+  btn.textContent = '⏸ Pauza';
+  player.classList.add('visible');
+
+  aktualneAudio.play().catch(() => {
+    info.innerHTML = '🎧 ' + (m.nazwa || '') + ' — ⚠️ brak pliku audio/' + m.plik + '.mp3';
+  });
+  aktualneAudio.onended = () => { btn.textContent = '🔁 Odtwórz ponownie'; };
+}
+function toggleAudioPauza() {
+  if (!aktualneAudio) return;
+  const btn = document.getElementById('audioPauseBtn');
+  if (aktualneAudio.paused) { aktualneAudio.play(); btn.textContent = '⏸ Pauza'; }
+  else { aktualneAudio.pause(); btn.textContent = '▶ Wznów'; }
+}
+function zamknijAudio() {
+  if (aktualneAudio) { try { aktualneAudio.pause(); } catch(e){} aktualneAudio = null; }
+  document.getElementById('audioPlayer').classList.remove('visible');
+}
+
+// Edycja kropki audio
+function edytujAudio(klucz) {
+  const m = miejsca.find(x => x.klucz === klucz);
+  if (!m) return;
+  edytowanyKlucz = klucz;
+  kliknietaPozycja = null;
+  document.getElementById('audNazwa').value = m.nazwa || '';
+  document.getElementById('audPlik').value = m.plik || '';
+  document.getElementById('audPrzyklad').textContent = (m.plik || 'dab') + '.mp3';
+  document.getElementById('audZasieg').value = m.zasieg || 500;
+  document.getElementById('audFalaZasieg').value = m.falaZasieg || 2000;
+  aktualizujZasiegLabel();
+  aktualizujFalaLabel();
+  ustawTrybAudio(m.tryb || 'zawsze');
+  const el = document.getElementById('audPozycjaTekst');
+  if (el && m.pozycja) el.innerHTML = `📌 <b>${m.pozycja[0].toFixed(5)}, ${m.pozycja[1].toFixed(5)}</b>`;
+  document.getElementById('panelAudioTytul').textContent = '🎧 Edytuj kropkę audio';
+  document.getElementById('panelBackdropAudio').classList.add('visible');
+  document.getElementById('panelAudio').classList.add('visible');
+}
+
 function renderujMiejsca() {
   // usuń stare markery
   markery.forEach(mk => { try { mapa.removeLayer(mk); } catch(e){} });
@@ -2131,7 +2490,7 @@ function renderujMiejsca() {
 
   if (miejsca.length === 0) {
     lista.innerHTML = '<div class="pusto">Brak miejsc.<br>' +
-      (isAdmin ? 'Kliknij 🎬 YT lub 🌐 Sfera 360 i wskaż punkt na mapie.' : 'Wkrótce pojawią się tutaj.') + '</div>';
+      (isAdmin ? 'Kliknij 🎬 YT, 📷 Zdjęcie lub 🎧 Audio i wskaż punkt na mapie.' : 'Wkrótce pojawią się tutaj.') + '</div>';
     return;
   }
 
@@ -2169,6 +2528,33 @@ function renderujMiejsca() {
       const zwykle360 = (m.fotoTyp === 'zwykle');
       card.innerHTML = `<div class="nazwa"><span class="karta-badge ${zwykle360?'sfoto':'s360'}">${zwykle360?'FOTO':'360'}</span>${escapeHTML(m.nazwa)}</div>
         <div class="opis">${escapeHTML((m.opis || '').slice(0,80)) || (zwykle360?'Zdjęcie':'Panorama 360°')}</div>`;
+      card.onclick = () => {
+        autoCenterAktywny = false;
+        aktualizujPrzyciskCenter();
+        mapaProgramowoPrzesuwana = true;
+        mapa.flyTo(m.pozycja, 16, { duration: 1.0 });
+        setTimeout(() => { mapaProgramowoPrzesuwana = false; }, 1100);
+        if (typeof zamknijPanel === 'function') zamknijPanel();
+      };
+      lista.appendChild(card);
+    }
+
+    else if (m.typ === 'audio') {
+      const marker = L.marker(m.pozycja, { icon: ikonaAudio(m) }).addTo(mapa);
+      marker.miejsce = m;
+      markery.push(marker);
+      // Okrąg zasięgu odtwarzania (tylko admin, żeby widzieć strefę)
+      if (isAdmin && m.zasieg) {
+        const kolo = L.circle(m.pozycja, { radius: m.zasieg, color:'#8e44c9', weight:1, opacity:0.5, fillColor:'#8e44c9', fillOpacity:0.08 }).addTo(mapa);
+        markery.push(kolo);
+      }
+
+      const card = document.createElement('div');
+      card.className = 'miejsce-card';
+      const zasiegTxt = formatDystans(m.zasieg || 500);
+      const trybTxt = (m.tryb === 'fala') ? '🌊 Fala' : '📍 Zawsze';
+      card.innerHTML = `<div class="nazwa"><span class="karta-badge saudio">🎧</span>${escapeHTML(m.nazwa)}</div>
+        <div class="opis">${trybTxt} · zasięg ${zasiegTxt}</div>`;
       card.onclick = () => {
         autoCenterAktywny = false;
         aktualizujPrzyciskCenter();
