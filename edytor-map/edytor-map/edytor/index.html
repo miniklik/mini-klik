@@ -674,6 +674,14 @@ body.dotyk .tryb-info.znika{opacity:0}
   100%{width:320%;height:320%;opacity:0}
 }
 .karta-badge.saudio{background:linear-gradient(180deg,#8e44c9,#6322a0);border-radius:50%;padding:2px 6px}
+.karta-badge.smiejsce{background:linear-gradient(180deg,#3a5a9c,#243a6c);border-radius:50%;padding:2px 6px}
+.pin-miejsce{background:transparent!important;border:none!important}
+.pin-miejsce-inner{
+  display:flex;align-items:flex-start;justify-content:center;
+  font-size:30px;cursor:pointer;transition:transform 0.15s;
+  filter:drop-shadow(0 3px 5px rgba(0,0,0,0.6));
+}
+.pin-miejsce-inner:hover{transform:scale(1.12)}
 
 /* Opis trybu pod przyciskami */
 .tryb-opis{font-size:13px;color:var(--tekst-2);font-style:italic;margin-top:8px;text-align:center}
@@ -879,6 +887,8 @@ body.dotyk.tryb-admin .menu-edytor{display:block}
 .ed-btn-json{background:linear-gradient(180deg,#5a3a1f,#382414)}
 .ed-btn-html{background:linear-gradient(180deg,#3d5a32,#243a1f);border-color:rgba(120,200,110,0.6);color:#d8f3c8}
 .ed-btn-reset{background:linear-gradient(180deg,#5a2a28,#381a18);border-color:rgba(230,120,110,0.6);color:#f3cdc8}
+.ed-btn-miejsce{background:linear-gradient(180deg,#3a5a9c,#243a6c);border-color:rgba(120,160,230,0.7);color:#dce8ff}
+.opcj{font-family:'EB Garamond',serif;font-size:11px;color:var(--tekst-2);font-style:italic;text-transform:none;letter-spacing:0}
 .btn-reset-menu{background:linear-gradient(180deg,#5a2a28,#381a18)!important;border-color:rgba(230,120,110,0.6)!important;color:#f3cdc8!important}
 
 /* PRAWY hamburger - tylko telefon + admin */
@@ -1150,6 +1160,63 @@ body.dotyk .sidebar-prawy::after{display:none}
   </div>
 </div>
 
+<!-- Panel BOGATEGO MIEJSCA (modal) - wszystko naraz, bez instrukcji -->
+<div class="panel-backdrop2" id="panelBackdropMiejsce" onclick="zamknijPanelMiejsce()"></div>
+<div class="panel-modal" id="panelMiejsce">
+  <h2 id="panelMiejsceTytul">🏛️ Miejsce na mapie</h2>
+
+  <label class="panel-label">Nazwa</label>
+  <input type="text" id="mscNazwa" maxlength="80" placeholder="np. Kościół św. Anny">
+
+  <label class="panel-label">Nazwa pliku (wspólna dla zdjęcia i audio)</label>
+  <input type="text" id="mscPlik" maxlength="80" placeholder="np. kosciol">
+
+  <label class="panel-label">Adres YouTube <span class="opcj">(opcjonalnie)</span></label>
+  <input type="url" id="mscYT" maxlength="300" placeholder="https://youtube.com/watch?v=...">
+
+  <label class="panel-label">Zdjęcie <span class="opcj">(plik {nazwa} w folderze img/)</span></label>
+  <div class="rozmiar-wybor" id="mscFotoWybor">
+    <div class="rozmiar-opcja" data-foto="brak" onclick="ustawFotoMiejsce('brak')">
+      <span class="ikona">🚫</span>Brak
+    </div>
+    <div class="rozmiar-opcja" data-foto="zwykle" onclick="ustawFotoMiejsce('zwykle')">
+      <span class="ikona">🖼️</span>Zwykłe
+    </div>
+    <div class="rozmiar-opcja" data-foto="panorama" onclick="ustawFotoMiejsce('panorama')">
+      <span class="ikona">🌐</span>360°
+    </div>
+  </div>
+
+  <label class="panel-label">Audio <span class="opcj">(plik {nazwa}.mp3 w folderze audio/)</span></label>
+  <div class="rozmiar-wybor" id="mscMp3Wybor">
+    <div class="rozmiar-opcja wybrany" data-mp3="nie" onclick="ustawMp3Miejsce('nie')">
+      <span class="ikona">🚫</span>Brak
+    </div>
+    <div class="rozmiar-opcja" data-mp3="tak" onclick="ustawMp3Miejsce('tak')">
+      <span class="ikona">🎧</span>Jest nagranie
+    </div>
+  </div>
+
+  <label class="panel-label">Opis</label>
+  <textarea id="mscOpis" style="min-height:56px;max-height:90px" placeholder="Opis miejsca — kościół, pałac, kapliczka... Akapity oddziel pustą linią."></textarea>
+
+  <label class="panel-label">Zasięg odtwarzania audio: <span id="mscZasiegLabel" class="akcent-zasieg">50 m</span></label>
+  <input type="range" id="mscZasieg" min="10" max="200" step="10" value="50" class="suwak-zasieg" oninput="aktualizujZasiegMiejsce()">
+
+  <label class="panel-label">Lokalizacja</label>
+  <div class="pozycja-wiersz">
+    <div class="pozycja-tekst" id="mscPozycjaTekst">Kliknij miejsce na mapie lub użyj GPS</div>
+    <button class="btn-pozycja" onclick="uzyjMojejPozycji('miejsce')">📍 Moja pozycja</button>
+  </div>
+
+  <div class="panel-akcje">
+    <button class="btn-zatwierdz" onclick="zatwierdzMiejsce()">✓ Zatwierdź</button>
+    <button class="btn-anuluj" onclick="zamknijPanelMiejsce()">✕ Anuluj</button>
+  </div>
+</div>
+
+<div class="wrapper">
+
   <header>
     <div class="ornament">✦ ✦ ✦</div>
     <h1>Nazwa strony</h1>
@@ -1164,6 +1231,7 @@ body.dotyk .sidebar-prawy::after{display:none}
       <button class="ed-btn" id="btn360" onclick="wlaczTrybDodawania360()">📷 Zdjęcie</button>
       <button class="ed-btn" id="btnAudio" onclick="wlaczTrybDodawaniaAudio()">🎧 Audio</button>
       <button class="ed-btn" id="btnRysuj" onclick="toggleRysowanie()">🎨 Rysuj</button>
+      <button class="ed-btn ed-btn-miejsce" id="btnMiejsce" onclick="wlaczTrybDodawaniaMiejsce()">🏛️ Miejsce</button>
       <span class="pasek-separator"></span>
       <button class="ed-btn ed-btn-wczytaj" onclick="wczytajJSON()">📂 Wczytaj JSON</button>
       <button class="ed-btn ed-btn-json" onclick="zapiszJSON()">💾 Zapisz JSON</button>
@@ -1204,6 +1272,7 @@ body.dotyk .sidebar-prawy::after{display:none}
           <button onclick="menuDodaj('360')">📷 Dodaj zdjęcie</button>
           <button onclick="menuDodaj('audio')">🎧 Dodaj kropkę audio</button>
           <button onclick="menuDodaj('rysuj')">🎨 Rysuj na mapie</button>
+          <button onclick="menuDodaj('miejsce')">🏛️ Miejsce (wszystko naraz)</button>
         </div>
       </div>
 
@@ -1515,6 +1584,7 @@ function menuDodaj(typ) {
   else if (typ === '360') wlaczTrybDodawania360();
   else if (typ === 'audio') wlaczTrybDodawaniaAudio();
   else if (typ === 'rysuj') toggleRysowanie();
+  else if (typ === 'miejsce') wlaczTrybDodawaniaMiejsce();
 }
 
 // ============================================================
@@ -1841,8 +1911,8 @@ function ustawRozmiarYT(r) {
 }
 
 // Mapowanie typu -> id elementu tekstu pozycji i id panelu
-function idPozycji(typ){ return typ === '360' ? 's360PozycjaTekst' : (typ === 'audio' ? 'audPozycjaTekst' : 'ytPozycjaTekst'); }
-function idPanelu(typ){ return typ === '360' ? 'panel360' : (typ === 'audio' ? 'panelAudio' : 'panelYT'); }
+function idPozycji(typ){ return typ === '360' ? 's360PozycjaTekst' : (typ === 'audio' ? 'audPozycjaTekst' : (typ === 'miejsce' ? 'mscPozycjaTekst' : 'ytPozycjaTekst')); }
+function idPanelu(typ){ return typ === '360' ? 'panel360' : (typ === 'audio' ? 'panelAudio' : (typ === 'miejsce' ? 'panelMiejsce' : 'panelYT')); }
 
 // Pokaż wybraną pozycję w panelu (współrzędne albo zachęta)
 function pokazPozycjeWPanelu(typ) {
@@ -2776,6 +2846,206 @@ function wyczyscRysunki() {
 // Przerysuj rysunki przy zmianie skali (grot zależy od pikseli)
 mapa.on('zoomend', () => { if (typeof przerysujRysunki === 'function') przerysujRysunki(); });
 
+// ============================================================
+// BOGATE MIEJSCE - jeden punkt łączący YT + foto + audio + opis.
+// Pliki: img/{plik}.jpg (lub {plik}-360.jpg) + audio/{plik}.mp3
+// Płatki pokazują tylko wypełnione media.
+// ============================================================
+var trybDodawaniaMiejsce = false;
+let mscFotoTyp = 'brak';      // 'brak' | 'zwykle' | 'panorama'
+let mscMaMp3 = 'nie';         // 'nie' | 'tak'
+let mscZasiegVal = 50;
+
+function wlaczTrybDodawaniaMiejsce() {
+  if (trybDodawaniaYT) wlaczTrybDodawaniaYT();
+  if (trybDodawania360) wlaczTrybDodawania360();
+  if (trybDodawaniaAudio) wlaczTrybDodawaniaAudio();
+  if (trybRysowaniaWlaczony) toggleRysowanie();
+
+  trybDodawaniaMiejsce = !trybDodawaniaMiejsce;
+  const btn = document.getElementById('btnMiejsce');
+  if (btn) btn.classList.toggle('aktywny', trybDodawaniaMiejsce);
+  if (trybDodawaniaMiejsce) pokazInfo('🏛️ Kliknij na mapie miejsce, gdzie dodać punkt');
+  else ukryjInfo();
+  if (typeof zamknijPanel === 'function') zamknijPanel();
+}
+
+mapa.on('click', (e) => {
+  if (!trybDodawaniaMiejsce) return;
+  kliknietaPozycja = [e.latlng.lat, e.latlng.lng];
+  otworzPanelMiejsce();
+});
+
+function otworzPanelMiejsce() {
+  document.getElementById('mscNazwa').value = '';
+  document.getElementById('mscPlik').value = '';
+  document.getElementById('mscYT').value = '';
+  document.getElementById('mscOpis').value = '';
+  document.getElementById('mscZasieg').value = 50;
+  ustawFotoMiejsce('brak');
+  ustawMp3Miejsce('nie');
+  aktualizujZasiegMiejsce();
+  pokazPozycjeWPanelu('miejsce');
+  document.getElementById('panelMiejsceTytul').textContent = '🏛️ Miejsce na mapie';
+  document.getElementById('panelBackdropMiejsce').classList.add('visible');
+  document.getElementById('panelMiejsce').classList.add('visible');
+}
+function zamknijPanelMiejsce() {
+  document.getElementById('panelBackdropMiejsce').classList.remove('visible');
+  document.getElementById('panelMiejsce').classList.remove('visible');
+  edytowanyKlucz = null;
+}
+function ustawFotoMiejsce(t) {
+  mscFotoTyp = t;
+  document.querySelectorAll('#mscFotoWybor .rozmiar-opcja').forEach(o => o.classList.toggle('wybrany', o.dataset.foto === t));
+}
+function ustawMp3Miejsce(t) {
+  mscMaMp3 = t;
+  document.querySelectorAll('#mscMp3Wybor .rozmiar-opcja').forEach(o => o.classList.toggle('wybrany', o.dataset.mp3 === t));
+}
+function aktualizujZasiegMiejsce() {
+  mscZasiegVal = parseInt(document.getElementById('mscZasieg').value) || 50;
+  document.getElementById('mscZasiegLabel').textContent = formatDystans(mscZasiegVal);
+}
+
+function zatwierdzMiejsce() {
+  const nazwa = document.getElementById('mscNazwa').value.trim();
+  const plik  = document.getElementById('mscPlik').value.trim();
+  const yt    = document.getElementById('mscYT').value.trim();
+  const opis  = document.getElementById('mscOpis').value.trim();
+
+  if (!nazwa) { alert('Wpisz przynajmniej Nazwę.'); return; }
+  if (plik && !/^[a-zA-Z0-9_-]+$/.test(plik)) {
+    alert('Nazwa pliku: tylko litery a-z, cyfry, myślnik, podkreślenie (bez rozszerzenia).');
+    return;
+  }
+  if (yt && !youtubeId(yt)) {
+    alert('Adres YouTube wygląda niepoprawnie. Zostaw pusty albo popraw.');
+    return;
+  }
+  if ((mscFotoTyp !== 'brak' || mscMaMp3 === 'tak') && !plik) {
+    alert('Podałeś zdjęcie lub audio — wpisz nazwę pliku.');
+    return;
+  }
+
+  const rekord = {
+    typ: 'miejsce',
+    nazwa, plik,
+    link: yt,
+    fotoTyp: mscFotoTyp,        // 'brak'|'zwykle'|'panorama'
+    maMp3: (mscMaMp3 === 'tak'),
+    opis,
+    zasieg: mscZasiegVal
+  };
+
+  if (edytowanyKlucz) {
+    const m = miejsca.find(x => x.klucz === edytowanyKlucz);
+    if (m) { Object.assign(m, rekord); if (kliknietaPozycja) m.pozycja = kliknietaPozycja; }
+    edytowanyKlucz = null;
+  } else {
+    if (!kliknietaPozycja) { alert('Brak lokalizacji — kliknij najpierw miejsce na mapie.'); return; }
+    rekord.klucz = 'msc-' + Date.now();
+    rekord.pozycja = kliknietaPozycja;
+    miejsca.push(rekord);
+  }
+  zapiszMiejsca();
+  renderujMiejsca();
+  zamknijPanelMiejsce();
+  trybDodawaniaMiejsce = false;
+  document.getElementById('btnMiejsce').classList.remove('aktywny');
+  ukryjInfo();
+}
+
+// Ikona bogatego miejsca - pinezka z płatkami (tylko wypełnione media)
+function ikonaMiejsce(m) {
+  const klucz = m.klucz;
+  const px = 34;
+
+  // Zbierz dostępne płatki
+  const platki = [];
+  if (m.link && youtubeId(m.link)) platki.push({ ikona:'🎬', nazwa:'Film', akcja:'film' });
+  if (m.fotoTyp && m.fotoTyp !== 'brak') platki.push({ ikona: m.fotoTyp==='panorama'?'🌐':'🖼️', nazwa: m.fotoTyp==='panorama'?'Panorama':'Foto', akcja:'foto' });
+  if (m.maMp3) platki.push({ ikona:'🎧', nazwa:'Posłuchaj', akcja:'mp3' });
+  if (m.opis && m.opis.trim()) platki.push({ ikona:'📜', nazwa:'Opis', akcja:'opis' });
+  if (isAdmin) platki.push({ ikona:'🛠', nazwa:'Edytuj', akcja:'edytuj' });
+
+  // Rozłóż płatki wachlarzem (łuk u góry)
+  const n = platki.length;
+  const platkiHTML = platki.map((p, i) => {
+    let dx = 0, dy = -58;
+    if (n > 1) {
+      const rozpietosc = Math.min(150, 44 * (n - 1));
+      const kat = (-rozpietosc/2 + (rozpietosc/(n-1)) * i) * Math.PI / 180;
+      const promien = 62;
+      dx = Math.sin(kat) * promien;
+      dy = -Math.cos(kat) * promien;
+    }
+    return `<div class="platek" style="--dx:${dx.toFixed(0)}px;--dy:${dy.toFixed(0)}px"
+         onclick="event.stopPropagation();otworzPlatekMiejsce('${klucz}','${p.akcja}')">
+      <div class="platek-ikona">${p.ikona}</div>
+      <div class="platek-nazwa">${p.nazwa}</div>
+    </div>`;
+  }).join('');
+
+  return L.divIcon({
+    className: 'pin-miejsce',
+    html: `<div style="position:relative;width:${px}px;height:${px}px">
+        <div class="pin-miejsce-inner" style="width:${px}px;height:${px}px"
+             onclick="event.stopPropagation();togglePlatki('${klucz}')">📍</div>
+        <div class="platki-wrapper" id="platki-${klucz}">${platkiHTML}</div>
+      </div>`,
+    iconSize: [px, px], iconAnchor: [px/2, px]
+  });
+}
+
+// Akcja płatka bogatego miejsca
+function otworzPlatekMiejsce(klucz, akcja) {
+  const m = miejsca.find(x => x.klucz === klucz);
+  if (!m) return;
+  const wrap = document.getElementById('platki-' + klucz);
+  if (wrap) wrap.classList.remove('open');
+
+  if (akcja === 'edytuj') { edytujMiejsce(klucz); return; }
+  if (akcja === 'mp3') { odtworzAudio({ nazwa:m.nazwa, plik:m.plik }); return; }
+
+  const tytulEl = document.getElementById('detailTytul');
+  const content = document.getElementById('detailContent');
+
+  if (akcja === 'film') {
+    tytulEl.innerHTML = '🎬 ' + escapeHTML(m.nazwa);
+    content.innerHTML = trescFilm(m);
+  } else if (akcja === 'foto') {
+    const zwykle = (m.fotoTyp === 'zwykle');
+    tytulEl.innerHTML = (zwykle ? '🖼️ ' : '🌐 ') + escapeHTML(m.nazwa);
+    content.innerHTML = trescPanorama(m);   // obsługuje fotoTyp zwykle/panorama
+    if (!zwykle) setTimeout(() => uruchomSfere('detail-sfera-' + m.klucz, m.plik, m.nazwa), 150);
+  } else { // opis
+    tytulEl.innerHTML = '📜 ' + escapeHTML(m.nazwa);
+    content.innerHTML = trescOpis(m);
+  }
+  pokazDetail();
+}
+
+function edytujMiejsce(klucz) {
+  const m = miejsca.find(x => x.klucz === klucz);
+  if (!m) return;
+  edytowanyKlucz = klucz;
+  kliknietaPozycja = null;
+  document.getElementById('mscNazwa').value = m.nazwa || '';
+  document.getElementById('mscPlik').value = m.plik || '';
+  document.getElementById('mscYT').value = m.link || '';
+  document.getElementById('mscOpis').value = m.opis || '';
+  document.getElementById('mscZasieg').value = m.zasieg || 50;
+  ustawFotoMiejsce(m.fotoTyp || 'brak');
+  ustawMp3Miejsce(m.maMp3 ? 'tak' : 'nie');
+  aktualizujZasiegMiejsce();
+  const el = document.getElementById('mscPozycjaTekst');
+  if (el && m.pozycja) el.innerHTML = `📌 <b>${m.pozycja[0].toFixed(5)}, ${m.pozycja[1].toFixed(5)}</b>`;
+  document.getElementById('panelMiejsceTytul').textContent = '🏛️ Edytuj miejsce';
+  document.getElementById('panelBackdropMiejsce').classList.add('visible');
+  document.getElementById('panelMiejsce').classList.add('visible');
+}
+
 function renderujMiejsca() {
   // usuń stare markery
   markery.forEach(mk => { try { mapa.removeLayer(mk); } catch(e){} });
@@ -2851,6 +3121,31 @@ function renderujMiejsca() {
       const trybTxt = (m.tryb === 'fala') ? '🌊 Fala' : '📍 Zawsze';
       card.innerHTML = `<div class="nazwa"><span class="karta-badge saudio">🎧</span>${escapeHTML(m.nazwa)}</div>
         <div class="opis">${trybTxt} · zasięg ${zasiegTxt}</div>`;
+      card.onclick = () => {
+        autoCenterAktywny = false;
+        aktualizujPrzyciskCenter();
+        mapaProgramowoPrzesuwana = true;
+        mapa.flyTo(m.pozycja, 16, { duration: 1.0 });
+        setTimeout(() => { mapaProgramowoPrzesuwana = false; }, 1100);
+        if (typeof zamknijPanel === 'function') zamknijPanel();
+      };
+      lista.appendChild(card);
+    }
+
+    else if (m.typ === 'miejsce') {
+      const marker = L.marker(m.pozycja, { icon: ikonaMiejsce(m) }).addTo(mapa);
+      marker.miejsce = m;
+      markery.push(marker);
+
+      const card = document.createElement('div');
+      card.className = 'miejsce-card';
+      // policz co ma
+      const ma = [];
+      if (m.link && youtubeId(m.link)) ma.push('🎬');
+      if (m.fotoTyp && m.fotoTyp !== 'brak') ma.push(m.fotoTyp==='panorama'?'🌐':'🖼️');
+      if (m.maMp3) ma.push('🎧');
+      card.innerHTML = `<div class="nazwa"><span class="karta-badge smiejsce">📍</span>${escapeHTML(m.nazwa)}</div>
+        <div class="opis">${escapeHTML((m.opis || '').slice(0,60)) || 'Miejsce na mapie'} ${ma.length?'· '+ma.join(' '):''}</div>`;
       card.onclick = () => {
         autoCenterAktywny = false;
         aktualizujPrzyciskCenter();
