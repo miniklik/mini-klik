@@ -310,6 +310,69 @@ html.tryb-noc .sidebar-poeta-opis{color:#e8dcc8}
 html.tryb-noc .sidebar-poeta-opis a{color:#a78bfa}
 html.tryb-noc .sidebar-poeta-opis a:hover{color:#c4b5fd}
 
+/* === BLOK LINKÓW + KAFELKI w sidebarze (desktop) === */
+/* Mobilne wersje tych stylów są w @media niżej; tu globalne dla sidebara. */
+.sidebar-poeta-linki{
+  margin-top:10px;
+  padding:10px 12px;
+  background:rgba(212,160,23,0.07);
+  border:1px solid rgba(212,160,23,0.3);
+  border-left:3px solid var(--gold);
+  border-radius:4px;
+}
+.sidebar-poeta-linki-tytul{
+  font-family:'Cinzel',serif;
+  font-size:10px;
+  letter-spacing:1.5px;
+  text-transform:uppercase;
+  color:var(--gold);
+  margin-bottom:6px;
+  opacity:0.85;
+}
+.poeta-link-kafelek{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding:8px 10px;
+  margin-top:6px;
+  background:rgba(255,255,255,0.5);
+  border:1px solid rgba(124,58,237,0.25);
+  border-radius:8px;
+  text-decoration:none;
+  transition:all 0.18s;
+}
+.poeta-link-kafelek:hover{
+  background:rgba(124,58,237,0.1);
+  border-color:rgba(124,58,237,0.5);
+  transform:translateX(2px);
+}
+.poeta-link-favicon{
+  width:24px;height:24px;
+  flex-shrink:0;
+  border-radius:4px;
+  background:#fff;
+  object-fit:contain;
+}
+.poeta-link-nazwa{
+  font-size:14px;
+  font-weight:600;
+  color:#7c3aed;
+  word-break:break-all;
+}
+html.tryb-noc .sidebar-poeta-linki{
+  background:rgba(212,160,23,0.12);
+  border-color:rgba(212,165,116,0.35);
+}
+html.tryb-noc .poeta-link-kafelek{
+  background:rgba(212,165,116,0.08);
+  border-color:rgba(167,139,250,0.3);
+}
+html.tryb-noc .poeta-link-kafelek:hover{
+  background:rgba(167,139,250,0.18);
+}
+html.tryb-noc .poeta-link-nazwa{color:#c4b5fd}
+html.tryb-noc .poeta-link-favicon{background:rgba(255,255,255,0.85)}
+
 /* === EKRAN POWITALNY (Splash Welcome) === */
 .splash-welcome{
   position:fixed;inset:0;
@@ -5242,6 +5305,49 @@ html.tryb-noc .sw-off {
   html.tryb-noc .menu-poeta-linki a, html.tryb-noc .sidebar-poeta-linki a{color:#a78bfa}
   html.tryb-noc .menu-poeta-linki a:hover, html.tryb-noc .sidebar-poeta-linki a:hover{color:#c4b5fd}
 
+  /* === KAFELEK LINKU - ikonka strony + nazwa domeny === */
+  .poeta-link-kafelek{
+    display:flex !important;
+    align-items:center;
+    gap:10px;
+    padding:8px 10px !important;
+    margin-top:6px;
+    background:rgba(255,255,255,0.45);
+    border:1px solid rgba(124,58,237,0.25);
+    border-radius:8px;
+    text-decoration:none !important;
+    transition:all 0.18s;
+    word-break:normal !important;
+  }
+  .poeta-link-kafelek:hover{
+    background:rgba(124,58,237,0.1);
+    border-color:rgba(124,58,237,0.5);
+    transform:translateX(2px);
+    text-decoration:none !important;
+  }
+  .poeta-link-favicon{
+    width:24px;height:24px;
+    flex-shrink:0;
+    border-radius:4px;
+    background:#fff;
+    object-fit:contain;
+  }
+  .poeta-link-nazwa{
+    font-size:14px;
+    font-weight:600;
+    color:#7c3aed;
+    word-break:break-all;
+  }
+  html.tryb-noc .poeta-link-kafelek{
+    background:rgba(212,165,116,0.08);
+    border-color:rgba(167,139,250,0.3);
+  }
+  html.tryb-noc .poeta-link-kafelek:hover{
+    background:rgba(167,139,250,0.18);
+  }
+  html.tryb-noc .poeta-link-nazwa{color:#c4b5fd}
+  html.tryb-noc .poeta-link-favicon{background:rgba(255,255,255,0.85)}
+
   /* === PRZYCISK pokaż/schowaj wiersze === */
   .menu-wiersze-btn{
     width:100%;
@@ -9606,9 +9712,22 @@ function wypelnijBlokLinkow(idElementu, tekstLinkow) {
     // Zbuduj pełny adres (dodaj https:// jeśli brak)
     let href = frag;
     if (!/^https?:\/\//i.test(href)) href = 'https://' + href;
-    // Escape do bezpiecznego wyświetlenia
-    const widoczny = escapeHtmlPoeta(frag);
-    html += '<a href="' + href + '" target="_blank" rel="noopener noreferrer">' + widoczny + '</a>';
+
+    // Wyciągnij samą domenę (np. "mini-klik.pl") - to będzie nazwa kafelka
+    let domena = frag.replace(/^https?:\/\//i, '').replace(/^www\./i, '').split('/')[0];
+    if (!domena) domena = frag;
+
+    // Favicon strony - pobierany z usługi Google (ikonka 64px).
+    // Jak się nie załaduje, onerror chowa <img> i zostaje sam tekst.
+    const faviconUrl = 'https://www.google.com/s2/favicons?domain=' + encodeURIComponent(domena) + '&sz=64';
+
+    const safeHref = href.replace(/"/g, '&quot;');
+    const safeDomena = escapeHtmlPoeta(domena);
+
+    html += '<a class="poeta-link-kafelek" href="' + safeHref + '" target="_blank" rel="noopener noreferrer">'
+      + '<img class="poeta-link-favicon" src="' + faviconUrl + '" alt="" onerror="this.style.display=\'none\'">'
+      + '<span class="poeta-link-nazwa">' + safeDomena + '</span>'
+      + '</a>';
   }
   el.innerHTML = html;
   el.style.display = '';
