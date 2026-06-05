@@ -9,9 +9,9 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
 
-<!-- === GOATCOUNTER: licznik odwiedzin === -->
-<script data-goatcounter="https://mini-klik-pl.goatcounter.com/count"
-        async src="//gc.zgo.at/count.js"></script>
+<!-- === FIREBASE: liczniki === -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 
 <style>
   *{margin:0;padding:0;box-sizing:border-box}
@@ -394,41 +394,52 @@ async function copyEmail(event, link) {
   }, 2500);
 }
 
-// === POBIERANIE STATYSTYK Z GOATCOUNTER ===
-(async function loadStats(){
-  const SITE = 'mini-klik-pl';
+// === LICZNIK WEJŚĆ (Firebase Firestore) ===
+(async function licznikWejsc(){
   const todayEl = document.getElementById('stats-today');
   const totalEl = document.getElementById('stats-total');
 
-  try {
-    // Data dziś i jutro (w UTC, format YYYY-MM-DD)
-    const now = new Date();
-    const today = now.toISOString().split('T')[0];
-    const tomorrow = new Date(now.getTime() + 86400000).toISOString().split('T')[0];
+  // --- Konfiguracja Firebase (projekt Księga Ramzi) ---
+  const firebaseConfig = {
+    apiKey: "AIzaSyDRR3vSfgpEmbpZz_-VldMTnTHoXRfuGKg",
+    authDomain: "ksiega-ramzi.firebaseapp.com",
+    projectId: "ksiega-ramzi",
+    storageBucket: "ksiega-ramzi.firebasestorage.app",
+    messagingSenderId: "400735142662",
+    appId: "1:400735142662:web:0b52a57f4fedf367839487"
+  };
 
-    // Równolegle pobierz "dziś" i "łącznie"
-    const [todayRes, totalRes] = await Promise.all([
-      fetch(`https://${SITE}.goatcounter.com/counter/TOTAL.json?start=${today}&end=${tomorrow}`),
-      fetch(`https://${SITE}.goatcounter.com/counter/TOTAL.json`)
+  try {
+    if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    // Dzisiejsza data jako YYYY-MM-DD
+    const today = new Date().toISOString().split('T')[0];
+    const docTotal = db.collection('liczniki').doc('wejscia-total');
+    const docToday = db.collection('liczniki').doc('wejscia-' + today);
+
+    // Zwiększ liczniki RAZ na sesję (żeby refresh nie nabijał)
+    if (!sessionStorage.getItem('mk_counted')) {
+      await Promise.all([
+        docTotal.set({ count: firebase.firestore.FieldValue.increment(1) }, { merge: true }),
+        docToday.set({ count: firebase.firestore.FieldValue.increment(1) }, { merge: true })
+      ]);
+      sessionStorage.setItem('mk_counted', '1');
+    }
+
+    // Pobierz aktualne wartości
+    const [snapTotal, snapToday] = await Promise.all([
+      docTotal.get(),
+      docToday.get()
     ]);
 
-    if (todayRes.ok) {
-      const d = await todayRes.json();
-      const n = parseInt(d.count_unique || d.count || 0, 10);
-      todayEl.textContent = n.toLocaleString('pl-PL');
-    } else {
-      todayEl.textContent = '0';
-    }
+    const total = snapTotal.exists ? (snapTotal.data().count || 0) : 0;
+    const dzis  = snapToday.exists ? (snapToday.data().count || 0) : 0;
 
-    if (totalRes.ok) {
-      const d = await totalRes.json();
-      const n = parseInt(d.count_unique || d.count || 0, 10);
-      totalEl.textContent = n.toLocaleString('pl-PL');
-    } else {
-      totalEl.textContent = '0';
-    }
+    todayEl.textContent = dzis.toLocaleString('pl-PL');
+    totalEl.textContent = total.toLocaleString('pl-PL');
   } catch (e) {
-    console.warn('Statystyki niedostępne:', e);
+    console.warn('Licznik niedostępny:', e);
     todayEl.textContent = '—';
     totalEl.textContent = '—';
   }
