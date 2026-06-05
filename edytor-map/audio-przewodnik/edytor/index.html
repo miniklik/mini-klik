@@ -8164,7 +8164,7 @@ function pokazListeAudio() {
   const edytowaneRef = new Set();
   zaplanowane.forEach(k => { if (k.__ref) edytowaneRef.add(k.__ref); });
 
-  // Buduj listę punktów - jednolity format {numer, opis, lat, lng}
+  // Buduj listę punktów - jednolity format {numer, opis, lat, lng, typKropki}
   const wszystkie = [];
   zapisane.forEach(k => {
     if (edytowaneRef.has(k)) return; // pomiń - jest świeższa wersja zaplanowana
@@ -8181,23 +8181,34 @@ function pokazListeAudio() {
     } else {
       lat = k.lat; lng = k.lng;
     }
-    wszystkie.push({ numer: k.numer, opis: k.opis || '', lat: lat, lng: lng });
+    wszystkie.push({ numer: k.numer, opis: k.opis || '', lat: lat, lng: lng, typKropki: k.typKropki || 'wiersz' });
   });
   zaplanowane.forEach(k => {
     // zaplanowaneKropki mają lat, lng osobno (dla strefy = środek wielokąta)
-    wszystkie.push({ numer: k.numer, opis: k.opis || '', lat: k.lat, lng: k.lng });
+    wszystkie.push({ numer: k.numer, opis: k.opis || '', lat: k.lat, lng: k.lng, typKropki: k.typKropki || 'wiersz' });
   });
 
+  // Tylko WIERSZE w liście na desktopie - tła są strefami atmosferycznymi,
+  // nie ma sensu klikać ich z menu (i tak same się włączą po wejściu w strefę).
+  // Każdy numer tylko raz (segmenty strefy redukowane do jednego wpisu).
+  const widzianeNumery = new Set();
+  const tylkoWiersze = [];
+  for (const k of wszystkie) {
+    if (k.typKropki === 'tlo') continue;
+    if (widzianeNumery.has(k.numer)) continue;
+    widzianeNumery.add(k.numer);
+    tylkoWiersze.push(k);
+  }
+
   // Sortuj po numerze
-  wszystkie.sort((a, b) => a.numer - b.numer);
+  tylkoWiersze.sort((a, b) => a.numer - b.numer);
 
   // Filtr odległości - jeśli aktywny, pokaż tylko te które są widoczne na mapie
-  // Zmienna widoczneNumeryKropek jest pusta gdy filtr wyłączony (=brak filtra).
-  let dosygnalizowania = wszystkie;
+  let dosygnalizowania = tylkoWiersze;
   const filtrAktywny = (typeof aktualnyFiltrOdleglosci !== 'undefined' && aktualnyFiltrOdleglosci > 0)
                     && (typeof userPozycja !== 'undefined' && userPozycja);
   if (filtrAktywny && typeof widoczneNumeryKropek !== 'undefined') {
-    dosygnalizowania = wszystkie.filter(k => widoczneNumeryKropek.has(k.numer));
+    dosygnalizowania = tylkoWiersze.filter(k => widoczneNumeryKropek.has(k.numer));
   }
 
   if (dosygnalizowania.length === 0) {
@@ -8212,25 +8223,29 @@ function pokazListeAudio() {
   const tytulFiltra = filtrAktywny ? ' (w ' + aktualnyFiltrOdleglosci + ' m)' : '';
   let html = '<div style="font-family:\'Cormorant Garamond\',serif;font-size:18px;color:#3a2818;border-bottom:1px solid #a04510;padding-bottom:8px;margin-bottom:12px;">🎧 Punkty audio (' + dosygnalizowania.length + ')' + tytulFiltra + '</div>';
   dosygnalizowania.forEach(k => {
-    const opis = k.opis ? String(k.opis).replace(/</g, '&lt;').replace(/>/g, '&gt;') : 'Punkt ' + k.numer;
+    const opis = k.opis ? String(k.opis).replace(/</g, '&lt;').replace(/>/g, '&gt;') : 'Wiersz ' + k.numer;
     html += '<div class="kropka-karta-audio" data-lat="' + k.lat + '" data-lng="' + k.lng + '" data-numer="' + k.numer + '" ';
-    html += 'style="background:#fff8eb;border:1px solid rgba(160,69,16,0.2);border-left:3px solid #7c3aed;padding:10px 12px;margin-bottom:8px;border-radius:4px;font-family:\'EB Garamond\',serif;font-size:14px;color:#3a2818;cursor:pointer;transition:all 0.2s ease;">';
-    html += '<strong>' + k.numer + '</strong> &mdash; ' + opis;
+    html += 'style="background:#fff8eb;border:1px solid rgba(160,69,16,0.2);border-left:3px solid #7c3aed;padding:10px 12px;margin-bottom:8px;border-radius:4px;font-family:\'EB Garamond\',serif;font-size:14px;color:#3a2818;cursor:pointer;transition:all 0.2s ease;display:flex;align-items:center;gap:8px;">';
+    html += '<strong style="color:#7c3aed;min-width:24px">' + k.numer + '</strong><span style="flex:1">' + opis + '</span><span style="color:#7c3aed;font-size:13px">▶</span>';
     html += '</div>';
   });
   lista.innerHTML = html;
 
-  // Dorzucam event listenery PO wstrzyknięciu HTML (bezpieczniej niż onclick w stringu).
-  // Klik na kartę = wyśrodkuj mapę na tym punkcie.
+  // Klik na kartę = uruchom auto-prezentację od tego wiersza (jak w mobile menu).
   lista.querySelectorAll('.kropka-karta-audio').forEach(karta => {
     karta.addEventListener('click', () => {
-      const lat = parseFloat(karta.dataset.lat);
-      const lng = parseFloat(karta.dataset.lng);
-      if (isNaN(lat) || isNaN(lng)) return;
-      // flyTo = płynny lot kamery; jeśli mapa nie istnieje (nie powinno się zdarzyć) - cicho pomiń
-      if (typeof mapa !== 'undefined' && mapa && typeof mapa.flyTo === 'function') {
-        const obecnyZoom = mapa.getZoom();
-        mapa.flyTo([lat, lng], Math.max(obecnyZoom, 17), { duration: 1.0 });
+      const numer = parseInt(karta.dataset.numer);
+      if (isNaN(numer)) return;
+      // Uruchom odtwarzanie wiersza - jak z menu hamburgera
+      if (typeof odtworzWierszZMenu === 'function') {
+        odtworzWierszZMenu(numer);
+      } else {
+        // Fallback - tylko wyśrodkuj
+        const lat = parseFloat(karta.dataset.lat);
+        const lng = parseFloat(karta.dataset.lng);
+        if (typeof mapa !== 'undefined' && mapa && !isNaN(lat) && !isNaN(lng)) {
+          mapa.flyTo([lat, lng], Math.max(mapa.getZoom(), 17), { duration: 1.0 });
+        }
       }
     });
     // Hover - delikatne podświetlenie
@@ -13358,6 +13373,10 @@ function zobaczOpisPelny() {
 // Uruchom obsługę URL po pełnym załadowaniu wszystkich miejsc
 window.addEventListener('load', () => {
   setTimeout(obsluzParametrUrl, 200);
+  // Wypełnij listę punktów audio w prawym sidebarze (dla zwykłych userów też!)
+  setTimeout(() => {
+    if (typeof pokazListeAudio === 'function') pokazListeAudio();
+  }, 250);
 });
 
 // ============== SKANER QR ==============
