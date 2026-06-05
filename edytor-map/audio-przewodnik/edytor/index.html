@@ -5942,9 +5942,97 @@ html.tryb-admin #editorPasek { display: block; }
   html.admin-zablokowany body{ overflow:hidden !important; }
 }
 
+/* === LICZNIK POBRAŃ (prawy górny róg) === */
+.licznik-pobran{
+  position:fixed;
+  top:14px;
+  right:14px;
+  z-index:9999;
+  background:linear-gradient(180deg,rgba(40,40,55,0.92) 0%,rgba(20,20,30,0.95) 100%);
+  border:1.5px solid rgba(255,154,61,0.5);
+  border-radius:12px;
+  padding:10px 16px;
+  display:flex;align-items:center;gap:10px;
+  backdrop-filter:blur(10px);
+  box-shadow:0 6px 20px rgba(0,0,0,0.4),0 0 18px rgba(255,154,61,0.15);
+  font-family:'JetBrains Mono',Consolas,monospace;
+  font-size:13px;
+  color:#e8e8ea;
+  user-select:none;
+  pointer-events:none;
+}
+.licznik-pobran .lp-ikona{font-size:16px;line-height:1}
+.licznik-pobran .lp-label{
+  color:#888;letter-spacing:1px;font-weight:700;
+  text-transform:uppercase;font-size:10px;
+}
+.licznik-pobran .lp-liczba{
+  color:#ff9a3d;font-weight:700;font-size:15px;
+  min-width:20px;text-align:right;
+}
+@media (max-width:600px){
+  .licznik-pobran{top:10px;right:10px;padding:8px 12px}
+  .licznik-pobran .lp-label{font-size:9px}
+  .licznik-pobran .lp-liczba{font-size:13px}
+}
+
 </style>
+
+<!-- === FIREBASE: licznik pobrań HTML === -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script>
+// Inicjalizacja Firebase (projekt Księga Ramzi)
+(function initFirebaseLicznik(){
+  const firebaseConfig = {
+    apiKey: "AIzaSyDRR3vSfgpEmbpZz_-VldMTnTHoXRfuGKg",
+    authDomain: "ksiega-ramzi.firebaseapp.com",
+    projectId: "ksiega-ramzi",
+    storageBucket: "ksiega-ramzi.firebasestorage.app",
+    messagingSenderId: "400735142662",
+    appId: "1:400735142662:web:0b52a57f4fedf367839487"
+  };
+  try {
+    if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+    window.__db_licznik = firebase.firestore();
+  } catch(e) { console.warn('Firebase init:', e); }
+})();
+
+// Pobranie aktualnej wartości i wstawienie do widgetu
+async function odswiezLicznikPobran() {
+  try {
+    if (!window.__db_licznik) return;
+    const doc = await window.__db_licznik.collection('liczniki')
+      .doc('wygenerowane-audio-total').get();
+    const n = doc.exists ? (doc.data().count || 0) : 0;
+    const el = document.getElementById('lp-liczba');
+    if (el) el.textContent = n.toLocaleString('pl-PL');
+  } catch(e) { console.warn('Licznik pobrań odczyt:', e); }
+}
+
+// Inkrement po pobraniu nowego index.html
+async function zliczPobranieHTML() {
+  try {
+    if (!window.__db_licznik) return;
+    await window.__db_licznik.collection('liczniki')
+      .doc('wygenerowane-audio-total')
+      .set({ count: firebase.firestore.FieldValue.increment(1) }, { merge: true });
+    odswiezLicznikPobran();
+  } catch(e) { console.warn('Licznik pobrań inkrement:', e); }
+}
+
+document.addEventListener('DOMContentLoaded', odswiezLicznikPobran);
+</script>
+
 </head>
 <body>
+
+<!-- LICZNIK POBRAŃ (prawy górny róg) -->
+<div class="licznik-pobran" title="Łączna liczba pobranych map">
+  <span class="lp-ikona">📥</span>
+  <span class="lp-label">Pobrań</span>
+  <span class="lp-liczba" id="lp-liczba">—</span>
+</div>
 
 <!-- ============================================================
      === BLOKADA ADMINA NA MAŁYM EKRANIE ========================
@@ -11384,6 +11472,9 @@ async function pobierzNowyIndex() {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+
+    // Zlicz pobranie w Firebase (widget w prawym górnym się odświeży)
+    zliczPobranieHTML();
 
     // Po pobraniu - zaproponuj wyczyszczenie listy zaplanowanych + zmian miejsc
     setTimeout(() => {
