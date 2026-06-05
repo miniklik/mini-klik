@@ -710,6 +710,18 @@ body.dotyk .tryb-info.znika{opacity:0}
 }
 .pin-miejsce-inner:hover{transform:scale(1.12)}
 
+/* Przyciski edycji/usuwania na karcie listy (admin) */
+.miejsce-card{position:relative}
+.karta-akcje{display:flex;gap:6px;margin-top:8px;justify-content:flex-end}
+.karta-akcja-btn{
+  background:rgba(0,0,0,0.25);border:1.5px solid rgba(243,205,130,0.4);
+  color:var(--zloto-2);border-radius:7px;padding:5px 10px;cursor:pointer;
+  font-size:15px;line-height:1;transition:all 0.15s;
+}
+.karta-akcja-btn:hover{background:var(--zloto);color:var(--tlo)}
+.karta-akcja-usun{border-color:rgba(230,120,110,0.5);color:#f3cdc8}
+.karta-akcja-usun:hover{background:#a04030;color:#fff}
+
 /* ===== TRASA - przyciski pod opisem + etykieta na mapie ===== */
 .route-buttons{display:flex;gap:10px;margin-top:0;flex-wrap:wrap}
 #detailTrasa{padding:0 0 2px}
@@ -941,6 +953,10 @@ body.dotyk.tryb-admin .menu-edytor{display:block}
 .ed-btn-html{background:linear-gradient(180deg,#3d5a32,#243a1f);border-color:rgba(120,200,110,0.6);color:#d8f3c8}
 .ed-btn-reset{background:linear-gradient(180deg,#5a2a28,#381a18);border-color:rgba(230,120,110,0.6);color:#f3cdc8}
 .ed-btn-miejsce{background:linear-gradient(180deg,#3a5a9c,#243a6c);border-color:rgba(120,160,230,0.7);color:#dce8ff}
+/* Rysuj - sam kolorowy napis z ramką, bez wypełnienia */
+#btnRysuj{background:transparent;color:var(--zloto-2);border-color:var(--obrys)}
+#btnRysuj:hover{background:rgba(224,169,85,0.12)}
+#btnRysuj.aktywny{background:linear-gradient(180deg,var(--zloto),#b8821f);color:var(--tlo);border-color:var(--zloto-2)}
 .opcj{font-family:'EB Garamond',serif;font-size:11px;color:var(--tekst-2);font-style:italic;text-transform:none;letter-spacing:0}
 
 /* Przycisk Tytuł i opis */
@@ -1097,11 +1113,26 @@ body.dotyk .sidebar-prawy::after{display:none}
 /* etykieta tekstowa na mapie */
 .rysunek-etykieta-marker{background:transparent!important;border:none!important}
 .rysunek-etykieta{
-  background:linear-gradient(180deg,var(--panel-2),var(--panel));
-  border:1.5px solid var(--obrys);border-radius:6px;
-  padding:5px 11px;font-family:'EB Garamond',serif;font-size:14px;font-weight:600;
-  box-shadow:0 2px 8px rgba(0,0,0,0.5);white-space:nowrap;cursor:default;
+  background:transparent;
+  border:1.5px solid currentColor;border-radius:6px;
+  padding:5px 11px;font-family:'EB Garamond',serif;font-size:14px;font-weight:700;
+  text-shadow:0 1px 3px rgba(0,0,0,0.9),0 0 6px rgba(0,0,0,0.7);
+  white-space:nowrap;cursor:default;
+  transform-origin:top left;display:inline-block;
+  transition:transform 0.18s ease-out;
 }
+.rysunek-etykieta.bez-anim{ transition:none; }
+.rysunek-etykieta.zazn{ box-shadow:0 0 0 1px rgba(243,205,130,0.55), 0 0 10px rgba(243,205,130,0.4); }
+/* uchwyty tekstu - 🔵 skala, 🟠 obrót */
+.tekst-uchwyt-marker{background:transparent!important;border:none!important}
+.tekst-uchwyt{
+  width:18px;height:18px;border-radius:50%;border:3px solid #fff;
+  box-shadow:0 2px 6px rgba(0,0,0,0.45);cursor:grab;box-sizing:border-box;
+  display:flex;align-items:center;justify-content:center;font-size:9px;
+}
+.tekst-uchwyt:active{cursor:grabbing}
+.tekst-uchwyt.skala{background:#2f6db0}
+.tekst-uchwyt.obrot{background:#d98a2b}
 /* uchwyty strzałki - przeciągane (ogon zielony, grot czerwony) */
 .strzalka-uchwyt-marker{background:transparent!important;border:none!important}
 .strzalka-uchwyt{
@@ -1444,11 +1475,11 @@ body.dotyk .sidebar-prawy::after{display:none}
         </div>
         <div class="menu-kreska"></div>
         <div class="menu-stack">
-          <button onclick="menuDodaj('yt')">🎬 Dodaj film YouTube</button>
-          <button onclick="menuDodaj('360')">📷 Dodaj zdjęcie</button>
-          <button onclick="menuDodaj('audio')">🎧 Dodaj kropkę audio</button>
-          <button onclick="menuDodaj('rysuj')">🎨 Rysuj na mapie</button>
-          <button onclick="menuDodaj('miejsce')">🏛️ Miejsce (wszystko naraz)</button>
+          <button onclick="menuDodaj('yt')" data-tryb="yt">🎬 Dodaj film YouTube</button>
+          <button onclick="menuDodaj('360')" data-tryb="360">📷 Dodaj zdjęcie</button>
+          <button onclick="menuDodaj('audio')" data-tryb="audio">🎧 Dodaj kropkę audio</button>
+          <button onclick="menuDodaj('rysuj')" data-tryb="rysuj">🎨 Rysuj na mapie</button>
+          <button onclick="menuDodaj('miejsce')" data-tryb="miejsce">🏛️ Miejsce (wszystko naraz)</button>
         </div>
       </div>
 
@@ -2125,28 +2156,55 @@ var trybDodawaniaYT = false;
 let kliknietaPozycja = null;
 
 function wlaczTrybDodawaniaYT() {
-  // wyłącz tryb 360 jeśli był aktywny
-  if (trybDodawania360) { trybDodawania360 = false;
-    const b360 = document.getElementById('btn360'); if (b360) b360.classList.remove('aktywny'); }
-  trybDodawaniaYT = !trybDodawaniaYT;
-  const btn = document.getElementById('btnYT');
-  const info = document.getElementById('trybInfo');
-  btn.classList.toggle('aktywny', trybDodawaniaYT);
-  syncMenuPrzyciski();
-  if (trybDodawaniaYT) {
-    pokazInfo('🎬 Kliknij na mapie miejsce, gdzie dodać film YouTube');
-  } else {
-    ukryjInfo();
-  }
+  const bylWlaczony = trybDodawaniaYT;
+  wylaczWszystkieTryby();
+  trybDodawaniaYT = !bylWlaczony;
+  syncPrzyciski();
+  if (trybDodawaniaYT) pokazInfo('🎬 Kliknij na mapie miejsce, gdzie dodać film YouTube');
+  else ukryjInfo();
 }
 
-// Synchronizuj podświetlenie przycisków w menu mobilnym z trybami
-function syncMenuPrzyciski() {
-  const btns = document.querySelectorAll('.menu-edytor .menu-stack button');
-  if (btns[0]) btns[0].classList.toggle('aktywny', !!trybDodawaniaYT);
-  if (btns[1]) btns[1].classList.toggle('aktywny', !!trybDodawania360);
-  if (btns[2]) btns[2].classList.toggle('aktywny', !!trybDodawaniaAudio);
+// Wyłącza WSZYSTKIE tryby edytora i czyści podświetlenia (pasek + menu).
+// Wywoływane na początku każdego włączania - gwarantuje że aktywny jest tylko jeden.
+function wylaczWszystkieTryby() {
+  trybDodawaniaYT = false;
+  trybDodawania360 = false;
+  trybDodawaniaAudio = false;
+  trybDodawaniaMiejsce = false;
+  // rysowanie: jeśli było włączone, schowaj panel poprawnie
+  if (typeof trybRysowaniaWlaczony !== 'undefined' && trybRysowaniaWlaczony) {
+    trybRysowaniaWlaczony = false;
+    const panel = document.getElementById('panelRysowania');
+    if (panel) panel.classList.remove('visible');
+    if (typeof wybierzNarzedzie === 'function') wybierzNarzedzie(null);
+    if (mapa.doubleClickZoom) mapa.doubleClickZoom.enable();
+  }
+  ukryjInfo();
+  syncPrzyciski();
 }
+
+// Podświetla DOKŁADNIE jeden aktywny tryb na pasku i w menu (albo żaden).
+function syncPrzyciski() {
+  const stan = {
+    yt: !!trybDodawaniaYT,
+    '360': !!trybDodawania360,
+    audio: !!trybDodawaniaAudio,
+    rysuj: !!(typeof trybRysowaniaWlaczony !== 'undefined' && trybRysowaniaWlaczony),
+    miejsce: !!trybDodawaniaMiejsce
+  };
+  // pasek (przyciski po ID)
+  const mapaBtn = { yt:'btnYT', '360':'btn360', audio:'btnAudio', rysuj:'btnRysuj', miejsce:'btnMiejsce' };
+  Object.keys(mapaBtn).forEach(k => {
+    const b = document.getElementById(mapaBtn[k]);
+    if (b) b.classList.toggle('aktywny', stan[k]);
+  });
+  // menu telefonu (przyciski po data-tryb)
+  document.querySelectorAll('.menu-edytor .menu-stack button[data-tryb]').forEach(b => {
+    b.classList.toggle('aktywny', !!stan[b.dataset.tryb]);
+  });
+}
+// alias dla starych wywołań
+function syncMenuPrzyciski() { syncPrzyciski(); }
 
 // Klik w mapę w trybie dodawania -> zapamiętaj pozycję, otwórz panel
 mapa.on('click', (e) => {
@@ -2472,19 +2530,12 @@ function edytujYT(klucz) {
 var trybDodawania360 = false;
 
 function wlaczTrybDodawania360() {
-  // wyłącz tryb YT jeśli był aktywny
-  if (trybDodawaniaYT) { trybDodawaniaYT = false;
-    document.getElementById('btnYT').classList.remove('aktywny'); }
-  trybDodawania360 = !trybDodawania360;
-  const btn = document.getElementById('btn360');
-  const info = document.getElementById('trybInfo');
-  btn.classList.toggle('aktywny', trybDodawania360);
-  syncMenuPrzyciski();
-  if (trybDodawania360) {
-    pokazInfo('🌐 Kliknij na mapie miejsce, gdzie dodać panoramę 360°');
-  } else {
-    ukryjInfo();
-  }
+  const bylWlaczony = trybDodawania360;
+  wylaczWszystkieTryby();
+  trybDodawania360 = !bylWlaczony;
+  syncPrzyciski();
+  if (trybDodawania360) pokazInfo('📷 Kliknij na mapie miejsce, gdzie dodać zdjęcie');
+  else ukryjInfo();
 }
 
 mapa.on('click', (e) => {
@@ -2730,13 +2781,10 @@ let wybranyFalaZasieg = 2000;
 let aktualneAudio = null;  // obiekt Audio aktualnie grający
 
 function wlaczTrybDodawaniaAudio() {
-  // wyłącz inne tryby
-  if (trybDodawaniaYT) { trybDodawaniaYT = false; const b=document.getElementById('btnYT'); if(b) b.classList.remove('aktywny'); }
-  if (trybDodawania360) { trybDodawania360 = false; const b=document.getElementById('btn360'); if(b) b.classList.remove('aktywny'); }
-  trybDodawaniaAudio = !trybDodawaniaAudio;
-  const btn = document.getElementById('btnAudio');
-  if (btn) btn.classList.toggle('aktywny', trybDodawaniaAudio);
-  syncMenuPrzyciski();
+  const bylWlaczony = trybDodawaniaAudio;
+  wylaczWszystkieTryby();
+  trybDodawaniaAudio = !bylWlaczony;
+  syncPrzyciski();
   if (trybDodawaniaAudio) pokazInfo('🎧 Kliknij na mapie miejsce, gdzie dodać kropkę audio');
   else ukryjInfo();
 }
@@ -2944,25 +2992,16 @@ let warstwaRysunkow = L.layerGroup();
 let aktualnaLinia = null;            // { punkty:[...], kolor, tymczasowa }
 
 function toggleRysowanie() {
-  // wyłącz tryby dodawania punktów
-  if (trybDodawaniaYT) wlaczTrybDodawaniaYT();
-  if (trybDodawania360) wlaczTrybDodawania360();
-  if (trybDodawaniaAudio) wlaczTrybDodawaniaAudio();
-
-  trybRysowaniaWlaczony = !trybRysowaniaWlaczony;
+  const bylWlaczony = trybRysowaniaWlaczony;
+  wylaczWszystkieTryby();   // zeruje też trybRysowaniaWlaczony i chowa panel
   const panel = document.getElementById('panelRysowania');
-  const btn = document.getElementById('btnRysuj');
-  if (trybRysowaniaWlaczony) {
-    panel.classList.add('visible');
-    if (btn) btn.classList.add('aktywny');
+  if (!bylWlaczony) {
+    trybRysowaniaWlaczony = true;
+    if (panel) panel.classList.add('visible');
     warstwaRysunkow.addTo(mapa);
     if (mapa.doubleClickZoom) mapa.doubleClickZoom.disable();
-  } else {
-    panel.classList.remove('visible');
-    if (btn) btn.classList.remove('aktywny');
-    wybierzNarzedzie(null);
-    if (mapa.doubleClickZoom) mapa.doubleClickZoom.enable();
   }
+  syncPrzyciski();
   if (typeof zamknijPanel === 'function') zamknijPanel();
 }
 
@@ -2974,6 +3013,7 @@ function wybierzNarzedzie(narz) {
   aktualnaLinia = null;
   strzalkaStart = null;
   if (typeof odznaczStrzalke === 'function') odznaczStrzalke();
+  if (typeof odznaczTekst === 'function') odznaczTekst();
   aktualneNarzedzie = narz;
   document.querySelectorAll('#panelRysowania .btn-narzedzie[data-narzedzie]').forEach(b => {
     b.classList.toggle('active', b.dataset.narzedzie === narz);
@@ -3032,6 +3072,77 @@ function zaznaczStrzalke(r) {
   utworzUchwyt('koniec');
 }
 
+// --- TEKST: zaznaczanie + uchwyty skali (🔵) i obrotu (🟠) ---
+let zaznaczonyTekst = null;
+let tekstUchwyty = [];
+
+function odznaczTekst() {
+  zaznaczonyTekst = null;
+  tekstUchwyty.forEach(u => { try { mapa.removeLayer(u); } catch(e){} });
+  tekstUchwyty = [];
+}
+
+function zaznaczTekst(r) {
+  odznaczTekst();
+  zaznaczonyTekst = r;
+  przerysujRysunki();   // doda klasę .zazn
+
+  // Skala efektywna (taka jak w renderze): skala użytkownika × współczynnik zoomu
+  function skalaEf() {
+    const zoomBaza = (r.zoomBazowy != null) ? r.zoomBazowy : mapa.getZoom();
+    return (r.skala || 1) * Math.pow(2, mapa.getZoom() - zoomBaza);
+  }
+  // Punkt kotwicy etykiety (lewy-górny róg) w pikselach ekranu
+  function pozPx() { return mapa.latLngToContainerPoint(L.latLng(r.pozycja[0], r.pozycja[1])); }
+  // Rozmiar widocznej etykiety w px (uwzględnia skalę efektywną)
+  function rozmiar() {
+    const baza = 14 * skalaEf();
+    const szer = Math.max(40 * skalaEf(), (r.tresc || '').length * baza * 0.58 + 22 * skalaEf());
+    const wys  = baza * 1.5 + 10 * skalaEf();
+    return { szer, wys };
+  }
+
+  function utworzUchwyt(rodzaj) {
+    const p0 = pozPx();
+    const { szer, wys } = rozmiar();
+    // skala = prawy-dolny róg, obrót = nad prawym-górnym rogiem
+    const offset = rodzaj === 'skala' ? { x: szer, y: wys } : { x: szer, y: -22 };
+    const ll = mapa.containerPointToLatLng(L.point(p0.x + offset.x, p0.y + offset.y));
+    const uchwyt = L.marker(ll, {
+      draggable: true,
+      icon: L.divIcon({
+        className: 'tekst-uchwyt-marker',
+        html: '<div class="tekst-uchwyt ' + rodzaj + '">' + (rodzaj === 'obrot' ? '↻' : '⤢') + '</div>',
+        iconSize: [22,22], iconAnchor: [11,11]
+      }),
+      zIndexOffset: 1100
+    });
+    uchwyt.on('drag', (e) => {
+      const p = pozPx(); const { szer, wys } = rozmiar();
+      const centerPx = L.point(p.x + szer/2, p.y + wys/2);
+      const myszPx = mapa.latLngToContainerPoint(e.target.getLatLng());
+      if (rodzaj === 'obrot') {
+        const kat = Math.atan2(myszPx.y - centerPx.y, myszPx.x - centerPx.x) * 180 / Math.PI;
+        r.obrot = Math.round(kat + 90);   // 0 = napis poziomo
+      } else {
+        // Połowa przekątnej napisu przy skali 1 (bez skali użytkownika), w bieżącym zoomie
+        const dyst = Math.hypot(myszPx.x - centerPx.x, myszPx.y - centerPx.y);
+        const polPrzekatnej = Math.hypot(szer, wys) / 2 / (r.skala || 1);
+        r.skala = Math.max(0.3, Math.min(8, dyst / polPrzekatnej));
+      }
+      przerysujRysunki();
+    });
+    uchwyt.on('dragend', () => {
+      zapiszMiejsca();
+      if (zaznaczonyTekst === r) zaznaczTekst(r);   // przelicz pozycje uchwytów
+    });
+    uchwyt.addTo(mapa);
+    tekstUchwyty.push(uchwyt);
+  }
+  utworzUchwyt('skala');
+  utworzUchwyt('obrot');
+}
+
 // Klik w mapę podczas rysowania
 mapa.on('click', (e) => {
   if (!trybRysowaniaWlaczony || !aktualneNarzedzie) return;
@@ -3068,12 +3179,22 @@ mapa.on('click', (e) => {
     document.getElementById('panelRysowaniaInfo').textContent = 'Przeciągaj uchwyty: 🔴 grot obraca i wydłuża, 🟢 ogon przesuwa początek.';
   }
   else if (aktualneNarzedzie === 'tekst') {
+    // Jeśli jakiś napis jest zaznaczony - klik w pustą mapę go odznacza (nie tworzy nowego)
+    if (zaznaczonyTekst) {
+      odznaczTekst();
+      przerysujRysunki();
+      document.getElementById('panelRysowaniaInfo').textContent = 'Kliknij mapę aby wstawić napis, lub w istniejący aby go edytować.';
+      return;
+    }
     const tresc = prompt('Wpisz tekst do wstawienia na mapie:', '');
     if (tresc && tresc.trim()) {
-      miejsca.push({ klucz:'rys-'+Date.now(), typ:'rysunek', ksztalt:'tekst',
-        pozycja: punkt, tresc: tresc.trim(), kolor });
+      const nowy = { klucz:'rys-'+Date.now(), typ:'rysunek', ksztalt:'tekst',
+        pozycja: punkt, tresc: tresc.trim(), kolor, obrot:0, skala:1, zoomBazowy: mapa.getZoom() };
+      miejsca.push(nowy);
       zapiszMiejsca();
       przerysujRysunki();
+      zaznaczTekst(nowy);
+      document.getElementById('panelRysowaniaInfo').textContent = 'Przeciągaj: 🔵 rozmiar, 🟠 obrót. Dwuklik = zmień tekst.';
     }
   }
 });
@@ -3129,14 +3250,34 @@ function przerysujRysunki() {
       });
     }
     else if (r.ksztalt === 'tekst' && r.pozycja && r.tresc) {
+      const zazn = (r === zaznaczonyTekst);
+      const obrot = r.obrot || 0;
+      // Skala efektywna = skala użytkownika × współczynnik zoomu.
+      // Dzięki temu napis trzyma się mapy: oddalasz mapę -> napis maleje, przybliżasz -> rośnie.
+      const zoomBaza = (r.zoomBazowy != null) ? r.zoomBazowy : mapa.getZoom();
+      const skalaZoom = Math.pow(2, mapa.getZoom() - zoomBaza);
+      const skala = (r.skala || 1) * skalaZoom;
       const ikona = L.divIcon({
         className: 'rysunek-etykieta-marker',
-        html: '<div class="rysunek-etykieta" style="border-color:' + (r.kolor||'#e0a955') + ';color:' + (r.kolor||'#e0a955') + '">' + escapeHTML(r.tresc) + '</div>',
+        html: '<div class="rysunek-etykieta' + (zazn ? ' zazn bez-anim' : '') + '" style="border-color:' + (r.kolor||'#e0a955')
+          + ';color:' + (r.kolor||'#e0a955')
+          + ';transform:rotate(' + obrot + 'deg) scale(' + skala + ')">'
+          + escapeHTML(r.tresc) + '</div>',
         iconSize: null, iconAnchor: [0,0]
       });
       const et = L.marker(r.pozycja, { icon: ikona }).addTo(warstwaRysunkow);
+      et._rysTekst = r;           // referencja danych - do płynnego skalowania przy zoomie
+      et._rysObrot = obrot;
       et.on('click', (e) => {
-        if (aktualneNarzedzie === 'gumka') { L.DomEvent.stopPropagation(e); usunRysunek(r); }
+        if (aktualneNarzedzie === 'gumka') { L.DomEvent.stopPropagation(e); usunRysunek(r); return; }
+        if (aktualneNarzedzie === 'tekst') { L.DomEvent.stopPropagation(e); zaznaczTekst(r); }
+      });
+      et.on('dblclick', (e) => {
+        if (aktualneNarzedzie === 'tekst') {
+          L.DomEvent.stopPropagation(e);
+          const nowa = prompt('Edytuj tekst:', r.tresc);
+          if (nowa !== null && nowa.trim()) { r.tresc = nowa.trim(); zapiszMiejsca(); zaznaczTekst(r); }
+        }
       });
     }
   });
@@ -3144,6 +3285,7 @@ function przerysujRysunki() {
 
 function usunRysunek(r) {
   if (r === zaznaczonaStrzalka) odznaczStrzalke();
+  if (r === zaznaczonyTekst) odznaczTekst();
   miejsca = miejsca.filter(x => x !== r);
   zapiszMiejsca();
   przerysujRysunki();
@@ -3158,8 +3300,27 @@ function wyczyscRysunki() {
   przerysujRysunki();
 }
 
+// Płynne skalowanie napisów W TRAKCIE animacji zoomu (Leaflet zna docelowy zoom)
+mapa.on('zoomanim', (e) => {
+  const docelowyZoom = e.zoom;
+  warstwaRysunkow.eachLayer((w) => {
+    const r = w._rysTekst;
+    if (!r || !w.getElement) return;
+    const el = w.getElement();
+    if (!el) return;
+    const napis = el.querySelector('.rysunek-etykieta');
+    if (!napis) return;
+    const zoomBaza = (r.zoomBazowy != null) ? r.zoomBazowy : docelowyZoom;
+    const skala = (r.skala || 1) * Math.pow(2, docelowyZoom - zoomBaza);
+    napis.style.transform = 'rotate(' + (w._rysObrot || 0) + 'deg) scale(' + skala + ')';
+  });
+});
+
 // Przerysuj rysunki przy zmianie skali (grot zależy od pikseli)
-mapa.on('zoomend', () => { if (typeof przerysujRysunki === 'function') przerysujRysunki(); });
+mapa.on('zoomend', () => {
+  if (typeof przerysujRysunki === 'function') przerysujRysunki();
+  if (zaznaczonyTekst) zaznaczTekst(zaznaczonyTekst);   // przesuń uchwyty tekstu
+});
 
 // ============================================================
 // BOGATE MIEJSCE - jeden punkt łączący YT + foto + audio + opis.
@@ -3172,14 +3333,10 @@ let mscMaMp3 = 'nie';         // 'nie' | 'tak'
 let mscZasiegVal = 50;
 
 function wlaczTrybDodawaniaMiejsce() {
-  if (trybDodawaniaYT) wlaczTrybDodawaniaYT();
-  if (trybDodawania360) wlaczTrybDodawania360();
-  if (trybDodawaniaAudio) wlaczTrybDodawaniaAudio();
-  if (trybRysowaniaWlaczony) toggleRysowanie();
-
-  trybDodawaniaMiejsce = !trybDodawaniaMiejsce;
-  const btn = document.getElementById('btnMiejsce');
-  if (btn) btn.classList.toggle('aktywny', trybDodawaniaMiejsce);
+  const bylWlaczony = trybDodawaniaMiejsce;
+  wylaczWszystkieTryby();
+  trybDodawaniaMiejsce = !bylWlaczony;
+  syncPrzyciski();
   if (trybDodawaniaMiejsce) pokazInfo('🏛️ Kliknij na mapie miejsce, gdzie dodać punkt');
   else ukryjInfo();
   if (typeof zamknijPanel === 'function') zamknijPanel();
@@ -3540,6 +3697,36 @@ function przelaczFiltr(kat) {
   renderujMiejsca();
 }
 
+// Dodaj przyciski 🛠 Edytuj / 🗑 Usuń do karty (tylko admin)
+function dodajAkcjeAdmina(card, m) {
+  if (!isAdmin) return;
+  const akcje = document.createElement('div');
+  akcje.className = 'karta-akcje';
+  akcje.innerHTML = `
+    <button class="karta-akcja-btn" title="Edytuj" onclick="event.stopPropagation();edytujZListy('${m.klucz}')">🛠</button>
+    <button class="karta-akcja-btn karta-akcja-usun" title="Usuń" onclick="event.stopPropagation();usunZListy('${m.klucz}')">🗑</button>`;
+  card.appendChild(akcje);
+}
+// Edytuj punkt wg typu (wywoływane z listy)
+function edytujZListy(klucz) {
+  const m = miejsca.find(x => x.klucz === klucz);
+  if (!m) return;
+  if (typeof zamknijPanel === 'function') zamknijPanel();   // schowaj hamburger
+  if (m.typ === 'yt') edytujYT(klucz);
+  else if (m.typ === '360') edytuj360(klucz);
+  else if (m.typ === 'audio') edytujAudio(klucz);
+  else if (m.typ === 'miejsce') edytujMiejsce(klucz);
+}
+// Usuń punkt z potwierdzeniem
+function usunZListy(klucz) {
+  const m = miejsca.find(x => x.klucz === klucz);
+  if (!m) return;
+  if (!confirm('Usunąć „' + (m.nazwa || 'ten punkt') + '"?\n\nTej operacji nie można cofnąć.')) return;
+  miejsca = miejsca.filter(x => x.klucz !== klucz);
+  zapiszMiejsca();
+  renderujMiejsca();
+}
+
 function renderujMiejsca() {
   // usuń stare markery
   markery.forEach(mk => { try { mapa.removeLayer(mk); } catch(e){} });
@@ -3583,6 +3770,7 @@ function renderujMiejsca() {
         setTimeout(() => { mapaProgramowoPrzesuwana = false; }, 1100);
         if (typeof zamknijPanel === 'function') zamknijPanel();
       };
+      dodajAkcjeAdmina(card, m);
       lista.appendChild(card);
     }
 
@@ -3605,6 +3793,7 @@ function renderujMiejsca() {
         setTimeout(() => { mapaProgramowoPrzesuwana = false; }, 1100);
         if (typeof zamknijPanel === 'function') zamknijPanel();
       };
+      dodajAkcjeAdmina(card, m);
       lista.appendChild(card);
     }
 
@@ -3632,6 +3821,7 @@ function renderujMiejsca() {
         setTimeout(() => { mapaProgramowoPrzesuwana = false; }, 1100);
         if (typeof zamknijPanel === 'function') zamknijPanel();
       };
+      dodajAkcjeAdmina(card, m);
       lista.appendChild(card);
     }
 
@@ -3657,6 +3847,7 @@ function renderujMiejsca() {
         setTimeout(() => { mapaProgramowoPrzesuwana = false; }, 1100);
         if (typeof zamknijPanel === 'function') zamknijPanel();
       };
+      dodajAkcjeAdmina(card, m);
       lista.appendChild(card);
     }
   });
