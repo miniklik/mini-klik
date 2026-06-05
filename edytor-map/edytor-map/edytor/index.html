@@ -687,6 +687,11 @@ body.dotyk .tryb-info.znika{opacity:0}
   transition:transform 0.15s;
 }
 .pin-audio-inner:hover{transform:scale(1.12)}
+/* Kropka już odsłuchana w tej sesji - złoto/żółta zamiast fioletowej */
+.pin-audio-inner.odsluchana{
+  background:linear-gradient(180deg,#f3cd82,#d99b2b);
+  border-color:#fff8e6;color:#5a3d0a;
+}
 /* Tryb FALA - pulsujące pierścienie wokół kropki */
 .pin-audio-fala::before,.pin-audio-fala::after{
   content:'';position:absolute;top:50%;left:50%;
@@ -788,6 +793,35 @@ body.dotyk .tryb-info.znika{opacity:0}
   width:38px;height:38px;border-radius:50%;cursor:pointer;font-size:20px;
 }
 .audio-player-zamknij:hover{background:var(--zloto);color:var(--tlo)}
+
+/* ===== SZUFLADKA "Wykryto audio" (wysuwa się z prawej w zasięgu kropki) ===== */
+#szufladaWykryto{
+  position:fixed;top:50%;right:0;transform:translate(110%,-50%);
+  z-index:1200;width:230px;max-width:78vw;
+  background:linear-gradient(180deg,var(--panel),var(--tlo));
+  border:1.5px solid var(--obrys);border-right:none;
+  border-radius:12px 0 0 12px;padding:16px 16px 14px;
+  box-shadow:-4px 4px 22px rgba(0,0,0,0.55);
+  font-family:'EB Garamond',serif;color:var(--tekst);
+  transition:transform 0.45s cubic-bezier(.2,.9,.25,1);
+}
+#szufladaWykryto.visible{transform:translate(0,-50%)}
+#szufladaWykryto .sz-tytul{
+  font-family:'Cinzel',serif;font-size:15px;color:var(--zloto-2);
+  display:flex;align-items:center;gap:7px;margin-bottom:6px;
+}
+#szufladaWykryto .sz-opis{font-size:13px;color:var(--tekst);opacity:0.85;margin-bottom:12px;line-height:1.4}
+#szufladaWykryto .sz-btny{display:flex;gap:8px}
+#szufladaWykryto button{
+  flex:1;padding:9px 0;border-radius:7px;cursor:pointer;
+  font-family:'Cinzel',serif;font-size:14px;font-weight:600;border:1.5px solid var(--obrys);
+}
+#szufladaWykryto .sz-on{background:linear-gradient(180deg,var(--zloto),#b8821f);color:var(--tlo);border-color:var(--zloto-2)}
+#szufladaWykryto .sz-on:hover{filter:brightness(1.08)}
+#szufladaWykryto .sz-off{background:transparent;color:var(--zloto-2)}
+#szufladaWykryto .sz-off:hover{background:rgba(224,169,85,0.15)}
+/* mały znacznik że auto-audio jest włączone (w pasku odtwarzacza) */
+.auto-audio-tag{font-size:11px;color:var(--zloto-2);opacity:0.8;font-style:italic}
 
 /* Kontener panoramy w popupie */
 .popup-360-wrap{
@@ -1525,6 +1559,17 @@ body.dotyk .sidebar-prawy::after{display:none}
   <button class="audio-player-zamknij" onclick="zamknijAudio()" aria-label="Zamknij">×</button>
 </div>
 
+<!-- Szufladka "Wykryto audio" - pojawia się przy pierwszym wejściu w zasięg kropki -->
+<div id="szufladaWykryto" role="dialog" aria-label="Wykryto audio">
+  <div class="sz-tytul">🎧 Wykryto audio</div>
+  <div class="sz-opis">Jesteś w pobliżu nagrania. Odtwarzać automatycznie kolejne punkty po drodze?</div>
+  <div class="sz-btny">
+    <button class="sz-on" onclick="decyzjaSzuflady('on')">Włącz</button>
+    <button class="sz-off" onclick="decyzjaSzuflady('off')">Nie</button>
+  </div>
+</div>
+
+
 <!-- Osadzone miejsca (wypełniane przy "Zapisz HTML"). Pusta tablica = brak. -->
 <script id="daneMiejsc" type="application/json">[]</script>
 <script id="daneStrony" type="application/json">{}</script>
@@ -1679,6 +1724,7 @@ function pokazPozycje(pos) {
 
   aktualizujListeMiejsc();
   aktualizujWidocznoscWysrodkowania();
+  sprawdzKropkiAudio();   // radar: sprawdź wejście w zasięg kropek audio
 }
 
 // Błąd pozycji - "nigdy się nie poddawaj": timeouty (kod 3) ignorujemy.
@@ -1724,12 +1770,14 @@ function togglePozycja() {
     gpsStatus.classList.remove('visible');
     document.querySelectorAll('.miejsce-card .dystans').forEach(d => d.remove());
     aktualizujWidocznoscWysrodkowania();
+    resetRadarAudio();   // wyłączenie nawigacji zeruje radar audio
     return;
   }
 
   // Włącz auto-center przy starcie
   autoCenterAktywny = true;
   aktualizujPrzyciskCenter();
+  resetRadarAudio();   // nowa sesja nawigacji - szufladka znów zapyta
 
   if (!navigator.geolocation) {
     gpsStatus.classList.add('visible');
@@ -2780,6 +2828,125 @@ let wybranyZasiegAudio = 500;
 let wybranyFalaZasieg = 2000;
 let aktualneAudio = null;  // obiekt Audio aktualnie grający
 
+// =====================================================================
+// === RADAR AUDIO: automatyczne odtwarzanie po wejściu w zasięg kropki
+// =====================================================================
+// Działa na zwykłych wpisach miejsca {typ:'audio', pozycja, zasieg, plik}.
+// Przepływ: wejście w zasięg PIERWSZEJ kropki -> szufladka z prawej (Włącz/Nie).
+//   "Włącz" -> auto-odsłuch ON: ta i kolejne kropki grają same po wejściu w zasięg.
+//   "Nie"   -> auto OFF: kropki nadal można kliknąć ręcznie.
+// Każda kropka gra TYLKO RAZ (po pierwszym wejściu w jej zasięg).
+let autoAudioWlaczony = false;        // czy user zgodził się na auto-odsłuch
+let szufladkaJuzPokazana = false;     // szufladka pojawia się raz na sesję nawigacji
+let kropkiOdsluchane = new Set();     // klucze kropek już odtworzonych (blokada powtórki auto)
+let kropkiOdwiedzone = new Set();     // klucze kropek fizycznie odwiedzonych -> KOLOR żółty
+let kropkiWZasiegu = new Set();       // klucze kropek, w których user JEST teraz
+
+// Odległość w metrach między dwoma punktami (Haversine).
+function dystansMetry(lat1, lng1, lat2, lng2) {
+  const R = 6371000;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = Math.sin(dLat/2)**2 +
+            Math.cos(lat1*Math.PI/180) * Math.cos(lat2*Math.PI/180) * Math.sin(dLng/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+// Reset radaru - przy włączaniu/wyłączaniu nawigacji zaczynamy od zera.
+function resetRadarAudio() {
+  autoAudioWlaczony = false;
+  szufladkaJuzPokazana = false;
+  kropkiOdsluchane = new Set();
+  kropkiOdwiedzone = new Set();
+  kropkiWZasiegu = new Set();
+  zamknijSzufladkeWykryto();
+  if (typeof renderujMiejsca === 'function') renderujMiejsca();   // kropki wracają do fioletu
+}
+
+// Wywoływane przy każdej aktualizacji pozycji GPS (z pokazPozycje).
+function sprawdzKropkiAudio() {
+  if (!userPozycja) return;
+  const kropki = miejsca.filter(m => m.typ === 'audio' && Array.isArray(m.pozycja));
+  if (!kropki.length) return;
+
+  const teraz = new Set();
+  for (const k of kropki) {
+    const promien = k.zasieg || 50;
+    const odl = dystansMetry(userPozycja.lat, userPozycja.lng, k.pozycja[0], k.pozycja[1]);
+    // Antydrganie: jeśli już byłem w zasięgu, trzymam jeszcze przez +5 m
+    const margines = kropkiWZasiegu.has(k.klucz) ? 5 : 0;
+    if (odl <= promien + margines) teraz.add(k.klucz);
+  }
+
+  // NOWE wejścia w zasięg
+  let trzebaPrzerysowac = false;
+  for (const klucz of teraz) {
+    if (kropkiWZasiegu.has(klucz)) continue;       // już byłem tu
+    const k = kropki.find(x => x.klucz === klucz);
+
+    // KOLOR: fizyczne wejście w strefę zawsze oznacza kropkę jako odwiedzoną (żółta),
+    // niezależnie od auto on/off. Klik z dystansu tego nie robi.
+    if (!kropkiOdwiedzone.has(klucz)) {
+      kropkiOdwiedzone.add(klucz);
+      trzebaPrzerysowac = true;
+      if (navigator.vibrate) { try { navigator.vibrate(150); } catch(e){} }
+    }
+
+    // Pierwsze wejście w jakąkolwiek strefę w tej sesji -> szufladka (raz)
+    if (!szufladkaJuzPokazana && !autoAudioWlaczony) {
+      szufladkaJuzPokazana = true;
+      pokazSzufladkeWykryto();
+      continue;   // czekamy na decyzję usera; kropka już oznaczona kolorem powyżej
+    }
+
+    // Auto włączony -> graj tę kropkę raz (pomiń kropki bez pliku - bez alertu w terenie)
+    if (autoAudioWlaczony && !kropkiOdsluchane.has(klucz)) {
+      kropkiOdsluchane.add(klucz);
+      if (k && k.plik) odtworzAudio(k);
+    }
+  }
+
+  if (trzebaPrzerysowac && typeof renderujMiejsca === 'function') renderujMiejsca();
+  kropkiWZasiegu = teraz;
+}
+
+// Szufladka "Wykryto audio" - pokaż / ukryj
+function pokazSzufladkeWykryto() {
+  const sz = document.getElementById('szufladaWykryto');
+  if (sz) sz.classList.add('visible');
+}
+function zamknijSzufladkeWykryto() {
+  const sz = document.getElementById('szufladaWykryto');
+  if (sz) sz.classList.remove('visible');
+}
+
+// Decyzja z szuflady: 'on' -> włącz auto i zagraj kropkę w której stoję; 'off' -> tylko zamknij
+function decyzjaSzuflady(wybor) {
+  zamknijSzufladkeWykryto();
+  if (wybor === 'on') {
+    autoAudioWlaczony = true;
+    // Rozgrzej silnik audio (gest usera) - by przeglądarka pozwoliła grać kolejne automatycznie
+    try { const t = new Audio(); t.volume = 0.01; t.play().catch(()=>{}); } catch(e){}
+    // Zagraj kropkę, w której user właśnie stoi (najbliższą)
+    if (userPozycja) {
+      const kropki = miejsca.filter(m => m.typ === 'audio' && Array.isArray(m.pozycja));
+      let najbl = null, minOdl = Infinity;
+      for (const klucz of kropkiWZasiegu) {
+        const k = kropki.find(x => x.klucz === klucz);
+        if (!k) continue;
+        const odl = dystansMetry(userPozycja.lat, userPozycja.lng, k.pozycja[0], k.pozycja[1]);
+        if (odl < minOdl) { najbl = k; minOdl = odl; }
+      }
+      if (najbl && !kropkiOdsluchane.has(najbl.klucz)) {
+        kropkiOdsluchane.add(najbl.klucz);
+        if (najbl.plik) odtworzAudio(najbl);
+      }
+    }
+  }
+  // 'off' - nic nie gramy, kropki nadal klikalne ręcznie
+}
+
+
 function wlaczTrybDodawaniaAudio() {
   const bylWlaczony = trybDodawaniaAudio;
   wylaczWszystkieTryby();
@@ -2908,12 +3075,13 @@ function ikonaAudio(m) {
   const tryb = m.tryb || 'zawsze';
   const px = 30;
   const klasaFala = (tryb === 'fala') ? ' pin-audio-fala' : '';
+  const klasaOdsluchana = (typeof kropkiOdwiedzone !== 'undefined' && kropkiOdwiedzone.has(klucz)) ? ' odsluchana' : '';
   const akcja = isAdmin ? `edytujAudio('${klucz}')` : `odtworzAudioKlucz('${klucz}')`;
 
   return L.divIcon({
     className: 'pin-audio',
     html: `<div style="position:relative;width:${px}px;height:${px}px">
-        <div class="pin-audio-inner${klasaFala}" style="width:${px}px;height:${px}px"
+        <div class="pin-audio-inner${klasaFala}${klasaOdsluchana}" style="width:${px}px;height:${px}px"
              onclick="event.stopPropagation();${akcja}">🎧</div>
       </div>`,
     iconSize: [px, px],
