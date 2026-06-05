@@ -6426,6 +6426,18 @@ document.addEventListener('DOMContentLoaded', odswiezLicznikPobran);
       <input type="text" id="adminOpis" placeholder="np. Stary dąb pomnikowy" maxlength="60">
     </div>
 
+    <!-- POLE LINK AUDIO (Internet Archive itp.) -->
+    <div class="form-row" style="flex-direction:column;align-items:stretch;gap:4px;margin-top:8px">
+      <label style="display:flex;align-items:center;gap:6px">
+        <span>🔗 Link audio:</span>
+        <span style="font-size:10px;color:#888;font-weight:normal;font-style:italic">(opcjonalnie)</span>
+      </label>
+      <input type="text" id="adminLinkAudio" placeholder="https://archive.org/download/... (zostaw puste = plik z folderu audio/)" style="font-size:11px;font-family:'JetBrains Mono',monospace">
+      <div style="font-size:10px;color:#888;line-height:1.4;font-style:italic;padding:4px 0">
+        Wklej link z Internet Archive (VBR MP3) jeśli chcesz odtwarzać audio z zewnętrznego hostingu. Zostaw puste, by używać lokalnego pliku z folderu <code style="background:rgba(124,58,237,0.1);padding:1px 4px;border-radius:3px">audio/</code>.
+      </div>
+    </div>
+
     <!-- Przyciski są wstrzykiwane przez zaktualizujPrzyciskiHelpera() -->
     <div class="actions"></div>
   </div>
@@ -8289,6 +8301,7 @@ function edytujKropkePoIdx(idx) {
     if (szerVal) szerVal.textContent = (kropka.szerokosc || 30) + ' m';
   }
   document.getElementById('adminOpis').value = kropka.opis || '';
+  if (document.getElementById('adminLinkAudio')) document.getElementById('adminLinkAudio').value = kropka.linkAudio || '';
   aktualizujKodKropki();
   ustawTypKropki(aktualnyTypKropki);
   ustawKsztaltKropki(jestSciezka ? 'sciezka' : (jestWielokat ? 'wielokat' : 'kolo'));
@@ -8342,6 +8355,7 @@ function edytujZaplanowanaPoIdx(idx) {
     if (szerVal) szerVal.textContent = (kropka.szerokosc || 30) + ' m';
   }
   document.getElementById('adminOpis').value = kropka.opis || '';
+  if (document.getElementById('adminLinkAudio')) document.getElementById('adminLinkAudio').value = kropka.linkAudio || '';
   aktualizujKodKropki();
   ustawTypKropki(aktualnyTypKropki);
   ustawKsztaltKropki(jestSciezkaZ ? 'sciezka' : (jestWielokatZ ? 'wielokat' : 'kolo'));
@@ -8641,7 +8655,9 @@ function odtworzAudioTlo(numer) {
   // Bezpiecznik: tło wyłączone przełącznikiem - nie odtwarzaj nic
   if (!tloAudioWlaczone) return;
 
-  const sciezka = `audio/tlo${numer}.mp3`;
+  // Ścieżka audio: jeśli kropka tła ma linkAudio, użyj go; w przeciwnym razie domyślnie audio/tloX.mp3
+  const kropkaTla = (typeof kropkiAudio !== 'undefined') ? kropkiAudio.find(k => k.numer === numer && k.typKropki === 'tlo') : null;
+  const sciezka = (kropkaTla && kropkaTla.linkAudio) ? kropkaTla.linkAudio : `audio/tlo${numer}.mp3`;
 
   // Anuluj poprzedni fade jeśli trwa
   if (audioTloFadeInterval) {
@@ -8965,8 +8981,8 @@ function odtworzKropke(kropka) {
     });
   }
 
-  // Zacznij odtwarzanie
-  const sciezka = `audio/${kropka.numer}.mp3`;
+  // Zacznij odtwarzanie - z linku jeśli jest, w przeciwnym razie z pliku lokalnego
+  const sciezka = (kropka.linkAudio) ? kropka.linkAudio : `audio/${kropka.numer}.mp3`;
   aktualneAudio = new Audio(sciezka);
   aktualnaKropkaAudio = kropka;
 
@@ -10550,6 +10566,7 @@ function obsluzKlikAdmin(e) {
   document.getElementById('adminPromien').value = 50;
   document.getElementById('adminPromienVal').textContent = '50 m';
   document.getElementById('adminOpis').value = '';
+    if (document.getElementById('adminLinkAudio')) document.getElementById('adminLinkAudio').value = '';
   aktualizujKodKropki();
   ustawTypKropki('wiersz');  // domyślnie wiersz dla nowej kropki
   ustawKsztaltKropki('kolo'); // domyślnie okrąg (woła też zaktualizujPrzyciskiHelpera)
@@ -10567,6 +10584,7 @@ function wybierzTyp(typ) {
     document.getElementById('adminPromien').value = 50;
     document.getElementById('adminPromienVal').textContent = '50 m';
     document.getElementById('adminOpis').value = '';
+    if (document.getElementById('adminLinkAudio')) document.getElementById('adminLinkAudio').value = '';
     aktualizujKodKropki();
     zaktualizujPrzyciskiHelpera();
     helper.classList.add('visible');
@@ -10876,6 +10894,8 @@ function pokazBladNumeru(numer, typK) {
 function planujKolejna() {
   const numer = parseInt(document.getElementById('adminNumer').value) || 1;
   const opis = document.getElementById('adminOpis').value;
+  const linkAudioRaw = (document.getElementById('adminLinkAudio')?.value || '').trim();
+  const linkAudio = linkAudioRaw || null;
 
   // BLOKADA DUPLIKATU - jeden numer = jedno miejsce.
   // Sprawdzamy w obrębie typu (wiersz osobno, tło osobno).
@@ -10899,6 +10919,7 @@ function planujKolejna() {
       lng: sr[1],
       ksztalt: strefaPunkty.slice(),  // kopia listy wierzchołków
       opis: opis,
+      linkAudio: linkAudio,
       typKropki: aktualnyTypKropki
     });
     // Wyczyść stan rysowania - strefa zapisana
@@ -10920,6 +10941,7 @@ function planujKolejna() {
       linia: strefaPunkty.slice(),     // kopia listy punktów trasy
       szerokosc: szer,                  // szerokość korytarza w metrach
       opis: opis,
+      linkAudio: linkAudio,
       typKropki: aktualnyTypKropki
     });
     strefaPunkty = [];
@@ -10934,6 +10956,7 @@ function planujKolejna() {
       lng: aktualnyKlik.lng,
       promien: promien,
       opis: opis,
+      linkAudio: linkAudio,
       pokazFale: aktualnyPokazFale,
       trybKropki: aktualnyTrybKropki,
       typKropki: aktualnyTypKropki
@@ -11536,6 +11559,7 @@ function edytujKropke(typ, numer) {
   const tekstPromien = kropka.promien >= 1000 ? (kropka.promien / 1000).toFixed(1).replace('.', ',') + ' km' : kropka.promien + ' m';
   document.getElementById('adminPromienVal').textContent = tekstPromien;
   document.getElementById('adminOpis').value = kropka.opis || '';
+  if (document.getElementById('adminLinkAudio')) document.getElementById('adminLinkAudio').value = kropka.linkAudio || '';
   aktualizujKodKropki();
   zaktualizujPrzyciskiHelpera();
   document.getElementById('adminHelper').classList.add('visible');
