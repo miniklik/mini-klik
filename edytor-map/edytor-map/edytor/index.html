@@ -1013,6 +1013,11 @@ body.dotyk.tryb-admin .menu-edytor{display:block}
   background:linear-gradient(180deg,var(--zloto),#b8821f);color:var(--tlo);
   border-color:var(--zloto-2);opacity:1;
 }
+/* Przycisk "Miejsce" w trybie wędrowca pokazuje się jako "Mix" (bez ikony) - oszczędność miejsca */
+.napis-admin{display:inline}
+.napis-wedrowca{display:none}
+body:not(.tryb-admin) .napis-admin{display:none}
+body:not(.tryb-admin) .napis-wedrowca{display:inline}
 
 /* Opis strony pod mapą (komputer) */
 #opisStronyPodMapa{margin-top:18px}
@@ -1178,9 +1183,11 @@ body.dotyk .sidebar-prawy::after{display:none}
 .strzalka-uchwyt.grot{background:#dc2626}
 
 /* === LICZNIK POBRAŃ (prawy górny róg) === */
+/* Licznik widoczny TYLKO w trybie admin (?admin=1) - w trybie wędrowca i w wygenerowanej mapie ukryty */
+body:not(.tryb-admin) .licznik-pobran{display:none !important}
 .licznik-pobran{
   position:fixed;
-  top:14px;
+  bottom:14px;
   right:14px;
   z-index:9999;
   background:linear-gradient(180deg,rgba(40,40,55,0.92) 0%,rgba(20,20,30,0.95) 100%);
@@ -1206,7 +1213,7 @@ body.dotyk .sidebar-prawy::after{display:none}
   min-width:20px;text-align:right;
 }
 @media (max-width:600px){
-  .licznik-pobran{top:10px;right:10px;padding:8px 12px}
+  .licznik-pobran{bottom:10px;right:10px;padding:8px 12px}
   .licznik-pobran .lp-label{font-size:9px}
   .licznik-pobran .lp-liczba{font-size:13px}
 }
@@ -1616,7 +1623,7 @@ document.addEventListener('DOMContentLoaded', odswiezLicznikPobran);
           <button class="filtr-btn aktywny" data-kat="yt" onclick="przelaczFiltr('yt')">🎬 YT</button>
           <button class="filtr-btn aktywny" data-kat="foto" onclick="przelaczFiltr('foto')">📷 Foto</button>
           <button class="filtr-btn aktywny" data-kat="audio" onclick="przelaczFiltr('audio')">🎧 Audio</button>
-          <button class="filtr-btn aktywny" data-kat="miejsce" onclick="przelaczFiltr('miejsce')">🏛️ Miejsce</button>
+          <button class="filtr-btn aktywny" data-kat="miejsce" onclick="przelaczFiltr('miejsce')"><span class="napis-admin">🏛️ Miejsce</span><span class="napis-wedrowca">Mix</span></button>
         </div>
       </div>
 
@@ -1982,8 +1989,9 @@ let opisStrony = '';
 
 function wczytajMiejsca() {
   // 1) Najpierw robocze zmiany z localStorage (edycja admina)
+  // UWAGA: tylko w trybie admin - wędrowiec zawsze wczytuje dane osadzone w pliku
   try {
-    const raw = localStorage.getItem(KEY_MIEJSCA);
+    const raw = isAdmin ? localStorage.getItem(KEY_MIEJSCA) : null;
     if (raw) { miejsca = JSON.parse(raw); }
     else {
       // 2) Brak roboczych -> wczytaj dane osadzone w pliku (po "Zapisz HTML")
@@ -1998,8 +2006,9 @@ function wczytajMiejsca() {
 }
 function wczytajStrone() {
   // tytuł/opis strony: localStorage -> fallback osadzony #daneStrony
+  // UWAGA: localStorage tylko dla admina - wędrowiec zawsze z osadzonych danych
   try {
-    const raw = localStorage.getItem(KEY_STRONA);
+    const raw = isAdmin ? localStorage.getItem(KEY_STRONA) : null;
     if (raw) { const s = JSON.parse(raw); tytulStrony = s.tytul||''; opisStrony = s.opis||''; }
     else {
       const el = document.getElementById('daneStrony');
