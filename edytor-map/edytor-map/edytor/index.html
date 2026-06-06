@@ -192,11 +192,11 @@ h1{
    GPS - nawigacja (śledzenie na żywo) + środkowanie
    Wierne przeniesienie z oryginału, motyw Skarbiec.
    ============================================================ */
-/* Przycisk NAWIGACJI 🧭 (włącz/wyłącz śledzenie) - GÓRA NA ŚRODKU
+/* Przycisk NAWIGACJI 🧭 (włącz/wyłącz śledzenie) - GÓRA NA ŚRODKU, lewy z trzech
    (dół zarezerwowany dla panelu audio który zasłaniałby przyciski) */
 .gps-btn{
   position:absolute;
-  top:14px;left:calc(50% - 55px);bottom:auto;
+  top:14px;left:calc(50% - 80px);bottom:auto;
   z-index:500;
   width:50px;height:50px;
   display:flex;align-items:center;justify-content:center;
@@ -226,10 +226,35 @@ h1{
   border-color:#e06b5a;color:#e06b5a;
 }
 
-/* Przycisk ŚRODKOWANIA ⊙ - obok nawigacji, GÓRA NA ŚRODKU */
+/* Przycisk PRZEŁĄCZANIA MAPY 🛰️ - środkowy z trzech, GÓRA NA ŚRODKU */
+.mapa-btn{
+  position:absolute;
+  top:14px;left:calc(50% - 25px);bottom:auto;
+  z-index:500;
+  width:50px;height:50px;
+  display:flex;align-items:center;justify-content:center;
+  background:linear-gradient(180deg,var(--panel-2),var(--panel));
+  border:2px solid var(--obrys);
+  border-radius:50%;
+  cursor:pointer;
+  font-size:22px;color:var(--zloto-2);
+  box-shadow:0 4px 14px rgba(0,0,0,0.5);
+  transition:all 0.2s;line-height:1;
+}
+.mapa-btn:hover{
+  border-color:var(--zloto-2);
+  box-shadow:0 6px 18px rgba(0,0,0,0.6), 0 0 16px rgba(224,169,85,0.35);
+  transform:translateY(-2px);
+}
+.mapa-btn.active{
+  background:linear-gradient(180deg,var(--zloto),#b8821f);
+  color:var(--tlo);border-color:var(--zloto-2);
+}
+
+/* Przycisk ŚRODKOWANIA ⊙ - prawy z trzech, GÓRA NA ŚRODKU */
 .center-btn{
   position:absolute;
-  top:14px;left:calc(50% + 5px);bottom:auto;
+  top:14px;left:calc(50% + 30px);bottom:auto;
   z-index:500;
   width:50px;height:50px;
   display:none;          /* JS pokazuje gdy jest pozycja GPS */
@@ -1604,6 +1629,7 @@ document.addEventListener('DOMContentLoaded', odswiezLicznikPobran);
     <div id="mapa">
       <!-- GPS: nawigacja (śledzenie) + środkowanie + status -->
       <div class="gps-btn" id="gpsBtn" onclick="togglePozycja()" title="Włącz nawigację">🧭</div>
+      <div class="mapa-btn" id="mapaBtn" onclick="przelaczMape()" title="Przełącz na widok satelitarny">🛰️</div>
       <div class="center-btn" id="centerBtn" onclick="wysrodkujNaMnie()" title="Wyśrodkuj na mojej pozycji">⊙</div>
       <div class="gps-status" id="gpsStatus"></div>
     </div>
@@ -1694,10 +1720,40 @@ const mapa = L.map('mapa', {
   zoomControl: false
 });
 
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+// === WARSTWY MAPY ===
+// Klasyczna (OpenStreetMap) - domyślna, mapa drogowa
+const warstwaKlasyczna = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
   maxZoom: 19,
   attribution: '© OpenStreetMap'
 }).addTo(mapa);
+
+// Satelitarna (Geoportal Ortofotomapa) - polskie zdjęcia z lotu
+const warstwaSatelita = L.tileLayer.wms('https://mapy.geoportal.gov.pl/wss/service/PZGIK/ORTO/WMS/StandardResolution', {
+  layers: 'Raster',
+  format: 'image/jpeg',
+  transparent: false,
+  version: '1.3.0',
+  maxZoom: 20,
+  attribution: '© <a href="https://www.geoportal.gov.pl/" target="_blank">Geoportal Ortofotomapa</a> · GUGiK'
+});
+
+// Przełącznik warstw - klik na 🛰️ na mapie
+function przelaczMape() {
+  const btn = document.getElementById('mapaBtn');
+  const tytulWyl = 'Przełącz na widok klasyczny';
+  const tytulWl  = 'Przełącz na widok satelitarny';
+  if (mapa.hasLayer(warstwaKlasyczna)) {
+    mapa.removeLayer(warstwaKlasyczna);
+    warstwaSatelita.addTo(mapa);
+    btn.classList.add('active');
+    btn.title = tytulWyl;
+  } else {
+    mapa.removeLayer(warstwaSatelita);
+    warstwaKlasyczna.addTo(mapa);
+    btn.classList.remove('active');
+    btn.title = tytulWl;
+  }
+}
 
 // Usuń domyślny prefix Leaflet (zawiera flagę 🇺🇦) - zostaje czyste "© OpenStreetMap"
 mapa.attributionControl.setPrefix('');
@@ -1708,7 +1764,7 @@ setTimeout(() => mapa.invalidateSize(), 200);
 // Kliknięcia w nakładki nad mapą (przyciski GPS, panel rysowania) NIE mają
 // przeciekać do mapy - inaczej klik w przycisk stawiałby punkt na mapie pod spodem.
 setTimeout(() => {
-  ['gpsBtn', 'centerBtn', 'panelRysowania', 'gpsStatus'].forEach(id => {
+  ['gpsBtn', 'centerBtn', 'mapaBtn', 'panelRysowania', 'gpsStatus'].forEach(id => {
     const el = document.getElementById(id);
     if (el && window.L && L.DomEvent) {
       L.DomEvent.disableClickPropagation(el);
