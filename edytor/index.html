@@ -1583,10 +1583,11 @@ function currentBg()    { return currentPage().background; }
 
 // Definicje formatów sceny — pojedyncze źródło prawdy o wymiarach.
 // W edytorze scena jest skalowana CSS-em, ale logiczne wymiary są zawsze takie jak tu.
-// Tylko 2 formaty (poziome) — najlepiej działają na laptopach i tabletach.
+// Formaty sceny: poziome (laptop/tablet) + pionowy (telefon).
 const CANVAS_FORMATS = [
-  { id: 'slide43',   name: 'Slajd 4:3',  width:  800, height: 600, desc: 'Klasyczny slajd / poster' },
-  { id: 'slide169',  name: 'Slajd 16:9', width: 1280, height: 720, desc: 'Szeroki slajd HD' }
+  { id: 'slide43',   name: 'Slajd 4:3',  width:  800, height:  600, desc: 'Klasyczny slajd / poster' },
+  { id: 'slide169',  name: 'Slajd 16:9', width: 1280, height:  720, desc: 'Szeroki slajd HD' },
+  { id: 'phone916',  name: 'Telefon 9:16', width: 1080, height: 1920, desc: 'Pionowy — pełny ekran telefonu (jak relacja IG / TikTok)' }
 ];
 
 function getCurrentFormat() {
@@ -3340,7 +3341,9 @@ function renderLayoutPanel() {
       <h4>💡 Wskazówki</h4>
       <p style="font-size:11px;line-height:1.7;">
         <strong>Slajd 4:3</strong> — klasyczny prezentacyjny<br>
-        <strong>Slajd 16:9</strong> — szeroki, jak YouTube<br><br>
+        <strong>Slajd 16:9</strong> — szeroki, jak YouTube<br>
+        <strong>Telefon 9:16</strong> — pionowy, na pełny ekran telefonu 📱<br><br>
+        📱 Format <strong>Telefon 9:16</strong> wejdzie idealnie na telefonie (bez pasów). Na komputerze pokaże się jako pionowy pasek pośrodku — to normalne.<br><br>
         🖥️ W <strong>Podglądzie</strong> i wyeksportowanej stronie znajdziesz przycisk <strong>⛶ Pełny ekran</strong> (lub klawisz <strong>F</strong>).
       </p>
     </div>
@@ -4418,6 +4421,12 @@ function buildExportHTML(title, useEmbeddedImages = false) {
   const w = (cssW && !isNaN(cssW)) ? cssW : fmt.width;
   const h = (cssH && !isNaN(cssH)) ? cssH : fmt.height;
 
+  // Czy strona ma się PRZEWIJAĆ (tall-mode), czy zmieścić na PEŁNYM EKRANIE?
+  // - 9:16 (telefon) i mniej skrajne proporcje → pełny ekran (jak relacja).
+  // - Bardzo wysokie projekty (wyższe niż ~1:2, np. długi plakat) → scroll.
+  const useScroll = (h / w) > 2;
+  const tallAttr = useScroll ? ' class="tall-mode"' : '';
+
   // Generuj sekcję per strona
   const sectionsHTML = state.pages.map((page, pageIdx) => {
     const pageNum = pageIdx + 1;
@@ -4512,8 +4521,10 @@ function buildExportHTML(title, useEmbeddedImages = false) {
       : '';
 
     return `<section class="page" data-page="${pageNum}" style="background:${page.background.value};">
+<div class="page-inner">
 ${drawing}
 ${itemsHTML}
+</div>
 </section>`;
   }).join('\n');
 
@@ -4522,6 +4533,19 @@ ${itemsHTML}
   const navScript = `
 (function(){
   const pages = document.querySelectorAll('.page');
+  const ORIG_W = ${w};   // oryginalna szerokość sceny (px)
+
+  // Ustaw skalę zawartości tak, by .page-inner wypełniał aktualny kadr .page.
+  function applyScale(){
+    pages.forEach(p => {
+      const realW = p.clientWidth;
+      if (realW > 0) p.style.setProperty('--page-scale', (realW / ORIG_W).toFixed(4));
+    });
+  }
+  applyScale();
+  window.addEventListener('resize', applyScale);
+  window.addEventListener('orientationchange', () => setTimeout(applyScale, 200));
+
   const AUTOPLAY = ${JSON.stringify({
     on: !!state.autoplayOn,
     seconds: Math.max(1, Math.min(60, state.autoplaySeconds || 3)),
@@ -4575,9 +4599,17 @@ ${itemsHTML}
     const target = Array.from(pages).find(p => Number(p.dataset.page) === n);
     if (!target) return;
 
+    // Przelicz skalę zawartości po tym, jak strona stanie się widoczna
+    // (gdy display:none, clientWidth = 0, więc liczymy dopiero tutaj).
+    const scaleTarget = () => {
+      const realW = target.clientWidth;
+      if (realW > 0) target.style.setProperty('--page-scale', (realW / ORIG_W).toFixed(4));
+    };
+
     if (!SMOOTH) {
       // Tryb bez fade — natychmiastowy skok (jak wcześniej)
       pages.forEach(p => p.style.display = (p === target) ? 'block' : 'none');
+      scaleTarget();
       restartAnimations(target);
       scheduleAutoplay(n);
       return;
@@ -4590,6 +4622,7 @@ ${itemsHTML}
     const showNew = () => {
       // Pokaz target z fade-in
       target.classList.add('is-visible', 'fading-in');
+      scaleTarget();
       void target.offsetWidth;     // reflow przed zdjęciem klasy
       target.classList.remove('fading-in');
       restartAnimations(target);
@@ -4768,7 +4801,7 @@ ${itemsHTML}
 `.trim();
 
   return `<!DOCTYPE html>
-<html lang="pl"${h > w ? ' class="tall-mode"' : ''}>
+<html lang="pl"${tallAttr}>
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
@@ -4787,17 +4820,30 @@ ${itemsHTML}
     --canvas-h: ${h};
   }
   /* Strona dopasowuje się do okna w OBU wymiarach (szerokość i wysokość).
-     min(...) bierze mniejszy wymiar — żeby zawsze się mieściła w ekranie.
-     Czarne tło body wypełnia pozostałą przestrzeń (letterbox). */
+     .page = widoczny kadr (skaluje się do ekranu, zachowuje proporcje).
+     .page-inner = zawartość w ORYGINALNYM rozmiarze sceny, przeskalowana
+     przez transform tak, by wypełnić kadr. Dzięki temu pozycje (%) i rozmiary
+     (px: czcionki, emoji, obrazki) skalują się idealnie proporcjonalnie i nic
+     nie wystaje poza ekran — wolną przestrzeń wypełnia czarne tło (letterbox). */
   .page{
     position:relative;
+    aspect-ratio: var(--canvas-w) / var(--canvas-h);
     width:  min(100vw, calc(100vh * var(--canvas-w) / var(--canvas-h)));
-    height: min(100vh, calc(100vw * var(--canvas-h) / var(--canvas-w)));
-    max-width:  ${w}px;
-    max-height: ${h}px;
+    max-width:  100vw;
+    max-height: 100vh;
     overflow:hidden;
     box-shadow:0 12px 48px rgba(0,0,0,0.6);
     display:none;
+  }
+  .page-inner{
+    position:absolute;
+    top:0; left:0;
+    width:  ${w}px;
+    height: ${h}px;
+    transform-origin: top left;
+    /* Skala = aktualna szerokość kadru / oryginalna szerokość sceny.
+       Ustawiana przez JS (--page-scale) z dokładnym pomiarem. */
+    transform: scale(var(--page-scale, 1));
   }
   /* ===== TRYB PIONOWY (h > w) — strona scrolluje jak normalna WWW ===== */
   /* Aktywowany klasą .tall-mode na <body> — gdy projekt jest wyższy niż szerszy. */
@@ -4811,8 +4857,7 @@ ${itemsHTML}
     overflow-y:auto;              /* scroll pionowy */
   }
   body.tall-mode .page{
-    /* Skaluj do szerokości okna, wysokość liczy się proporcjonalnie.
-       Bez ograniczenia 100vh — strona może być wyższa niż okno. */
+    /* Skaluj do szerokości okna, wysokość liczy się proporcjonalnie. */
     width:  min(100vw, ${w}px);
     height: auto;
     aspect-ratio: var(--canvas-w) / var(--canvas-h);
@@ -4885,7 +4930,7 @@ ${itemsHTML}
   }
 </style>
 </head>
-<body${h > w ? ' class="tall-mode"' : ''}>
+<body${tallAttr}>
 ${sectionsHTML}
 
 <button id="fs-btn" title="Pełny ekran (F lub F11)">⛶ Pełny ekran</button>
