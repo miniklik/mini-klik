@@ -1482,8 +1482,8 @@ document.addEventListener('DOMContentLoaded', odswiezLicznikPobran);
     </div>
   </div>
 
-  <label class="panel-label">Zasięg odtwarzania dźwięku: <span id="audZasiegLabel" class="akcent-zasieg">500 m</span></label>
-  <input type="range" id="audZasieg" min="50" max="5000" step="50" value="500" class="suwak-zasieg" oninput="aktualizujZasiegLabel()">
+  <label class="panel-label">Zasięg odtwarzania dźwięku: <span id="audZasiegLabel" class="akcent-zasieg">100 m</span></label>
+  <input type="range" id="audZasieg" min="0" max="0" step="1" value="0" class="suwak-zasieg" oninput="aktualizujZasiegLabel()">
 
   <label class="panel-label">Tryb kropki</label>
   <div class="rozmiar-wybor" id="audTrybWybor">
@@ -1892,6 +1892,8 @@ function pokazPozycje(pos) {
   aktualizujListeMiejsc();
   aktualizujWidocznoscWysrodkowania();
   sprawdzKropkiAudio();   // radar: sprawdź wejście w zasięg kropek audio
+  // Fale-wabiki: jeśli zmienił się zestaw widocznych fal, przerysuj kropki
+  if (sprawdzFale() && typeof renderujMiejsca === 'function') renderujMiejsca();
 }
 
 // Błąd pozycji - "nigdy się nie poddawaj": timeouty (kod 3) ignorujemy.
@@ -2996,7 +2998,19 @@ function edytuj360(klucz) {
 // ============================================================
 var trybDodawaniaAudio = false;
 let wybranyTrybAudio = 'zawsze';
-let wybranyZasiegAudio = 500;
+let wybranyZasiegAudio = 100;
+// Dozwolone zasięgi odtwarzania audio (metry): drobne skoki na początku,
+// od 100 m równo co 50 m. Suwak operuje na INDEKSACH tej listy.
+const ZASIEGI_AUDIO = [10, 20, 40, 60, 80, 100, 150, 200, 250, 300, 400, 500, 600, 800, 1000, 1500, 2000, 3000, 5000];
+// Znajdź indeks najbliższej wartości z listy (do mapowania zapisanej kropki na suwak).
+function indeksZasiegu(metry) {
+  let best = 0, diff = Infinity;
+  for (let i = 0; i < ZASIEGI_AUDIO.length; i++) {
+    const d = Math.abs(ZASIEGI_AUDIO[i] - metry);
+    if (d < diff) { diff = d; best = i; }
+  }
+  return best;
+}
 let wybranyFalaZasieg = 2000;
 let aktualneAudio = null;  // obiekt Audio aktualnie grający
 
@@ -3013,6 +3027,7 @@ let szufladkaJuzPokazana = false;     // szufladka pojawia się raz na sesję na
 let kropkiOdsluchane = new Set();     // klucze kropek już odtworzonych (blokada powtórki auto)
 let kropkiOdwiedzone = new Set();     // klucze kropek fizycznie odwiedzonych -> KOLOR żółty
 let kropkiWZasiegu = new Set();       // klucze kropek, w których user JEST teraz
+let faleWidoczne = new Set();         // klucze kropek-fal aktualnie widocznych (wędrowiec w zasięgu falaZasieg)
 
 // Odległość w metrach między dwoma punktami (Haversine).
 function dystansMetry(lat1, lng1, lat2, lng2) {
@@ -3031,8 +3046,39 @@ function resetRadarAudio() {
   kropkiOdsluchane = new Set();
   kropkiOdwiedzone = new Set();
   kropkiWZasiegu = new Set();
+  faleWidoczne = new Set();        // wyłączenie nawigacji = fale-wabiki gasną
   zamknijSzufladkeWykryto();
   if (typeof renderujMiejsca === 'function') renderujMiejsca();   // kropki wracają do fioletu
+}
+
+// Sprawdza, które kropki-fale powinny być widoczne (wędrowiec w zasięgu falaZasieg).
+// Fala to "wabik" widoczny z daleka — większy zasięg niż samo odtwarzanie audio.
+// Zwraca true, jeśli zmienił się zestaw widocznych fal (trzeba przerysować).
+function sprawdzFale() {
+  if (!userPozycja) return false;
+  const fale = miejsca.filter(m =>
+    m.typ === 'audio' && (m.tryb === 'fala') && Array.isArray(m.pozycja)
+  );
+
+  const nowe = new Set();
+  for (const k of fale) {
+    const zasieg = k.falaZasieg || 2000;   // domyślnie 2 km
+    const odl = dystansMetry(userPozycja.lat, userPozycja.lng, k.pozycja[0], k.pozycja[1]);
+    // Antydrganie: jeśli fala już widoczna, trzymaj ją jeszcze przez +50 m,
+    // żeby nie migała na granicy zasięgu.
+    const margines = faleWidoczne.has(k.klucz) ? 50 : 0;
+    if (odl <= zasieg + margines) nowe.add(k.klucz);
+  }
+
+  // Czy zestaw się zmienił?
+  let zmiana = (nowe.size !== faleWidoczne.size);
+  if (!zmiana) {
+    for (const klucz of nowe) {
+      if (!faleWidoczne.has(klucz)) { zmiana = true; break; }
+    }
+  }
+  faleWidoczne = nowe;
+  return zmiana;
 }
 
 // Wywoływane przy każdej aktualizacji pozycji GPS (z pokazPozycje).
@@ -3138,7 +3184,9 @@ function otworzPanelAudio() {
   document.getElementById('audNazwa').value = '';
   document.getElementById('audPlik').value = '';
   document.getElementById('audPrzyklad').textContent = 'dab.mp3';
-  document.getElementById('audZasieg').value = 500;
+  const suwakZ = document.getElementById('audZasieg');
+  suwakZ.max = ZASIEGI_AUDIO.length - 1;
+  suwakZ.value = indeksZasiegu(100);   // domyślnie 100 m
   document.getElementById('audFalaZasieg').value = 2000;
   aktualizujZasiegLabel();
   aktualizujFalaLabel();
@@ -3153,12 +3201,19 @@ function zamknijPanelAudio() {
   document.getElementById('panelBackdropAudio').classList.remove('visible');
   document.getElementById('panelAudio').classList.remove('visible');
   edytowanyKlucz = null;
+  ukryjPodgladZasiegu();
 }
 
 function aktualizujZasiegLabel() {
-  const v = parseInt(document.getElementById('audZasieg').value) || 500;
+  const suwak = document.getElementById('audZasieg');
+  // Suwak trzyma INDEKS listy; pobierz odpowiadającą wartość w metrach.
+  let idx = parseInt(suwak.value);
+  if (isNaN(idx) || idx < 0) idx = 0;
+  if (idx > ZASIEGI_AUDIO.length - 1) idx = ZASIEGI_AUDIO.length - 1;
+  const v = ZASIEGI_AUDIO[idx];
   wybranyZasiegAudio = v;
   document.getElementById('audZasiegLabel').textContent = formatDystans(v);
+  pokazPodgladZasiegu(v);
 }
 function aktualizujFalaLabel() {
   const v = parseInt(document.getElementById('audFalaZasieg').value) || 2000;
@@ -3246,7 +3301,18 @@ function ikonaAudio(m) {
   const klucz = m.klucz;
   const tryb = m.tryb || 'zawsze';
   const px = 30;
-  const klasaFala = (tryb === 'fala') ? ' pin-audio-fala' : '';
+  // Fala pojawia się jako "wabik" tylko gdy wędrowiec podejdzie bliżej niż
+  // ustawiony falaZasieg. W trybie admina (edytor) pokazujemy zawsze, żeby
+  // było widać, co się ustawia. Bez GPS (brak pozycji) fal nie widać.
+  let pokazFale = false;
+  if (tryb === 'fala') {
+    if (isAdmin) {
+      pokazFale = true;
+    } else {
+      pokazFale = faleWidoczne.has(klucz);
+    }
+  }
+  const klasaFala = pokazFale ? ' pin-audio-fala' : '';
   const klasaOdsluchana = (typeof kropkiOdwiedzone !== 'undefined' && kropkiOdwiedzone.has(klucz)) ? ' odsluchana' : '';
   const akcja = isAdmin ? `edytujAudio('${klucz}')` : `odtworzAudioKlucz('${klucz}')`;
 
@@ -3308,7 +3374,9 @@ function edytujAudio(klucz) {
   document.getElementById('audNazwa').value = m.nazwa || '';
   document.getElementById('audPlik').value = m.plik || '';
   document.getElementById('audPrzyklad').textContent = (m.plik || 'dab') + '.mp3';
-  document.getElementById('audZasieg').value = m.zasieg || 500;
+  const suwakZE = document.getElementById('audZasieg');
+  suwakZE.max = ZASIEGI_AUDIO.length - 1;
+  suwakZE.value = indeksZasiegu(m.zasieg || 100);   // mapuj zapisaną wartość na indeks listy
   document.getElementById('audFalaZasieg').value = m.falaZasieg || 2000;
   aktualizujZasiegLabel();
   aktualizujFalaLabel();
@@ -3672,6 +3740,37 @@ let mscFotoTyp = 'brak';      // 'brak' | 'zwykle' | 'panorama'
 let mscMaMp3 = 'nie';         // 'nie' | 'tak'
 let mscZasiegVal = 50;
 
+// ===== Podgląd kółka zasięgu NA ŻYWO (admin) =====
+// Pokazuje strefę zasięgu na mapie, gdy edytujesz/dodajesz kropkę i ruszasz suwakiem.
+let kolkoPodgladu = null;
+function pozycjaDoPodgladu() {
+  // Pozycja edytowanej kropki, albo świeżo klikniętej na mapie, albo GPS.
+  if (kliknietaPozycja) return kliknietaPozycja;
+  if (edytowanyKlucz) {
+    const m = miejsca.find(x => x.klucz === edytowanyKlucz);
+    if (m && Array.isArray(m.pozycja)) return m.pozycja;
+  }
+  if (userPozycja) return [userPozycja.lat, userPozycja.lng];
+  return null;
+}
+function pokazPodgladZasiegu(metry) {
+  if (!isAdmin || typeof mapa === 'undefined') return;
+  const poz = pozycjaDoPodgladu();
+  if (!poz || !metry) { ukryjPodgladZasiegu(); return; }
+  if (!kolkoPodgladu) {
+    kolkoPodgladu = L.circle(poz, {
+      radius: metry, color:'#f0a500', weight:2, opacity:0.9,
+      fillColor:'#f0a500', fillOpacity:0.12, dashArray:'5,5'
+    }).addTo(mapa);
+  } else {
+    kolkoPodgladu.setLatLng(poz);
+    kolkoPodgladu.setRadius(metry);
+  }
+}
+function ukryjPodgladZasiegu() {
+  if (kolkoPodgladu) { mapa.removeLayer(kolkoPodgladu); kolkoPodgladu = null; }
+}
+
 function wlaczTrybDodawaniaMiejsce() {
   const bylWlaczony = trybDodawaniaMiejsce;
   wylaczWszystkieTryby();
@@ -3707,6 +3806,7 @@ function zamknijPanelMiejsce() {
   document.getElementById('panelBackdropMiejsce').classList.remove('visible');
   document.getElementById('panelMiejsce').classList.remove('visible');
   edytowanyKlucz = null;
+  ukryjPodgladZasiegu();
 }
 function ustawFotoMiejsce(t) {
   mscFotoTyp = t;
@@ -3719,6 +3819,7 @@ function ustawMp3Miejsce(t) {
 function aktualizujZasiegMiejsce() {
   mscZasiegVal = parseInt(document.getElementById('mscZasieg').value) || 50;
   document.getElementById('mscZasiegLabel').textContent = formatDystans(mscZasiegVal);
+  pokazPodgladZasiegu(mscZasiegVal);
 }
 
 function zatwierdzMiejsce() {
@@ -4169,6 +4270,11 @@ function renderujMiejsca() {
       const marker = L.marker(m.pozycja, { icon: ikonaMiejsce(m) }).addTo(mapa);
       marker.miejsce = m;
       markery.push(marker);
+      // Okrąg zasięgu odtwarzania (tylko admin, żeby widzieć strefę) — jak przy audio
+      if (isAdmin && m.zasieg) {
+        const kolo = L.circle(m.pozycja, { radius: m.zasieg, color:'#8e44c9', weight:1, opacity:0.5, fillColor:'#8e44c9', fillOpacity:0.08 }).addTo(mapa);
+        markery.push(kolo);
+      }
 
       const card = document.createElement('div');
       card.className = 'miejsce-card';
