@@ -150,6 +150,13 @@
       <button id="btnWczytaj">📂 Wczytaj JSON</button>
       <button class="btn-html" id="btnHtml">⬇ Wygeneruj HTML</button>
     </div>
+    <div style="text-align:center;margin-bottom:18px">
+      <label style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--szary);letter-spacing:0.5px">
+        🔒 PIN (4 cyfry, puste = bez zabezpieczenia):
+        <input type="text" id="iPin" inputmode="numeric" maxlength="4" placeholder="––––"
+          style="width:70px;margin-left:8px;background:rgba(10,7,18,0.7);border:1px solid var(--linia);border-radius:8px;padding:7px 10px;color:var(--tekst);font-family:'JetBrains Mono',monospace;font-size:14px;text-align:center;letter-spacing:4px">
+      </label>
+    </div>
     <input type="file" id="plikJson" accept=".json,application/json" style="display:none">
 
     <div class="panel">
@@ -238,9 +245,14 @@
     render();
   };
 
+  // PIN: tylko cyfry
+  document.getElementById('iPin').addEventListener('input', function(){
+    this.value = this.value.replace(/\D/g,'').slice(0,4);
+  });
+
   // ===== ZAPISZ JSON =====
   document.getElementById('btnZapisz').onclick=function(){
-    const dane={ tytul:document.getElementById('tytul').textContent, wiersze };
+    const dane={ tytul:document.getElementById('tytul').textContent, pin:document.getElementById('iPin').value, wiersze };
     const blob=new Blob([JSON.stringify(dane,null,2)],{type:'application/json'});
     const a=document.createElement('a');
     a.href=URL.createObjectURL(blob);
@@ -260,6 +272,7 @@
         if(Array.isArray(dane.wiersze)) wiersze=dane.wiersze;
         else if(Array.isArray(dane)) wiersze=dane;
         if(dane.tytul) document.getElementById('tytul').textContent=dane.tytul;
+        if(typeof dane.pin==='string') document.getElementById('iPin').value=dane.pin;
         render();
       }catch(err){ alert('Nie udało się wczytać pliku — czy to na pewno JSON z tego edytora?'); }
     };
@@ -270,7 +283,9 @@
   // ===== WYGENERUJ HTML (czysty, bez narzędzi admina) =====
   document.getElementById('btnHtml').onclick=function(){
     const tytul=document.getElementById('tytul').textContent;
-    const html=zbudujHtml(tytul, wiersze);
+    const pin=document.getElementById('iPin').value.trim();
+    if(pin && pin.length!==4){ alert('PIN musi mieć dokładnie 4 cyfry (albo zostaw puste = bez zabezpieczenia).'); return; }
+    const html=zbudujHtml(tytul, wiersze, pin);
     const blob=new Blob([html],{type:'text/html'});
     const a=document.createElement('a');
     a.href=URL.createObjectURL(blob);
@@ -279,10 +294,12 @@
     URL.revokeObjectURL(a.href);
   };
 
-  function zbudujHtml(tytul, dane){
+  function zbudujHtml(tytul, dane, pin){
     // Style identyczne jak w edytorze, ale BEZ paska admina, formularza i przycisków ✕.
+    // Dodatkowo: 3 filtry (Aktualne / Po terminie / Wszystkie), miganie nazwy, opcjonalny PIN.
     const styl = document.querySelector('style').textContent;
     const wierszeJson = JSON.stringify(dane);
+    const pinJson = JSON.stringify(pin||'');
     return `<!DOCTYPE html>
 <html lang="pl">
 <head>
@@ -291,9 +308,36 @@
 <title>${esc(tytul)}</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
-<style>${styl}</style>
+<style>${styl}
+  /* Filtry w gotowym HTML */
+  .filtry{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-bottom:18px}
+  .filtry button{
+    background:rgba(40,40,55,0.7);border:1px solid var(--linia);color:var(--tekst);
+    border-radius:10px;padding:9px 18px;font-family:'JetBrains Mono',monospace;
+    font-size:12px;font-weight:600;cursor:pointer;transition:all .2s;letter-spacing:0.5px;
+  }
+  .filtry button:hover{border-color:var(--zloto);color:var(--zloto-2)}
+  .filtry button.akt{background:linear-gradient(180deg,var(--zloto-2),var(--zloto));color:#241400;border:none}
+  .filtry .licz{opacity:0.7;font-size:10px}
+  /* Miganie SAMEJ nazwy - delikatne, nie wkurzające */
+  @keyframes migaj{0%,100%{opacity:1}50%{opacity:0.35}}
+  .miga{animation:migaj 1.6s ease-in-out infinite}
+  .pusto{text-align:center;color:var(--szary);padding:28px;font-size:14px}
+  /* Ekran PIN */
+  #pinScreen{position:fixed;inset:0;background:radial-gradient(ellipse at 50% 30%,#1a0f2e 0%,#0a0a14 70%,#000 100%);display:flex;align-items:center;justify-content:center;z-index:9999;padding:24px}
+  #pinScreen .box{text-align:center;max-width:300px;width:100%}
+  #pinScreen .klodka{font-size:54px;margin-bottom:14px;filter:drop-shadow(0 4px 12px rgba(255,154,61,0.4))}
+  #pinScreen h2{font-size:20px;color:var(--zloto);margin-bottom:6px}
+  #pinScreen p{font-size:12px;color:var(--szary);margin-bottom:20px;font-family:'JetBrains Mono',monospace}
+  #pinInput{width:160px;text-align:center;font-size:28px;letter-spacing:14px;padding:12px;border-radius:12px;border:1px solid var(--linia);background:rgba(10,7,18,0.8);color:var(--tekst);font-family:'JetBrains Mono',monospace}
+  #pinInput:focus{outline:none;border-color:var(--zloto);box-shadow:0 0 0 3px rgba(255,154,61,0.15)}
+  #pinBtn{display:block;width:160px;margin:16px auto 0;padding:13px;border:none;border-radius:12px;background:linear-gradient(180deg,var(--zloto-2),var(--zloto));color:#241400;font-weight:700;font-size:14px;font-family:'JetBrains Mono',monospace;cursor:pointer}
+  #pinErr{color:#ff6b6b;font-size:12px;margin-top:12px;min-height:16px;font-family:'JetBrains Mono',monospace}
+  body.zablokowane .wrap{display:none}
+</style>
 </head>
-<body>
+<body class="${pin?'zablokowane':''}">
+  <div id="pinGate"></div>
   <div class="wrap">
     <header>
       <span class="ikona">🚗</span>
@@ -301,6 +345,11 @@
       <div class="podtytul">przeglądy · ubezpieczenia · opłaty</div>
     </header>
     <div class="panel">
+      <div class="filtry">
+        <button data-f="aktualne" class="akt">Aktualne <span class="licz" id="l-aktualne"></span></button>
+        <button data-f="poterminie">Po terminie <span class="licz" id="l-poterminie"></span></button>
+        <button data-f="wszystkie">Wszystkie <span class="licz" id="l-wszystkie"></span></button>
+      </div>
       <table>
         <thead>
           <tr><th>Co</th><th>Termin</th><th>Kwota</th><th>Notatka</th></tr>
@@ -308,14 +357,54 @@
         <tbody id="tbody"></tbody>
       </table>
       <div class="legenda">
-        Znaczniki przy terminie: <b style="color:#ff6b6b">&#9679;</b> mniej niż 14 dni &nbsp;·&nbsp;
-        <b style="color:#ffd166">&#9679;</b> mniej niż 30 dni &nbsp;·&nbsp;
-        <b style="color:#7ec87e">&#9679;</b> w porządku
+        <b style="color:#ff6b6b">&#9679;</b> po terminie / mniej ni&#380; 5 dni (miga) &nbsp;·&nbsp;
+        <b style="color:#ffd166">&#9679;</b> mniej ni&#380; 30 dni &nbsp;·&nbsp;
+        <b style="color:#7ec87e">&#9679;</b> w porz&#261;dku
       </div>
     </div>
   </div>
 <script>
   var wiersze = ${wierszeJson};
+  var PIN = ${pinJson};
+  var filtr = 'aktualne';   // domyślny widok
+
+  // ===== Zamek PIN (prosty - chroni przed ciekawskim, nie przed informatykiem) =====
+  (function(){
+    if(!PIN){ return; }  // brak PIN = bez zabezpieczenia
+    var KLUCZ = 'oplaty_pin_ok';
+    // Jeśli na tym urządzeniu już raz podano dobry PIN - nie pytaj znowu
+    try{ if(localStorage.getItem(KLUCZ)===PIN){ document.body.classList.remove('zablokowane'); return; } }catch(e){}
+
+    var gate=document.getElementById('pinGate');
+    gate.innerHTML=
+      '<div id="pinScreen"><div class="box">'+
+      '<div class="klodka">&#128274;</div>'+
+      '<h2>Dost&#281;p chroniony</h2>'+
+      '<p>Wpisz 4-cyfrowy PIN</p>'+
+      '<input id="pinInput" inputmode="numeric" maxlength="4" type="password" autofocus>'+
+      '<button id="pinBtn">Otw&#243;rz</button>'+
+      '<div id="pinErr"></div>'+
+      '</div></div>';
+
+    var inp=document.getElementById('pinInput');
+    var err=document.getElementById('pinErr');
+    inp.addEventListener('input',function(){ this.value=this.value.replace(/\\D/g,'').slice(0,4); err.textContent=''; });
+
+    function sprawdz(){
+      if(inp.value===PIN){
+        try{ localStorage.setItem(KLUCZ,PIN); }catch(e){}
+        document.getElementById('pinScreen').remove();
+        document.body.classList.remove('zablokowane');
+      }else{
+        err.textContent='Błędny PIN';
+        inp.value=''; inp.focus();
+      }
+    }
+    document.getElementById('pinBtn').addEventListener('click',sprawdz);
+    inp.addEventListener('keydown',function(e){ if(e.key==='Enter') sprawdz(); });
+  })();
+
+
   function formatData(iso){ if(!iso) return '\\u2014'; var p=iso.split('-'); return p[2]+'.'+p[1]+'.'+p[0]; }
   function dniDo(iso){
     if(!iso) return null;
@@ -326,24 +415,73 @@
   function badgeTerminu(iso){
     var d=dniDo(iso);
     if(d===null) return '';
-    if(d<0)   return '<span class="badge pilne">min&#281;&#322;o</span>';
-    if(d<=14) return '<span class="badge pilne">za '+d+' dni</span>';
+    if(d<0)   return '<span class="badge pilne">min&#281;&#322;o '+(-d)+' dni</span>';
+    if(d<5)   return '<span class="badge pilne">za '+d+' dni</span>';
     if(d<=30) return '<span class="badge blisko">za '+d+' dni</span>';
     return '<span class="badge ok">za '+d+' dni</span>';
   }
   function esc(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+  // Przynależność wpisu do kategorii (liczona z daty):
+  // aktualne   = termin dziś lub w przyszłości (d >= 0)
+  // poterminie = minęło, ale nie dawniej niż 14 dni (d >= -14 i d < 0)
+  // wszystkie  = wszystko
+  function pasuje(w, f){
+    var d = dniDo(w.termin);
+    if(f==='wszystkie') return true;
+    if(d===null) return f==='aktualne';   // bez daty traktujemy jak aktualne
+    if(f==='aktualne')   return d >= 0;
+    if(f==='poterminie') return d < 0 && d >= -14;
+    return false;
+  }
+
   function render(){
+    // Sortowanie: najpilniejsze (najmniej dni) na górze. Bez daty na koniec.
+    var pos = wiersze.slice().sort(function(a,b){
+      var da=dniDo(a.termin), db=dniDo(b.termin);
+      if(da===null) return 1; if(db===null) return -1;
+      return da-db;
+    });
+
+    // Liczniki przy przyciskach
+    function ile(f){ return wiersze.filter(function(w){return pasuje(w,f);}).length; }
+    document.getElementById('l-aktualne').textContent   = '('+ile('aktualne')+')';
+    document.getElementById('l-poterminie').textContent = '('+ile('poterminie')+')';
+    document.getElementById('l-wszystkie').textContent  = '('+ile('wszystkie')+')';
+
     var tb=document.getElementById('tbody'); tb.innerHTML='';
-    wiersze.forEach(function(w){
+    var widoczne = pos.filter(function(w){return pasuje(w,filtr);});
+    if(!widoczne.length){
+      var tr0=document.createElement('tr');
+      tr0.innerHTML='<td colspan="4" class="pusto">Nic tu nie ma w tym widoku.</td>';
+      tb.appendChild(tr0);
+      return;
+    }
+    widoczne.forEach(function(w){
+      var d=dniDo(w.termin);
+      // Miga sama nazwa, gdy: po terminie (d<0) lub mniej niż 5 dni (d>=0 i d<5)
+      var migaKlasa = (d!==null && d<5) ? ' miga' : '';
       var tr=document.createElement('tr');
       tr.innerHTML=
-        '<td data-label="Co" class="nazwa-cell">'+esc(w.nazwa)+'</td>'+
+        '<td data-label="Co" class="nazwa-cell"><span class="'+migaKlasa.trim()+'">'+esc(w.nazwa)+'</span></td>'+
         '<td data-label="Termin" class="termin-cell">'+formatData(w.termin)+badgeTerminu(w.termin)+'</td>'+
         '<td data-label="Kwota" class="kwota-cell">'+esc(w.kwota||'\\u2014')+'</td>'+
         '<td data-label="Notatka" class="notatka-cell">'+esc(w.notatka||'\\u2014')+'</td>';
       tb.appendChild(tr);
     });
   }
+
+  // Przełączanie filtrów
+  var przyciski = document.querySelectorAll('.filtry button');
+  przyciski.forEach(function(b){
+    b.addEventListener('click', function(){
+      filtr = b.getAttribute('data-f');
+      przyciski.forEach(function(x){ x.classList.remove('akt'); });
+      b.classList.add('akt');
+      render();
+    });
+  });
+
   render();
 <\/script>
 </body>
