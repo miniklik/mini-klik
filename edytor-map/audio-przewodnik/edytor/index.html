@@ -32,19 +32,32 @@
 
 <title>Nazwa strony · mini-klik.pl</title>
 
+<!-- IDENTYFIKACJA STRONY - favicon + opis + podgląd linku (Facebook/Messenger).
+     Wartości "description", "og:title", "og:description" i "og:image" są
+     podmieniane automatycznie przy "Pobierz index.html" - razem z <title>
+     dostają aktualną nazwę strony i pełny adres zdjęcia artysty. -->
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎧</text></svg>">
+<meta name="theme-color" content="#7c3aed">
+<meta name="description" content="Interaktywna mapa audio — wiersze, opowieści i dźwięki przypisane do miejsc. Włącz lokalizację i słuchaj, idąc od punktu do punktu.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Audio-przewodnik · mini-klik.pl">
+<meta property="og:description" content="Interaktywna mapa audio — wiersze, opowieści i dźwięki przypisane do miejsc.">
+<meta property="og:image" content="img/artysta.jpg">
+
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css"/>
 <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css"/>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
-<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<!-- html5-qrcode (skaner QR, ~350 KB) NIE jest już ładowany na starcie.
+     Doładowuje się na żądanie w otworzSkaner() - turysta, który nie używa
+     skanera, nie pobiera ani bajta tej biblioteki. -->
 
 <!-- Pannellum - viewer zdjęć 360° sferycznych.
      Aktywuje się gdy admin wgra plik z suffiksem "-360" (np. img/bagno-360.jpg).
      Daje pełną sferę: obracasz palcem dookoła w każdą stronę.
-     Tylko ~25 KB, działa na wszystkich nowoczesnych przeglądarkach (WebGL). -->
-<link rel="stylesheet" href="https://cdn.pannellum.org/2.5/pannellum.css"/>
-<script src="https://cdn.pannellum.org/2.5/pannellum.js"></script>
+     NIE jest już ładowany na starcie - doładowuje się na żądanie
+     w uruchomSfere(), dopiero gdy turysta otwiera zdjęcie 360°. -->
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -6082,32 +6095,131 @@ html.tryb-admin #editorPasek { display: block; }
   .licznik-pobran .lp-liczba{font-size:13px}
 }
 
+/* ============================================================
+   === WYGASZACZ EKRANU (tryb kieszonkowy) ====================
+   ============================================================
+   "Niby zgaszony" ekran na czas spaceru: czarna zasłona nad całą
+   stroną blokuje przypadkowe dotknięcia (dłoń, kieszeń), a telefon
+   NIE gasi ekranu naprawdę (wake lock) - GPS i audio działają dalej.
+   Czerń to realna oszczędność baterii na ekranach OLED.
+   Odblokowanie: PRZYTRZYMANIE przycisku ~1s - zwykłe muśnięcie
+   w kieszeni nic nie zrobi. */
+.wygaszacz{
+  position:fixed;inset:0;
+  z-index:100001;             /* ponad wszystkim (splash/modale mają max 100000) */
+  background:#000;
+  display:none;
+  flex-direction:column;
+  align-items:center;justify-content:center;
+  gap:26px;
+  touch-action:none;          /* bez scrolla i zoomu pod palcem */
+  user-select:none;-webkit-user-select:none;
+  -webkit-touch-callout:none; /* iOS: bez menu przy długim dotyku */
+  cursor:default;
+}
+.wygaszacz.aktywny{display:flex}
+.wygaszacz-zegar{
+  font-family:'Cormorant Garamond',serif;
+  font-size:54px;font-weight:500;letter-spacing:2px;
+  color:#4b5563;              /* przygaszony - ekran ma wyglądać na śpiący */
+}
+.wygaszacz-status{
+  max-width:80vw;text-align:center;
+  font-family:'EB Garamond',serif;
+  font-size:15px;color:#6b7280;font-style:italic;
+}
+.wygaszacz-odblokuj{
+  position:relative;overflow:hidden;
+  width:190px;padding:16px 10px;
+  background:#111827;
+  border:1.5px solid #374151;border-radius:30px;
+  color:#9ca3af;font-family:'EB Garamond',serif;font-size:15px;
+  cursor:pointer;touch-action:none;
+  -webkit-tap-highlight-color:transparent;
+}
+.wygaszacz-odblokuj-fill{
+  position:absolute;inset:0;width:0;
+  background:rgba(124,58,237,0.45);  /* fiolet audio-poezji */
+}
+/* Przytrzymanie: pasek wypełnia się przez 1s - po tym czasie JS odblokowuje.
+   Puszczenie wcześniej zdejmuje klasę i pasek wraca do zera. */
+.wygaszacz-odblokuj.trzymam .wygaszacz-odblokuj-fill{
+  width:100%;
+  transition:width 1s linear;
+}
+.wygaszacz-odblokuj-tekst{position:relative;z-index:1;line-height:1.35}
+.wygaszacz-hint{
+  max-width:82vw;text-align:center;
+  font-size:11.5px;line-height:1.5;color:#374151;
+  font-family:'EB Garamond',serif;
+}
+/* Księżyc - przycisk włączający wygaszacz; kolumna nad przyciskiem GPS */
+.pocket-btn{
+  position:absolute;
+  bottom:70px;left:14px;
+  z-index:500;
+  width:46px;height:46px;
+  background:var(--paper-2);
+  border:2px solid var(--gold);border-radius:50%;
+  cursor:pointer;font-size:20px;
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:var(--shadow-deep);
+  transition:all 0.25s;color:var(--gold);font-family:inherit;
+}
+.pocket-btn:hover{background:var(--gold);color:var(--paper-2);transform:scale(1.05)}
+
 </style>
 
 <!-- === FIREBASE: licznik pobrań HTML === -->
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<!-- Firebase (licznik pobrań) - TYLKO TRYB ADMIN, ładowany leniwie.
+     Turysta nie pobiera żadnego skryptu Firebase (~300 KB transferu mniej).
+     SDK doładowuje się dopiero przy pierwszym użyciu licznika, czyli gdy
+     strona działa z ?admin=1. Tu zostają same lekkie funkcje. -->
 <script>
-// Inicjalizacja Firebase (projekt Księga Ramzi)
-(function initFirebaseLicznik(){
-  const firebaseConfig = {
-    apiKey: "AIzaSyDRR3vSfgpEmbpZz_-VldMTnTHoXRfuGKg",
-    authDomain: "ksiega-ramzi.firebaseapp.com",
-    projectId: "ksiega-ramzi",
-    storageBucket: "ksiega-ramzi.firebasestorage.app",
-    messagingSenderId: "400735142662",
-    appId: "1:400735142662:web:0b52a57f4fedf367839487"
-  };
-  try {
-    if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
-    window.__db_licznik = firebase.firestore();
-  } catch(e) { console.warn('Firebase init:', e); }
-})();
+// Konfiguracja Firebase (projekt Księga Ramzi)
+const _fbConfigLicznik = {
+  apiKey: "AIzaSyDRR3vSfgpEmbpZz_-VldMTnTHoXRfuGKg",
+  authDomain: "ksiega-ramzi.firebaseapp.com",
+  projectId: "ksiega-ramzi",
+  storageBucket: "ksiega-ramzi.firebasestorage.app",
+  messagingSenderId: "400735142662",
+  appId: "1:400735142662:web:0b52a57f4fedf367839487"
+};
 
-// Pobranie aktualnej wartości i wstawienie do widgetu
+// Doładuj SDK Firebase na żądanie. Pierwsze wywołanie wstrzykuje skrypty,
+// kolejne dostają tę samą obietnicę (ładowanie odbywa się raz).
+let _fbSDKPromise = null;
+function zaladujFirebaseSDK() {
+  if (_fbSDKPromise) return _fbSDKPromise;
+  _fbSDKPromise = new Promise((resolve, reject) => {
+    const urls = [
+      'https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js',
+      'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js'
+    ];
+    // Po kolei - firestore-compat wymaga wcześniej app-compat
+    const nastepny = (i) => {
+      if (i >= urls.length) { resolve(); return; }
+      const s = document.createElement('script');
+      s.src = urls[i];
+      s.onload = () => nastepny(i + 1);
+      s.onerror = () => reject(new Error('Nie udało się pobrać: ' + urls[i]));
+      document.head.appendChild(s);
+    };
+    nastepny(0);
+  }).then(() => {
+    if (!firebase.apps.length) firebase.initializeApp(_fbConfigLicznik);
+    window.__db_licznik = firebase.firestore();
+  }).catch((e) => {
+    _fbSDKPromise = null; // chwilowy brak sieci - pozwól spróbować ponownie
+    throw e;
+  });
+  return _fbSDKPromise;
+}
+
+// Pobranie aktualnej wartości i wstawienie do widgetu (admin)
 async function odswiezLicznikPobran() {
   try {
-    if (!window.__db_licznik) return;
+    await zaladujFirebaseSDK();
     const doc = await window.__db_licznik.collection('liczniki')
       .doc('wygenerowane-audio-total').get();
     const n = doc.exists ? (doc.data().count || 0) : 0;
@@ -6116,29 +6228,33 @@ async function odswiezLicznikPobran() {
   } catch(e) { console.warn('Licznik pobrań odczyt:', e); }
 }
 
-// Inkrement po pobraniu nowego index.html
+// Inkrement po pobraniu nowego index.html (admin)
 async function zliczPobranieHTML() {
   try {
-    if (!window.__db_licznik) return;
+    await zaladujFirebaseSDK();
     await window.__db_licznik.collection('liczniki')
       .doc('wygenerowane-audio-total')
       .set({ count: firebase.firestore.FieldValue.increment(1) }, { merge: true });
     odswiezLicznikPobran();
   } catch(e) { console.warn('Licznik pobrań inkrement:', e); }
 }
-
-document.addEventListener('DOMContentLoaded', odswiezLicznikPobran);
 </script>
 
 </head>
 <body>
 
-<!-- LICZNIK POBRAŃ (prawy górny róg) -->
-<div class="licznik-pobran" title="Łączna liczba pobranych map">
+<!-- LICZNIK POBRAŃ (prawy górny róg) - TYLKO TRYB ADMIN.
+     Pokazuje ile plików index.html wygenerowały łącznie wszystkie edytory
+     (statystyka narzędzia, nie tej trasy) - turysty to nie dotyczy.
+     Domyślnie ukryty (display:none), admin odsłania go w JS po starcie.
+     W wersji publicznej cały blok jest wycinany markerami poniżej. -->
+<!-- ADMIN-LICZNIK:START --><!-- (marker dla generowania wersji publicznej - nie usuwać) -->
+<div class="licznik-pobran" style="display:none" title="Ile plików index.html wygenerowano tym edytorem (łącznie, wszyscy użytkownicy)">
   <span class="lp-ikona">📥</span>
   <span class="lp-label">Pobrań</span>
   <span class="lp-liczba" id="lp-liczba">—</span>
 </div>
+<!-- ADMIN-LICZNIK:END -->
 
 <!-- ============================================================
      === BLOKADA ADMINA NA MAŁYM EKRANIE ========================
@@ -6336,8 +6452,9 @@ document.addEventListener('DOMContentLoaded', odswiezLicznikPobran);
 
   <div class="layout">
     <div id="mapa">
-      <button class="gps-btn" id="gpsBtn" onclick="event.stopPropagation();obsluzKlikGPSlubAudio()" title="Włącz nawigację (GPS + audio + fioletowe kropki)">🧭</button>
-      <button class="center-btn" id="centerBtn" onclick="event.stopPropagation();wysrodkujNaMnie()" title="Wyśrodkuj mapę na mojej pozycji GPS" style="display:none">⊙</button>
+      <button class="gps-btn" id="gpsBtn" onclick="event.stopPropagation();obsluzKlikGPSlubAudio()" title="Włącz nawigację (GPS + audio + fioletowe kropki)" aria-label="Włącz nawigację GPS i audio">🧭</button>
+      <button class="center-btn" id="centerBtn" onclick="event.stopPropagation();wysrodkujNaMnie()" title="Wyśrodkuj mapę na mojej pozycji GPS" aria-label="Wyśrodkuj mapę na mojej pozycji" style="display:none">⊙</button>
+      <button class="pocket-btn" id="pocketBtn" onclick="event.stopPropagation();wlaczWygaszacz()" title="Przyciemnij ekran na czas spaceru — dotyk zablokowany, audio i GPS działają" aria-label="Przyciemnij ekran (tryb kieszonkowy)">🌙</button>
 
       <!-- Przełącznik tła audio - dół prawej strony mapy -->
       <button class="tlo-audio-btn" id="tloAudioBtn" onclick="event.stopPropagation();przelaczTloAudio()" title="Dźwięk tła (klimat otoczenia)">
@@ -6346,7 +6463,7 @@ document.addEventListener('DOMContentLoaded', odswiezLicznikPobran);
       </button>
 
       <!-- MOBILE FAB BUTTONS (widoczne tylko na mobile portrait dzięki CSS) -->
-      <button class="mobile-fab mobile-fab-menu" id="mobileFabMenu" onclick="event.stopPropagation();otworzMobilneMenu()" title="Menu">☰</button>
+      <button class="mobile-fab mobile-fab-menu" id="mobileFabMenu" onclick="event.stopPropagation();otworzMobilneMenu()" title="Menu" aria-label="Otwórz menu">☰</button>
       <button class="mobile-fab mobile-fab-layer" id="mobileFabLayer" onclick="event.stopPropagation();toggleWarstwyMobile()" title="Zmień warstwę mapy">🗺️</button>
 
       <div class="gps-status" id="gpsStatus"></div>
@@ -6386,7 +6503,8 @@ document.addEventListener('DOMContentLoaded', odswiezLicznikPobran);
         <div>🎧 Kropek audio: <span class="admin-list-count" id="adminListCountKod">0</span></div>
         <div>Zmiany kropek: <span class="admin-list-count" id="adminListCount" style="color:#22c55e">0</span></div>
         <div style="font-size:11px;color:var(--ink-muted);margin-top:4px">Klik w mapę = dodaj<br>Klik w pinezkę → 🛠 = edytuj</div>
-        <button onclick="pobierzNowyIndex()" style="background:#22c55e;font-size:11px">💾 Pobierz nowy index.html</button>
+        <button onclick="pobierzNowyIndex(false)" style="background:#22c55e;font-size:11px" title="Plik do dalszej pracy i na serwer - edytor zostaje (?admin=1 działa)">💾 Pobierz index.html (roboczy)</button>
+        <button onclick="pobierzNowyIndex(true)" style="background:#0ea5e9;font-size:11px" title="Plik bez edytora - dla turystów. Twoje szkice zostają nietknięte">🌍 Wersja publiczna (bez edytora)</button>
         <button id="nazwaStronyBtn" onclick="otworzModalEdytora('strona')" style="background:#a04510;font-size:11px">✏️ Nazwa i opis strony</button>
 
         <!-- === SPLASH POETY - tytuł i opis pokazywany na ekranie startowym === -->
@@ -6892,6 +7010,15 @@ function _ekranZaMaly() {
 const _chce_admina_ekranMaly = _chce_admina && _ekranZaMaly();
 let isAdmin = _chce_admina && !_ekranZaMaly();
 
+// LICZNIK POBRAŃ - widget tylko dla admina. Turysta go nie widzi i nie
+// ładuje Firebase: SDK doładowuje się dopiero tutaj, na żądanie
+// (zaladujFirebaseSDK wewnątrz odswiezLicznikPobran).
+if (isAdmin) {
+  const _lp = document.querySelector('.licznik-pobran');
+  if (_lp) _lp.style.display = ''; // wraca display:flex z arkusza CSS
+  odswiezLicznikPobran();
+}
+
 // Gdy ktoś wszedł z ?admin=1 na małym ekranie - pokaż komunikat blokady.
 if (_chce_admina_ekranMaly) {
   // Klasa na <html> uruchamia regułę CSS @media (domknięcie - gdyby JS zawiódł)
@@ -7249,6 +7376,38 @@ async function pobierzOpisMiejsca(klucz) {
   }
 }
 
+// =====================================================================
+// === LENIWE ŁADOWANIE BIBLIOTEK ZEWNĘTRZNYCH =========================
+// =====================================================================
+// Skaner QR (~350 KB) i Pannellum (~100 KB) NIE są pobierane przy starcie
+// strony - turysta nad wodą ze słabym zasięgiem dostaje lżejszą stronę.
+// Biblioteka doładowuje się dopiero przy pierwszym użyciu funkcji.
+// Każdy zasób ładuje się raz - kolejne wywołania dostają tę samą obietnicę.
+const _zewnetrzneZasoby = {}; // url -> Promise
+function zaladujZasob(url, typ) {
+  if (_zewnetrzneZasoby[url]) return _zewnetrzneZasoby[url];
+  _zewnetrzneZasoby[url] = new Promise((resolve, reject) => {
+    let el;
+    if (typ === 'css') {
+      el = document.createElement('link');
+      el.rel = 'stylesheet';
+      el.href = url;
+    } else {
+      el = document.createElement('script');
+      el.src = url;
+    }
+    el.onload = () => resolve();
+    el.onerror = () => {
+      // Nieudane ładowanie nie blokuje na zawsze - usuwamy z cache,
+      // żeby kolejna próba (np. po powrocie zasięgu) mogła się udać.
+      delete _zewnetrzneZasoby[url];
+      reject(new Error('Nie udało się pobrać: ' + url));
+    };
+    document.head.appendChild(el);
+  });
+  return _zewnetrzneZasoby[url];
+}
+
 // ZDJĘCIA 360° SFERYCZNE (Pannellum):
 // Sprawdzamy czy istnieje plik img/{klucz}-360.jpg (lub png/webp).
 // Jeśli tak - admin świadomie wgrał zdjęcie 360° = aktywujemy Pannellum.
@@ -7278,16 +7437,20 @@ async function sprawdzCzyJestSfera(klucz) {
 
 // Uruchamia viewer Pannellum dla zdjęcia 360° w danym elemencie.
 function uruchomSfere(elementId, klucz, nazwa) {
-  if (typeof pannellum === 'undefined') {
-    // Pannellum nie załadowane - może problem z CDN. Fallback.
-    document.getElementById(elementId).innerHTML =
-      '<p style="color:var(--ink-muted);text-align:center;padding:20px;font-style:italic">' +
-      'Viewer 360° nie załadował się. Sprawdź połączenie internetowe i odśwież.</p>';
-    return;
+  const kontener = document.getElementById(elementId);
+  if (kontener) {
+    kontener.innerHTML =
+      '<p style="color:var(--ink-muted);text-align:center;padding:20px;font-style:italic">⏳ Ładowanie viewera 360°…</p>';
   }
-  const cache = _cacheSfera.get(klucz);
-  const src = cache && cache.src ? cache.src : `img/${klucz}-360.jpg`;
-  try {
+  // Doładuj Pannellum na żądanie (CSS + JS) - patrz zaladujZasob wyżej.
+  Promise.all([
+    zaladujZasob('https://cdn.pannellum.org/2.5/pannellum.css', 'css'),
+    zaladujZasob('https://cdn.pannellum.org/2.5/pannellum.js', 'js')
+  ]).then(() => {
+    if (typeof pannellum === 'undefined') throw new Error('Pannellum niedostępny');
+    if (kontener) kontener.innerHTML = ''; // czyścimy "Ładowanie..." przed startem viewera
+    const cache = _cacheSfera.get(klucz);
+    const src = cache && cache.src ? cache.src : `img/${klucz}-360.jpg`;
     pannellum.viewer(elementId, {
       type: 'equirectangular',
       panorama: src,
@@ -7301,11 +7464,13 @@ function uruchomSfere(elementId, klucz, nazwa) {
       keyboardZoom: false,
       hotSpotDebug: false
     });
-  } catch(e) {
-    document.getElementById(elementId).innerHTML =
-      '<p style="color:#a04510;text-align:center;padding:20px">' +
-      'Błąd ładowania zdjęcia 360°: ' + (e.message || 'nieznany') + '</p>';
-  }
+  }).catch((e) => {
+    if (kontener) {
+      kontener.innerHTML =
+        '<p style="color:#a04510;text-align:center;padding:20px">' +
+        'Nie udało się załadować viewera 360°: ' + (e.message || 'sprawdź internet i odśwież') + '</p>';
+    }
+  });
 }
 
 // Próbuje wczytać zdjęcie w kolejnych formatach: jpg -> png -> jpeg -> webp -> placeholder.
@@ -9542,8 +9707,75 @@ function wczytajZaplanowane() {
 
 function zapiszZaplanowane() {
   try {
-    localStorage.setItem(KEY_ZAPLANOWANE, JSON.stringify(zaplanowaneKropki));
+    // __ref to referencja do żywego obiektu kropki (tylko na czas sesji).
+    // NIE zapisujemy jej do localStorage - po przeładowaniu strony i tak
+    // byłaby martwą kopią. Trwałym łącznikiem jest __bazaIdx (numer pozycji
+    // kropki w tablicy kropkiAudio) - patrz zastosujOczekujaceEdycje().
+    localStorage.setItem(KEY_ZAPLANOWANE, JSON.stringify(
+      zaplanowaneKropki,
+      (klucz, wartosc) => klucz === '__ref' ? undefined : wartosc
+    ));
   } catch(e) {}
+}
+
+// =====================================================================
+// === EDYCJE ISTNIEJĄCYCH KROPEK - trwałość po przeładowaniu =========
+// =====================================================================
+// Gdy admin edytuje kropkę ZAPISANĄ w kodzie, zmiany lądują w zaplanowanych
+// jako wpis z __bazaIdx (pozycja kropki w kropkiAudio) i __ref (referencja).
+// Po przeładowaniu strony kropkiAudio wraca do stanu z pliku - poniższe
+// funkcje nakładają oczekujące edycje z powrotem, żeby admin widział na
+// mapie i liście JEDNĄ, aktualną wersję (a nie starą obok nowej).
+
+// Nakłada dane wpisu (zaplanowanej edycji) na żywą kropkę z kropkiAudio.
+// Jedno źródło prawdy dla zapiszEdycje() i zastosujOczekujaceEdycje().
+function nalozEdycjeNaKropke(k, wpis) {
+  k.numer = wpis.numer;
+  k.opis = wpis.opis || '';
+  k.typKropki = wpis.typKropki || null;
+  if (wpis.linkAudio) { k.linkAudio = wpis.linkAudio; } else { delete k.linkAudio; }
+
+  if (wpis.linia && wpis.linia.length >= 2) {
+    // Ścieżka: linia+szerokość, bez pól koła i wielokąta
+    k.linia = wpis.linia.map(p => [p[0], p[1]]);
+    k.szerokosc = wpis.szerokosc || 30;
+    k.pozycja = [wpis.lat, wpis.lng];
+    delete k.ksztalt; delete k.promien; delete k.pokazFale; delete k.trybKropki;
+  } else if (wpis.ksztalt && wpis.ksztalt.length >= 3) {
+    // Strefa-wielokąt: ksztalt, bez pól koła i ścieżki
+    k.ksztalt = wpis.ksztalt.map(p => [p[0], p[1]]);
+    k.pozycja = [wpis.lat, wpis.lng];
+    delete k.linia; delete k.szerokosc; delete k.promien; delete k.pokazFale; delete k.trybKropki;
+  } else {
+    // Koło: pozycja+promień, bez ksztaltu i linii
+    k.pozycja = [wpis.lat, wpis.lng];
+    k.promien = wpis.promien || 50;
+    k.pokazFale = wpis.pokazFale === true;
+    k.trybKropki = wpis.trybKropki || null;
+    delete k.ksztalt; delete k.linia; delete k.szerokosc;
+  }
+}
+
+// Po przeładowaniu strony: dla każdej zaplanowanej EDYCJI (ma __bazaIdx)
+// odtwórz referencję __ref i nałóż zmiany na kropkę z kodu.
+// Zwraca liczbę nałożonych edycji (>0 = trzeba przerysować kropki).
+function zastosujOczekujaceEdycje() {
+  let nalozone = 0;
+  zaplanowaneKropki.forEach(wpis => {
+    if (!Number.isInteger(wpis.__bazaIdx)) return; // zwykła nowa kropka
+    const k = kropkiAudio[wpis.__bazaIdx];
+    if (!k) {
+      // Plik na serwerze zmienił się od czasu szkicu (kropki bazowej już
+      // nie ma pod tym indeksem). Odpinamy łącznik - wpis zostaje jako
+      // zwykła nowa (zielona) kropka, nic nie ginie.
+      delete wpis.__bazaIdx;
+      return;
+    }
+    wpis.__ref = k;            // referencja żyje na nowo - lista/eksport ją rozumieją
+    nalozEdycjeNaKropke(k, wpis);
+    nalozone++;
+  });
+  return nalozone;
 }
 
 // =====================================================================
@@ -11188,7 +11420,7 @@ function exportujZaplanowane() {
   const linie = zaplanowaneKropki
     .sort((a,b) => a.numer - b.numer)
     .map(k => {
-      const opis = k.opis.replace(/'/g, "\\'");
+      const opis = (k.opis || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
       return `  { numer: ${k.numer}, pozycja: [${k.lat.toFixed(5)}, ${k.lng.toFixed(5)}], promien: ${k.promien}, opis: '${opis}' },`;
     });
   const kod = linie.join('\n');
@@ -11325,7 +11557,8 @@ function wytnijAdmina(tekst) {
     ['ADMIN-HELPER:START', 'ADMIN-HELPER:END'],   // formularz dodawania kropki
     ['ADMIN-LIST:START',   'ADMIN-LIST:END'],     // panel admina (liczniki, przyciski)
     ['ADMIN-MODAL:START',  'ADMIN-MODAL:END'],    // modal Splash poety
-    ['ADMIN-PLIKI:START',  'ADMIN-PLIKI:END']     // modal informacyjny "Pliki przewodnika"
+    ['ADMIN-PLIKI:START',  'ADMIN-PLIKI:END'],    // modal informacyjny "Pliki przewodnika"
+    ['ADMIN-LICZNIK:START','ADMIN-LICZNIK:END']   // widget licznika pobrań (prawy górny róg)
   ];
   for (const [start, end] of blokiDoWyciecia) {
     // Regex: od komentarza START do komentarza END włącznie (z zawartością)
@@ -11347,7 +11580,15 @@ function wytnijAdmina(tekst) {
 }
 
 
-async function pobierzNowyIndex() {
+// Generuje i pobiera nowy index.html z wbudowanymi zmianami admina.
+//   czyPubliczna = false (domyślnie): WERSJA ROBOCZA - z pełnym edytorem.
+//     Plik do dalszej pracy i na serwer (?admin=1 nadal działa).
+//     Po pobraniu proponuje wyczyszczenie szkiców (są już w pliku).
+//   czyPubliczna = true: WERSJA PUBLICZNA - panel admina wycięty na stałe.
+//     Dla turystów / do finalnej publikacji. Szkiców NIE czyścimy -
+//     admin pracuje dalej na wersji roboczej.
+async function pobierzNowyIndex(czyPubliczna) {
+  czyPubliczna = czyPubliczna === true;
   try {
     // Pobierz tekst tego samego pliku - z timestampem i no-cache żeby ominąć
     // cache przeglądarki, Cloudflare, Netlify CDN itp. (bez tego ryzykujemy
@@ -11358,9 +11599,20 @@ async function pobierzNowyIndex() {
     let tekst = await response.text();
 
     // ===== TABLICA kropkiAudio =====
-    // Połącz wszystkie kropki: istniejące z kodu + zaplanowane (sortuj po numerze)
+    // Kropki bazowe, które mają oczekujący wpis-edycję w zaplanowanych,
+    // POMIJAMY - ich aktualna wersja idzie z zaplanowanych. Bez tego filtra
+    // edytowana kropka trafiałaby do pliku dwa razy (stara + nowa).
+    const edytowaneBazowe = new Set();
+    zaplanowaneKropki.forEach(z => {
+      if (z.__ref) edytowaneBazowe.add(z.__ref);
+      else if (Number.isInteger(z.__bazaIdx) && kropkiAudio[z.__bazaIdx]) {
+        edytowaneBazowe.add(kropkiAudio[z.__bazaIdx]);
+      }
+    });
+
+    // Połącz wszystkie kropki: istniejące z kodu (bez edytowanych) + zaplanowane
     const wszystkie = [
-      ...kropkiAudio.map(k => ({
+      ...kropkiAudio.filter(k => !edytowaneBazowe.has(k)).map(k => ({
         numer: k.numer,
         lat: k.pozycja ? k.pozycja[0] : (k.lat || 0),
         lng: k.pozycja ? k.pozycja[1] : (k.lng || 0),
@@ -11369,6 +11621,7 @@ async function pobierzNowyIndex() {
         linia: k.linia || null,
         szerokosc: k.szerokosc || null,
         opis: k.opis || '',
+        linkAudio: k.linkAudio || null,
         pokazFale: k.pokazFale === true,
         trybKropki: k.trybKropki || null,
         typKropki: k.typKropki || null
@@ -11383,12 +11636,15 @@ async function pobierzNowyIndex() {
 
     // Wygeneruj kod nowej tablicy kropek audio
     const linie = finalne.map(k => {
-      const opis = (k.opis || '').replace(/'/g, "\\'");
+      // Escaping jak w esc() dla miejsc: NAJPIERW backslash, potem apostrof
+      // (inna kolejność podwajałaby escapowane apostrofy). Backslash na końcu
+      // opisu bez tego psułby wygenerowany plik (zjadłby zamykający cudzysłów).
+      const opis = (k.opis || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
       // typKropki: zapisujemy TYLKO gdy 'tlo' (domyślny 'wiersz' nie zajmuje miejsca)
       const typ = (k.typKropki === 'tlo') ? `, typKropki: 'tlo'` : '';
       // linkAudio: zapisujemy TYLKO gdy jest podany
       const linkAud = (k.linkAudio && k.linkAudio.trim())
-        ? `, linkAudio: '${k.linkAudio.replace(/'/g, "\\'")}'`
+        ? `, linkAudio: '${k.linkAudio.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`
         : '';
 
       // STREFA-WIELOKĄT: ma pole `ksztalt` (lista [lat,lng]). Bez promienia i trybu.
@@ -11445,7 +11701,6 @@ async function pobierzNowyIndex() {
       if (m.tytulSrodek) linia += `, tytulSrodek: true`;
       if (m.tytulDuzy) linia += `, tytulDuzy: true`;
       if (m.linkYT && m.linkYT.trim()) linia += `, linkYT: '${esc(m.linkYT)}'`;
-      if (m.quickTyp) linia += `, quickTyp: '${esc(m.quickTyp)}'`;
       if (m.quickTyp) linia += `, quickTyp: '${esc(m.quickTyp)}'`;
       linia += ` }`;
       return linia;
@@ -11504,6 +11759,26 @@ async function pobierzNowyIndex() {
         }
         return `<title>${nowyTytul.replace(/\$/g, '$$$$')}</title>`;
       });
+      // 3. Podgląd linku (Facebook/Messenger) + opis dla wyszukiwarek -
+      //    synchronizujemy z nazwą strony. Cudzysłów w nazwie -> &quot;
+      //    (inaczej rozerwałby atrybut content="...").
+      const nazwaAttr = aktualnaNazwa
+        .replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/\$/g, '$$$$');
+      const opisAttr = ('Interaktywna mapa audio „' + aktualnaNazwa + '” — wiersze, opowieści i dźwięki przypisane do miejsc. Włącz lokalizację i słuchaj, idąc od punktu do punktu.')
+        .replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/\$/g, '$$$$');
+      tekst = tekst.replace(/(<meta property="og:title" content=")[^"]*(">)/, `$1${nazwaAttr}$2`);
+      tekst = tekst.replace(/(<meta name="description" content=")[^"]*(">)/, `$1${opisAttr}$2`);
+      tekst = tekst.replace(/(<meta property="og:description" content=")[^"]*(">)/, `$1${opisAttr}$2`);
+    }
+
+    // og:image musi być PEŁNYM adresem (Facebook nie czyta względnych ścieżek).
+    // Liczymy go z adresu serwera, spod którego działa edytor. Pomijamy gdy
+    // edytor otwarty z dysku (file://) - wtedy zostaje wartość z pliku.
+    if (/^https?:$/.test(window.location.protocol)) {
+      try {
+        const absImg = new URL('img/artysta.jpg', adresZrodla).href.replace(/\$/g, '$$$$');
+        tekst = tekst.replace(/(<meta property="og:image" content=")[^"]*(">)/, `$1${absImg}$2`);
+      } catch (e) {}
     }
 
     // ===== OPIS STRONY (zakładka pod mapą) =====
@@ -11679,17 +11954,24 @@ async function pobierzNowyIndex() {
     }
 
     // ===== WERSJA PUBLICZNA - wytnij panel admina =====
-    // Plik który pobiera użytkownik NIE zawiera trybu admin.
-    // Edytor na stronie (ten plik otwarty w przeglądarce) zostaje nietknięty -
+    // TYLKO gdy admin kliknął "Wersja publiczna" (czyPubliczna=true):
+    // plik dla turystów, bez trybu admin (na stałe). Wersja ROBOCZA
+    // (domyślny przycisk) zachowuje pełny edytor - to plik do dalszej
+    // pracy i na serwer. Edytor otwarty w przeglądarce zostaje nietknięty -
     // wycinanie działa tylko na pobieranej KOPII.
-    tekst = wytnijAdmina(tekst);
+    if (czyPubliczna) {
+      tekst = wytnijAdmina(tekst);
+    }
 
-    // Stwórz blob i pobierz plik
+    // Stwórz blob i pobierz plik.
+    // Wersja publiczna dostaje INNĄ nazwę, żeby przez przypadek nie nadpisać
+    // nią roboczego index.html na serwerze (to odcięłoby tryb admin).
+    const nazwaPliku = czyPubliczna ? 'index-wersja-publiczna.html' : 'index.html';
     const blob = new Blob([tekst], { type: 'text/html;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'index.html';
+    a.download = nazwaPliku;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -11698,29 +11980,51 @@ async function pobierzNowyIndex() {
     // Zlicz pobranie w Firebase (widget w prawym górnym się odświeży)
     zliczPobranieHTML();
 
-    // Po pobraniu - zaproponuj wyczyszczenie listy zaplanowanych + zmian miejsc
-    setTimeout(() => {
-      const ileZmian = zaplanowaneKropki.length;
-      const ileRys = rysunki.length;
-      if (ileZmian > 0 &&
-          confirm(`✓ Pobrano nowy index.html z ${finalne.length} kropkami audio, ${miejsca.length} miejscami i ${ileRys} rysunkami.\n\nCzy wyczyścić listę zaplanowanych kropek? (są już w pobranym pliku)`)) {
+    if (czyPubliczna) {
+      // WERSJA PUBLICZNA: szkiców NIE czyścimy - admin pracuje dalej
+      // na wersji roboczej i może generować kolejne pliki.
+      setTimeout(() => {
+        alert('🌍 Pobrano WERSJĘ PUBLICZNĄ: ' + nazwaPliku +
+              '\n(' + finalne.length + ' kropek audio, ' + miejsca.length + ' miejsc)' +
+              '\n\nTen plik NIE MA edytora (?admin=1 nie zadziała w nim nigdy).' +
+              '\nWgrywaj go tam, gdzie ma trafić wersja dla turystów -' +
+              '\nw docelowym miejscu zmień mu nazwę na index.html.' +
+              '\n\nTwoje szkice zostały nietknięte - pracujesz dalej normalnie.');
+      }, 500);
+    } else {
+      // WERSJA ROBOCZA: dane są wbudowane w pobrany plik, więc szkice
+      // z localStorage stają się zbędne. Czyścimy WSZYSTKO albo NIC -
+      // jedna decyzja, jeden confirm. "Anuluj" = wszystkie szkice zostają
+      // (wcześniej część czyściła się nawet po "Anuluj" - to był błąd).
+      setTimeout(() => {
+        const ileZmian = zaplanowaneKropki.length;
+        const ileRys = rysunki.length;
+        const czyscic = confirm(
+          `✓ Pobrano roboczy index.html z ${finalne.length} kropkami audio, ` +
+          `${miejsca.length} miejscami i ${ileRys} rysunkami.\n\n` +
+          `Wgraj go na serwer w miejsce starego - edytor (?admin=1) nadal działa.\n\n` +
+          `Czy wyczyścić szkice robocze (zaplanowane kropki, zmiany miejsc, ` +
+          `nazwę, opis, rysunki, kategorie)?\nSą już zapisane w pobranym pliku.` +
+          (ileZmian > 0 ? `\n\nOK = wyczyść wszystko · Anuluj = zostaw wszystko` : '')
+        );
+        if (!czyscic) return;
         zaplanowaneKropki = [];
         zapiszZaplanowane();
         renderujZaplanowane();
         pokazAdminListe();
-      }
-      // Wyczyść też cache miejsc (są już w pobranym pliku)
-      try { localStorage.removeItem(KEY_MIEJSCA); } catch(e) {}
-      // Wyczyść cache nazwy strony (jest już w pobranym pliku)
-      try { localStorage.removeItem(KEY_NAZWA_STRONY); } catch(e) {}
-      // Wyczyść cache opisu strony (jest już w pobranym pliku)
-      try { localStorage.removeItem(KEY_OPIS_STRONY_TYTUL); } catch(e) {}
-      try { localStorage.removeItem(KEY_OPIS_STRONY_TRESC); } catch(e) {}
-      // Wyczyść robocze rysunki - są już w pobranym pliku jako rysunkiZakodowane
-      try { localStorage.removeItem(STORAGE_KEY_RYSUNKI); } catch(e) {}
-      // Wyczyść robocze kategorie - są już w pobranym pliku jako kategorieDomyslne
-      try { localStorage.removeItem('kategorie_robocze_v1'); } catch(e) {}
-    }, 500);
+        // Wyczyść cache miejsc (są już w pobranym pliku)
+        try { localStorage.removeItem(KEY_MIEJSCA); } catch(e) {}
+        // Wyczyść cache nazwy strony (jest już w pobranym pliku)
+        try { localStorage.removeItem(KEY_NAZWA_STRONY); } catch(e) {}
+        // Wyczyść cache opisu strony (jest już w pobranym pliku)
+        try { localStorage.removeItem(KEY_OPIS_STRONY_TYTUL); } catch(e) {}
+        try { localStorage.removeItem(KEY_OPIS_STRONY_TRESC); } catch(e) {}
+        // Wyczyść robocze rysunki - są już w pobranym pliku jako rysunkiZakodowane
+        try { localStorage.removeItem(STORAGE_KEY_RYSUNKI); } catch(e) {}
+        // Wyczyść robocze kategorie - są już w pobranym pliku jako kategorieDomyslne
+        try { localStorage.removeItem('kategorie_robocze_v1'); } catch(e) {}
+      }, 500);
+    }
 
   } catch (err) {
     console.error('Błąd pobierania:', err);
@@ -11771,6 +12075,11 @@ function zapiszEdycje() {
   const numer = parseInt(document.getElementById('adminNumer').value) || 1;
   const promien = parseInt(document.getElementById('adminPromien').value) || 50;
   const opis = document.getElementById('adminOpis').value;
+  // Link audio (tryb LINK) - czytamy tak samo jak przy nowej kropce.
+  // Pole jest czyszczone gdy admin wraca do trybu numeru, więc pusta
+  // wartość = brak linku (null) i kropka gra z audio/{numer}.mp3.
+  const linkAudioRaw = (document.getElementById('adminLinkAudio')?.value || '').trim();
+  const linkAudio = linkAudioRaw || null;
 
   // BLOKADA DUPLIKATU - jeden numer = jedno miejsce.
   // Przy edycji pomijamy samą edytowaną kropkę (jej obecny numer się "nie liczy").
@@ -11809,54 +12118,29 @@ function zapiszEdycje() {
   }
 
   if (edytowanyTyp === 'audio') {
-    // Edytujemy kropkę z kodu - zapisujemy zmiany do listy zaplanowanych
-    // (bo nie możemy zapisać do kodu, ale "Pobierz nowy index.html" to scali)
+    // Edytujemy kropkę ZAPISANĄ w kodzie. Zmiany trafiają do zaplanowanych
+    // jako wpis-edycja: z __ref (referencja, na czas sesji) i __bazaIdx
+    // (pozycja w kropkiAudio - przeżywa przeładowanie strony, patrz
+    // zastosujOczekujaceEdycje). Eksport pliku pomija kropki bazowe mające
+    // taki wpis - do pliku idzie wyłącznie nowa wersja, BEZ duplikatu starej.
     // UWAGA: Używamy REFERENCJI do obiektu (edytowanaKropka), nie findIndex
     // po numerze - bo wiele kropek może mieć ten sam numer (segmenty strefy).
     const idx = kropkiAudio.indexOf(edytowanaKropka);
-    if (idx >= 0) {
-      const k = kropkiAudio[idx];
-      k.numer = numer;
-      k.opis = opis;
-      k.typKropki = aktualnyTypKropki;
-      if (zapisSciezka) {
-        // Ścieżka: ustaw linia+szerokosc, usuń pola koła i wielokąta
-        k.linia = liniaKopia;
-        k.szerokosc = szerSciezki;
-        k.pozycja = [repLat, repLng]; // środek - dla zgodności
-        delete k.ksztalt;
-        delete k.promien;
-        delete k.pokazFale;
-        delete k.trybKropki;
-      } else if (zapisWielokat) {
-        // Strefa-wielokąt: ustaw ksztalt, usuń pola koła i ścieżki
-        k.ksztalt = ksztaltKopia;
-        k.pozycja = [repLat, repLng];
-        delete k.linia;
-        delete k.szerokosc;
-        delete k.promien;
-        delete k.pokazFale;
-        delete k.trybKropki;
-      } else {
-        // Koło: ustaw pozycja+promień, usuń ksztalt i linię
-        k.pozycja = [repLat, repLng];
-        k.promien = promien;
-        k.pokazFale = aktualnyPokazFale;
-        k.trybKropki = aktualnyTrybKropki;
-        delete k.ksztalt;
-        delete k.linia;
-        delete k.szerokosc;
-      }
-    }
-    // Dodatkowo do zaplanowanych żeby trafiło do pobranego pliku.
+
+    // Zbuduj wpis-edycję - komplet danych nowej wersji kropki
     let wpis;
     if (zapisSciezka) {
-      wpis = { numer, lat: repLat, lng: repLng, linia: liniaKopia, szerokosc: szerSciezki, opis, typKropki: aktualnyTypKropki, __ref: edytowanaKropka };
+      wpis = { numer, lat: repLat, lng: repLng, linia: liniaKopia, szerokosc: szerSciezki, opis, linkAudio, typKropki: aktualnyTypKropki, __ref: edytowanaKropka, __bazaIdx: idx };
     } else if (zapisWielokat) {
-      wpis = { numer, lat: repLat, lng: repLng, ksztalt: ksztaltKopia, opis, typKropki: aktualnyTypKropki, __ref: edytowanaKropka };
+      wpis = { numer, lat: repLat, lng: repLng, ksztalt: ksztaltKopia, opis, linkAudio, typKropki: aktualnyTypKropki, __ref: edytowanaKropka, __bazaIdx: idx };
     } else {
-      wpis = { numer, lat: repLat, lng: repLng, promien, opis, pokazFale: aktualnyPokazFale, trybKropki: aktualnyTrybKropki, typKropki: aktualnyTypKropki, __ref: edytowanaKropka };
+      wpis = { numer, lat: repLat, lng: repLng, promien, opis, linkAudio, pokazFale: aktualnyPokazFale, trybKropki: aktualnyTrybKropki, typKropki: aktualnyTypKropki, __ref: edytowanaKropka, __bazaIdx: idx };
     }
+
+    // Nałóż zmiany na żywą kropkę - mapa od razu pokazuje nową wersję
+    if (idx >= 0) nalozEdycjeNaKropke(kropkiAudio[idx], wpis);
+
+    // Jedna kropka = jeden wpis-edycja (kolejny zapis nadpisuje poprzedni)
     const istn = zaplanowaneKropki.findIndex(k => k.__ref === edytowanaKropka);
     if (istn >= 0) {
       zaplanowaneKropki[istn] = wpis;
@@ -11868,6 +12152,7 @@ function zapiszEdycje() {
     edytowanaKropka.lat = repLat;
     edytowanaKropka.lng = repLng;
     edytowanaKropka.opis = opis;
+    if (linkAudio) { edytowanaKropka.linkAudio = linkAudio; } else { delete edytowanaKropka.linkAudio; }
     edytowanaKropka.typKropki = aktualnyTypKropki;
     if (zapisSciezka) {
       edytowanaKropka.linia = liniaKopia;
@@ -11913,13 +12198,24 @@ function usunKropke() {
   if (!confirm(`Usunąć kropkę #${edytowanaKropka.numer} (${edytowanaKropka.opis || 'bez opisu'})?\n\nDo zapisania zmian musisz pobrać nowy index.html.`)) return;
 
   if (edytowanyTyp === 'audio') {
-    const idx = kropkiAudio.findIndex(k => k.numer === edytowanaKropka.numer);
+    // Usuwamy po REFERENCJI, nie po numerze - segmenty tej samej strefy
+    // dzielą numer i findIndex po numerze kasowałby pierwszy z brzegu.
+    const idx = kropkiAudio.indexOf(edytowanaKropka);
     if (idx >= 0) kropkiAudio.splice(idx, 1);
-    // Usuń też z zaplanowanych jeśli była
-    const idxP = zaplanowaneKropki.findIndex(k => k.numer === edytowanaKropka.numer);
+    // Usuń też powiązany wpis-edycję z zaplanowanych (jeśli był)
+    const idxP = zaplanowaneKropki.findIndex(k => k.__ref === edytowanaKropka);
     if (idxP >= 0) zaplanowaneKropki.splice(idxP, 1);
+    // Po splice indeksy kropek ZA usuniętą przesuwają się o 1 w dół -
+    // koryguj __bazaIdx w pozostałych wpisach-edycjach, żeby po
+    // przeładowaniu strony nadal wskazywały właściwe kropki.
+    if (idx >= 0) {
+      zaplanowaneKropki.forEach(z => {
+        if (Number.isInteger(z.__bazaIdx) && z.__bazaIdx > idx) z.__bazaIdx--;
+      });
+    }
   } else if (edytowanyTyp === 'planowana') {
-    const idx = zaplanowaneKropki.findIndex(k => k.numer === edytowanaKropka.numer);
+    // Też po referencji - zaplanowane mogą dzielić numer (segmenty stref)
+    const idx = zaplanowaneKropki.indexOf(edytowanaKropka);
     if (idx >= 0) zaplanowaneKropki.splice(idx, 1);
   }
 
@@ -12376,8 +12672,11 @@ function zbudujPasekEdytora() {
         <button class="ed-btn ed-btn-wyczysc" onclick="wyczyscWszystkoEdytor()">
           <span class="ed-btn-ikona">🗑️</span><span>Wyczyść wszystko</span>
         </button>
-        <button class="ed-btn ed-btn-pobierz" onclick="pobierzNowyIndex()">
+        <button class="ed-btn ed-btn-pobierz" onclick="pobierzNowyIndex(false)" title="Plik do dalszej pracy i na serwer - edytor zostaje (?admin=1 działa)">
           <span class="ed-btn-ikona">💾</span><span>Pobierz index.html</span>
+        </button>
+        <button class="ed-btn ed-btn-pobierz" style="background:linear-gradient(180deg,#0ea5e9,#0284c7)" onclick="pobierzNowyIndex(true)" title="Plik bez edytora - dla turystów. Twoje szkice zostają nietknięte">
+          <span class="ed-btn-ikona">🌍</span><span>Wersja publiczna</span>
         </button>
       </div>
     </div>
@@ -12494,6 +12793,18 @@ if (isAdmin) {
   wczytajZmianyMiejsc();
 
   wczytajZaplanowane();
+  // Nałóż oczekujące edycje kropek z kodu (szkice z poprzedniej sesji) -
+  // bez tego po przeładowaniu admin widziałby STARĄ kropkę z pliku obok
+  // NOWEJ zielonej, a eksport zapisałby obie (duplikat).
+  if (zastosujOczekujaceEdycje() > 0) {
+    // Bazowe kropki narysowały się wcześniej ze starymi danymi - przerysuj
+    audioMarkery.forEach(m => {
+      if (m._krag) mapa.removeLayer(m._krag);
+      mapa.removeLayer(m);
+    });
+    audioMarkery = [];
+    renderujKropkiAudio();
+  }
   renderujZaplanowane();
   pokazAdminListe();
 
@@ -12958,6 +13269,172 @@ let userPozycja = null;
 let watchId = null;
 
 // =====================================================================
+// === WAKE LOCK - blokada wygaszania ekranu podczas spaceru ==========
+// =====================================================================
+// PROBLEM: gdy telefon wygasi ekran, przeglądarka usypia i watchPosition
+// PRZESTAJE dostarczać pozycje (blokada systemowa Android/iOS - nie do
+// obejścia w stronie WWW). Audio które już gra - gra dalej, ale wejście
+// w NOWĄ strefę nie zostanie wykryte aż do obudzenia ekranu.
+//
+// ROZWIĄZANIE (jak Google Maps w nawigacji): nie pozwól ekranowi zgasnąć.
+// Wake Lock trzyma ekran włączony dopóki działa GPS. Turysta może
+// przyciemnić jasność - blokada dalej trzyma.
+//
+// CYKL ŻYCIA:
+//  - zalozWakeLock()   - przy starcie GPS (togglePozycja)
+//  - zwolnijWakeLock() - przy wyłączeniu GPS (togglePozycja)
+//  - system SAM zdejmuje blokadę gdy karta idzie w tło (inna aplikacja,
+//    ręczne zgaszenie ekranu) -> handler visibilitychange poniżej zakłada
+//    ją PONOWNIE przy powrocie + od razu prosi o świeżą pozycję, żeby
+//    strefy audio zadziałały natychmiast, a nie po kilkunastu sekundach.
+//
+// WSPARCIE: Android/Chrome od dawna, iPhone od iOS 16.4 (wiosna 2023).
+// Starsze iPhone'y: zamiast blokady jednorazowa podpowiedź o wydłużeniu
+// czasu wygaszania w ustawieniach telefonu.
+let wakeLockSentinel = null;       // aktywna blokada (null = brak)
+let wakeLockToastPokazany = false; // toast informacyjny tylko raz na sesję
+
+async function zalozWakeLock() {
+  // Brak API (stary iPhone, stara przeglądarka) - podpowiedź zamiast blokady
+  if (!('wakeLock' in navigator)) {
+    if (!wakeLockToastPokazany) {
+      wakeLockToastPokazany = true;
+      pokazToast('Twój telefon może wygaszać ekran podczas spaceru.<br>Wydłuż czas wygaszania w ustawieniach telefonu.', '📱', 6000);
+    }
+    return;
+  }
+  if (wakeLockSentinel) return; // blokada już założona - nie dubluj
+
+  try {
+    wakeLockSentinel = await navigator.wakeLock.request('screen');
+    // System może zdjąć blokadę bez naszej wiedzy (karta w tle,
+    // oszczędzanie energii). Czyścimy referencję - visibilitychange
+    // założy nową przy powrocie do karty.
+    wakeLockSentinel.addEventListener('release', () => { wakeLockSentinel = null; });
+    if (!wakeLockToastPokazany) {
+      wakeLockToastPokazany = true;
+      pokazToast('Ekran nie zgaśnie podczas spaceru.<br>Możesz przyciemnić jasność telefonu.', '🔆', 4500);
+    }
+  } catch (e) {
+    // Może się nie udać np. przy włączonym oszczędzaniu baterii.
+    // Cicho - GPS i tak działa dopóki ekran jest włączony.
+    console.warn('Wake Lock:', e.message || e);
+    wakeLockSentinel = null;
+  }
+}
+
+function zwolnijWakeLock() {
+  if (!wakeLockSentinel) return;
+  try { wakeLockSentinel.release(); } catch (e) {}
+  wakeLockSentinel = null;
+}
+
+// POWRÓT DO KARTY (z innej aplikacji / po obudzeniu ekranu):
+// 1) załóż blokadę ponownie - system zdjął ją przy wyjściu w tło,
+// 2) poproś o świeżą pozycję OD RAZU - bez tego turysta czeka na kolejny
+//    tick watchPosition i strefa "nie łapie" przez kilka(naście) sekund.
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState !== 'visible') return;
+  if (watchId === null) return; // GPS wyłączony - nie ma czego pilnować
+  zalozWakeLock();
+  try {
+    navigator.geolocation.getCurrentPosition(
+      pokazPozycje,
+      () => {}, // błąd ignorujemy - watchPosition i tak pracuje dalej
+      { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 }
+    );
+  } catch (e) {}
+});
+
+// =====================================================================
+// === WYGASZACZ EKRANU (tryb kieszonkowy) ============================
+// =====================================================================
+// Telefon w dłoni albo kieszeni podczas spaceru: ekran wygląda na
+// zgaszony (czarna zasłona), dotyk jest zablokowany, ale strona ŻYJE -
+// wake lock nie pozwala systemowi naprawdę zgasić ekranu, więc GPS
+// dostarcza pozycje i strefy audio grają. Odblokowanie wymaga
+// PRZYTRZYMANIA przycisku ~1s - przypadkowe muśnięcie nic nie zrobi.
+let wygaszaczAktywny = false;
+let _wygaszaczTimerOdblokuj = null;  // setTimeout przytrzymania (1s)
+let _wygaszaczInterval = null;       // odświeżanie zegara/statusu co 4s
+
+function wlaczWygaszacz() {
+  const ov = document.getElementById('wygaszaczEkranu');
+  if (!ov) return;
+  wygaszaczAktywny = true;
+  ov.classList.add('aktywny');
+  document.body.style.overflow = 'hidden';  // nic nie scrolluje pod zasłoną
+  // Ekran NIE może teraz zgasnąć naprawdę - inaczej "niby wygaszacz"
+  // zamienia się w prawdziwy i GPS staje. (Stary iPhone bez wake locka
+  // dostanie podpowiedź o czasie wygaszania - patrz zalozWakeLock.)
+  zalozWakeLock();
+  _wygaszaczOdswiez();
+  _wygaszaczInterval = setInterval(_wygaszaczOdswiez, 4000);
+}
+
+function wylaczWygaszacz() {
+  const ov = document.getElementById('wygaszaczEkranu');
+  wygaszaczAktywny = false;
+  if (ov) ov.classList.remove('aktywny');
+  document.body.style.overflow = '';
+  wygaszaczAnulujOdblokuj();
+  if (_wygaszaczInterval) { clearInterval(_wygaszaczInterval); _wygaszaczInterval = null; }
+  // Blokadę ekranu zwalniamy TYLKO gdy GPS nie działa - włączony GPS
+  // ma własny powód trzymać ekran przy życiu (patrz togglePozycja).
+  if (watchId === null) zwolnijWakeLock();
+}
+
+// Palec dotknął przycisku: start paska postępu + timer 1s.
+function wygaszaczStartOdblokuj(e) {
+  if (e && e.preventDefault) e.preventDefault();
+  const btn = document.getElementById('wygaszaczOdblokuj');
+  if (btn) btn.classList.add('trzymam');
+  if (_wygaszaczTimerOdblokuj) clearTimeout(_wygaszaczTimerOdblokuj);
+  _wygaszaczTimerOdblokuj = setTimeout(() => {
+    _wygaszaczTimerOdblokuj = null;
+    wylaczWygaszacz();
+    // Krótka wibracja = potwierdzenie odblokowania (tam gdzie wspierana)
+    if (navigator.vibrate) { try { navigator.vibrate(30); } catch(err) {} }
+  }, 1000);
+}
+
+// Palec puścił / zjechał z przycisku przed czasem = anuluj.
+function wygaszaczAnulujOdblokuj() {
+  if (_wygaszaczTimerOdblokuj) { clearTimeout(_wygaszaczTimerOdblokuj); _wygaszaczTimerOdblokuj = null; }
+  const btn = document.getElementById('wygaszaczOdblokuj');
+  if (btn) btn.classList.remove('trzymam');
+}
+
+// Zegar + informacja co teraz gra. Wywoływane przy włączeniu i co 4s.
+function _wygaszaczOdswiez() {
+  const zegar = document.getElementById('wygaszaczZegar');
+  if (zegar) {
+    const t = new Date();
+    zegar.textContent = String(t.getHours()).padStart(2, '0') + ':' +
+                        String(t.getMinutes()).padStart(2, '0');
+  }
+  const status = document.getElementById('wygaszaczStatus');
+  if (!status) return;
+  let txt = '🎧 Audio-spacer trwa — wejdź w strefę, a audio zagra';
+  try {
+    if (typeof aktualneAudio !== 'undefined' && aktualneAudio
+        && !aktualneAudio.paused && !aktualneAudio.ended
+        && typeof aktualnaKropkaAudio !== 'undefined' && aktualnaKropkaAudio) {
+      txt = '🎧 Gra: #' + aktualnaKropkaAudio.numer +
+            (aktualnaKropkaAudio.opis ? ' · ' + aktualnaKropkaAudio.opis : '');
+    } else if (typeof audioTlo !== 'undefined' && audioTlo && !audioTlo.paused) {
+      txt = '🌳 Gra tło audio — klimat miejsca';
+    }
+  } catch (e) {}
+  status.textContent = txt;
+}
+
+// Desktop: Escape też odblokowuje (wygodne przy testach w edytorze).
+document.addEventListener('keydown', (e) => {
+  if (wygaszaczAktywny && e.key === 'Escape') wylaczWygaszacz();
+});
+
+// =====================================================================
 // === AUTO-CENTROWANIE MAPY (jak w nawigacji samochodowej) ===========
 // =====================================================================
 // Gdy true - mapa płynnie podąża za pozycją GPS, użytkownik zawsze w środku.
@@ -13310,6 +13787,8 @@ function togglePozycja() {
     gpsStatus.classList.remove('visible');
     // Usuń badżyki dystansów
     document.querySelectorAll('.miejsce-card .dystans').forEach(d => d.remove());
+    // Zwolnij blokadę ekranu - GPS wyłączony, telefon może gasnąć normalnie
+    zwolnijWakeLock();
     return;
   }
 
@@ -13376,6 +13855,10 @@ function togglePozycja() {
       timeout: 2147483647        // ~maksymalna wartość - praktycznie nigdy nie poddaje się
     }
   );
+
+  // Ekran nie może zgasnąć podczas spaceru - inaczej system uśpi stronę,
+  // GPS przestanie dostarczać pozycje i kolejne strefy audio nie zagrają.
+  zalozWakeLock();
 }
 
 // ============== TRYB TURYSTY ==============
@@ -13570,8 +14053,17 @@ window.addEventListener('load', () => {
 let qrScanner = null;
 let znalezionyURL = null;
 
-function otworzSkaner() {
+async function otworzSkaner() {
   document.getElementById('scanModal').classList.add('visible');
+
+  // Doładuj bibliotekę skanera na żądanie (~350 KB mniej przy starcie strony).
+  try {
+    await zaladujZasob('https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js', 'js');
+  } catch (e) {
+    pokazBlad('Nie udało się pobrać modułu skanera', 'Sprawdź połączenie z internetem i spróbuj ponownie.');
+    zamknijSkaner();
+    return;
+  }
 
   if (!qrScanner) {
     qrScanner = new Html5Qrcode("qrReader");
@@ -15356,6 +15848,28 @@ function splashStartBezGPS() { splashPoetaStart(); }
 
 <!-- TOAST - krótki komunikat wyskakujący (GPS wstrzymany / powrót do lokalizacji) -->
 <div id="poetaToast" class="poeta-toast"></div>
+
+<!-- WYGASZACZ EKRANU (tryb kieszonkowy) - czarna zasłona blokująca dotyk.
+     Włączany księżycem 🌙 przy mapie. Odblokowanie: PRZYTRZYMANIE ~1s.
+     Wake lock pilnuje, żeby telefon nie zgasił ekranu naprawdę -
+     GPS i strefy audio działają pod zasłoną normalnie. -->
+<div id="wygaszaczEkranu" class="wygaszacz" aria-label="Ekran przyciemniony na czas spaceru"
+     ontouchmove="event.preventDefault()"
+     oncontextmenu="return false"
+     onclick="event.stopPropagation()">
+  <div class="wygaszacz-zegar" id="wygaszaczZegar">--:--</div>
+  <div class="wygaszacz-status" id="wygaszaczStatus">🎧 Audio-spacer trwa</div>
+  <button class="wygaszacz-odblokuj" id="wygaszaczOdblokuj"
+          aria-label="Przytrzymaj sekundę, aby odblokować ekran"
+          onpointerdown="wygaszaczStartOdblokuj(event)"
+          onpointerup="wygaszaczAnulujOdblokuj()"
+          onpointercancel="wygaszaczAnulujOdblokuj()"
+          onpointerleave="wygaszaczAnulujOdblokuj()">
+    <span class="wygaszacz-odblokuj-fill"></span>
+    <span class="wygaszacz-odblokuj-tekst">🔓 Przytrzymaj,<br>by odblokować</span>
+  </button>
+  <div class="wygaszacz-hint">Ekran przyciemniony — audio i GPS działają dalej.<br>Dotyk zablokowany. Możesz dodatkowo zmniejszyć jasność telefonu.</div>
+</div>
 
 <!-- PRZYCISK STOP auto-prezentacji - dyskretny, pływający, widoczny tylko podczas auto -->
 <div id="autoPrezentacjaPasek" class="auto-prezentacja-pasek">
