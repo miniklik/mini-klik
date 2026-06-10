@@ -1233,7 +1233,7 @@ body.dotyk .sidebar-prawy::after{display:none}
 /* ============================================================
    EKRAN INTRO - powitanie przed mapą (włączane w "Tytuł i opis")
    Gość widzi pełnoekranowe img/intro.jpg, na dole nazwę mapy
-   i przycisk "Zaczynamy". Muzyka: audio/intro.mp3 (opcjonalna).
+   i przycisk "Zaczynamy".
    ============================================================ */
 #ekranIntro{position:fixed;inset:0;z-index:6000;display:none;
   background:radial-gradient(120% 120% at 50% 20%, #2a1c12 0%, #140d08 70%)}
@@ -1267,7 +1267,6 @@ body.dotyk .sidebar-prawy::after{display:none}
   0%,100%{box-shadow:0 6px 22px rgba(0,0,0,.5),0 0 0 4px rgba(224,169,85,.18)}
   50%{box-shadow:0 6px 22px rgba(0,0,0,.5),0 0 0 4px rgba(224,169,85,.18),0 0 28px rgba(243,205,130,.55)}
 }
-.intro-podpowiedz{font-size:12.5px;color:rgba(244,230,200,.75);font-style:italic}
 body.intro-otwarte{overflow:hidden}
 
 /* Przełącznik intro w modalu "Tytuł i opis" - wciśnięty/wyciśnięty */
@@ -1644,8 +1643,7 @@ document.addEventListener('DOMContentLoaded', odswiezLicznikPobran);
   <button type="button" class="intro-toggle" id="introToggle" onclick="przelaczIntro()">🎬 Intro na start: <b id="introToggleStan">WYŁĄCZONE</b></button>
   <div class="intro-hint">Po włączeniu gość najpierw zobaczy pełny ekran ze zdjęciem
     <code>img/intro.jpg</code>, nazwą mapy i przyciskiem „Zaczynamy".
-    Muzyka w tle: <code>audio/intro.mp3</code> <span class="opcj">(opcjonalna)</span>.
-    Wgraj pliki na serwer obok index.html.</div>
+    Wgraj zdjęcie na serwer obok index.html.</div>
 
   <div class="panel-akcje">
     <button class="btn-zatwierdz" onclick="zatwierdzTytul()">✓ Zatwierdź</button>
@@ -1663,7 +1661,6 @@ document.addEventListener('DOMContentLoaded', odswiezLicznikPobran);
   <div class="intro-dol">
     <div class="intro-nazwa" id="introNazwa"></div>
     <button class="intro-start" onclick="zamknijIntro()" onpointerup="zamknijIntro()">▶ Zaczynamy</button>
-    <div class="intro-podpowiedz" id="introPodpowiedz" style="display:none">🔊 dotknij ekranu, aby włączyć muzykę</div>
   </div>
 </div>
 
@@ -4225,9 +4222,8 @@ function zamknijOpisStrony() {
 // =====================================================================
 // Admin włącza przełącznikiem w "Tytuł i opis". Gość przy wejściu widzi
 // pełny ekran: zdjęcie img/intro.jpg (dociągane dopiero teraz), na dole
-// nazwa mapy i przycisk "Zaczynamy". W tle muzyka audio/intro.mp3 -
-// jeśli przeglądarka zablokuje autostart dźwięku, pokazujemy podpowiedź
-// i muzyka rusza przy pierwszym dotknięciu ekranu.
+// nazwa mapy i przycisk "Zaczynamy". Bez muzyki - przeglądarki blokują
+// automatyczny dźwięk, a "dotknij żeby włączyć" mijałoby się z celem.
 // Admin (?admin=1) intra NIE widzi - edytuje bez przeszkód; podgląd:
 // otwórz stronę bez ?admin=1.
 
@@ -4243,8 +4239,6 @@ function ustawIntroToggleUI() {
   stan.textContent = _introWybor ? 'WŁĄCZONE' : 'WYŁĄCZONE';
 }
 
-let introAudio = null; // muzyka intro (gra tylko gdy ekran widoczny)
-
 function pokazIntroJesliTrzeba() {
   if (isAdmin) return;                 // admin pracuje bez powitania
   if (introStrony !== true) return;    // przełącznik wyłączony
@@ -4258,21 +4252,6 @@ function pokazIntroJesliTrzeba() {
   _introZamkniete = false; // świeże otwarcie = przycisk znów uzbrojony
   ekran.classList.add('pokaz');
   document.body.classList.add('intro-otwarte');
-  // Muzyka: próbujemy od razu; przy blokadzie autostartu - po dotknięciu
-  try {
-    introAudio = new Audio('audio/intro.mp3');
-    introAudio.loop = true;
-    introAudio.volume = 0.85;
-    const proba = introAudio.play();
-    if (proba && proba.catch) proba.catch(() => {
-      const hint = document.getElementById('introPodpowiedz');
-      if (hint) hint.style.display = '';
-      ekran.addEventListener('pointerdown', () => {
-        if (introAudio) introAudio.play().catch(() => {});
-        if (hint) hint.style.display = 'none';
-      }, { once: true });
-    });
-  } catch(e) {}
 }
 
 let _introZamkniete = false; // pointerup i click strzelają oba - zamykamy raz
@@ -4282,7 +4261,6 @@ function zamknijIntro() {
   const ekran = document.getElementById('ekranIntro');
   if (ekran) ekran.classList.remove('pokaz');
   document.body.classList.remove('intro-otwarte');
-  if (introAudio) { try { introAudio.pause(); } catch(e) {} introAudio = null; }
   // Mapa budowała się pod zasłoną - upewnij się, że zna prawdziwy rozmiar
   try {
     if (typeof mapa !== 'undefined' && mapa) setTimeout(() => mapa.invalidateSize(), 60);
