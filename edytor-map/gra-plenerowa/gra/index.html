@@ -10125,8 +10125,72 @@ function wczytajZaplanowane() {
 
 function zapiszZaplanowane() {
   try {
-    localStorage.setItem(KEY_ZAPLANOWANE, JSON.stringify(zaplanowaneKropki));
+    // __ref to referencja do żywego obiektu kropki (tylko na czas sesji).
+    // NIE zapisujemy jej do localStorage - po przeładowaniu byłaby martwą
+    // kopią. Trwałym łącznikiem jest __bazaIdx (pozycja kropki w tablicy
+    // kropkiAudio) - patrz zastosujOczekujaceEdycje().
+    localStorage.setItem(KEY_ZAPLANOWANE, JSON.stringify(
+      zaplanowaneKropki,
+      (klucz, wartosc) => klucz === '__ref' ? undefined : wartosc
+    ));
   } catch(e) {}
+}
+
+// =====================================================================
+// EDYCJE ISTNIEJĄCYCH KROPEK - trwałość po przeładowaniu strony
+// =====================================================================
+// Gdy admin edytuje kropkę ZAPISANĄ w kodzie, zmiany lądują w zaplanowanych
+// jako wpis z __bazaIdx (pozycja w kropkiAudio) i __ref (referencja na czas
+// sesji). Po przeładowaniu strony kropkiAudio wraca do stanu z pliku -
+// poniższe funkcje nakładają oczekujące edycje z powrotem, żeby admin
+// widział JEDNĄ, aktualną wersję (a nie starą obok nowej).
+
+// Nakłada dane wpisu (zaplanowanej edycji) na żywą kropkę gry.
+// Jedno źródło prawdy dla zapiszEdycje() i zastosujOczekujaceEdycje().
+function nalozEdycjeNaKropke(k, wpis) {
+  k.numer = wpis.numer;
+  k.typ = wpis.typ || 'tajemnica';
+  k.pozycja = [wpis.lat, wpis.lng];
+  k.promien = wpis.promien || 50;
+  k.opis = wpis.opis || '';
+  k.pokazFale = wpis.pokazFale === true;
+  if (wpis.tytul) k.tytul = wpis.tytul; else delete k.tytul;
+  // Pieczątka-zwierzak (Mapa Odkrywcy)
+  if (wpis.emotka) k.emotka = wpis.emotka; else delete k.emotka;
+  // Strefa szukania - okrąg "Tu ukryta jest tajemnica"
+  if (wpis.strefaSzukania === true) {
+    k.strefaSzukania = true;
+    k.strefaPromien = wpis.strefaPromien || 150;
+  } else {
+    delete k.strefaSzukania;
+    delete k.strefaPromien;
+  }
+  // linkYT i autor: zarządza nimi edytor "Nazwa przygody". Wpis niesie je
+  // tylko jako kopię zabezpieczającą - nadpisujemy gdy są, NIE kasujemy gdy brak.
+  if (wpis.linkYT) k.linkYT = wpis.linkYT;
+  if (wpis.autor) k.autor = wpis.autor;
+}
+
+// Po przeładowaniu strony: dla każdej zaplanowanej EDYCJI (ma __bazaIdx)
+// odtwórz referencję __ref i nałóż zmiany na kropkę z kodu.
+// Zwraca liczbę nałożonych edycji (>0 = warto przerysować kropki).
+function zastosujOczekujaceEdycje() {
+  let nalozone = 0;
+  zaplanowaneKropki.forEach(wpis => {
+    if (!Number.isInteger(wpis.__bazaIdx)) return; // zwykła nowa kropka
+    const k = kropkiAudio[wpis.__bazaIdx];
+    if (!k) {
+      // Plik na serwerze zmienił się od czasu szkicu (kropki bazowej już
+      // nie ma pod tym indeksem). Odpinamy łącznik - wpis zostaje jako
+      // zwykła nowa kropka, nic nie ginie.
+      delete wpis.__bazaIdx;
+      return;
+    }
+    wpis.__ref = k;            // referencja żyje na nowo - lista/eksport ją rozumieją
+    nalozEdycjeNaKropke(k, wpis);
+    nalozone++;
+  });
+  return nalozone;
 }
 
 // =====================================================================
@@ -11498,8 +11562,18 @@ function pobierzNowyIndex(czyPubliczna) {
     // ===== KROK 4: wstaw dane gry =====
 
     // --- 4a. kropkiAudio (start + meta + tajemnice + zaplanowane) ---
+    // Kropki z kodu, które mają oczekujący wpis-edycję w zaplanowanych,
+    // POMIJAMY - ich aktualna wersja idzie z zaplanowanych. Bez tego filtra
+    // edytowana kropka trafiałaby do pliku dwa razy (stara + nowa).
+    const edytowaneBazowe = new Set();
+    (typeof zaplanowaneKropki !== 'undefined' ? zaplanowaneKropki : []).forEach(z => {
+      if (z.__ref) edytowaneBazowe.add(z.__ref);
+      else if (Number.isInteger(z.__bazaIdx) && kropkiAudio[z.__bazaIdx]) {
+        edytowaneBazowe.add(kropkiAudio[z.__bazaIdx]);
+      }
+    });
     const wszystkieKropki = [
-      ...kropkiAudio.map(k => ({
+      ...kropkiAudio.filter(k => !edytowaneBazowe.has(k)).map(k => ({
         numer: k.numer,
         typ: k.typ || 'tajemnica',
         pozycja: k.pozycja,
@@ -11508,7 +11582,12 @@ function pobierzNowyIndex(czyPubliczna) {
         pokazFale: k.pokazFale === true,
         trybKropki: k.trybKropki || null,
         tytul: k.tytul || null,
-        autor: k.autor || null
+        autor: k.autor || null,
+        // Pola które wcześniej GINĘŁY przy pobieraniu pliku:
+        emotka: k.emotka || null,                       // pieczątka Mapy Odkrywcy
+        linkYT: k.linkYT || null,                       // film na punkcie START
+        strefaSzukania: k.strefaSzukania === true,      // okrąg "Tu ukryta jest tajemnica"
+        strefaPromien: k.strefaPromien || null
       })),
       ...(typeof zaplanowaneKropki !== 'undefined' ? zaplanowaneKropki.map(k => ({
         numer: k.numer,
@@ -11519,7 +11598,11 @@ function pobierzNowyIndex(czyPubliczna) {
         pokazFale: k.pokazFale === true,
         trybKropki: k.trybKropki || null,
         tytul: k.tytul || null,
-        autor: k.autor || null
+        autor: k.autor || null,
+        emotka: k.emotka || null,
+        linkYT: k.linkYT || null,
+        strefaSzukania: k.strefaSzukania === true,
+        strefaPromien: k.strefaPromien || null
       })) : [])
     ].sort((a, b) => (a.numer || 0) - (b.numer || 0));
 
@@ -11537,7 +11620,15 @@ function pobierzNowyIndex(czyPubliczna) {
       // tytul i autor - bez nich te dane gubiły się przy pobieraniu pliku.
       const tyt = k.tytul ? `, tytul: '${escTekst(k.tytul)}'` : '';
       const aut = k.autor ? `, autor: '${escTekst(k.autor)}'` : '';
-      return `  { numer: ${k.numer}, pozycja: [${lat}, ${lng}], promien: ${k.promien}, opis: '${escTekst(k.opis)}'${typK}${fala}${tryb}${tyt}${aut} }`;
+      // emotka (pieczątka-zwierzak), linkYT (film startu) i strefa szukania -
+      // bez tych pól dane znikały z pliku przy każdym pobraniu: Mapa Odkrywcy
+      // traciła pieczątki, start tracił wideo, tajemnice traciły strefy.
+      const emo = k.emotka ? `, emotka: '${escTekst(k.emotka)}'` : '';
+      const yt = k.linkYT ? `, linkYT: '${escTekst(k.linkYT)}'` : '';
+      const strefa = k.strefaSzukania === true
+        ? `, strefaSzukania: true${k.strefaPromien ? ', strefaPromien: ' + k.strefaPromien : ''}`
+        : '';
+      return `  { numer: ${k.numer}, pozycja: [${lat}, ${lng}], promien: ${k.promien}, opis: '${escTekst(k.opis)}'${typK}${fala}${tryb}${tyt}${aut}${emo}${yt}${strefa} }`;
     });
     const nowaKropki = 'const kropkiAudio = [\n' + linieKropek.join(',\n') + '\n];';
     const regexKropki = /const\s+kropkiAudio\s*=\s*\[[\s\S]*?\n\];/;
@@ -11861,35 +11952,18 @@ function zapiszEdycje() {
     // (bo nie możemy zapisać do kodu, ale "Pobierz nowy index.html" to scali)
     // UWAGA: Używamy REFERENCJI do obiektu (edytowanaKropka), nie findIndex
     // po numerze - bo wiele kropek może mieć ten sam numer (segmenty strefy).
+    // Edytujemy kropkę ZAPISANĄ w kodzie. Zmiany trafiają do zaplanowanych
+    // jako wpis-edycja: z __ref (referencja na czas sesji) i __bazaIdx
+    // (pozycja w kropkiAudio - przeżywa przeładowanie strony, patrz
+    // zastosujOczekujaceEdycje). Eksport pomija kropki bazowe mające taki
+    // wpis - do pliku idzie wyłącznie nowa wersja, BEZ duplikatu starej.
     const idx = kropkiAudio.indexOf(edytowanaKropka);
-    if (idx >= 0) {
-      // Zaktualizuj na żywo
-      kropkiAudio[idx].pozycja = [aktualnyKlik.lat, aktualnyKlik.lng];
-      kropkiAudio[idx].promien = promien;
-      kropkiAudio[idx].opis = opis;
-      kropkiAudio[idx].numer = numer;
-      kropkiAudio[idx].pokazFale = aktualnyPokazFale;
-      kropkiAudio[idx].typ = tEdyt;
-      // Strefa szukania - tylko tajemnica + włączona
-      if (tEdyt === 'tajemnica' && aktualnaStrefaSzukania) {
-        kropkiAudio[idx].strefaSzukania = true;
-        kropkiAudio[idx].strefaPromien = aktualnaStrefaPromien;
-      } else {
-        delete kropkiAudio[idx].strefaSzukania;
-        delete kropkiAudio[idx].strefaPromien;
-      }
-      if (noweTytul) kropkiAudio[idx].tytul = noweTytul; else delete kropkiAudio[idx].tytul;
-      // linkYT i autor zarządzane przez edytor "Nazwa przygody" - edycja
-      // punktu START ich NIE rusza (noweLinkYT/noweAutor są zawsze null).
-      if (noweLinkYT) kropkiAudio[idx].linkYT = noweLinkYT;
-      if (noweAutor) kropkiAudio[idx].autor = noweAutor;
-      if (noweEmotka) kropkiAudio[idx].emotka = noweEmotka; else delete kropkiAudio[idx].emotka;
-    }
-    // Dodatkowo do zaplanowanych żeby trafiło do pobranego pliku.
-    const istn = zaplanowaneKropki.findIndex(k => k.__ref === edytowanaKropka);
+
+    // Zbuduj wpis-edycję - komplet danych nowej wersji kropki
     const noweDaneZapis = {
       numer, typ: tEdyt, lat: aktualnyKlik.lat, lng: aktualnyKlik.lng,
-      promien, opis, pokazFale: aktualnyPokazFale, __ref: edytowanaKropka
+      promien, opis, pokazFale: aktualnyPokazFale,
+      __ref: edytowanaKropka, __bazaIdx: idx
     };
     if (noweTytul) noweDaneZapis.tytul = noweTytul;
     // linkYT/autor - zachowaj istniejące (edytor "Nazwa przygody" nimi
@@ -11904,6 +11978,12 @@ function zapiszEdycje() {
       noweDaneZapis.strefaSzukania = true;
       noweDaneZapis.strefaPromien = aktualnaStrefaPromien;
     }
+
+    // Nałóż zmiany na żywą kropkę - mapa od razu pokazuje nową wersję
+    if (idx >= 0) nalozEdycjeNaKropke(kropkiAudio[idx], noweDaneZapis);
+
+    // Jedna kropka = jeden wpis-edycja (kolejny zapis nadpisuje poprzedni)
+    const istn = zaplanowaneKropki.findIndex(k => k.__ref === edytowanaKropka);
     if (istn >= 0) {
       zaplanowaneKropki[istn] = noweDaneZapis;
     } else {
@@ -11953,13 +12033,24 @@ function usunKropke() {
   if (!confirm(`Usunąć kropkę #${edytowanaKropka.numer} (${edytowanaKropka.opis || 'bez opisu'})?\n\nDo zapisania zmian musisz pobrać nowy index.html.`)) return;
 
   if (edytowanyTyp === 'audio') {
-    const idx = kropkiAudio.findIndex(k => k.numer === edytowanaKropka.numer);
+    // Usuwamy po REFERENCJI, nie po numerze - bezpieczniej (numer mógłby
+    // wskazać inną kropkę). Wpis-edycję znajdujemy po __ref.
+    const idx = kropkiAudio.indexOf(edytowanaKropka);
     if (idx >= 0) kropkiAudio.splice(idx, 1);
-    // Usuń też z zaplanowanych jeśli była
-    const idxP = zaplanowaneKropki.findIndex(k => k.numer === edytowanaKropka.numer);
+    // Usuń też powiązany wpis-edycję z zaplanowanych (jeśli był)
+    const idxP = zaplanowaneKropki.findIndex(k => k.__ref === edytowanaKropka);
     if (idxP >= 0) zaplanowaneKropki.splice(idxP, 1);
+    // Po splice indeksy kropek ZA usuniętą przesuwają się o 1 w dół -
+    // koryguj __bazaIdx w pozostałych wpisach-edycjach, żeby po
+    // przeładowaniu strony nadal wskazywały właściwe kropki.
+    if (idx >= 0) {
+      zaplanowaneKropki.forEach(z => {
+        if (Number.isInteger(z.__bazaIdx) && z.__bazaIdx > idx) z.__bazaIdx--;
+      });
+    }
   } else if (edytowanyTyp === 'planowana') {
-    const idx = zaplanowaneKropki.findIndex(k => k.numer === edytowanaKropka.numer);
+    // Też po referencji - pewny strzał w konkretny wpis
+    const idx = zaplanowaneKropki.indexOf(edytowanaKropka);
     if (idx >= 0) zaplanowaneKropki.splice(idx, 1);
   }
 
@@ -12446,6 +12537,21 @@ if (isAdmin) {
   setTimeout(() => { try { if (typeof aktualizujRamkeTytulu === 'function') aktualizujRamkeTytulu(); } catch(e){} }, 100);
   _bezpiecznie('wczytajZmianyMiejsc', () => wczytajZmianyMiejsc());
   _bezpiecznie('wczytajZaplanowane', () => wczytajZaplanowane());
+  // Nałóż oczekujące edycje kropek z kodu (szkice z poprzedniej sesji) -
+  // bez tego po przeładowaniu admin widziałby STARĄ kropkę z pliku obok
+  // NOWEJ, a eksport zapisałby obie (duplikat).
+  _bezpiecznie('zastosujOczekujaceEdycje', () => {
+    if (zastosujOczekujaceEdycje() > 0 && audioMarkery.length > 0) {
+      // Kropki zdążyły się narysować ze starymi danymi - przerysuj
+      audioMarkery.forEach(m => {
+        if (m._krag) mapa.removeLayer(m._krag);
+        mapa.removeLayer(m);
+      });
+      audioMarkery = [];
+      renderujKropkiAudio();
+      renderujStrefySzukania();
+    }
+  });
   _bezpiecznie('renderujZaplanowane', () => renderujZaplanowane());
   _bezpiecznie('pokazAdminListe', () => pokazAdminListe());
   _bezpiecznie('wczytajTrybGryAdmin', () => wczytajTrybGryAdmin());
