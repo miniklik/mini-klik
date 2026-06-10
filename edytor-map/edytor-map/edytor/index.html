@@ -1043,9 +1043,12 @@ body.dotyk.tryb-admin .menu-edytor{display:block}
 /* Filtry kategorii (gość) */
 #filtryKategorii{margin-bottom:16px}
 .filtr-tytul{font-size:13px;color:var(--tekst-2);font-style:italic;margin-bottom:8px}
-.filtry-rzad{display:flex;flex-wrap:wrap;gap:8px}
+.filtry-rzad{display:flex;flex-wrap:nowrap;gap:8px}
 .filtr-btn{
-  padding:8px 12px;border-radius:8px;cursor:pointer;
+  /* flex:1 = cztery przyciski ZAWSZE dzielą rząd po równo (jeden rząd,
+     bez zawijania) - na wąskim telefonie po prostu robią się ciaśniejsze */
+  flex:1 1 0;min-width:0;text-align:center;white-space:nowrap;
+  padding:8px 6px;border-radius:8px;cursor:pointer;
   font-family:'EB Garamond',serif;font-size:14px;font-weight:600;
   border:1.5px solid rgba(243,205,130,0.4);
   background:rgba(0,0,0,0.25);color:var(--tekst-2);
@@ -1227,6 +1230,58 @@ body.dotyk .sidebar-prawy::after{display:none}
 .strzalka-uchwyt.grot{background:#dc2626}
 
 /* === LICZNIK POBRAŃ (prawy górny róg) === */
+/* ============================================================
+   EKRAN INTRO - powitanie przed mapą (włączane w "Tytuł i opis")
+   Gość widzi pełnoekranowe img/intro.jpg, na dole nazwę mapy
+   i przycisk "Zaczynamy". Muzyka: audio/intro.mp3 (opcjonalna).
+   ============================================================ */
+#ekranIntro{position:fixed;inset:0;z-index:6000;display:none;
+  background:radial-gradient(120% 120% at 50% 20%, #2a1c12 0%, #140d08 70%)}
+#ekranIntro.pokaz{display:block}
+.intro-foto{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+/* Ciemnienie ku dołowi - żeby nazwa i przycisk czytały się na każdym zdjęciu */
+.intro-cien{position:absolute;inset:0;
+  background:linear-gradient(180deg,rgba(0,0,0,.25) 0%,rgba(0,0,0,0) 38%,rgba(0,0,0,.82) 100%)}
+.intro-dol{position:absolute;left:0;right:0;bottom:0;
+  padding:24px 18px calc(34px + env(safe-area-inset-bottom));
+  display:flex;flex-direction:column;align-items:center;gap:18px;text-align:center}
+.intro-nazwa{font-family:'Cormorant Garamond',serif;
+  font-size:clamp(28px,6.5vw,46px);font-weight:600;color:#f6ead0;
+  text-shadow:0 2px 16px rgba(0,0,0,.9);letter-spacing:.5px;line-height:1.15}
+.intro-start{font-family:'EB Garamond',serif;font-size:19px;letter-spacing:1px;
+  padding:14px 44px;border-radius:999px;cursor:pointer;
+  border:1.5px solid var(--zloto-2);color:#2a1c0e;
+  background:linear-gradient(180deg,var(--zloto-2),var(--zloto));
+  box-shadow:0 6px 22px rgba(0,0,0,.5),0 0 0 4px rgba(224,169,85,.18);
+  /* touch-action + brak podświetlenia tapnięcia = telefon traktuje dotyk
+     jak zwykły klik, bez czekania i bez "pierwszego tapnięcia na rozruch" */
+  touch-action:manipulation;-webkit-tap-highlight-color:transparent;
+  animation:introPuls 2.4s ease-in-out infinite}
+/* Hover tylko tam, gdzie jest prawdziwa myszka - na dotyku część przeglądarek
+   zużywa pierwsze tapnięcie na "najechanie" i dopiero drugie klika. */
+@media (hover:hover){ .intro-start:hover{filter:brightness(1.06)} }
+/* Puls POŚWIATĄ zamiast rozmiarem - przycisk stoi w miejscu. Animowany
+   transform:scale przesuwał go pod palcem i puszczenie lądowało obok,
+   przez co przeglądarka nie domykała kliknięcia (stąd "dwa razy"). */
+@keyframes introPuls{
+  0%,100%{box-shadow:0 6px 22px rgba(0,0,0,.5),0 0 0 4px rgba(224,169,85,.18)}
+  50%{box-shadow:0 6px 22px rgba(0,0,0,.5),0 0 0 4px rgba(224,169,85,.18),0 0 28px rgba(243,205,130,.55)}
+}
+.intro-podpowiedz{font-size:12.5px;color:rgba(244,230,200,.75);font-style:italic}
+body.intro-otwarte{overflow:hidden}
+
+/* Przełącznik intro w modalu "Tytuł i opis" - wciśnięty/wyciśnięty */
+.intro-toggle{width:100%;margin-top:2px;padding:12px 14px;border-radius:12px;
+  border:1.5px solid rgba(243,205,130,.4);
+  background:linear-gradient(180deg,var(--panel-2),var(--panel));
+  color:var(--tekst-2);font-family:'EB Garamond',serif;font-size:15px;
+  cursor:pointer;text-align:center;transition:all .2s}
+.intro-toggle b{font-weight:600}
+.intro-toggle.aktywny{border-color:rgba(120,200,110,.65);
+  background:linear-gradient(180deg,#3d5a32,#243a1f);color:#d8f3c8}
+.intro-hint{margin-top:8px;font-size:12.5px;line-height:1.55;color:var(--tekst-2)}
+.intro-hint code{color:var(--zloto-2)}
+
 /* Licznik widoczny TYLKO w trybie admin (?admin=1) - w trybie wędrowca i w wygenerowanej mapie ukryty */
 body:not(.tryb-admin) .licznik-pobran{display:none !important}
 .licznik-pobran{
@@ -1585,9 +1640,30 @@ document.addEventListener('DOMContentLoaded', odswiezLicznikPobran);
   <label class="panel-label">Opis strony <span class="opcj">(akapity oddziel pustą linią)</span></label>
   <textarea id="opisStronyInput" style="min-height:120px" placeholder="Tu napisz o czym jest ta mapa..."></textarea>
 
+  <label class="panel-label">Ekran intro <span class="opcj">(powitanie przed mapą)</span></label>
+  <button type="button" class="intro-toggle" id="introToggle" onclick="przelaczIntro()">🎬 Intro na start: <b id="introToggleStan">WYŁĄCZONE</b></button>
+  <div class="intro-hint">Po włączeniu gość najpierw zobaczy pełny ekran ze zdjęciem
+    <code>img/intro.jpg</code>, nazwą mapy i przyciskiem „Zaczynamy".
+    Muzyka w tle: <code>audio/intro.mp3</code> <span class="opcj">(opcjonalna)</span>.
+    Wgraj pliki na serwer obok index.html.</div>
+
   <div class="panel-akcje">
     <button class="btn-zatwierdz" onclick="zatwierdzTytul()">✓ Zatwierdź</button>
     <button class="btn-anuluj" onclick="zamknijPanelTytul()">✕ Anuluj</button>
+  </div>
+</div>
+
+<!-- EKRAN INTRO - powitanie przed mapą. Pokazywany GOŚCIOM gdy admin
+     włączył przełącznik w "Tytuł i opis". Zdjęcie img/intro.jpg dociągane
+     dopiero przy pokazaniu (gość z wyłączonym intro nie pobiera nic).
+     Domyślnie ukryty - JS dodaje klasę .pokaz przy starcie. -->
+<div id="ekranIntro" aria-label="Ekran powitalny mapy">
+  <img class="intro-foto" id="introFoto" alt="" onerror="this.style.display='none'">
+  <div class="intro-cien"></div>
+  <div class="intro-dol">
+    <div class="intro-nazwa" id="introNazwa"></div>
+    <button class="intro-start" onclick="zamknijIntro()" onpointerup="zamknijIntro()">▶ Zaczynamy</button>
+    <div class="intro-podpowiedz" id="introPodpowiedz" style="display:none">🔊 dotknij ekranu, aby włączyć muzykę</div>
   </div>
 </div>
 
@@ -1665,9 +1741,9 @@ document.addEventListener('DOMContentLoaded', odswiezLicznikPobran);
       <div id="filtryKategorii" style="display:none">
         <div class="filtr-tytul">Pokaż na mapie:</div>
         <div class="filtry-rzad">
-          <button class="filtr-btn aktywny" data-kat="yt" onclick="przelaczFiltr('yt')">🎬 YT</button>
-          <button class="filtr-btn aktywny" data-kat="foto" onclick="przelaczFiltr('foto')">📷 Foto</button>
-          <button class="filtr-btn aktywny" data-kat="audio" onclick="przelaczFiltr('audio')">🎧 Audio</button>
+          <button class="filtr-btn aktywny" data-kat="yt" onclick="przelaczFiltr('yt')">YT</button>
+          <button class="filtr-btn aktywny" data-kat="foto" onclick="przelaczFiltr('foto')">Foto</button>
+          <button class="filtr-btn aktywny" data-kat="audio" onclick="przelaczFiltr('audio')">Audio</button>
           <button class="filtr-btn aktywny" data-kat="miejsce" onclick="przelaczFiltr('miejsce')"><span class="napis-admin">🏛️ Miejsce</span><span class="napis-wedrowca">Mix</span></button>
         </div>
       </div>
@@ -2063,6 +2139,7 @@ let miejsca = [];
 let markery = [];
 let tytulStrony = '';
 let opisStrony = '';
+let introStrony = false; // ekran intro przed mapą (przełącznik w "Tytuł i opis")
 
 function wczytajMiejsca() {
   // 1) Najpierw robocze zmiany z localStorage (edycja admina)
@@ -2086,12 +2163,12 @@ function wczytajStrone() {
   // UWAGA: localStorage tylko dla admina - wędrowiec zawsze z osadzonych danych
   try {
     const raw = isAdmin ? localStorage.getItem(KEY_STRONA) : null;
-    if (raw) { const s = JSON.parse(raw); tytulStrony = s.tytul||''; opisStrony = s.opis||''; }
+    if (raw) { const s = JSON.parse(raw); tytulStrony = s.tytul||''; opisStrony = s.opis||''; introStrony = s.intro === true; }
     else {
       const el = document.getElementById('daneStrony');
       if (el && el.textContent.trim()) {
         const s = JSON.parse(el.textContent);
-        tytulStrony = s.tytul||''; opisStrony = s.opis||'';
+        tytulStrony = s.tytul||''; opisStrony = s.opis||''; introStrony = s.intro === true;
       }
     }
   } catch(e) {}
@@ -2100,7 +2177,7 @@ function zapiszMiejsca() {
   try { localStorage.setItem(KEY_MIEJSCA, JSON.stringify(miejsca)); } catch(e) {}
 }
 function zapiszStrone() {
-  try { localStorage.setItem(KEY_STRONA, JSON.stringify({tytul:tytulStrony, opis:opisStrony})); } catch(e) {}
+  try { localStorage.setItem(KEY_STRONA, JSON.stringify({tytul:tytulStrony, opis:opisStrony, intro:introStrony === true})); } catch(e) {}
 }
 
 // ============================================================
@@ -2116,6 +2193,7 @@ function zapiszJSON() {
       _wersja: 1,
       _data: new Date().toISOString(),
       tytulStrony: tytulStrony || '',
+      introStrony: introStrony === true,
       opisStrony: opisStrony || '',
       miejsca: Array.isArray(miejsca) ? miejsca : []
     };
@@ -2173,8 +2251,8 @@ function wczytajJSON() {
         // Jeśli mapa jest pusta - po prostu wczytaj (bez pytania o łączenie)
         if (miejsca.length === 0) {
           localStorage.setItem(KEY_MIEJSCA, JSON.stringify(wczMiejsca));
-          if (dane.tytulStrony || dane.opisStrony) {
-            localStorage.setItem(KEY_STRONA, JSON.stringify({tytul:dane.tytulStrony||'', opis:dane.opisStrony||''}));
+          if (dane.tytulStrony || dane.opisStrony || dane.introStrony) {
+            localStorage.setItem(KEY_STRONA, JSON.stringify({tytul:dane.tytulStrony||'', opis:dane.opisStrony||'', intro:dane.introStrony === true}));
           }
           alert('✓ Wczytano ' + wczMiejsca.length + ' miejsc.\n\nStrona za chwilę się odświeży.');
           location.reload();
@@ -2220,10 +2298,10 @@ function wczytajJSON() {
 
         localStorage.setItem(KEY_MIEJSCA, JSON.stringify(wynik));
         // Nowa mapa: bierz tytuł/opis z pliku. Połącz: ustaw tylko jeśli obecny pusty.
-        if (!polacz && (dane.tytulStrony || dane.opisStrony)) {
-          localStorage.setItem(KEY_STRONA, JSON.stringify({tytul:dane.tytulStrony||'', opis:dane.opisStrony||''}));
-        } else if (polacz && !tytulStrony && !opisStrony && (dane.tytulStrony || dane.opisStrony)) {
-          localStorage.setItem(KEY_STRONA, JSON.stringify({tytul:dane.tytulStrony||'', opis:dane.opisStrony||''}));
+        if (!polacz && (dane.tytulStrony || dane.opisStrony || dane.introStrony)) {
+          localStorage.setItem(KEY_STRONA, JSON.stringify({tytul:dane.tytulStrony||'', opis:dane.opisStrony||'', intro:dane.introStrony === true}));
+        } else if (polacz && !tytulStrony && !opisStrony && (dane.tytulStrony || dane.opisStrony || dane.introStrony)) {
+          localStorage.setItem(KEY_STRONA, JSON.stringify({tytul:dane.tytulStrony||'', opis:dane.opisStrony||'', intro:dane.introStrony === true}));
         }
         alert(komunikat + '\n\nStrona za chwilę się odświeży.');
         location.reload();
@@ -2256,6 +2334,10 @@ function zapiszHTML() {
       b.classList.remove('tryb-admin', 'dotyk');
       // pozamykaj ewentualnie otwarte wysuwane panele/modale w kopii
       klon.querySelectorAll('.open, .visible').forEach(el => el.classList.remove('open','visible'));
+      // ekran intro w zapisanym pliku ma startować schowany (JS pokaże go sam)
+      const introKlon = klon.querySelector('#ekranIntro');
+      if (introKlon) { introKlon.classList.remove('pokaz'); const f = introKlon.querySelector('#introFoto'); if (f) f.removeAttribute('src'); }
+      b.classList.remove('intro-otwarte');
     }
     // WAŻNE: Leaflet wstrzykuje do #mapa kafle i warstwy. Gdyby trafiły do zapisanego
     // pliku, po otwarciu nałożyłaby się druga, "duchowa" mapa (rozjazd przy przesuwaniu).
@@ -2273,13 +2355,24 @@ function zapiszHTML() {
     klon.querySelectorAll('.pnlm-container, .detail-sfera > div').forEach(el => el.remove());
     let html = klon.outerHTML;
 
-    const blokDanych = `<script id="daneMiejsc" type="application/json">${JSON.stringify(miejsca)}<\/script>`;
+    // BEZPIECZNE wstrzyknięcie JSON-u do bloku <script>:
+    // 1) "<" zamieniamy na \u003c - gdyby opis/nazwa zawierały tekst
+    //    "<\/script>" (zamykający znacznik), przeglądarka urwałaby blok
+    //    i wygenerowany plik by się nie podniósł. \u003c to nadal
+    //    poprawny JSON - przy odczycie wraca zwykłe "<".
+    // 2) replace dostaje FUNKCJĘ, nie tekst - w tekście sekwencje $&, $',
+    //    $` i $$ mają specjalne znaczenie i opis w stylu "10$' za bilet"
+    //    wkleiłby do pliku kawał dokumentu. Funkcja zwraca tekst dosłownie.
+    const jsonMiejsca = JSON.stringify(miejsca).replace(/</g, '\\u003c');
+    const blokDanych = `<script id="daneMiejsc" type="application/json">${jsonMiejsca}<\/script>`;
     if (/<script id="daneMiejsc"[^>]*>[\s\S]*?<\/script>/.test(html)) {
-      html = html.replace(/<script id="daneMiejsc"[^>]*>[\s\S]*?<\/script>/, blokDanych);
+      html = html.replace(/<script id="daneMiejsc"[^>]*>[\s\S]*?<\/script>/, () => blokDanych);
     }
-    const blokStrony = `<script id="daneStrony" type="application/json">${JSON.stringify({tytul:tytulStrony||'', opis:opisStrony||''})}<\/script>`;
+    // Ten sam pancerz co wyżej - tytuł/opis strony też mogą mieć "<" i "$".
+    const jsonStrony = JSON.stringify({tytul:tytulStrony||'', opis:opisStrony||'', intro:introStrony === true}).replace(/</g, '\\u003c');
+    const blokStrony = `<script id="daneStrony" type="application/json">${jsonStrony}<\/script>`;
     if (/<script id="daneStrony"[^>]*>[\s\S]*?<\/script>/.test(html)) {
-      html = html.replace(/<script id="daneStrony"[^>]*>[\s\S]*?<\/script>/, blokStrony);
+      html = html.replace(/<script id="daneStrony"[^>]*>[\s\S]*?<\/script>/, () => blokStrony);
     }
     html = '<!DOCTYPE html>\n' + html;
 
@@ -4074,10 +4167,13 @@ function wyczyscTrase() {
 // ============================================================
 // TYTUŁ + OPIS STRONY - edycja nagłówka i opisu mapy
 // ============================================================
+var _introWybor = false; // robocza wartość przełącznika (Anuluj = bez zmian)
 function otworzPanelTytul() {
   if (typeof zamknijPanel === 'function') zamknijPanel();
   document.getElementById('tytulInput').value = tytulStrony || '';
   document.getElementById('opisStronyInput').value = opisStrony || '';
+  _introWybor = introStrony === true;
+  ustawIntroToggleUI();
   document.getElementById('panelBackdropTytul').classList.add('visible');
   document.getElementById('panelTytul').classList.add('visible');
 }
@@ -4088,6 +4184,7 @@ function zamknijPanelTytul() {
 function zatwierdzTytul() {
   tytulStrony = document.getElementById('tytulInput').value.trim();
   opisStrony = document.getElementById('opisStronyInput').value.trim();
+  introStrony = _introWybor === true; // przełącznik liczy się dopiero po Zatwierdź
   zapiszStrone();
   renderujStrone();
   zamknijPanelTytul();
@@ -4121,6 +4218,75 @@ function pokazOpisStrony() {
 }
 function zamknijOpisStrony() {
   document.getElementById('opisStronyModal').classList.remove('visible');
+}
+
+// =====================================================================
+// EKRAN INTRO - powitanie przed mapą (jak w audio-przewodniku)
+// =====================================================================
+// Admin włącza przełącznikiem w "Tytuł i opis". Gość przy wejściu widzi
+// pełny ekran: zdjęcie img/intro.jpg (dociągane dopiero teraz), na dole
+// nazwa mapy i przycisk "Zaczynamy". W tle muzyka audio/intro.mp3 -
+// jeśli przeglądarka zablokuje autostart dźwięku, pokazujemy podpowiedź
+// i muzyka rusza przy pierwszym dotknięciu ekranu.
+// Admin (?admin=1) intra NIE widzi - edytuje bez przeszkód; podgląd:
+// otwórz stronę bez ?admin=1.
+
+function przelaczIntro() {
+  _introWybor = !_introWybor;
+  ustawIntroToggleUI();
+}
+function ustawIntroToggleUI() {
+  const btn = document.getElementById('introToggle');
+  const stan = document.getElementById('introToggleStan');
+  if (!btn || !stan) return;
+  btn.classList.toggle('aktywny', _introWybor);
+  stan.textContent = _introWybor ? 'WŁĄCZONE' : 'WYŁĄCZONE';
+}
+
+let introAudio = null; // muzyka intro (gra tylko gdy ekran widoczny)
+
+function pokazIntroJesliTrzeba() {
+  if (isAdmin) return;                 // admin pracuje bez powitania
+  if (introStrony !== true) return;    // przełącznik wyłączony
+  const ekran = document.getElementById('ekranIntro');
+  if (!ekran) return;
+  // Zdjęcie dociągamy DOPIERO teraz - gość z wyłączonym intro nie pobiera nic
+  const foto = document.getElementById('introFoto');
+  if (foto && !foto.getAttribute('src')) foto.src = 'img/intro.jpg';
+  const nazwa = document.getElementById('introNazwa');
+  if (nazwa) nazwa.textContent = tytulStrony || 'Mapa miejsc';
+  _introZamkniete = false; // świeże otwarcie = przycisk znów uzbrojony
+  ekran.classList.add('pokaz');
+  document.body.classList.add('intro-otwarte');
+  // Muzyka: próbujemy od razu; przy blokadzie autostartu - po dotknięciu
+  try {
+    introAudio = new Audio('audio/intro.mp3');
+    introAudio.loop = true;
+    introAudio.volume = 0.85;
+    const proba = introAudio.play();
+    if (proba && proba.catch) proba.catch(() => {
+      const hint = document.getElementById('introPodpowiedz');
+      if (hint) hint.style.display = '';
+      ekran.addEventListener('pointerdown', () => {
+        if (introAudio) introAudio.play().catch(() => {});
+        if (hint) hint.style.display = 'none';
+      }, { once: true });
+    });
+  } catch(e) {}
+}
+
+let _introZamkniete = false; // pointerup i click strzelają oba - zamykamy raz
+function zamknijIntro() {
+  if (_introZamkniete) return;
+  _introZamkniete = true;
+  const ekran = document.getElementById('ekranIntro');
+  if (ekran) ekran.classList.remove('pokaz');
+  document.body.classList.remove('intro-otwarte');
+  if (introAudio) { try { introAudio.pause(); } catch(e) {} introAudio = null; }
+  // Mapa budowała się pod zasłoną - upewnij się, że zna prawdziwy rozmiar
+  try {
+    if (typeof mapa !== 'undefined' && mapa) setTimeout(() => mapa.invalidateSize(), 60);
+  } catch(e) {}
 }
 
 // ============================================================
@@ -4317,6 +4483,7 @@ function renderujMiejsca() {
 
 // Start: wczytaj zapisane miejsca i narysuj
 wczytajMiejsca();
+pokazIntroJesliTrzeba();
 renderujMiejsca();
 renderujStrone();
 warstwaRysunkow.addTo(mapa);
