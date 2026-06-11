@@ -1856,6 +1856,7 @@ document.addEventListener('DOMContentLoaded', odswiezLicznikPobran);
         <div class="sidebar-tytul">⚜ Edytor ⚜</div>
         <div class="menu-stack">
           <button onclick="menuDodaj('tytul')" class="btn-tytul-menu">✏️ Tytuł i opis strony</button>
+          <button onclick="menuDodaj('kategorie')" class="btn-tytul-menu">🏷️ Kategorie miejsc</button>
         </div>
         <div class="menu-kreska"></div>
         <div class="menu-stack">
@@ -1865,6 +1866,8 @@ document.addEventListener('DOMContentLoaded', odswiezLicznikPobran);
           <button onclick="menuDodaj('rysuj')" data-tryb="rysuj">🎨 Rysuj na mapie</button>
           <button onclick="menuDodaj('miejsce')" data-tryb="miejsce">🏛️ Miejsce (wszystko naraz)</button>
         </div>
+        <!-- Pędzel kategorii w wersji mobilnej - renderowany razem z desktopowym -->
+        <div class="kat-pedzle" id="katPedzleMobile"></div>
       </div>
 
       <div class="sidebar-tytul">❦ Miejsca ❦</div>
@@ -2254,6 +2257,7 @@ function menuDodaj(typ) {
   else if (typ === 'rysuj') toggleRysowanie();
   else if (typ === 'miejsce') wlaczTrybDodawaniaMiejsce();
   else if (typ === 'tytul') otworzPanelTytul();
+  else if (typ === 'kategorie') otworzPanelKategorie();
 }
 
 // ============================================================
@@ -4548,11 +4552,9 @@ function usunKategorie(id) {
 
 // --- PĘDZEL ADMINA (rządek pod paskiem edytora) ---
 function renderujKatPedzle() {
-  const el = document.getElementById('katPedzle');
-  if (!el) return;
-  el.classList.toggle('ma', kategorieMapy.length > 0);
-  if (!kategorieMapy.length) { el.innerHTML = ''; return; }
-  el.innerHTML = kategorieMapy.map(k => `
+  // Dwa kontenery: desktopowy pasek + menu telefonu (pasek na dotyku
+  // jest ukryty, admin pracuje z hamburgera) - malujemy oba naraz.
+  const tresc = !kategorieMapy.length ? '' : kategorieMapy.map(k => `
     <span class="kat-kw-wrap">
       <button class="kat-kw${aktywnaKategoria === k.id ? ' aktywny' : ''}"
               title="${escapeHTML(k.nazwa)}"
@@ -4560,6 +4562,12 @@ function renderujKatPedzle() {
       <button class="kat-x" title="Usuń kategorię „${escapeHTML(k.nazwa)}”"
               onclick="event.stopPropagation();usunKategorie('${k.id}')">×</button>
     </span>`).join('');
+  ['katPedzle', 'katPedzleMobile'].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.classList.toggle('ma', kategorieMapy.length > 0);
+    el.innerHTML = tresc;
+  });
 }
 function wybierzPedzel(id) {
   aktywnaKategoria = (aktywnaKategoria === id) ? null : id; // drugi klik = odłóż pędzel
