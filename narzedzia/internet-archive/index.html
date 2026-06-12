@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Internet Archive · Publikuj · mini-klik.pl</title>
+<meta name="description" content="Jak wrzucić plik MP3 na Internet Archive i wkleić link do mapy audio — krok po kroku">
+
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{min-height:100%;overflow-x:hidden}
+  body{
+    font-family:'Space Grotesk',system-ui,sans-serif;
+    background:radial-gradient(ellipse at 20% 0%,#1a0f2e 0%,#0a0a14 50%,#000 100%);
+    color:#e8e8ea;
+    min-height:100vh;
+    padding:32px 24px 48px;
+    position:relative;
+  }
+
+  body::before{
+    content:'';position:fixed;inset:0;pointer-events:none;
+    background-image:
+      radial-gradient(1px 1px at 23% 14%,#fff,transparent),
+      radial-gradient(1px 1px at 67% 28%,#fff,transparent),
+      radial-gradient(1px 1px at 41% 52%,#fff,transparent),
+      radial-gradient(2px 2px at 89% 71%,#ffd9a3,transparent),
+      radial-gradient(1px 1px at 12% 84%,#fff,transparent),
+      radial-gradient(1px 1px at 76% 91%,#fff,transparent),
+      radial-gradient(1px 1px at 55% 8%,#a3d9ff,transparent),
+      radial-gradient(1px 1px at 33% 39%,#fff,transparent),
+      radial-gradient(2px 2px at 8% 47%,#ff9a3d,transparent),
+      radial-gradient(1px 1px at 92% 35%,#fff,transparent);
+    opacity:0.7;
+    animation:twinkle 4s ease-in-out infinite;
+  }
+  @keyframes twinkle{0%,100%{opacity:0.7}50%{opacity:0.4}}
+
+  body::after{
+    content:'';position:fixed;top:-200px;left:50%;transform:translateX(-50%);
+    width:800px;height:600px;
+    background:radial-gradient(ellipse,rgba(255,154,61,0.15) 0%,transparent 60%);
+    pointer-events:none;
+  }
+
+  .wrapper{position:relative;z-index:2;max-width:960px;margin:0 auto}
+
+  header{text-align:center;margin-bottom:36px;padding-top:8px}
+
+  .ikona-strony{
+    font-size:72px;line-height:1;margin-bottom:14px;display:inline-block;
+    filter:drop-shadow(0 4px 16px rgba(255,154,61,0.5));
+    animation:floatIcon 3s ease-in-out infinite;
+  }
+  @keyframes floatIcon{
+    0%,100%{transform:translateY(0)}
+    50%{transform:translateY(-6px)}
+  }
+
+  h1{
+    font-size:54px;font-weight:700;letter-spacing:-1px;line-height:1;
+    background:linear-gradient(180deg,#ff9a3d 0%,#e87a1d 70%,#a04510 100%);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+    text-shadow:0 0 80px rgba(255,154,61,0.4);
+  }
+
+  .line{
+    width:60px;height:2px;background:#ff9a3d;margin:18px auto;
+  }
+
+  .tagline{
+    margin-top:12px;font-size:13px;color:#888;letter-spacing:4px;
+    text-transform:uppercase;
+  }
+
+  /* === KARTA WSTĘPNA === */
+  .quick-card{
+    background:linear-gradient(180deg,rgba(40,40,55,0.5) 0%,rgba(20,20,30,0.7) 100%);
+    border:1px solid rgba(255,154,61,0.25);
+    border-radius:14px;
+    padding:24px 28px;
+    margin-bottom:30px;
+    backdrop-filter:blur(10px);
+  }
+  .quick-card p{
+    font-size:16px;line-height:1.7;color:#ccc;margin:0;
+  }
+  .quick-card b{color:#ff9a3d;font-weight:600}
+
+  /* === DWA PRZYCISKI CTA === */
+  .cta-wrap{margin:0 0 48px}
+
+  .cta-row{
+    display:flex;gap:18px;justify-content:center;align-items:stretch;
+    flex-wrap:wrap;margin-bottom:14px;
+  }
+
+  .cta-btn{
+    display:inline-flex;align-items:center;gap:14px;
+    padding:22px 38px;
+    color:#1a0f2e;
+    border:none;
+    border-radius:14px;
+    font-family:'Space Grotesk',sans-serif;
+    font-size:18px;font-weight:700;letter-spacing:1px;
+    text-transform:uppercase;
+    cursor:pointer;text-decoration:none;
+    transition:all 0.25s cubic-bezier(0.2,0.9,0.3,1);
+    position:relative;overflow:hidden;
+    flex:0 1 auto;
+  }
+  .cta-btn::before{
+    content:'';position:absolute;top:0;left:-100%;
+    width:100%;height:100%;
+    background:linear-gradient(90deg,transparent,rgba(255,255,255,0.3),transparent);
+    transition:left 0.6s;
+  }
+  .cta-btn:hover::before{left:100%}
+  .cta-btn:active{transform:translateY(-1px)}
+  .cta-btn .strzalka{font-size:22px;line-height:1}
+
+  /* Przycisk pomarańczowy (rejestracja) */
+  .cta-btn.cta-primary{
+    background:linear-gradient(180deg,#ff9a3d 0%,#e87a1d 100%);
+    box-shadow:
+      0 8px 24px rgba(255,154,61,0.4),
+      0 0 0 1px rgba(255,154,61,0.6),
+      inset 0 1px 0 rgba(255,255,255,0.4);
+  }
+  .cta-btn.cta-primary:hover{
+    transform:translateY(-3px);
+    box-shadow:
+      0 14px 32px rgba(255,154,61,0.55),
+      0 0 0 1px rgba(255,154,61,0.8),
+      inset 0 1px 0 rgba(255,255,255,0.5);
+  }
+
+  /* Przycisk turkusowy (upload) */
+  .cta-btn.cta-drop{
+    background:linear-gradient(180deg,#3dd9c0 0%,#1aa890 100%);
+    color:#0a1a16;
+    box-shadow:
+      0 8px 24px rgba(61,217,192,0.4),
+      0 0 0 1px rgba(61,217,192,0.6),
+      inset 0 1px 0 rgba(255,255,255,0.4);
+  }
+  .cta-btn.cta-drop:hover{
+    transform:translateY(-3px);
+    box-shadow:
+      0 14px 32px rgba(61,217,192,0.55),
+      0 0 0 1px rgba(61,217,192,0.8),
+      inset 0 1px 0 rgba(255,255,255,0.5);
+  }
+
+  .cta-info{
+    margin-top:14px;text-align:center;
+    color:#888;font-size:12px;font-style:italic;
+    letter-spacing:1px;font-family:'JetBrains Mono',monospace;
+  }
+
+  /* === SEKCJE === */
+  .sekcja{
+    background:linear-gradient(180deg,rgba(40,40,55,0.6) 0%,rgba(20,20,30,0.8) 100%);
+    border:1px solid rgba(255,154,61,0.2);
+    border-radius:16px;
+    padding:32px 36px;
+    margin-bottom:24px;
+    backdrop-filter:blur(10px);
+    position:relative;
+    overflow:hidden;
+  }
+  .sekcja::before{
+    content:'';position:absolute;top:0;left:0;right:0;height:2px;
+    background:linear-gradient(90deg,transparent,rgba(255,154,61,0.5),transparent);
+  }
+
+  .sekcja h2{
+    color:#ff9a3d;
+    font-size:14px;letter-spacing:3px;text-transform:uppercase;
+    font-weight:700;margin-bottom:18px;
+    display:flex;align-items:center;gap:12px;
+  }
+  .sekcja h2 .ikona-h2{font-size:22px;filter:drop-shadow(0 2px 6px rgba(255,154,61,0.4))}
+
+  .sekcja p{
+    color:#bbb;line-height:1.75;font-size:15px;margin-bottom:14px;
+  }
+  .sekcja p:last-child{margin-bottom:0}
+  .sekcja b{color:#ff9a3d;font-weight:600}
+
+  /* === KROKI === */
+  .kroki-grid{
+    display:grid;gap:18px;margin-top:8px;
+  }
+  .krok-item{
+    background:rgba(255,154,61,0.04);
+    border:1px solid rgba(255,154,61,0.2);
+    border-left:3px solid rgba(255,154,61,0.6);
+    border-radius:12px;
+    padding:22px 24px;
+  }
+  .krok-naglowek{
+    display:flex;align-items:center;gap:14px;margin-bottom:12px;
+  }
+  .krok-cyfra{
+    width:42px;height:42px;flex-shrink:0;
+    border-radius:50%;
+    background:linear-gradient(180deg,#ff9a3d 0%,#e87a1d 100%);
+    color:#1a0f2e;
+    display:flex;align-items:center;justify-content:center;
+    font-family:'JetBrains Mono',monospace;
+    font-weight:700;font-size:17px;
+    box-shadow:0 4px 12px rgba(255,154,61,0.4),
+               inset 0 1px 0 rgba(255,255,255,0.3);
+  }
+  .krok-tytul{
+    color:#ff9a3d;font-size:17px;font-weight:700;
+    letter-spacing:0.5px;line-height:1.2;
+  }
+  .krok-item p{
+    color:#bbb;font-size:14.5px;line-height:1.7;margin-bottom:8px;
+  }
+  .krok-item p:last-child{margin-bottom:0}
+  .krok-item ul{
+    list-style:none;padding:0;margin:10px 0;
+  }
+  .krok-item li{
+    position:relative;padding-left:22px;
+    margin-bottom:8px;color:#bbb;
+    font-size:14px;line-height:1.65;
+  }
+  .krok-item li::before{
+    content:'✦';position:absolute;left:2px;top:1px;
+    color:#ff9a3d;font-size:11px;
+  }
+  .krok-item b{color:#ff9a3d;font-weight:600}
+
+  /* === RAMKA Z TIPEM === */
+  .tip-box{
+    margin-top:14px;
+    background:rgba(0,0,0,0.3);
+    border:1px dashed rgba(255,154,61,0.35);
+    border-radius:8px;
+    padding:14px 18px;
+    font-size:13.5px;color:#aaa;
+    line-height:1.7;
+  }
+  .tip-box b{color:#ff9a3d;font-weight:600}
+
+  /* Inline kod */
+  .kod{
+    background:rgba(255,154,61,0.15);
+    color:#ffb866;
+    padding:2px 8px;
+    border-radius:5px;
+    font-family:'JetBrains Mono',monospace;
+    font-size:12.5px;
+    font-weight:700;
+    border:1px solid rgba(255,154,61,0.25);
+    white-space:nowrap;
+  }
+
+  /* Przykład URL */
+  .przyklad{
+    margin-top:14px;
+    background:rgba(0,0,0,0.4);
+    border:1px dashed rgba(255,154,61,0.3);
+    border-radius:10px;
+    padding:16px 18px;
+    font-family:'JetBrains Mono',monospace;
+  }
+  .przyklad-label{
+    color:#666;font-size:11px;letter-spacing:1px;
+    margin-bottom:8px;text-transform:uppercase;
+  }
+  .przyklad-url{
+    font-size:13.5px;
+    word-break:break-all;
+    line-height:1.5;
+    color:#aaa;
+  }
+  .przyklad-url b{color:#ff9a3d}
+
+  /* === SEKCJA OSTRZEŻENIE - PRAWA AUTORSKIE (czerwonawa) === */
+  .sekcja-uwaga{
+    border:1px solid rgba(255,120,120,0.35);
+    background:linear-gradient(180deg,rgba(60,30,30,0.55) 0%,rgba(30,15,15,0.8) 100%);
+    box-shadow:0 0 24px rgba(255,120,120,0.08);
+  }
+  .sekcja-uwaga::before{
+    background:linear-gradient(90deg,transparent,#ff7878,transparent);
+    height:2px;opacity:0.7;
+  }
+  .sekcja-uwaga h2{color:#ff8a8a !important}
+  .sekcja-uwaga b{color:#ff8a8a}
+
+  /* === SEKCJA POLSKIE ZNAKI (niebieskawa - informacyjna) === */
+  .sekcja-limity{
+    border:1px solid rgba(100,180,255,0.35);
+    background:linear-gradient(180deg,rgba(30,40,60,0.5) 0%,rgba(15,20,30,0.8) 100%);
+    box-shadow:0 0 24px rgba(100,180,255,0.08);
+  }
+  .sekcja-limity::before{
+    background:linear-gradient(90deg,transparent,#64b4ff,transparent);
+    height:2px;opacity:0.7;
+  }
+  .sekcja-limity h2{color:#64b4ff !important}
+  .sekcja-limity b{color:#64b4ff}
+
+  /* === STOPKA === */
+  .bottomnav{
+    text-align:center;margin-top:48px;padding-top:24px;
+    border-top:1px solid rgba(255,154,61,0.15);
+  }
+  .back{
+    color:#888;text-decoration:none;font-size:14px;letter-spacing:2px;
+    font-family:'JetBrains Mono',monospace;
+    transition:color 0.2s;
+    padding:8px 16px;
+    border-radius:6px;
+  }
+  .back:hover{color:#ff9a3d;background:rgba(255,154,61,0.05)}
+
+  footer{
+    text-align:center;margin-top:24px;padding:16px 0;
+    color:#555;font-size:12px;letter-spacing:2px;
+    font-family:'JetBrains Mono',monospace;
+  }
+
+  /* === RESPONSYWNOŚĆ === */
+  @media (max-width:700px){
+    body{padding:20px 14px 32px}
+    .ikona-strony{font-size:60px}
+    h1{font-size:38px}
+    .tagline{font-size:11px;letter-spacing:2px}
+    .cta-btn{padding:18px 24px;font-size:15px}
+    .cta-row{flex-direction:column;gap:14px}
+    .cta-row .cta-btn{width:100%;justify-content:center}
+    .sekcja{padding:24px 22px}
+  }
+</style>
+</head>
+<body>
+
+<div class="wrapper">
+
+  <header>
+    <span class="ikona-strony">📼</span>
+    <h1>Internet Archive</h1>
+    <div class="line"></div>
+    <p class="tagline">darmowy hosting audio bez limitów</p>
+  </header>
+
+  <!-- KARTA WSTĘPNA -->
+  <div class="quick-card">
+    <p><b>Internet Archive</b> to amerykańska biblioteka internetowa, która od ponad 25 lat udostępnia <b>darmowy hosting</b> dla nagrań, filmów, książek i zdjęć — <b>bez limitów transferu</b>. Wrzucasz plik MP3, kopiujesz link i wklejasz go do swojej mapy w Audio Przewodniku. Twoja mapa nie musi wozić ciężkich nagrań — leżą one u nich, a Ty masz tylko link.</p>
+  </div>
+
+  <!-- DWA DUŻE PRZYCISKI CTA -->
+  <div class="cta-wrap">
+    <div class="cta-row">
+      <a href="https://archive.org/account/signup" target="_blank" rel="noopener noreferrer" class="cta-btn cta-primary">
+        <span>1. Załóż konto</span>
+        <span class="strzalka">→</span>
+      </a>
+      <a href="https://archive.org/upload" target="_blank" rel="noopener noreferrer" class="cta-btn cta-drop">
+        <span>2. Wrzuć plik</span>
+        <span class="strzalka">→</span>
+      </a>
+    </div>
+    <p class="cta-info">// najpierw rejestracja, potem upload pliku audio</p>
+  </div>
+
+  <!-- KROK 1: REJESTRACJA -->
+  <section class="sekcja">
+    <h2><span class="ikona-h2">✉️</span> Krok 1 — Rejestracja</h2>
+
+    <div class="kroki-grid">
+      <div class="krok-item">
+        <div class="krok-naglowek">
+          <div class="krok-cyfra">1</div>
+          <div class="krok-tytul">Kliknij pomarańczowy przycisk „Załóż konto"</div>
+        </div>
+        <p>Otworzy się strona rejestracji archive.org. Wypełnij formularz:</p>
+        <ul>
+          <li>Podaj <b>adres e-mail</b></li>
+          <li>Wymyśl <b>hasło</b> (zapisz je sobie)</li>
+          <li>Wymyśl <b>nazwę użytkownika (screen name)</b> — np. <code class="kod">mini-klik</code></li>
+          <li>Potwierdź mail klikając w link który Ci przyślą</li>
+        </ul>
+        <p>Konto gotowe. Bez karty, bez telefonu, bez ankiet — archive.org to fundacja non-profit, nie zarabia na Twoich danych.</p>
+        <div class="tip-box">
+          <b>Wskazówka:</b> nazwę użytkownika zapamiętaj — będzie częścią adresu Twoich plików. Lepiej żeby była krótka i bez polskich znaków.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- KROK 2: WRZUCANIE PLIKU -->
+  <section class="sekcja">
+    <h2><span class="ikona-h2">📤</span> Krok 2 — Wrzucanie pliku audio</h2>
+
+    <p>Po założeniu konta kliknij turkusowy przycisk <b>„Wrzuć plik"</b> na górze tej strony. Otworzy się formularz uploadu.</p>
+
+    <div class="kroki-grid">
+
+      <div class="krok-item">
+        <div class="krok-naglowek">
+          <div class="krok-cyfra">1</div>
+          <div class="krok-tytul">Przeciągnij plik MP3</div>
+        </div>
+        <p>W okienku uploadu jest pole oznaczone <code class="kod">Drag and drop files here</code>. Przeciągnij na nie swój plik MP3 z pulpitu — albo kliknij i wybierz z dysku.</p>
+        <div class="tip-box">
+          <b>Nazwa pliku ma znaczenie!</b> Archive zachowa ją w adresie. Lepiej nazwij plik bez polskich znaków i bez spacji — np. <code class="kod">wiersz-1.mp3</code> zamiast <code class="kod">Wiersz nr 1 — Próba.mp3</code>.
+        </div>
+      </div>
+
+      <div class="krok-item">
+        <div class="krok-naglowek">
+          <div class="krok-cyfra">2</div>
+          <div class="krok-tytul">Wypełnij dane pliku</div>
+        </div>
+        <p>Po wybraniu pliku Archive zapyta o kilka rzeczy:</p>
+        <ul>
+          <li><b>Page title</b> — tytuł nagrania (po polsku ok)</li>
+          <li><b>Description</b> — krótki opis, np. „Wiersz autora X, mini-klik.pl"</li>
+          <li><b>Subject Tags</b> — słowa kluczowe (np. <code class="kod">audio-poezja</code>, <code class="kod">mini-klik</code>)</li>
+          <li><b>Creator</b> — Twoje imię lub nazwa strony</li>
+        </ul>
+        <p>Reszta pól jest opcjonalna. Możesz wybrać licencję — np. <b>„Creative Commons"</b> jeśli pozwalasz innym wykorzystywać Twoje nagranie.</p>
+      </div>
+
+      <div class="krok-item">
+        <div class="krok-naglowek">
+          <div class="krok-cyfra">3</div>
+          <div class="krok-tytul">Kliknij UPLOAD</div>
+        </div>
+        <p>Niebieski przycisk <b>„Upload and Create Your Item"</b> na dole formularza. Archive przyjmie plik (kilka sekund do minuty zależnie od wielkości) i przekieruje Cię na stronę nagrania.</p>
+        <div class="tip-box">
+          <b>Cierpliwości:</b> czasem Archive potrzebuje 2–3 minut żeby przygotować różne wersje pliku (oryginał, VBR MP3, OGG). Odśwież stronę za chwilę jeśli lista plików wygląda na pustą.
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- KROK 3: KOPIOWANIE LINKU MP3 (KLUCZOWE!) -->
+  <section class="sekcja">
+    <h2><span class="ikona-h2">🔗</span> Krok 3 — Skopiowanie linku MP3</h2>
+
+    <p>To <b>najważniejszy krok</b>. Na stronie swojego nagrania znajdziesz po prawej stronie listę dostępnych plików — Archive generuje kilka wersji (oryginał, VBR MP3, OGG itd.). Trzeba skopiować właściwy link.</p>
+
+    <div class="kroki-grid">
+
+      <div class="krok-item">
+        <div class="krok-naglowek">
+          <div class="krok-cyfra">1</div>
+          <div class="krok-tytul">Znajdź sekcję „DOWNLOAD OPTIONS"</div>
+        </div>
+        <p>Po prawej stronie nagrania lub na dole jest lista wersji pliku. Wygląda mniej więcej tak:</p>
+        <ul>
+          <li><b>VBR MP3</b> — <span style="color:#bbb">(zalecane — kompaktowy MP3)</span></li>
+          <li><b>OGG VORBIS</b></li>
+          <li><b>ITEM TILE</b></li>
+          <li><b>nazwa-pliku.mp3</b> <span style="color:#bbb">(Twój oryginalny plik)</span></li>
+        </ul>
+      </div>
+
+      <div class="krok-item">
+        <div class="krok-naglowek">
+          <div class="krok-cyfra">2</div>
+          <div class="krok-tytul">Kliknij PRAWYM PRZYCISKIEM na „VBR MP3"</div>
+        </div>
+        <p>To kluczowe — <b>nie klikaj lewym</b>, bo wtedy plik się zacznie odtwarzać albo pobierze. Klikasz <b>prawym przyciskiem myszy</b> na link „VBR MP3".</p>
+        <p>W menu które się pojawi wybierz:</p>
+        <ul>
+          <li>W Chrome / Edge: <b>„Kopiuj adres linku"</b></li>
+          <li>W Firefox: <b>„Kopiuj adres odnośnika"</b></li>
+          <li>W Safari: <b>„Kopiuj link"</b></li>
+        </ul>
+        <div class="tip-box">
+          <b>Czemu VBR MP3?</b> To zoptymalizowana wersja pliku — mniejsza niż oryginał, ale bez utraty jakości słuchowej. Idealna do strumieniowania w przeglądarce.
+        </div>
+      </div>
+
+      <div class="krok-item">
+        <div class="krok-naglowek">
+          <div class="krok-cyfra">3</div>
+          <div class="krok-tytul">Sprawdź co skopiowałeś</div>
+        </div>
+        <p>Link powinien wyglądać mniej więcej tak:</p>
+        <div class="przyklad">
+          <div class="przyklad-label">// przykładowy link Archive</div>
+          <div class="przyklad-url">https://archive.org/download/<b>twoja-nazwa-pliku</b>/<b>twoja-nazwa-pliku.mp3</b></div>
+        </div>
+        <p>Jeśli w nazwie były polskie znaki, Archive sam zamienia je na kody — np. „ó" staje się <code class="kod">%C3%B3</code>. Link i tak działa, ale wygląda mniej elegancko.</p>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- KROK 4: WKLEJENIE W AUDIO PRZEWODNIK -->
+  <section class="sekcja">
+    <h2><span class="ikona-h2">🎧</span> Krok 4 — Wklejenie linku w Audio Przewodnik</h2>
+
+    <p>Teraz zostało już tylko wkleić skopiowany link do swojej mapy.</p>
+
+    <div class="kroki-grid">
+
+      <div class="krok-item">
+        <div class="krok-naglowek">
+          <div class="krok-cyfra">1</div>
+          <div class="krok-tytul">Otwórz swój edytor Audio Przewodnika</div>
+        </div>
+        <p>Wejdź na swoją mapę z parametrem <code class="kod">?admin=1</code> — np. <code class="kod">twoja-mapa.pl/?admin=1</code>. Włączy się panel edytora.</p>
+      </div>
+
+      <div class="krok-item">
+        <div class="krok-naglowek">
+          <div class="krok-cyfra">2</div>
+          <div class="krok-tytul">Dodaj kropkę audio na mapie</div>
+        </div>
+        <p>Kliknij w mapę w miejscu gdzie ma być kropka audio. Otworzy się panel <b>„Nowa kropka audio"</b>.</p>
+      </div>
+
+      <div class="krok-item">
+        <div class="krok-naglowek">
+          <div class="krok-cyfra">3</div>
+          <div class="krok-tytul">Kliknij przycisk „LINK"</div>
+        </div>
+        <p>W panelu kropki obok pola <b>Numer</b> jest przycisk <b>LINK</b>. Kliknij go — pole numeru się przyciemni, a pole linku stanie się aktywne.</p>
+        <p>Wklej w nie skopiowany adres Archive (Ctrl+V albo prawym → Wklej).</p>
+        <div class="tip-box">
+          <b>Bez przycisku LINK:</b> Audio Przewodnik szukałby pliku lokalnie w folderze <code class="kod">audio/X.mp3</code>. Z linkiem — odtwarza prosto z Archive, omijając Twój hosting.
+        </div>
+      </div>
+
+      <div class="krok-item">
+        <div class="krok-naglowek">
+          <div class="krok-cyfra">4</div>
+          <div class="krok-tytul">Wypełnij opis i zapisz</div>
+        </div>
+        <ul>
+          <li>Wpisz <b>opis kropki</b> (np. „Wiersz I — Brama")</li>
+          <li>Ustaw <b>promień strefy</b> (np. 30 metrów)</li>
+          <li>Kliknij <b>„➕ Dodaj"</b></li>
+        </ul>
+        <p>Na końcu sesji edycji kliknij <b>„💾 Pobierz nowy index.html"</b> i wgraj plik na swój hosting. Link Archive zostanie zapisany w mapie na stałe.</p>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- UWAGA: POLSKIE ZNAKI -->
+  <section class="sekcja sekcja-limity">
+    <h2><span class="ikona-h2">🇵🇱</span> Polskie znaki w nazwach plików</h2>
+
+    <p>Archive obsługuje polskie znaki, ale <b>nie jest to najwygodniejsze</b>. Gdy nazwa pliku ma „ó", „ż", „ł" — Archive zamienia je na kody techniczne typu <code class="kod">%C3%B3</code>. Link wciąż działa, ale jest długi i nieczytelny.</p>
+
+    <p><b>Co robić:</b></p>
+    <ul style="list-style:none;padding:0;margin:10px 0">
+      <li style="position:relative;padding-left:22px;margin-bottom:8px;color:#bcd;font-size:14.5px;line-height:1.65">
+        <span style="position:absolute;left:2px;color:#64b4ff;font-weight:700;font-size:13px">✦</span>
+        Przed wgraniem zmień nazwę pliku na <b>bez polskich znaków</b> — np. <code class="kod">wiersz-1.mp3</code> zamiast <code class="kod">Wiersz ósmy.mp3</code>
+      </li>
+      <li style="position:relative;padding-left:22px;margin-bottom:8px;color:#bcd;font-size:14.5px;line-height:1.65">
+        <span style="position:absolute;left:2px;color:#64b4ff;font-weight:700;font-size:13px">✦</span>
+        Zamień <b>spacje na myślniki</b> — <code class="kod">moj-wiersz.mp3</code> zamiast <code class="kod">moj wiersz.mp3</code>
+      </li>
+      <li style="position:relative;padding-left:22px;margin-bottom:8px;color:#bcd;font-size:14.5px;line-height:1.65">
+        <span style="position:absolute;left:2px;color:#64b4ff;font-weight:700;font-size:13px">✦</span>
+        Używaj <b>małych liter</b> — Archive je preferuje
+      </li>
+    </ul>
+
+    <p>Tytuł nagrania (Page title) i opis mogą być po polsku ze wszystkimi znakami — tylko sama nazwa pliku ma znaczenie dla adresu.</p>
+
+    <div class="tip-box">
+      <b>Dobry przykład:</b> <code class="kod">wiersz-01-brama.mp3</code><br>
+      <b>Zły przykład:</b> <code class="kod">Wiersz ósmy — Próba 2.mp3</code>
+    </div>
+  </section>
+
+  <!-- OSTRZEŻENIE - PRAWA AUTORSKIE -->
+  <section class="sekcja sekcja-uwaga">
+    <h2><span class="ikona-h2">⚠️</span> Uwaga na prawa autorskie</h2>
+
+    <p>Internet Archive jest bardzo otwarty, ale <b>nie wolno wrzucać cudzych nagrań bez zgody</b>. Mają system DMCA — jeśli właściciel praw zgłosi naruszenie, Twoje konto może zostać zablokowane.</p>
+
+    <p><b>Co to znaczy w praktyce:</b></p>
+    <ul style="list-style:none;padding:0;margin:10px 0">
+      <li style="position:relative;padding-left:22px;margin-bottom:8px;color:#ddb;font-size:14.5px;line-height:1.65">
+        <span style="position:absolute;left:2px;color:#ff8a8a;font-weight:700;font-size:14px">✗</span>
+        Nie wrzucaj <b>cudzych nagrań</b> — utworów z YouTube, Spotify, radia, podcastów
+      </li>
+      <li style="position:relative;padding-left:22px;margin-bottom:8px;color:#ddb;font-size:14.5px;line-height:1.65">
+        <span style="position:absolute;left:2px;color:#ff8a8a;font-weight:700;font-size:14px">✗</span>
+        Nie wrzucaj <b>cudzych wierszy czytanych przez kogoś</b> bez zgody autora i lektora
+      </li>
+      <li style="position:relative;padding-left:22px;margin-bottom:8px;color:#ddb;font-size:14.5px;line-height:1.65">
+        <span style="position:absolute;left:2px;color:#ff8a8a;font-weight:700;font-size:14px">✗</span>
+        Nie wrzucaj <b>muzyki w tle</b> z radia ani znanych utworów
+      </li>
+    </ul>
+
+    <p>Bezpieczne są <b>Twoje własne nagrania</b>, <b>Twoje własne wiersze czytane przez Ciebie</b>, oraz materiały które masz <b>oficjalną zgodę</b> użyć (np. licencja Creative Commons, domena publiczna).</p>
+
+    <div class="tip-box">
+      <b>Co się może stać:</b> jeśli Archive zablokuje plik z powodu praw autorskich, <b>Twoja mapa przestanie odtwarzać to nagranie</b>. Lepiej od razu wrzucać tylko własne materiały.
+    </div>
+  </section>
+
+  <!-- POWRÓT -->
+  <div class="bottomnav">
+    <a href="../" class="back">← powrót do publikuj</a>
+  </div>
+
+  <footer>// internet archive · instrukcje · mini-klik.pl · 2026</footer>
+
+</div>
+
+</body>
+</html>
