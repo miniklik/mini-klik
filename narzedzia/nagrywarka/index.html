@@ -262,31 +262,6 @@ body{
 }
 .ed-marker-x:hover{background:var(--rec-2)}
 /* Marker głośności - niebieski, z trzema guzikami poziomu */
-.ed-marker.glos{
-  background:rgba(74,144,226,.26);
-  border-left:1.5px solid rgba(120,170,235,.8);
-  border-right:1.5px solid rgba(120,170,235,.8);
-}
-.ed-marker-glosy{
-  position:absolute;top:3px;left:50%;transform:translateX(-50%);
-  display:flex;gap:3px;
-}
-.ed-glos-btn{
-  width:24px;height:22px;border-radius:6px;border:none;cursor:pointer;
-  background:rgba(30,55,95,.9);color:#dce8fa;font-size:12px;
-  display:flex;align-items:center;justify-content:center;line-height:1;
-  touch-action:manipulation;box-shadow:0 2px 5px rgba(0,0,0,.5);padding:0;
-}
-.ed-glos-btn:hover{background:rgba(74,144,226,.95)}
-.ed-glos-btn.zrobione{background:rgba(74,144,226,.95);outline:1.5px solid #9cc4f5}
-.ed-marker-zx{
-  position:absolute;bottom:3px;right:3px;width:18px;height:18px;
-  border-radius:50%;border:none;cursor:pointer;
-  background:rgba(0,0,0,.5);color:#fff;font-size:10px;font-weight:700;
-  display:flex;align-items:center;justify-content:center;line-height:1;
-  touch-action:manipulation;
-}
-.ed-marker-zx:hover{background:rgba(0,0,0,.8)}
 .ed-narzedzia{
   display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;align-items:center;
 }
@@ -1266,7 +1241,6 @@ function dodajNagranie(blob, trwanie) {
       '</div>' +
       '<div class="ed-narzedzia">' +
         '<button class="ed-btn ed-btn-nozyczki">✂️ Nożyczki</button>' +
-        '<button class="ed-btn ed-btn-glosnosc">🔉 Głośność</button>' +
         '<button class="ed-btn ed-btn-cofnij" disabled>↩ Cofnij</button>' +
         '<button class="ed-btn ed-btn-usun ed-btn-wytnij" disabled>🗑 Wytnij zaznaczone</button>' +
         '<span class="ed-info"></span>' +
@@ -1348,7 +1322,6 @@ function podepnijEdytor(el, stan, odswiez) {
   const wrap = el.querySelector('.ed-fala-wrap');
   const playhead = el.querySelector('.ed-playhead');
   const btnNoz = el.querySelector('.ed-btn-nozyczki');
-  const btnGlos = el.querySelector('.ed-btn-glosnosc');
   const btnCofnij = el.querySelector('.ed-btn-cofnij');
   const btnWytnij = el.querySelector('.ed-btn-wytnij');
   const info = el.querySelector('.ed-info');
@@ -1358,7 +1331,7 @@ function podepnijEdytor(el, stan, odswiez) {
   let pcmOrg = null;        // AudioBuffer (oryginał do undo-all)
   let markery = [];          // [{start, end}] w sekundach
   let historia = [];         // poprzednie stany pcmBuf (undo)
-  let tryb = '';             // '' | 'noz' | 'glos'
+  let tryb = '';             // '' | 'noz'
   let zaznStart = -1;        // pozycja startu zaznaczania (0..1)
 
   // --- TOGGLE ---
@@ -1429,66 +1402,41 @@ function podepnijEdytor(el, stan, odswiez) {
       const left = (m.start / dur) * W;
       const width = ((m.end - m.start) / dur) * W;
       const div = document.createElement('div');
-      div.className = 'ed-marker' + (m.rodzaj === 'glos' ? ' glos' : '');
+      div.className = 'ed-marker';
       div.style.left = left + 'px';
       div.style.width = Math.max(4, width) + 'px';
 
-      if (m.rodzaj === 'glos') {
-        // Trzy guziki poziomu: cisza / ciszej / głośniej
-        const grupa = document.createElement('div');
-        grupa.className = 'ed-marker-glosy';
-        [['mute','🔇','wycisz'],['down','🔉','ciszej'],['up','🔊','głośniej']].forEach(([akcja, ikona, tytul]) => {
-          const b = document.createElement('button');
-          b.className = 'ed-glos-btn' + (m.akcja === akcja ? ' zrobione' : '');
-          b.textContent = ikona; b.title = tytul;
-          b.onclick = (ev) => { ev.stopPropagation(); zastosujGlos(i, akcja); };
-          grupa.appendChild(b);
-        });
-        div.appendChild(grupa);
-        // Mały ✕ w rogu = usuń zaznaczenie głośności (cofa do oryginału fragmentu)
-        const zx = document.createElement('button');
-        zx.className = 'ed-marker-zx'; zx.textContent = '✕'; zx.title = 'Usuń to zaznaczenie';
-        zx.onclick = (ev) => { ev.stopPropagation(); usunGlosMarker(i); };
-        div.appendChild(zx);
-      } else {
-        const x = document.createElement('button');
-        x.className = 'ed-marker-x';
-        x.textContent = '✕';
-        x.title = 'Wytnij ten fragment (' + formatCzas(m.start) + ' → ' + formatCzas(m.end) + ')';
-        x.onclick = (ev) => { ev.stopPropagation(); wytnijMarker(i); };
-        div.appendChild(x);
-        div.onclick = () => { markery.splice(i, 1); renderujMarkery(); aktualizujPrzyciski(); };
-      }
+      const x = document.createElement('button');
+      x.className = 'ed-marker-x';
+      x.textContent = '✕';
+      x.title = 'Wytnij ten fragment (' + formatCzas(m.start) + ' → ' + formatCzas(m.end) + ')';
+      x.onclick = (ev) => { ev.stopPropagation(); wytnijMarker(i); };
+      div.appendChild(x);
+      div.onclick = () => { markery.splice(i, 1); renderujMarkery(); aktualizujPrzyciski(); };
       wrap.appendChild(div);
     });
     aktualizujPrzyciski();
   }
 
   function aktualizujPrzyciski() {
-    const ciecia = markery.filter(m => m.rodzaj !== 'glos');
-    btnWytnij.disabled = ciecia.length === 0;
+    btnWytnij.disabled = markery.length === 0;
     btnCofnij.disabled = historia.length === 0;
-    if (ciecia.length) {
-      let suma = ciecia.reduce((a, m) => a + (m.end - m.start), 0);
-      info.textContent = ciecia.length + ' do wycięcia · ' + formatCzas(suma);
+    if (markery.length) {
+      let suma = markery.reduce((a, m) => a + (m.end - m.start), 0);
+      info.textContent = markery.length + ' do wycięcia · ' + formatCzas(suma);
     } else if (pcmBuf) {
-      const opis = tryb === 'noz' ? 'zaznacz fragment do cięcia'
-                 : tryb === 'glos' ? 'zaznacz fragment, wybierz poziom'
-                 : 'gotowe';
-      info.textContent = formatCzas(pcmBuf.duration) + ' · ' + opis;
+      info.textContent = formatCzas(pcmBuf.duration) + ' · ' + (tryb === 'noz' ? 'zaznacz fragment do cięcia' : 'gotowe');
     }
   }
 
-  // --- TRYBY: nożyczki / głośność (wzajemnie wykluczające) ---
+  // --- TRYB: nożyczki ---
   function ustawTryb(nowy) {
     tryb = (tryb === nowy) ? '' : nowy;
     btnNoz.classList.toggle('aktywny', tryb === 'noz');
-    btnGlos.classList.toggle('aktywny', tryb === 'glos');
     wrap.style.cursor = tryb ? 'crosshair' : 'default';
     aktualizujPrzyciski();
   }
   btnNoz.onclick = () => ustawTryb('noz');
-  btnGlos.onclick = () => ustawTryb('glos');
 
   function pozycjaX(ev) {
     const rect = wrap.getBoundingClientRect();
@@ -1515,23 +1463,16 @@ function podepnijEdytor(el, stan, odswiez) {
     let e = Math.max(zaznStart, koniec) * dur;
     zaznStart = -1;
     if (e - s < 0.05) return; // za krótki = kliknięcie, nie zaznaczenie
-    if (tryb === 'glos') {
-      // Marker głośności - czeka na wybór poziomu (guziki na markerze)
-      markery.push({ start: s, end: e, rodzaj: 'glos', akcja: null });
-      renderujMarkery();
-      return;
-    }
-    // Tryb nożyczek: scal nachodzące markery cięcia
+    // Scal nachodzące markery cięcia
     markery.push({ start: s, end: e, rodzaj: 'cut' });
-    const ciecia = markery.filter(m => m.rodzaj !== 'glos').sort((a, b) => a.start - b.start);
-    const inne = markery.filter(m => m.rodzaj === 'glos');
-    const scalone = [ciecia[0]];
-    for (let i = 1; i < ciecia.length; i++) {
+    markery.sort((a, b) => a.start - b.start);
+    const scalone = [markery[0]];
+    for (let i = 1; i < markery.length; i++) {
       const pop = scalone[scalone.length - 1];
-      if (ciecia[i].start <= pop.end) pop.end = Math.max(pop.end, ciecia[i].end);
-      else scalone.push(ciecia[i]);
+      if (markery[i].start <= pop.end) pop.end = Math.max(pop.end, markery[i].end);
+      else scalone.push(markery[i]);
     }
-    markery = scalone.concat(inne);
+    markery = scalone;
     renderujMarkery();
   });
 
@@ -1562,51 +1503,6 @@ function podepnijEdytor(el, stan, odswiez) {
   }
   requestAnimationFrame(animujPlayhead);
 
-  // --- GŁOŚNOŚĆ: zastosuj poziom do zaznaczonego fragmentu ---
-  // Mnożniki: mute=0, ciszej=0.45, głośniej=1.7 (z miękkim limiterem,
-  // żeby nie przesterować). Operacja działa ZAWSZE od oryginału tego
-  // fragmentu (zapamiętanego przy pierwszym dotknięciu markera), więc
-  // przełączanie poziomów się nie kumuluje.
-  function zastosujGlos(i, akcja) {
-    const m = markery[i];
-    if (!m || !pcmBuf) return;
-    historia.push(kopiujBuf(pcmBuf));
-    const mnoznik = akcja === 'mute' ? 0 : akcja === 'down' ? 0.45 : 1.7;
-    const dane = pcmBuf.getChannelData(0);
-    const sr = pcmBuf.sampleRate;
-    const iS = Math.floor(m.start * sr);
-    const iE = Math.min(Math.ceil(m.end * sr), dane.length);
-    // Jeśli już była akcja, najpierw cofnij ją z historii nie da się prosto -
-    // dlatego operujemy z zapamiętanej kopii oryginału fragmentu.
-    if (!m._org) m._org = dane.slice(iS, iE);
-    for (let j = iS; j < iE; j++) {
-      let v = m._org[j - iS] * mnoznik;
-      // miękki limiter (tanh-podobny) przy podgłaśnianiu
-      if (v > 1) v = 1 - (1 / (v + 1));
-      if (v < -1) v = -1 + (1 / (-v + 1));
-      dane[j] = v;
-    }
-    m.akcja = akcja;
-    rysujFale();
-    zaktualizujPoEdycji(true); // true = bez resetu markerów (zostają widoczne)
-  }
-  function usunGlosMarker(i) {
-    const m = markery[i];
-    if (!m) return;
-    // Przywróć oryginał fragmentu, jeśli był zmieniony
-    if (m._org && m.akcja) {
-      historia.push(kopiujBuf(pcmBuf));
-      const dane = pcmBuf.getChannelData(0);
-      const sr = pcmBuf.sampleRate;
-      const iS = Math.floor(m.start * sr);
-      for (let j = 0; j < m._org.length; j++) dane[iS + j] = m._org[j];
-      rysujFale();
-    }
-    markery.splice(i, 1);
-    renderujMarkery();
-    if (m._org && m.akcja) zaktualizujPoEdycji(true);
-  }
-
   // --- WYTNIJ MARKER ---
   function wytnijMarker(i) {
     if (!pcmBuf) return;
@@ -1625,11 +1521,10 @@ function podepnijEdytor(el, stan, odswiez) {
 
   // --- WYTNIJ WSZYSTKIE ZAZNACZONE ---
   btnWytnij.onclick = () => {
-    const ciecia = markery.filter(m => m.rodzaj !== 'glos');
-    if (!pcmBuf || !ciecia.length) return;
+    if (!pcmBuf || !markery.length) return;
     historia.push(kopiujBuf(pcmBuf));
     // Sortuj od końca, żeby indeksy się nie przesuwały
-    const posort = [...ciecia].sort((a, b) => b.start - a.start);
+    const posort = [...markery].sort((a, b) => b.start - a.start);
     let buf = pcmBuf;
     posort.forEach(m => { buf = wytnijFragment(buf, m.start, m.end); });
     pcmBuf = buf;
@@ -1646,7 +1541,7 @@ function podepnijEdytor(el, stan, odswiez) {
   };
 
   // --- PO EDYCJI: przerysuj + przebuduj MP3 ---
-  async function zaktualizujPoEdycji(zachowGlos) {
+  async function zaktualizujPoEdycji() {
     rysujFale();
     info.textContent = '⏳ koduję MP3…';
     const nowyBlob = bufferDoMp3(pcmBuf, stan.kbps);
@@ -1658,7 +1553,7 @@ function podepnijEdytor(el, stan, odswiez) {
     if (stan.efektUrl) URL.revokeObjectURL(stan.efektUrl);
     stan.efekt = ''; stan.efektBlob = null; stan.efektUrl = null;
     odswiez();
-    info.textContent = formatCzas(pcmBuf.duration) + (zachowGlos ? ' · poziom zmieniony ✓' : ' · wycięto ✓');
+    info.textContent = formatCzas(pcmBuf.duration) + ' · wycięto ✓';
   }
 
   // Resize
