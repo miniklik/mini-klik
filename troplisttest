@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Troplist</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=EB+Garamond:ital,wght@0,400;0,500;1,400&family=Caveat:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --papier:#f9f0e3;--papier-2:#fffaf2;--papier-3:#f1e3cf;
+  --atrament:#3a2620;--atrament-mil:#7c5648;--atrament-cichy:#ab9482;
+  --wino:#8b2635;--wino-jasne:#b14555;--zloto:#b8893f;--szalwia:#6f7d6b;
+  --cien-l:0 6px 24px rgba(80,40,30,0.12);--cien-g:0 16px 50px rgba(80,40,30,0.22);--r:14px;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{font-family:'EB Garamond',serif;color:var(--atrament);background:var(--papier);
+  background-image:radial-gradient(circle at 12% 18%,rgba(177,69,85,0.10) 0%,transparent 42%),radial-gradient(circle at 88% 82%,rgba(184,137,63,0.10) 0%,transparent 42%);
+  min-height:100vh;overflow-x:hidden;position:relative;}
+.scena{position:relative;z-index:2;max-width:560px;margin:0 auto;padding:22px 18px 60px}
+.ekran{display:none;animation:wejscie .5s ease both}
+.ekran.aktywny{display:block}
+@keyframes wejscie{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.gora{display:flex;align-items:center;gap:12px;margin-bottom:18px}
+.wroc{background:var(--papier-2);border:1px solid rgba(139,38,53,.3);border-radius:10px;color:var(--wino);font-family:'EB Garamond',serif;font-size:15px;padding:8px 14px;cursor:pointer;transition:.2s;}
+.wroc:hover{background:var(--wino);color:var(--papier-2)}
+.gora h2{font-family:'Cormorant Garamond',serif;font-weight:500;font-size:26px}
+.hero{text-align:center;padding:18px 0 8px}
+.ornament{font-family:'Caveat',cursive;color:var(--zloto);font-size:22px;letter-spacing:2px;margin-bottom:6px}
+.hero h1{font-family:'Cormorant Garamond',serif;font-weight:500;font-size:58px;line-height:.95;color:var(--atrament);margin:4px 0 6px;}
+.hero h1 em{font-style:italic;color:var(--wino)}
+.podtytul{font-style:italic;color:var(--atrament-mil);font-size:18px;line-height:1.5;max-width:420px;margin:14px auto 0;}
+.pieczec{margin:26px auto 8px;width:120px;height:120px}
+.pieczec svg{width:100%;height:100%;display:block;filter:drop-shadow(0 8px 16px rgba(139,38,53,.3))}
+.bicie{animation:bije 2.4s ease-in-out infinite;transform-origin:center}
+@keyframes bije{0%,100%{transform:scale(1)}8%{transform:scale(1.08)}16%{transform:scale(1)}24%{transform:scale(1.05)}32%{transform:scale(1)}}
+.tryb-plakietka{display:inline-flex;align-items:center;gap:7px;margin-top:18px;padding:6px 13px;border-radius:20px;font-size:13px;letter-spacing:.4px;}
+.tryb-plakietka .kropka{width:8px;height:8px;border-radius:50%}
+.tryb-online{background:rgba(111,125,107,.16);color:#42523f}.tryb-online .kropka{background:#5a7a4f}
+.tryb-test{background:rgba(184,137,63,.18);color:#7a5a1f}.tryb-test .kropka{background:var(--zloto)}
+.wybor{display:flex;flex-direction:column;gap:16px;margin-top:30px}
+.karta{display:block;text-align:left;background:linear-gradient(180deg,var(--papier-2),var(--papier-3));border:1px solid rgba(139,38,53,.22);border-radius:var(--r);padding:22px;cursor:pointer;transition:.25s;box-shadow:var(--cien-l);position:relative;overflow:hidden;}
+.karta:hover{transform:translateY(-2px);box-shadow:var(--cien-g);border-color:var(--wino)}
+.karta .ikona{font-size:30px;margin-bottom:8px}
+.karta h3{font-family:'Cormorant Garamond',serif;font-weight:600;font-size:25px;color:var(--wino);margin-bottom:4px}
+.karta p{color:var(--atrament-mil);font-size:16px;line-height:1.45}
+.karta::after{content:'\2192';position:absolute;right:20px;top:50%;transform:translateY(-50%);font-size:22px;color:var(--zloto);transition:.25s}
+.karta:hover::after{right:16px}
+.stopka-link{text-align:center;margin-top:28px}
+.stopka-link button{background:none;border:none;color:var(--atrament-cichy);font-family:'EB Garamond',serif;font-size:15px;cursor:pointer;text-decoration:underline;text-underline-offset:4px;}
+.stopka-link button:hover{color:var(--wino)}
+.panel{background:linear-gradient(180deg,var(--papier-2),var(--papier-3));border:1px solid rgba(139,38,53,.2);border-radius:var(--r);padding:22px;box-shadow:var(--cien-l);margin-bottom:16px;}
+.etykieta{font-family:'Caveat',cursive;font-size:20px;color:var(--wino);margin-bottom:6px;display:block;}
+.podpowiedz{color:var(--atrament-mil);font-size:15px;line-height:1.5;margin-bottom:14px}
+input[type=text],textarea{width:100%;font-family:'EB Garamond',serif;font-size:18px;color:var(--atrament);background:var(--papier);border:1px solid rgba(139,38,53,.3);border-radius:10px;padding:13px 15px;transition:.2s;}
+input[type=text]:focus,textarea:focus{outline:none;border-color:var(--wino);box-shadow:0 0 0 3px rgba(139,38,53,.12)}
+textarea{resize:vertical;min-height:110px;line-height:1.5}
+.licznik{text-align:right;font-size:13px;color:var(--atrament-cichy);margin-top:6px}
+.btn{font-family:'EB Garamond',serif;font-size:18px;font-weight:500;border-radius:11px;padding:14px 22px;cursor:pointer;transition:.22s;border:1px solid transparent;letter-spacing:.4px;}
+.btn-glowny{background:var(--wino);color:var(--papier-2);box-shadow:0 4px 16px rgba(139,38,53,.35)}
+.btn-glowny:hover{background:var(--wino-jasne);transform:translateY(-1px)}
+.btn-glowny:disabled{background:var(--atrament-cichy);box-shadow:none;cursor:not-allowed;transform:none}
+.btn-drugi{background:var(--papier-2);color:var(--wino);border-color:rgba(139,38,53,.35)}
+.btn-drugi:hover{background:var(--papier-3);border-color:var(--wino)}
+.btn-pelny{width:100%}
+.rzad{display:flex;gap:10px}.rzad .btn{flex:1}
+.kroki{display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:18px}
+.kroki .k{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Cormorant Garamond',serif;font-weight:600;font-size:16px;background:var(--papier-3);color:var(--atrament-cichy);border:1px solid rgba(139,38,53,.2)}
+.kroki .k.aktywny{background:var(--wino);color:var(--papier-2);border-color:var(--wino)}
+.kroki .k.zrobiony{background:var(--zloto);color:var(--papier-2);border-color:var(--zloto)}
+.kroki .kreska{width:20px;height:1px;background:rgba(139,38,53,.25)}
+.podkrok{display:none}.podkrok.aktywny{display:block;animation:wejscie .35s ease both}
+.mapa{height:300px;border-radius:12px;overflow:hidden;border:1px solid rgba(139,38,53,.3);margin-bottom:6px}
+.mapa-info{font-size:14px;color:var(--atrament-mil);text-align:center;margin-bottom:14px;font-style:italic}
+.suwak-wiersz{display:flex;align-items:center;gap:14px;margin:8px 0 16px}
+.suwak-wiersz label{font-size:15px;color:var(--atrament-mil);white-space:nowrap}
+input[type=range]{flex:1;accent-color:var(--wino)}
+.promien-val{font-family:'Cormorant Garamond',serif;font-weight:600;font-size:20px;color:var(--wino);min-width:62px;text-align:right}
+.potw{text-align:center;padding:14px 6px}
+.potw .serce-ok{font-size:54px;animation:bije 2s ease-in-out infinite;display:inline-block}
+.potw h3{font-family:'Cormorant Garamond',serif;font-weight:500;font-size:30px;color:var(--wino);margin:8px 0}
+.potw p{color:var(--atrament-mil);font-size:17px;line-height:1.55;max-width:400px;margin:0 auto 8px}
+.potw .imie-cel{font-family:'Caveat',cursive;font-size:26px;color:var(--atrament)}
+.liscik{background:var(--papier-2);border:1px solid rgba(184,137,63,.4);border-radius:12px;padding:24px;box-shadow:var(--cien-g);text-align:center;background-image:repeating-linear-gradient(transparent,transparent 31px,rgba(139,38,53,.06) 32px);}
+.liscik .od{font-family:'Cormorant Garamond',serif;font-weight:600;font-size:19px;letter-spacing:.5px;color:var(--zloto);margin-bottom:10px}
+.liscik .tresc{font-family:'Cormorant Garamond',serif;font-weight:500;font-size:27px;line-height:1.45;color:var(--atrament)}
+.liscik .skad{font-size:14px;color:var(--atrament-cichy);font-style:italic;margin-top:14px}
+.wiecej-naglo{font-family:'Caveat',cursive;font-size:21px;color:var(--wino);margin-bottom:10px}
+.wiecej-odleglosci{display:flex;justify-content:center;gap:22px;flex-wrap:wrap;margin-bottom:12px}
+.odl-karta{text-align:center}
+.odl-karta .etyk{font-size:12px;color:var(--atrament-cichy);letter-spacing:.5px;text-transform:uppercase;margin-bottom:3px}
+.odl-karta .wartosc{font-family:'Cormorant Garamond',serif;font-size:26px;font-weight:600;color:var(--wino)}
+.odl-karta .wartosc.daleko{color:var(--szalwia)}
+.nadawca-karta{display:flex;align-items:center;gap:14px;background:var(--papier-2);border:1px solid rgba(139,38,53,.25);border-radius:12px;padding:16px 18px;margin-bottom:12px;cursor:pointer;transition:.2s;box-shadow:var(--cien-l);text-align:left;width:100%}
+.nadawca-karta:hover{transform:translateY(-2px);box-shadow:var(--cien-g);border-color:var(--wino)}
+.nadawca-karta .pieczatka{font-size:30px;flex:none}
+.nadawca-karta .info{flex:1}
+.nadawca-karta .ksywka{font-family:'Cormorant Garamond',serif;font-weight:600;font-size:23px;color:var(--wino);line-height:1.15}
+.nadawca-karta .ile-list{font-size:14px;color:var(--atrament-mil);margin-top:2px}
+.nadawca-karta .strzal{font-size:22px;color:var(--zloto)}
+.moja-poz{display:flex;align-items:flex-start;gap:12px;background:var(--papier-2);border:1px solid rgba(139,38,53,.18);border-radius:11px;padding:14px;margin-bottom:10px;}
+.moja-poz .tresc{flex:1}
+.moja-poz .do{font-family:'Caveat',cursive;font-size:19px;color:var(--wino)}
+.moja-poz .wiad{font-size:15px;color:var(--atrament-mil);margin-top:3px;line-height:1.4}
+.moja-poz .gdy{font-size:12px;color:var(--atrament-cichy);margin-top:5px}
+.usun{background:none;border:1px solid rgba(139,38,53,.3);border-radius:8px;color:var(--wino);padding:7px 11px;cursor:pointer;font-size:14px;transition:.2s;white-space:nowrap}
+.usun:hover{background:var(--wino);color:var(--papier-2)}
+.pusto{text-align:center;color:var(--atrament-cichy);font-style:italic;padding:30px 10px;font-size:16px}
+.filtr-blok{background:rgba(139,38,53,.08);border:1px solid rgba(139,38,53,.3);border-radius:10px;padding:11px 14px;margin-top:10px;font-size:15px;color:var(--wino);line-height:1.45;display:none;}
+.filtr-blok.poka{display:block;animation:wejscie .3s ease both}
+.regulamin{margin:26px auto 0;max-width:470px;font-size:12.5px;color:var(--atrament-cichy);border-top:1px dashed rgba(139,38,53,.2);padding-top:16px}
+.regulamin summary{cursor:pointer;list-style:none;text-align:center;font-style:italic;color:var(--atrament-mil);user-select:none;transition:.2s}
+.regulamin summary::-webkit-details-marker{display:none}
+.regulamin summary::after{content:' \25be';color:var(--zloto)}
+.regulamin[open] summary::after{content:' \25b4'}
+.regulamin summary:hover{color:var(--wino)}
+.regulamin-tresc{margin-top:12px;line-height:1.65;text-align:left}
+.regulamin-tresc p{margin-bottom:9px}
+.regulamin-tresc b{color:var(--atrament-mil);font-weight:600}
+.zgoda{display:flex;align-items:flex-start;gap:9px;justify-content:center;margin:14px auto 4px;max-width:470px;font-size:14px;color:var(--atrament-mil);cursor:pointer;user-select:none;line-height:1.4}
+.zgoda input{width:18px;height:18px;accent-color:var(--wino);margin-top:1px;flex:none;cursor:pointer}
+.zglos-btn{display:block;margin:12px auto 0;background:none;border:none;color:var(--atrament-cichy);font-family:'EB Garamond',serif;font-size:13px;cursor:pointer;text-decoration:underline;text-underline-offset:3px}
+.zglos-btn:hover{color:var(--wino)}
+.mini-notka{font-size:13px;color:var(--atrament-cichy);line-height:1.5;margin-top:14px;padding-top:14px;border-top:1px dashed rgba(139,38,53,.2)}
+#toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%) translateY(20px);background:var(--atrament);color:var(--papier);padding:13px 22px;border-radius:30px;font-size:16px;box-shadow:var(--cien-g);opacity:0;pointer-events:none;transition:.3s;z-index:9999;max-width:90vw;text-align:center;}
+#toast.poka{opacity:1;transform:translateX(-50%) translateY(0)}
+/* LICZNIK ODWIEDZIN */
+.stats-counter{position:fixed;right:16px;bottom:16px;z-index:100;background:linear-gradient(180deg,var(--papier-2),var(--papier-3));border:1px solid rgba(139,38,53,.3);border-radius:12px;padding:10px 14px;box-shadow:var(--cien-l);font-family:'EB Garamond',serif;user-select:none;transition:.25s;opacity:.92}
+.stats-counter:hover{opacity:1;transform:translateY(-2px);box-shadow:var(--cien-g);border-color:var(--wino)}
+.stats-row{display:flex;align-items:center;justify-content:space-between;gap:14px;line-height:1.3}
+.stats-label{font-size:10px;color:var(--atrament-cichy);letter-spacing:1.2px;font-weight:600;text-transform:uppercase}
+.stats-value{font-family:'Cormorant Garamond',serif;font-size:17px;color:var(--wino);font-weight:600;min-width:30px;text-align:right}
+.stats-divider{height:1px;background:linear-gradient(90deg,transparent,rgba(139,38,53,.2),transparent);margin:5px 0}
+@media(max-width:500px){.stats-counter{right:10px;bottom:10px;padding:8px 11px}.stats-label{font-size:9px}.stats-value{font-size:15px}}
+@media(max-width:430px){.hero h1{font-size:48px}}
+</style>
+</head>
+<body>
+<main class="scena">
+
+<!-- EKRAN STARTOWY -->
+<section id="ekranStart" class="ekran aktywny">
+  <div class="hero">
+    <div class="ornament">~ dla nieśmiałych ~</div>
+    <h1><em>Troplist</em></h1>
+    <div class="pieczec">
+      <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="50" cy="50" r="47" fill="none" stroke="#b8893f" stroke-width="1.5" stroke-dasharray="2 3" opacity=".7"/>
+        <circle cx="50" cy="50" r="40" fill="#8b2635"/>
+        <g class="bicie"><path d="M50 70 C50 70 28 56 28 42 C28 34 34 30 40 30 C45 30 48 33 50 37 C52 33 55 30 60 30 C66 30 72 34 72 42 C72 56 50 70 50 70 Z" fill="#f9f0e3"/></g>
+      </svg>
+    </div>
+    <p class="podtytul">Zostaw wyznanie tam, gdzie pojawi się ta jedyna osoba. Usłyszy je dopiero, gdy tam stanie.</p>
+    <div class="tryb-plakietka" id="trybPlakietka"><span class="kropka"></span><span id="trybTekst">sprawdzam połączenie…</span></div>
+  </div>
+  <div class="wybor">
+    <button class="karta" onclick="otworzNadawce()"><div class="ikona">💌</div><h3>Zostaw wiadomość</h3><p>Wpisz imię osoby, wskaż miejsce na mapie i zostaw słowa, które usłyszy, gdy tam przyjdzie.</p></button>
+    <button class="karta" onclick="zacznijSzukac()"><div class="ikona">🔍</div><h3>Szukaj imienia</h3><p>Wpisz swoje imię i sprawdź, czy ktoś zostawił coś dla Ciebie w pobliżu.</p></button>
+  </div>
+  <details class="regulamin" id="regulamin">
+    <summary>regulamin i zasady</summary>
+    <div class="regulamin-tresc">
+      <p><b>czym jest.</b> Troplist to miejsce na ciepłe, anonimowe słowa zostawione w przestrzeni — jak liścik schowany w mieście.</p>
+      <p><b>to nie komunikator.</b> nie da się odpisać ani z nikim skontaktować.</p>
+      <p><b>kultura.</b> zwracaj się grzecznie. <b>nie używaj nazwisk.</b> zostawiaj wyłącznie miłe wiadomości.</p>
+      <p><b>treści zakazane.</b> wulgaryzmy, groźby i treści seksualne są blokowane. każdą wiadomość można zgłosić.</p>
+      <p><b>wiek.</b> zalecane od 16 lat. poniżej 15 lat — tylko pod opieką rodzica.</p>
+      <p><b>znikanie.</b> wiadomości wygasają po 30 dniach.</p>
+      <p><b>edycja i usuwanie.</b> dla bezpieczeństwa wiadomości nie da się edytować ani usunąć po dodaniu — chroni to przed złośliwym podmienianiem cudzych listów. jeśli chcesz usunąć swoją wiadomość, napisz na <b>troplist@wp.pl</b>.</p>
+      <p><b>odpowiedzialność.</b> treści pochodzą od użytkowników. autor serwisu nie odpowiada za ich treść. korzystasz na własną odpowiedzialność.</p>
+    </div>
+  </details>
+  <label class="zgoda"><input type="checkbox" id="zgodaReg" onchange="zapiszZgode()"><span>Zapoznałem(-am) się z regulaminem i akceptuję zasady</span></label>
+  <div class="stopka-link"><button onclick="wyczyscDane()" style="color:var(--atrament-cichy)">🧹 Wyczyść moje dane z tej przeglądarki</button></div>
+</section>
+
+<!-- NADAWCA -->
+<section id="ekranNadawca" class="ekran">
+  <div class="gora"><button class="wroc" onclick="pokaz('ekranStart')">← Wróć</button><h2>Zostaw wiadomość</h2></div>
+  <div class="kroki">
+    <div class="k aktywny" id="kk1">1</div><div class="kreska"></div>
+    <div class="k" id="kk2">2</div><div class="kreska"></div>
+    <div class="k" id="kk3">3</div><div class="kreska"></div>
+    <div class="k" id="kk4">4</div>
+  </div>
+
+  <div class="podkrok aktywny" id="krokNick">
+    <div class="panel">
+      <span class="etykieta">Twój nick i PIN ✶</span>
+      <p class="podpowiedz">Wpisz <b>nowy</b> nick i PIN — albo <b>ten sam, którego używałeś wcześniej</b>, żeby wrócić do swoich wiadomości i je edytować. Tylko Ty je znasz. Zapamiętaj PIN — nie można go odzyskać.</p>
+      <div class="rzad" style="gap:12px">
+        <input type="text" id="autorNick" placeholder="nick, np. Przemek77" maxlength="30" autocomplete="off" style="flex:2">
+        <input type="text" id="autorPin" placeholder="PIN" maxlength="4" inputmode="numeric" autocomplete="off" style="flex:1;letter-spacing:4px;font-size:22px">
+      </div>
+    </div>
+    <button class="btn btn-glowny btn-pelny" onclick="krokNickDalej()">Dalej →</button>
+  </div>
+
+  <div class="podkrok" id="krok1">
+    <div class="panel">
+      <span class="etykieta">Do kogo piszesz?</span>
+      <p class="podpowiedz">Wpisz imię, zdrobnienie albo czułą ksywkę — coś, co ta osoba od razu rozpozna jako swoje. Im bardziej osobiste, tym bardziej trafi tylko do niej.</p>
+      <input type="text" id="naimie" placeholder="np. Piegusia" maxlength="40" autocomplete="off">
+    </div>
+    <div class="rzad">
+      <button class="btn btn-drugi" onclick="wrocDoKroku(0)">← Wstecz</button>
+      <button class="btn btn-glowny" onclick="krokDoMapy()">Dalej →</button>
+    </div>
+  </div>
+
+  <div class="podkrok" id="krok2">
+    <div class="panel">
+      <span class="etykieta">Gdzie ma to się stać?</span>
+      <p class="podpowiedz" id="mapaPodp">Dotknij mapy w miejscu, gdzie ta osoba na pewno się pojawi (ulubiona ławka, przystanek, kawiarnia…).</p>
+      <div class="mapa" id="mapaNad"></div>
+      <div class="mapa-info" id="mapaInfo">Dotknij mapy, aby postawić serce.</div>
+      <div class="suwak-wiersz"><label>Promień</label><input type="range" id="suwakPromien" min="20" max="150" value="60" step="5"><span class="promien-val" id="promienVal">60 m</span></div>
+    </div>
+    <div class="rzad">
+      <button class="btn btn-drugi" onclick="wrocDoKroku(1)">← Wstecz</button>
+      <button class="btn btn-glowny" id="btnDoTresci" onclick="krokDoTresci()" disabled>Dalej →</button>
+    </div>
+  </div>
+
+  <div class="podkrok" id="krok3">
+    <div class="panel">
+      <span class="etykieta">Co chcesz jej powiedzieć?</span>
+      <p class="podpowiedz">Te słowa zostaną przeczytane na głos, gdy odbiorca wejdzie w wyznaczone miejsce. Pisz miło, imionami i ksywkami — bez nazwisk.</p>
+      <textarea id="wiadtresc" placeholder="Wpisz tu swoje wyznanie…" maxlength="400"></textarea>
+      <div class="licznik"><span id="licznikZnak">0</span> / 400</div>
+      <button class="btn btn-drugi btn-pelny" style="margin-top:6px" onclick="posluchajPodglad()">🔊 Posłuchaj, jak zabrzmi</button>
+    </div>
+    <div class="panel">
+      <span class="etykieta">Podpis Amora ✶</span>
+      <p class="podpowiedz">Czuła ksywka, której ona się domyśli. Zostaw puste — podpiszesz się jako <em>Tajemniczy wielbiciel</em>.</p>
+      <input type="text" id="podpis" placeholder="np. mały" maxlength="30" autocomplete="off">
+    </div>
+    <div class="filtr-blok" id="filtrBlok"></div>
+    <div class="rzad">
+      <button class="btn btn-drugi" onclick="wrocDoKroku(2)">← Wstecz</button>
+      <button class="btn btn-glowny" id="btnOpublikuj" onclick="opublikuj()">Zostaw wiadomość ♥</button>
+    </div>
+  </div>
+
+  <div class="podkrok" id="krokOK">
+    <div class="panel potw">
+      <span class="serce-ok">💌</span>
+      <h3 id="potwNaglo">Gotowe.</h3>
+      <p>Twoja wiadomość czeka na <span class="imie-cel" id="potwImie">…</span>.<br>Usłyszy ją, gdy stanie w wyznaczonym miejscu.</p>
+      <p style="font-size:13px;color:var(--atrament-cichy);margin-top:10px">Wiadomości nie da się już edytować ani usunąć (zabezpieczenie). Chcesz coś zmienić? Napisz na troplist@wp.pl</p>
+    </div>
+    <div class="rzad">
+      <button class="btn btn-drugi" onclick="nowaWiadomosc()">+ Kolejna wiadomość</button>
+      <button class="btn btn-glowny" onclick="pokaz('ekranStart')">Zakończ</button>
+    </div>
+  </div>
+</section>
+
+<!-- ODBIORCA -->
+<section id="ekranOdbiorca" class="ekran">
+  <div class="gora"><button class="wroc" onclick="zakonczSzukanie()">← Szukaj imienia</button><h2>Szukaj imienia</h2></div>
+  <div class="podkrok aktywny" id="szukImie">
+    <div class="panel">
+      <span class="etykieta">Jak masz na imię?</span>
+      <p class="podpowiedz">Wpisz swoje imię, zdrobnienie albo czułą ksywkę — tak jak mogłaby napisać o Tobie bliska osoba.</p>
+      <input type="text" id="mojeImie" placeholder="np. Piegusia" maxlength="40" autocomplete="off">
+    </div>
+    <button class="btn btn-glowny btn-pelny" onclick="wlaczDetektor()">Szukaj ♥</button>
+    <p class="mini-notka">Twoja pozycja nie jest nigdzie wysyłana — wszystko liczy się na Twoim telefonie.</p>
+  </div>
+  <div class="podkrok" id="podsumPanel">
+    <div style="text-align:center;margin-bottom:14px">
+      <div class="wiecej-naglo" id="podsumNaglo" style="font-size:22px"></div>
+      <div id="podsumOpis" style="font-size:15px;color:var(--atrament-mil);margin-top:4px;line-height:1.5"></div>
+    </div>
+    <div id="listaNadawcow"></div>
+  </div>
+  <div class="podkrok" id="listPanel">
+    <div class="liscik">
+      <div class="od" id="liscikOd">od: …</div>
+      <div class="tresc" id="liscikTresc">…</div>
+      <div class="skad">— zostawione tu, gdzie jesteś</div>
+    </div>
+    <div style="margin-top:14px"><button class="btn btn-drugi btn-pelny" onclick="odtworzPonownie()">🔊 Odtwórz ponownie</button></div>
+    <button class="zglos-btn" onclick="zglosWiadomosc()">⚐ Zgłoś tę wiadomość</button>
+    <button class="btn btn-glowny btn-pelny" style="margin-top:14px" onclick="wrocDoListy()">← Wróć do listów</button>
+  </div>
+  <div class="podkrok" id="innePanel">
+    <div style="text-align:center;margin-bottom:18px"><div style="font-size:46px">💌</div><div class="wiecej-naglo" id="inneNaglo" style="font-size:24px;margin-top:8px"></div></div>
+    <div class="panel" id="wynikInne" style="text-align:center;padding:28px 22px"></div>
+    <button class="btn btn-glowny btn-pelny" style="margin-top:14px" onclick="powrotDoListNadawcy()">← Wróć do listów</button>
+  </div>
+</section>
+
+<!-- MOJE WIADOMOŚCI -->
+
+</main>
+<div class="stats-counter" id="stats-counter" title="Odwiedziny">
+  <div class="stats-row"><span class="stats-label">Dziś</span><span class="stats-value" id="stats-today">—</span></div>
+  <div class="stats-divider"></div>
+  <div class="stats-row"><span class="stats-label">Łącznie</span><span class="stats-value" id="stats-total">—</span></div>
+</div>
+<div id="toast"></div>
+
+<script>
+/* ════ FIREBASE ════ */
+const FIREBASE_CONFIG = {
+  apiKey:"AIzaSyDRR3vSfgpEmbpZz_-VldMTnTHoXRfuGKg",
+  authDomain:"ksiega-ramzi.firebaseapp.com",
+  projectId:"ksiega-ramzi",
+  storageBucket:"ksiega-ramzi.firebasestorage.app",
+  messagingSenderId:"400735142662",
+  appId:"1:400735142662:web:0b52a57f4fedf367839487"
+};
+const ZYCIE_DNI=30, MAX_PROWADZ_M=3000;
+
+const Baza={
+  online:false,db:null,
+  init(){
+    const ok=FIREBASE_CONFIG.apiKey&&FIREBASE_CONFIG.apiKey.indexOf('WKLEJ')!==0;
+    if(ok&&window.firebase){
+      try{ firebase.initializeApp(FIREBASE_CONFIG); this.db=firebase.firestore(); this.online=true; }catch(e){ this.online=false; }
+    }
+    return this.online;
+  },
+  async zostaw(rek){
+    if(this.online){ const r=await this.db.collection('serca').add(rek); return r.id; }
+    else{ const t=this._lok(); const id='lok_'+Date.now()+'_'+Math.random().toString(36).slice(2,7); t.push(Object.assign({id},rek)); this._saveLok(t); return id; }
+  },
+  async znajdz(imie){
+    const now=Date.now();
+    if(this.online){ const s=await this.db.collection('serca').where('imie','==',imie).get(); const o=[]; s.forEach(d=>{const v=d.data();v.id=d.id;if(!v.wygasa||v.wygasa>now)o.push(v);}); return o; }
+    else{ return this._lok().filter(p=>p.imie===imie&&(!p.wygasa||p.wygasa>now)); }
+  },
+  async znajdzPoHash(hash){
+    const now=Date.now();
+    if(this.online){ const s=await this.db.collection('serca').where('autorHash','==',hash).get(); const o=[]; s.forEach(d=>{const v=d.data();v.id=d.id;if(!v.wygasa||v.wygasa>now)o.push(v);}); return o; }
+    else{ return this._lok().filter(p=>p.autorHash===hash&&(!p.wygasa||p.wygasa>now)); }
+  },
+  async usun(id){
+    if(this.online&&id&&id.indexOf('lok_')!==0){ await this.db.collection('serca').doc(id).delete(); }
+    else{ this._saveLok(this._lok().filter(p=>p.id!==id)); }
+  },
+  async edytuj(id,pola){
+    if(this.online&&id&&id.indexOf('lok_')!==0){ await this.db.collection('serca').doc(id).update(pola); }
+    else{ const t=this._lok(); const p=t.find(x=>x.id===id); if(p){Object.assign(p,pola);this._saveLok(t);} }
+  },
+  async zglos(id){
+    if(this.online&&id&&id.indexOf('lok_')!==0){ try{ await this.db.collection('serca').doc(id).update({zgloszone:true,zgloszenia:firebase.firestore.FieldValue.increment(1)}); }catch(e){} }
+  },
+  _lok(){ try{return JSON.parse(localStorage.getItem('zs_demo')||'[]');}catch(e){return[];} },
+  _saveLok(t){ try{localStorage.setItem('zs_demo',JSON.stringify(t));}catch(e){} }
+};
+
+/* ════ POMOCNICZE ════ */
+function normImie(s){ return (s||'').trim().toLowerCase().replace(/ł/g,'l').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]/g,''); }
+function metrowDo(la1,lo1,la2,lo2){ const R=6371000,t1=la1*Math.PI/180,t2=la2*Math.PI/180,dt=(la2-la1)*Math.PI/180,dl=(lo2-lo1)*Math.PI/180; const a=Math.sin(dt/2)**2+Math.cos(t1)*Math.cos(t2)*Math.sin(dl/2)**2; return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a)); }
+function toast(txt){ const t=document.getElementById('toast'); t.textContent=txt; t.classList.add('poka'); clearTimeout(t._tk); t._tk=setTimeout(()=>t.classList.remove('poka'),2600); }
+function escHtml(s){ return(s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function hashNickPin(nick,pin){ const s=nick.trim().toLowerCase()+'|'+pin.trim(); let h=2166136261; for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=(h*16777619)>>>0;} return 'zs_'+h.toString(36); }
+function pseudoKlucz(c){return c.pseudoNorm||'tajemniczy';}
+function pseudoNapis(c){return c.pseudonim||'Tajemniczy wielbiciel';}
+function zgodaZapisana(){ try{return localStorage.getItem('zs_regulamin')==='1';}catch(e){return false;} }
+function zapiszZgode(){ try{localStorage.setItem('zs_regulamin',document.getElementById('zgodaReg').checked?'1':'0');}catch(e){} }
+function ukryteLok(){ try{return JSON.parse(localStorage.getItem('zs_ukryte')||'[]');}catch(e){return[];} }
+function dodajUkryte(id){ try{const u=ukryteLok();if(u.indexOf(id)===-1){u.push(id);localStorage.setItem('zs_ukryte',JSON.stringify(u));}}catch(e){} }
+
+/* ════ MOWA ════ */
+let glosy=[];
+function ladujGlosy(){ try{glosy=speechSynthesis.getVoices()||[];}catch(e){} }
+if('speechSynthesis' in window){ladujGlosy();speechSynthesis.onvoiceschanged=ladujGlosy;}
+function powiedz(tekst,cb){
+  if(!('speechSynthesis' in window)||!tekst){if(cb)cb();return;}
+  try{ speechSynthesis.cancel(); const u=new SpeechSynthesisUtterance(tekst); u.lang='pl-PL'; u.rate=0.95; const pl=glosy.find(g=>/pl/i.test(g.lang)); if(pl)u.voice=pl; if(cb)u.onend=cb; speechSynthesis.speak(u); }catch(e){if(cb)cb();}
+}
+function odblokujMowe(){ try{const u=new SpeechSynthesisUtterance(' ');u.volume=0;speechSynthesis.speak(u);}catch(e){} }
+
+/* ════ NAWIGACJA ════ */
+function pokaz(id){ document.querySelectorAll('.ekran').forEach(e=>e.classList.remove('aktywny')); document.getElementById(id).classList.add('aktywny'); window.scrollTo(0,0); try{speechSynthesis.cancel();}catch(e){} }
+function pokazPodkrok(sel,id){ document.querySelectorAll(sel).forEach(e=>e.classList.remove('aktywny')); document.getElementById(id).classList.add('aktywny'); }
+
+/* ════ FILTR SŁÓW ════ */
+const STOP=['kurw','choj','chuj','huj','pizd','pisd','jeb','pierdol','pierdal','spierdal','wypierdal','dupa','dupe','dupek','gowno','sraj','srac','rzygac','cipa','cycek','kutas','fiut','suka','suko','sukinsyn','skurwiel','szmata','zdzira','dziwka','debil','kretyn','idiot','imbecyl','pedal','pedzio','masturb','porno','porn','orgaz','sperma','zabije','zabij','zdychaj','gwalt','zgwalc','fuck','shit','bitch','cunt','whore','retard','faggot','nigger','asshole','dick','bastard'];
+function normF(s){ return(s||'').toLowerCase().replace(/ł/g,'l').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[@4]/g,'a').replace(/0/g,'o').replace(/[1!|]/g,'i').replace(/3/g,'e').replace(/5/g,'s').replace(/7/g,'t').replace(/\$/g,'s'); }
+function zbij(s){ return s.replace(/(.)\1{2,}/g,'$1$1').replace(/(.)\1/g,'$1'); }
+function maStop(t){ const n=zbij(normF(t).replace(/[^a-z0-9]/g,'')); const sl=normF(t).split(/[^a-z0-9]+/).filter(Boolean).map(zbij); for(const s of STOP){const ss=zbij(s);if(n.indexOf(ss)!==-1)return true;for(const w of sl)if(w.indexOf(ss)!==-1)return true;} return false; }
+function sprawdzTresci(im,ps,wd){ if(maStop(im))return 'imieniu'; if(maStop(ps))return 'podpisie'; if(maStop(wd))return 'wiadomości'; return null; }
+function pokazFiltrBlok(pole){ const b=document.getElementById('filtrBlok'); b.innerHTML='Twój tekst zawiera słowo, którego tu nie używamy (w '+pole+'). Troplist to miejsce na ciepłe słowa.'; b.classList.add('poka'); }
+function ukryjFiltrBlok(){ document.getElementById('filtrBlok').classList.remove('poka'); }
+
+/* ════ NADAWCA ════ */
+let mapaNad=null,znacznikNad=null,okragNad=null,wybranaPoz=null;
+let autorHashAkt=null;          // hash zalogowanego autora
+let promienNasluch=false;
+
+function ustawKroki(n){ [1,2,3,4].forEach(i=>{const el=document.getElementById('kk'+i);if(!el)return;el.classList.remove('aktywny','zrobiony');if(i<n)el.classList.add('zrobiony');else if(i===n)el.classList.add('aktywny');}); }
+
+function otworzNadawce(){
+  if(!zgodaZapisana()){
+    toast('Najpierw zaznacz na dole, że znasz regulamin.');
+    pokaz('ekranStart');
+    const reg=document.getElementById('regulamin'); if(reg) reg.open=true;
+    setTimeout(()=>document.getElementById('zgodaReg').scrollIntoView({behavior:'smooth',block:'center'}),120);
+    return;
+  }
+  pokaz('ekranNadawca');
+  pokazPodkrok('#ekranNadawca .podkrok','krokNick');
+  ustawKroki(1);
+  // wstaw zapamiętany nick (bez PIN)
+  try{ document.getElementById('autorNick').value=localStorage.getItem('zs_nick')||''; }catch(e){}
+  document.getElementById('autorPin').value='';
+}
+
+function krokNickDalej(){
+  const nick=document.getElementById('autorNick').value.trim();
+  const pin=document.getElementById('autorPin').value.trim();
+  if(!nick){ toast('Wpisz nick.'); return; }
+  if(!/^\d{4}$/.test(pin)){ toast('PIN to dokładnie 4 cyfry.'); return; }
+  try{ localStorage.setItem('zs_nick',nick); }catch(e){}
+  autorHashAkt=hashNickPin(nick,pin);
+  pokazPodkrok('#ekranNadawca .podkrok','krok1');
+  ustawKroki(2);
+}
+
+async function krokDoMapy(){
+  const im=document.getElementById('naimie').value.trim();
+  if(!im){ toast('Wpisz imię osoby.'); return; }
+  wybranaPoz=null;
+  document.getElementById('btnDoTresci').disabled=true;
+  document.getElementById('mapaPodp').textContent='Dotknij mapy w miejscu, gdzie ta osoba na pewno się pojawi (ulubiona ławka, przystanek, kawiarnia…).';
+  document.getElementById('mapaInfo').textContent='Dotknij mapy, aby postawić serce.';
+  pokazPodkrok('#ekranNadawca .podkrok','krok2');
+  ustawKroki(3);
+  setTimeout(initMapaNad,120);
+}
+
+function wrocDoKroku(n){
+  if(n===0){ pokazPodkrok('#ekranNadawca .podkrok','krokNick'); ustawKroki(1); }
+  if(n===1){ pokazPodkrok('#ekranNadawca .podkrok','krok1'); ustawKroki(2); }
+  if(n===2){ pokazPodkrok('#ekranNadawca .podkrok','krok2'); ustawKroki(3); setTimeout(()=>{if(mapaNad)mapaNad.invalidateSize();},120); }
+}
+
+function initMapaNad(){
+  if(!mapaNad){
+    mapaNad=L.map('mapaNad').setView([52.0,19.0],6);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(mapaNad);
+    if(navigator.geolocation)navigator.geolocation.getCurrentPosition(p=>{if(!wybranaPoz)mapaNad.setView([p.coords.latitude,p.coords.longitude],15);},()=>{},{timeout:6000});
+    mapaNad.on('click',e=>{ dodajNowyPunkt(e.latlng.lat,e.latlng.lng); });
+    if(!promienNasluch){
+      document.getElementById('suwakPromien').addEventListener('input',e=>{document.getElementById('promienVal').textContent=e.target.value+' m';if(okragNad)okragNad.setRadius(parseInt(e.target.value,10));});
+      promienNasluch=true;
+    }
+  } else { mapaNad.invalidateSize(); }
+}
+
+function dodajNowyPunkt(lat,lng){
+  wybranaPoz=[lat,lng];
+  rysujWyborNad();
+  document.getElementById('mapaInfo').textContent='Serce ustawione. Dotknij innego miejsca, by je przenieść.';
+  document.getElementById('btnDoTresci').disabled=false;
+}
+
+function rysujWyborNad(){
+  const r=parseInt(document.getElementById('suwakPromien').value,10);
+  if(znacznikNad) mapaNad.removeLayer(znacznikNad);
+  if(okragNad) mapaNad.removeLayer(okragNad);
+  const ik=L.divIcon({html:'<div style="font-size:32px;line-height:1;transform:translate(-50%,-90%)">💌</div>',className:'',iconSize:[1,1]});
+  znacznikNad=L.marker(wybranaPoz,{icon:ik}).addTo(mapaNad);
+  okragNad=L.circle(wybranaPoz,{radius:r,color:'#8b2635',fillColor:'#b14555',fillOpacity:.18,weight:1.5}).addTo(mapaNad);
+}
+
+function krokDoTresci(){
+  if(!wybranaPoz){ toast('Najpierw wskaż miejsce na mapie.'); return; }
+  document.getElementById('btnOpublikuj').textContent='Zostaw wiadomość ♥';
+  pokazPodkrok('#ekranNadawca .podkrok','krok3');
+  ustawKroki(4);
+}
+
+document.getElementById('wiadtresc').addEventListener('input',e=>{document.getElementById('licznikZnak').textContent=e.target.value.length;});
+function posluchajPodglad(){ const t=document.getElementById('wiadtresc').value.trim(); if(!t){toast('Wpisz wiadomość.');return;} if(maStop(t)){pokazFiltrBlok('wiadomości');return;} ukryjFiltrBlok(); odblokujMowe(); powiedz(t); }
+
+async function opublikuj(){
+  const im=document.getElementById('naimie').value.trim();
+  const tresc=document.getElementById('wiadtresc').value.trim();
+  const podpis=document.getElementById('podpis').value.trim();
+  const r=parseInt(document.getElementById('suwakPromien').value,10);
+  if(!im||!wybranaPoz||!tresc){toast('Uzupełnij imię, miejsce i wiadomość.');return;}
+  const problem=sprawdzTresci(im,podpis,tresc); if(problem){pokazFiltrBlok(problem);return;} ukryjFiltrBlok();
+  const btn=document.getElementById('btnOpublikuj'); btn.disabled=true; btn.textContent='Zapisuję…';
+  const pseudoWysw=podpis||'Tajemniczy wielbiciel';
+  const pseudoNorm=podpis?normImie(podpis):'tajemniczy';
+  try{
+    const rek={imie:normImie(im),imieWyswietl:im,pseudonim:pseudoWysw,pseudoNorm:pseudoNorm,autorHash:autorHashAkt,lat:wybranaPoz[0],lng:wybranaPoz[1],promien:r,wiadomosc:tresc,utworzono:Date.now(),wygasa:Date.now()+ZYCIE_DNI*24*60*60*1000};
+    await Baza.zostaw(rek);
+    document.getElementById('potwNaglo').textContent='Gotowe.';
+    document.getElementById('potwImie').textContent=im;
+    pokazPodkrok('#ekranNadawca .podkrok','krokOK'); ustawKroki(4);
+  }catch(e){ console.error(e); toast('Coś poszło nie tak.'); }
+  finally{ btn.disabled=false; }
+}
+
+function nowaWiadomosc(){
+  document.getElementById('naimie').value='';
+  document.getElementById('wiadtresc').value='';
+  document.getElementById('podpis').value='';
+  document.getElementById('licznikZnak').textContent='0';
+  document.getElementById('btnOpublikuj').textContent='Zostaw wiadomość ♥';
+  ukryjFiltrBlok();
+  wybranaPoz=null;
+  document.getElementById('btnDoTresci').disabled=true;
+  if(znacznikNad){mapaNad.removeLayer(znacznikNad);znacznikNad=null;}
+  if(okragNad){mapaNad.removeLayer(okragNad);okragNad=null;}
+  // wróć do kroku imienia (nick zostaje ten sam)
+  pokazPodkrok('#ekranNadawca .podkrok','krok1'); ustawKroki(2);
+}
+
+/* ════ ODBIORCA ════ */
+let mojaPoz=null,cele=[],szukaneImie='',aktualnaGrupa=null,ostatniLiscik='',ostatniCelId=null,watchId=null,naListach=false;
+function zacznijSzukac(){ pokaz('ekranOdbiorca'); pokazPodkrok('#ekranOdbiorca .podkrok','szukImie'); }
+function zakonczSzukanie(){ try{speechSynthesis.cancel();}catch(e){} naListach=false; if(watchId!==null){navigator.geolocation.clearWatch(watchId);watchId=null;} pokaz('ekranStart'); }
+function aktualnaPoz(){ return mojaPoz; }
+
+async function wlaczDetektor(){
+  const im=document.getElementById('mojeImie').value.trim(); if(!im){toast('Wpisz swoje imię.');return;}
+  odblokujMowe(); szukaneImie=im;
+  ostatniLiscik=''; ostatniCelId=null; aktualnaGrupa=null; naListach=true;
+  try{cele=await Baza.znajdz(normImie(im));}catch(e){cele=[];console.warn(e);}
+  const ukr=ukryteLok(); if(ukr.length)cele=cele.filter(c=>ukr.indexOf(c.id)===-1);
+  pokazPodkrok('#ekranOdbiorca .podkrok','podsumPanel');
+  document.getElementById('podsumNaglo').textContent='Szukam śladów wokół Ciebie…';
+  document.getElementById('podsumOpis').textContent='Chodź po okolicy — list pojawi się, gdy wejdziesz w jego miejsce.';
+  document.getElementById('listaNadawcow').innerHTML='';
+  if(!navigator.geolocation){
+    document.getElementById('podsumNaglo').textContent='Brak GPS';
+    document.getElementById('podsumOpis').textContent='Twoje urządzenie nie udostępnia lokalizacji.';
+    return;
+  }
+  if(watchId!==null) navigator.geolocation.clearWatch(watchId);
+  watchId=navigator.geolocation.watchPosition(
+    p=>{ mojaPoz={lat:p.coords.latitude,lng:p.coords.longitude}; if(naListach) pokazListeNadawcow(); },
+    err=>{ console.warn('GPS:',err); document.getElementById('podsumOpis').textContent='Nie mogę ustalić pozycji. Sprawdź zgodę na lokalizację. (Na komputerze pozycja bywa niedokładna.)'; },
+    {enableHighAccuracy:true,maximumAge:3000,timeout:15000}
+  );
+}
+
+function pokazListeNadawcow(){
+  aktualnaGrupa=null; naListach=true;
+  const poz=aktualnaPoz();
+  const nagloEl=document.getElementById('podsumNaglo');
+  const opisEl=document.getElementById('podsumOpis');
+  const boxEl=document.getElementById('listaNadawcow');
+  if(!poz){ return; }
+  // TYLKO listy, w ktorych promien faktycznie jestes
+  const wZasiegu=cele.filter(c=>{
+    if(ukryteLok().indexOf(c.id)!==-1)return false;
+    return metrowDo(poz.lat,poz.lng,c.lat,c.lng)<=(c.promien||60);
+  });
+  if(!wZasiegu.length){
+    // pokaz dystans do najblizszego, zeby wiedziec gdzie isc
+    let najD=Infinity;
+    cele.forEach(c=>{ const d=metrowDo(poz.lat,poz.lng,c.lat,c.lng); if(d<najD)najD=d; });
+    nagloEl.textContent='Tu jeszcze nic ♥';
+    if(najD<Infinity){
+      const txt=najD<1000?Math.round(najD/5)*5+' m':(najD/1000).toFixed(1).replace('.',',')+' km';
+      opisEl.textContent='Najbliższy list jest '+txt+' stąd. Podejdź bliżej (różowe koło na mapie).';
+    } else {
+      opisEl.textContent='Nikt nie zostawil nic dla '+szukaneImie+'.';
+    }
+    boxEl.innerHTML=''; return;
+  }
+  const grupy={};
+  wZasiegu.forEach(c=>{ const k=pseudoKlucz(c); if(!grupy[k])grupy[k]={disp:pseudoNapis(c),pseudoNorm:k,listy:[]}; grupy[k].listy.push(c); });
+  const klucze=Object.keys(grupy);
+  const ilu=klucze.length;
+  nagloEl.innerHTML='Jesteś w miejscu, gdzie czekają listy od <b>'+ilu+'</b> '+(ilu===1?'wielbiciela':'wielbicieli')+' ♥';
+  opisEl.textContent='Kliknij i przeczytaj.';
+  boxEl.innerHTML='';
+  klucze.forEach(k=>{
+    const g=grupy[k]; const il=g.listy.length;
+    const karta=document.createElement('button'); karta.className='nadawca-karta';
+    karta.innerHTML='<span class="pieczatka">💌</span><span class="info"><span class="ksywka">'+escHtml(g.disp)+'</span><span class="ile-list">'+il+(il===1?' list':(il<5?' listy':' listów'))+'</span></span><span class="strzal">→</span>';
+    karta.onclick=(function(gr){return function(){pokazListyNadawcy(gr);};})(g);
+    boxEl.appendChild(karta);
+  });
+}
+
+function pokazListyNadawcy(grupa){
+  aktualnaGrupa=grupa; naListach=false;
+  const boxEl=document.getElementById('listaNadawcow');
+  document.getElementById('podsumNaglo').innerHTML='Listy od <b>'+escHtml(grupa.disp)+'</b> ♥';
+  document.getElementById('podsumOpis').textContent='Kliknij, który chcesz przeczytać.';
+  boxEl.innerHTML='';
+  grupa.listy.forEach((c,i)=>{
+    const karta=document.createElement('button'); karta.className='nadawca-karta';
+    karta.innerHTML='<span class="pieczatka">✉️</span><span class="info"><span class="ksywka">List '+(i+1)+'</span></span><span class="strzal">→</span>';
+    karta.onclick=(function(cc){return function(){czytajList(cc);};})(c);
+    boxEl.appendChild(karta);
+  });
+  const szukajBox=document.createElement('div');
+  szukajBox.style.cssText='margin-top:18px;padding:16px;background:rgba(139,38,53,.05);border:1px dashed rgba(139,38,53,.25);border-radius:11px;text-align:center';
+  szukajBox.innerHTML='<div style="font-family:\'Caveat\',cursive;font-size:21px;color:var(--wino);line-height:1.3">Twoje serce wybrało wielbiciela ❤</div><div style="font-size:15px;color:var(--atrament-mil);margin:8px 0 14px;line-height:1.5">Jeśli myślisz, że zostawił dla Ciebie więcej listów w innych miejscach — sprawdź to.</div>';
+  const btnSz=document.createElement('button'); btnSz.className='btn btn-glowny btn-pelny';
+  btnSz.innerHTML='🔍 Szukaj listów od „'+escHtml(grupa.disp)+'”';
+  btnSz.onclick=()=>szukajWInnychMiejscach(grupa);
+  szukajBox.appendChild(btnSz); boxEl.appendChild(szukajBox);
+  const wrot=document.createElement('button'); wrot.className='btn btn-drugi btn-pelny'; wrot.style.marginTop='10px';
+  wrot.textContent='← Wróć do wielbicieli'; wrot.onclick=()=>{aktualnaGrupa=null;naListach=true;pokazListeNadawcow();};
+  boxEl.appendChild(wrot);
+}
+
+function czytajList(cel){
+  naListach=false;
+  ostatniLiscik=cel.wiadomosc; ostatniCelId=cel.id;
+  document.getElementById('liscikOd').textContent='od: '+pseudoNapis(cel);
+  document.getElementById('liscikTresc').textContent=cel.wiadomosc;
+  pokazPodkrok('#ekranOdbiorca .podkrok','listPanel');
+  odblokujMowe(); powiedz(cel.wiadomosc);
+}
+function wrocDoListy(){
+  try{speechSynthesis.cancel();}catch(e){}
+  pokazPodkrok('#ekranOdbiorca .podkrok','podsumPanel');
+  if(aktualnaGrupa){ pokazListyNadawcy(aktualnaGrupa); } else { pokazListeNadawcow(); }
+}
+function odtworzPonownie(){ if(ostatniLiscik){odblokujMowe();powiedz(ostatniLiscik);} }
+
+async function szukajWInnychMiejscach(grupa){
+  let wszystkie=[];
+  try{ wszystkie=await Baza.znajdz(normImie(szukaneImie)); }catch(e){ console.warn(e); }
+  const ukr=ukryteLok();
+  const odNiego=wszystkie.filter(c=>pseudoKlucz(c)===grupa.pseudoNorm && ukr.indexOf(c.id)===-1);
+  const poz=aktualnaPoz();
+  const wInnych=poz?odNiego.filter(c=>metrowDo(poz.lat,poz.lng,c.lat,c.lng)>MAX_PROWADZ_M):[];
+  const wynikBox=document.getElementById('wynikInne');
+  if(!wInnych.length){
+    wynikBox.innerHTML='<div style="font-size:40px">🙁</div><div style="font-family:\'Caveat\',cursive;font-size:22px;color:var(--wino);margin-top:6px">Wielbiciel nie zostawił jeszcze innych listów…</div><div style="font-size:15px;color:var(--atrament-mil);margin-top:6px;line-height:1.5">Ale bądź cierpliwa i sprawdzaj często ♥</div>';
+  } else {
+    const ile=wInnych.length; const slowo=ile===1?'list':(ile<5?'listy':'listów');
+    const dyst=wInnych.map(c=>metrowDo(poz.lat,poz.lng,c.lat,c.lng));
+    const minD=Math.min(...dyst),maxD=Math.max(...dyst);
+    const fmt=d=>d<1000?'≈ '+Math.round(d/5)*5+' m':'≈ '+(d/1000).toFixed(1).replace('.',',')+' km';
+    wynikBox.innerHTML='<div style="font-family:\'Caveat\',cursive;font-size:22px;color:var(--wino)">W innych miejscach czeka jeszcze <b>'+ile+'</b> '+slowo+' ♥</div><div style="font-size:15px;color:var(--atrament-mil);margin:6px 0 14px">szukaj cierpliwie tych miejsc…</div><div class="wiecej-odleglosci">'+(ile===1?'<div class="odl-karta"><div class="etyk">odległość</div><div class="wartosc">'+fmt(minD)+'</div></div>':'<div class="odl-karta"><div class="etyk">najbliższy</div><div class="wartosc">'+fmt(minD)+'</div></div><div class="odl-karta"><div class="etyk">najdalszy</div><div class="wartosc daleko">'+fmt(maxD)+'</div></div>')+'</div>';
+  }
+  document.getElementById('inneNaglo').innerHTML='Listy od <b>'+escHtml(grupa.disp)+'</b>';
+  pokazPodkrok('#ekranOdbiorca .podkrok','innePanel');
+}
+function powrotDoListNadawcy(){
+  pokazPodkrok('#ekranOdbiorca .podkrok','podsumPanel');
+  if(aktualnaGrupa){ pokazListyNadawcy(aktualnaGrupa); } else { pokazListeNadawcow(); }
+}
+
+async function zglosWiadomosc(){
+  const id=ostatniCelId; if(!id)return;
+  try{await Baza.zglos(id);}catch(e){console.warn(e);}
+  dodajUkryte(id); cele=cele.filter(c=>c.id!==id);
+  try{speechSynthesis.cancel();}catch(e){}
+  toast('Wiadomość zgłoszona i ukryta.');
+  pokazPodkrok('#ekranOdbiorca .podkrok','podsumPanel'); pokazListeNadawcow();
+}
+
+/* ════ CZYSZCZENIE DANYCH ════ */
+function wyczyscDane(){
+  if(!confirm('Wyczyścić wszystkie dane z tej przeglądarki?\n\nUsunie to: zapisany nick, zgodę na regulamin, ukryte wiadomości oraz wiadomości z trybu testowego. (Wiadomości zapisane w Firebase pozostają.)')) return;
+  try{
+    ['zs_demo','zs_nick','zs_regulamin','zs_ukryte'].forEach(k=>localStorage.removeItem(k));
+  }catch(e){}
+  toast('Dane wyczyszczone.');
+  setTimeout(()=>location.reload(),800);
+}
+
+/* ════ START ════ */
+(function(){
+  const online=Baza.init();
+  const pl=document.getElementById('trybPlakietka'),tx=document.getElementById('trybTekst');
+  if(online){pl.className='tryb-plakietka tryb-online';tx.textContent='Połączono — wiadomości docierają do wszystkich';}
+  else{pl.className='tryb-plakietka tryb-test';tx.textContent='Tryb testowy — tylko to urządzenie (dodaj klucz Firebase)';}
+  try{document.getElementById('zgodaReg').checked=zgodaZapisana();}catch(e){}
+})();
+/* ════ LICZNIK WEJŚĆ ════ */
+(async function licznikWejsc(proba){
+  proba=proba||0;
+  const todayEl=document.getElementById('stats-today');
+  const totalEl=document.getElementById('stats-total');
+  // jeśli baza jeszcze nie gotowa — spróbuj ponownie (max ~5 s), zamiast od razu kreski
+  if(!Baza.online||!Baza.db){
+    if(proba<10){ setTimeout(()=>licznikWejsc(proba+1),500); return; }
+    todayEl.textContent='—'; totalEl.textContent='—'; return;
+  }
+  try{
+    const db=Baza.db;
+    const today=new Date().toISOString().split('T')[0];
+    const docTotal=db.collection('liczniki').doc('wejscia-total');
+    const docToday=db.collection('liczniki').doc('wejscia-'+today);
+    if(!sessionStorage.getItem('tl_counted')){
+      await Promise.all([
+        docTotal.set({count:firebase.firestore.FieldValue.increment(1)},{merge:true}),
+        docToday.set({count:firebase.firestore.FieldValue.increment(1)},{merge:true})
+      ]);
+      sessionStorage.setItem('tl_counted','1');
+    }
+    const [snapTotal,snapToday]=await Promise.all([docTotal.get(),docToday.get()]);
+    const total=snapTotal.exists?(snapTotal.data().count||0):0;
+    const dzis=snapToday.exists?(snapToday.data().count||0):0;
+    todayEl.textContent=dzis.toLocaleString('pl-PL');
+    totalEl.textContent=total.toLocaleString('pl-PL');
+  }catch(e){ console.warn('Licznik niedostępny:',e); todayEl.textContent='—'; totalEl.textContent='—'; }
+})();
+</script>
+</body>
+</html>
