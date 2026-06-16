@@ -129,6 +129,14 @@ input[type=range]{flex:1;accent-color:var(--wino)}
 .mini-notka{font-size:13px;color:var(--atrament-cichy);line-height:1.5;margin-top:14px;padding-top:14px;border-top:1px dashed rgba(139,38,53,.2)}
 #toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%) translateY(20px);background:var(--atrament);color:var(--papier);padding:13px 22px;border-radius:30px;font-size:16px;box-shadow:var(--cien-g);opacity:0;pointer-events:none;transition:.3s;z-index:9999;max-width:90vw;text-align:center;}
 #toast.poka{opacity:1;transform:translateX(-50%) translateY(0)}
+/* LICZNIK ODWIEDZIN */
+.stats-counter{position:fixed;right:16px;bottom:16px;z-index:100;background:linear-gradient(180deg,var(--papier-2),var(--papier-3));border:1px solid rgba(139,38,53,.3);border-radius:12px;padding:10px 14px;box-shadow:var(--cien-l);font-family:'EB Garamond',serif;user-select:none;transition:.25s;opacity:.92}
+.stats-counter:hover{opacity:1;transform:translateY(-2px);box-shadow:var(--cien-g);border-color:var(--wino)}
+.stats-row{display:flex;align-items:center;justify-content:space-between;gap:14px;line-height:1.3}
+.stats-label{font-size:10px;color:var(--atrament-cichy);letter-spacing:1.2px;font-weight:600;text-transform:uppercase}
+.stats-value{font-family:'Cormorant Garamond',serif;font-size:17px;color:var(--wino);font-weight:600;min-width:30px;text-align:right}
+.stats-divider{height:1px;background:linear-gradient(90deg,transparent,rgba(139,38,53,.2),transparent);margin:5px 0}
+@media(max-width:500px){.stats-counter{right:10px;bottom:10px;padding:8px 11px}.stats-label{font-size:9px}.stats-value{font-size:15px}}
 @media(max-width:430px){.hero h1{font-size:48px}}
 </style>
 </head>
@@ -324,6 +332,11 @@ input[type=range]{flex:1;accent-color:var(--wino)}
 </section>
 
 </main>
+<div class="stats-counter" id="stats-counter" title="Odwiedziny">
+  <div class="stats-row"><span class="stats-label">Dziś</span><span class="stats-value" id="stats-today">—</span></div>
+  <div class="stats-divider"></div>
+  <div class="stats-row"><span class="stats-label">Łącznie</span><span class="stats-value" id="stats-total">—</span></div>
+</div>
 <div id="toast"></div>
 
 <script>
@@ -820,6 +833,30 @@ function wyczyscDane(){
   if(online){pl.className='tryb-plakietka tryb-online';tx.textContent='Połączono — wiadomości docierają do wszystkich';}
   else{pl.className='tryb-plakietka tryb-test';tx.textContent='Tryb testowy — tylko to urządzenie (dodaj klucz Firebase)';}
   try{document.getElementById('zgodaReg').checked=zgodaZapisana();}catch(e){}
+})();
+/* ════ LICZNIK WEJŚĆ ════ */
+(async function licznikWejsc(){
+  const todayEl=document.getElementById('stats-today');
+  const totalEl=document.getElementById('stats-total');
+  if(!Baza.online||!Baza.db){ todayEl.textContent='—'; totalEl.textContent='—'; return; }
+  try{
+    const db=Baza.db;
+    const today=new Date().toISOString().split('T')[0];
+    const docTotal=db.collection('liczniki').doc('wejscia-total');
+    const docToday=db.collection('liczniki').doc('wejscia-'+today);
+    if(!sessionStorage.getItem('tl_counted')){
+      await Promise.all([
+        docTotal.set({count:firebase.firestore.FieldValue.increment(1)},{merge:true}),
+        docToday.set({count:firebase.firestore.FieldValue.increment(1)},{merge:true})
+      ]);
+      sessionStorage.setItem('tl_counted','1');
+    }
+    const [snapTotal,snapToday]=await Promise.all([docTotal.get(),docToday.get()]);
+    const total=snapTotal.exists?(snapTotal.data().count||0):0;
+    const dzis=snapToday.exists?(snapToday.data().count||0):0;
+    todayEl.textContent=dzis.toLocaleString('pl-PL');
+    totalEl.textContent=total.toLocaleString('pl-PL');
+  }catch(e){ console.warn('Licznik niedostępny:',e); todayEl.textContent='—'; totalEl.textContent='—'; }
 })();
 </script>
 </body>
