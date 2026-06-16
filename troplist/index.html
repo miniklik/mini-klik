@@ -171,6 +171,7 @@ input[type=range]{flex:1;accent-color:var(--wino)}
       <p><b>treści zakazane.</b> wulgaryzmy, groźby i treści seksualne są blokowane. każdą wiadomość można zgłosić.</p>
       <p><b>wiek.</b> zalecane od 16 lat. poniżej 15 lat — tylko pod opieką rodzica.</p>
       <p><b>znikanie.</b> wiadomości wygasają po 30 dniach.</p>
+      <p><b>edycja i usuwanie.</b> dla bezpieczeństwa wiadomości nie da się edytować ani usunąć po dodaniu — chroni to przed złośliwym podmienianiem cudzych listów. jeśli chcesz usunąć swoją wiadomość, napisz na <b>troplist@wp.pl</b>.</p>
       <p><b>odpowiedzialność.</b> treści pochodzą od użytkowników. autor serwisu nie odpowiada za ich treść. korzystasz na własną odpowiedzialność.</p>
     </div>
   </details>
@@ -224,7 +225,6 @@ input[type=range]{flex:1;accent-color:var(--wino)}
       <button class="btn btn-drugi" onclick="wrocDoKroku(1)">← Wstecz</button>
       <button class="btn btn-glowny" id="btnDoTresci" onclick="krokDoTresci()" disabled>Dalej →</button>
     </div>
-    <button class="zglos-btn" id="btnUsunNaMapie" style="display:none;color:var(--wino)" onclick="usunEdytowanyPunkt()">🗑 Usuń ten punkt</button>
   </div>
 
   <div class="podkrok" id="krok3">
@@ -245,7 +245,6 @@ input[type=range]{flex:1;accent-color:var(--wino)}
       <button class="btn btn-drugi" onclick="wrocDoKroku(2)">← Wstecz</button>
       <button class="btn btn-glowny" id="btnOpublikuj" onclick="opublikuj()">Zostaw wiadomość ♥</button>
     </div>
-    <button class="zglos-btn" id="btnUsunPunkt" style="display:none;color:var(--wino)" onclick="usunEdytowanyPunkt()">🗑 Usuń ten punkt</button>
   </div>
 
   <div class="podkrok" id="krokOK">
@@ -253,6 +252,7 @@ input[type=range]{flex:1;accent-color:var(--wino)}
       <span class="serce-ok">💌</span>
       <h3 id="potwNaglo">Gotowe.</h3>
       <p>Twoja wiadomość czeka na <span class="imie-cel" id="potwImie">…</span>.<br>Usłyszy ją, gdy stanie w wyznaczonym miejscu.</p>
+      <p style="font-size:13px;color:var(--atrament-cichy);margin-top:10px">Wiadomości nie da się już edytować ani usunąć (zabezpieczenie). Chcesz coś zmienić? Napisz na troplist@wp.pl</p>
     </div>
     <div class="rzad">
       <button class="btn btn-drugi" onclick="nowaWiadomosc()">+ Kolejna wiadomość</button>
@@ -298,38 +298,6 @@ input[type=range]{flex:1;accent-color:var(--wino)}
 </section>
 
 <!-- MOJE WIADOMOŚCI -->
-<section id="ekranMoje" class="ekran">
-  <div class="gora"><button class="wroc" onclick="pokaz('ekranStart')">← Wróć</button><h2>Moje wiadomości</h2></div>
-  <div class="podkrok aktywny" id="mojeLogin">
-    <div class="panel">
-      <span class="etykieta">Nick i PIN</span>
-      <p class="podpowiedz">Wpisz nick i PIN, których użyłeś przy zostawianiu wiadomości.</p>
-      <div class="rzad" style="gap:12px;margin-bottom:10px">
-        <input type="text" id="loginNick" placeholder="Twój nick" maxlength="30" autocomplete="off" style="flex:2">
-        <input type="text" id="loginPin" placeholder="PIN" maxlength="4" inputmode="numeric" autocomplete="off" style="flex:1;letter-spacing:4px;font-size:22px">
-      </div>
-      <button class="btn btn-glowny btn-pelny" onclick="zalogujSie()">Pokaż moje wiadomości →</button>
-    </div>
-  </div>
-  <div class="podkrok" id="mojeListaPanel">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
-      <span style="font-family:'Caveat',cursive;font-size:20px;color:var(--wino)" id="mojeKtoNapis"></span>
-      <button class="wroc" onclick="wylogujSie()">Zmień</button>
-    </div>
-    <div id="listaMoje"></div>
-  </div>
-  <div class="podkrok" id="mojeEdytor">
-    <div class="panel">
-      <span class="etykieta">Edytuj wiadomość</span>
-      <textarea id="edytTresc" maxlength="400"></textarea>
-      <div class="licznik"><span id="edytLicznik">0</span> / 400</div>
-    </div>
-    <div class="rzad">
-      <button class="btn btn-drugi" onclick="anulujEdycje()">Anuluj</button>
-      <button class="btn btn-glowny" onclick="zapiszEdycje()">Zapisz zmiany ♥</button>
-    </div>
-  </div>
-</section>
 
 </main>
 <div class="stats-counter" id="stats-counter" title="Odwiedziny">
@@ -428,9 +396,6 @@ function ukryjFiltrBlok(){ document.getElementById('filtrBlok').classList.remove
 /* ════ NADAWCA ════ */
 let mapaNad=null,znacznikNad=null,okragNad=null,wybranaPoz=null;
 let autorHashAkt=null;          // hash zalogowanego autora
-let mojePunktyImie=[];          // punkty autora dla bieżącego imienia
-let markeryEdycji=[];           // markery istniejących punktów na mapie
-let edytowanyPunkt=null;        // gdy edytujemy istniejący punkt (obiekt) lub null
 let promienNasluch=false;
 
 function ustawKroki(n){ [1,2,3,4].forEach(i=>{const el=document.getElementById('kk'+i);if(!el)return;el.classList.remove('aktywny','zrobiony');if(i<n)el.classList.add('zrobiony');else if(i===n)el.classList.add('aktywny');}); }
@@ -465,24 +430,10 @@ function krokNickDalej(){
 async function krokDoMapy(){
   const im=document.getElementById('naimie').value.trim();
   if(!im){ toast('Wpisz imię osoby.'); return; }
-  // pobierz punkty tego autora dla tego imienia
-  mojePunktyImie=[];
-  try{
-    const moje=await Baza.znajdzPoHash(autorHashAkt);
-    mojePunktyImie=moje.filter(p=>p.imie===normImie(im));
-  }catch(e){ console.warn(e); }
-  edytowanyPunkt=null; wybranaPoz=null;
+  wybranaPoz=null;
   document.getElementById('btnDoTresci').disabled=true;
-  document.getElementById('btnUsunPunkt').style.display='none';
-  document.getElementById('btnUsunNaMapie').style.display='none';
-
-  if(mojePunktyImie.length){
-    document.getElementById('mapaPodp').innerHTML='Masz już punkty dla <b>'+escHtml(im)+'</b> (serca). Dotknij serca, by je edytować, albo dotknij pustego miejsca, by dodać nowy.';
-    document.getElementById('mapaInfo').textContent='Dotknij serca (edycja) lub mapy (nowy punkt).';
-  } else {
-    document.getElementById('mapaPodp').textContent='Dotknij mapy w miejscu, gdzie ta osoba na pewno się pojawi (ulubiona ławka, przystanek, kawiarnia…).';
-    document.getElementById('mapaInfo').textContent='Dotknij mapy, aby postawić serce.';
-  }
+  document.getElementById('mapaPodp').textContent='Dotknij mapy w miejscu, gdzie ta osoba na pewno się pojawi (ulubiona ławka, przystanek, kawiarnia…).';
+  document.getElementById('mapaInfo').textContent='Dotknij mapy, aby postawić serce.';
   pokazPodkrok('#ekranNadawca .podkrok','krok2');
   ustawKroki(3);
   setTimeout(initMapaNad,120);
@@ -498,54 +449,20 @@ function initMapaNad(){
   if(!mapaNad){
     mapaNad=L.map('mapaNad').setView([52.0,19.0],6);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(mapaNad);
-    if(navigator.geolocation)navigator.geolocation.getCurrentPosition(p=>{if(!wybranaPoz&&!mojePunktyImie.length)mapaNad.setView([p.coords.latitude,p.coords.longitude],15);},()=>{},{timeout:6000});
+    if(navigator.geolocation)navigator.geolocation.getCurrentPosition(p=>{if(!wybranaPoz)mapaNad.setView([p.coords.latitude,p.coords.longitude],15);},()=>{},{timeout:6000});
     mapaNad.on('click',e=>{ dodajNowyPunkt(e.latlng.lat,e.latlng.lng); });
     if(!promienNasluch){
       document.getElementById('suwakPromien').addEventListener('input',e=>{document.getElementById('promienVal').textContent=e.target.value+' m';if(okragNad)okragNad.setRadius(parseInt(e.target.value,10));});
       promienNasluch=true;
     }
   } else { mapaNad.invalidateSize(); }
-  rysujIstniejacePunkty();
-  // wycentruj na istniejących punktach jeśli są
-  if(mojePunktyImie.length){
-    const grp=L.featureGroup(markeryEdycji.map(m=>m.marker));
-    try{ mapaNad.fitBounds(grp.getBounds().pad(0.3)); }catch(e){}
-  }
-}
-
-function rysujIstniejacePunkty(){
-  // wyczyść stare markery edycji
-  markeryEdycji.forEach(m=>{ mapaNad.removeLayer(m.marker); if(m.okrag)mapaNad.removeLayer(m.okrag); });
-  markeryEdycji=[];
-  mojePunktyImie.forEach(p=>{
-    const ik=L.divIcon({html:'<div style="font-size:28px;line-height:1;transform:translate(-50%,-90%)">💝</div>',className:'',iconSize:[1,1]});
-    const marker=L.marker([p.lat,p.lng],{icon:ik}).addTo(mapaNad);
-    const okrag=L.circle([p.lat,p.lng],{radius:p.promien||60,color:'#b8893f',fillColor:'#b8893f',fillOpacity:.12,weight:1.5,dashArray:'4 4'}).addTo(mapaNad);
-    marker.on('click',(ev)=>{ L.DomEvent.stopPropagation(ev); edytujIstniejacyPunkt(p); });
-    markeryEdycji.push({marker,okrag,punkt:p});
-  });
 }
 
 function dodajNowyPunkt(lat,lng){
-  edytowanyPunkt=null;  // to nowy punkt
   wybranaPoz=[lat,lng];
-  document.getElementById('btnUsunPunkt').style.display='none';
-  document.getElementById('btnUsunNaMapie').style.display='none';
   rysujWyborNad();
-  document.getElementById('mapaInfo').textContent='Nowe serce ustawione. Dotknij innego miejsca, by je przenieść.';
+  document.getElementById('mapaInfo').textContent='Serce ustawione. Dotknij innego miejsca, by je przenieść.';
   document.getElementById('btnDoTresci').disabled=false;
-}
-
-function edytujIstniejacyPunkt(p){
-  edytowanyPunkt=p;
-  wybranaPoz=[p.lat,p.lng];
-  document.getElementById('suwakPromien').value=p.promien||60;
-  document.getElementById('promienVal').textContent=(p.promien||60)+' m';
-  rysujWyborNad();
-  document.getElementById('mapaInfo').innerHTML='Edytujesz istniejące serce. <b>Dalej</b> przejdziesz do treści.';
-  document.getElementById('btnDoTresci').disabled=false;
-  document.getElementById('btnUsunNaMapie').style.display='block';
-  toast('Edytujesz istniejący punkt.');
 }
 
 function rysujWyborNad(){
@@ -559,17 +476,7 @@ function rysujWyborNad(){
 
 function krokDoTresci(){
   if(!wybranaPoz){ toast('Najpierw wskaż miejsce na mapie.'); return; }
-  // jeśli edytujemy istniejący — wczytaj jego treść i podpis
-  if(edytowanyPunkt){
-    document.getElementById('wiadtresc').value=edytowanyPunkt.wiadomosc||'';
-    document.getElementById('podpis').value=(edytowanyPunkt.pseudonim&&edytowanyPunkt.pseudonim!=='Tajemniczy wielbiciel')?edytowanyPunkt.pseudonim:'';
-    document.getElementById('licznikZnak').textContent=(edytowanyPunkt.wiadomosc||'').length;
-    document.getElementById('btnOpublikuj').textContent='Zapisz zmiany ♥';
-    document.getElementById('btnUsunPunkt').style.display='block';
-  } else {
-    document.getElementById('btnOpublikuj').textContent='Zostaw wiadomość ♥';
-    document.getElementById('btnUsunPunkt').style.display='none';
-  }
+  document.getElementById('btnOpublikuj').textContent='Zostaw wiadomość ♥';
   pokazPodkrok('#ekranNadawca .podkrok','krok3');
   ustawKroki(4);
 }
@@ -588,30 +495,13 @@ async function opublikuj(){
   const pseudoWysw=podpis||'Tajemniczy wielbiciel';
   const pseudoNorm=podpis?normImie(podpis):'tajemniczy';
   try{
-    if(edytowanyPunkt){
-      // EDYCJA istniejącego punktu
-      await Baza.edytuj(edytowanyPunkt.id,{wiadomosc:tresc,pseudonim:pseudoWysw,pseudoNorm:pseudoNorm,promien:r,lat:wybranaPoz[0],lng:wybranaPoz[1]});
-      document.getElementById('potwNaglo').textContent='Zapisano.';
-    } else {
-      // NOWY punkt
-      const rek={imie:normImie(im),imieWyswietl:im,pseudonim:pseudoWysw,pseudoNorm:pseudoNorm,autorHash:autorHashAkt,lat:wybranaPoz[0],lng:wybranaPoz[1],promien:r,wiadomosc:tresc,utworzono:Date.now(),wygasa:Date.now()+ZYCIE_DNI*24*60*60*1000};
-      await Baza.zostaw(rek);
-      document.getElementById('potwNaglo').textContent='Gotowe.';
-    }
+    const rek={imie:normImie(im),imieWyswietl:im,pseudonim:pseudoWysw,pseudoNorm:pseudoNorm,autorHash:autorHashAkt,lat:wybranaPoz[0],lng:wybranaPoz[1],promien:r,wiadomosc:tresc,utworzono:Date.now(),wygasa:Date.now()+ZYCIE_DNI*24*60*60*1000};
+    await Baza.zostaw(rek);
+    document.getElementById('potwNaglo').textContent='Gotowe.';
     document.getElementById('potwImie').textContent=im;
     pokazPodkrok('#ekranNadawca .podkrok','krokOK'); ustawKroki(4);
   }catch(e){ console.error(e); toast('Coś poszło nie tak.'); }
   finally{ btn.disabled=false; }
-}
-
-async function usunEdytowanyPunkt(){
-  if(!edytowanyPunkt) return;
-  if(!confirm('Na pewno usunąć ten punkt?')) return;
-  try{ await Baza.usun(edytowanyPunkt.id); }catch(e){ console.warn(e); }
-  toast('Punkt usunięty.');
-  edytowanyPunkt=null; wybranaPoz=null;
-  // wróć do mapy i odśwież
-  krokDoMapy();
 }
 
 function nowaWiadomosc(){
@@ -620,9 +510,8 @@ function nowaWiadomosc(){
   document.getElementById('podpis').value='';
   document.getElementById('licznikZnak').textContent='0';
   document.getElementById('btnOpublikuj').textContent='Zostaw wiadomość ♥';
-  document.getElementById('btnUsunPunkt').style.display='none';
   ukryjFiltrBlok();
-  wybranaPoz=null; edytowanyPunkt=null;
+  wybranaPoz=null;
   document.getElementById('btnDoTresci').disabled=true;
   if(znacznikNad){mapaNad.removeLayer(znacznikNad);znacznikNad=null;}
   if(okragNad){mapaNad.removeLayer(okragNad);okragNad=null;}
@@ -773,49 +662,6 @@ async function zglosWiadomosc(){
   pokazPodkrok('#ekranOdbiorca .podkrok','podsumPanel'); pokazListeNadawcow();
 }
 
-/* ════ MOJE WIADOMOŚCI ════ */
-let mojeHash=null,edytowaneId=null;
-function otworzMoje(){ pokaz('ekranMoje'); pokazPodkrok('#ekranMoje .podkrok','mojeLogin'); try{document.getElementById('loginNick').value=localStorage.getItem('zs_nick')||'';}catch(e){} document.getElementById('loginPin').value=''; }
-async function zalogujSie(){
-  const nick=document.getElementById('loginNick').value.trim(),pin=document.getElementById('loginPin').value.trim();
-  if(!nick||!pin){toast('Wpisz nick i PIN.');return;}
-  if(!/^\d{4}$/.test(pin)){toast('PIN to dokładnie 4 cyfry.');return;}
-  try{localStorage.setItem('zs_nick',nick);}catch(e){}
-  mojeHash=hashNickPin(nick,pin);
-  let lista=[]; try{lista=await Baza.znajdzPoHash(mojeHash);}catch(e){console.warn(e);}
-  document.getElementById('mojeKtoNapis').textContent='✶ '+nick;
-  pokazPodkrok('#ekranMoje .podkrok','mojeListaPanel'); rysujMoje(lista);
-}
-function wylogujSie(){ mojeHash=null; pokazPodkrok('#ekranMoje .podkrok','mojeLogin'); document.getElementById('loginPin').value=''; }
-function rysujMoje(lista){
-  const box=document.getElementById('listaMoje');
-  if(!lista||!lista.length){ box.innerHTML='<div class="pusto">Brak wiadomości dla tego nicku i PINu.<br>Wróć i zostaw pierwszą ♥</div>'; return; }
-  box.innerHTML='';
-  lista.forEach(p=>{
-    const d=new Date(p.utworzono||Date.now()),data=d.toLocaleDateString('pl-PL')+' '+d.toLocaleTimeString('pl-PL',{hour:'2-digit',minute:'2-digit'});
-    const el=document.createElement('div');el.className='moja-poz';
-    const tresc=document.createElement('div');tresc.className='tresc';
-    tresc.innerHTML='<div class="do">dla: '+escHtml(p.imieWyswietl||p.imie)+'</div><div class="wiad">„'+escHtml(p.wiadomosc)+'"</div><div class="gdy">podpis: '+escHtml(p.pseudonim||'Tajemniczy wielbiciel')+' · '+data+'</div>';
-    const akcje=document.createElement('div');akcje.style.cssText='display:flex;flex-direction:column;gap:6px;flex:none';
-    const btnEd=document.createElement('button');btnEd.className='usun';btnEd.textContent='Edytuj';
-    btnEd.onclick=(function(pp){return function(){otworzEdytor(pp);};})(p);
-    const btnUs=document.createElement('button');btnUs.className='usun';btnUs.textContent='Usuń';btnUs.style.color='var(--atrament-cichy)';
-    btnUs.onclick=(function(pp,ll){return function(){usunMoja(pp.id,ll);};})(p,lista);
-    akcje.appendChild(btnEd);akcje.appendChild(btnUs);el.appendChild(tresc);el.appendChild(akcje);box.appendChild(el);
-  });
-}
-async function usunMoja(id,lista){ if(!confirm('Na pewno usunąć?'))return; try{await Baza.usun(id);}catch(e){console.warn(e);} rysujMoje(lista.filter(p=>p.id!==id)); toast('Usunięto.'); }
-function otworzEdytor(p){ edytowaneId=p.id; document.getElementById('edytTresc').value=p.wiadomosc||''; document.getElementById('edytLicznik').textContent=(p.wiadomosc||'').length; pokazPodkrok('#ekranMoje .podkrok','mojeEdytor'); }
-document.getElementById('edytTresc').addEventListener('input',e=>{document.getElementById('edytLicznik').textContent=e.target.value.length;});
-function anulujEdycje(){ edytowaneId=null; pokazPodkrok('#ekranMoje .podkrok','mojeListaPanel'); }
-async function zapiszEdycje(){
-  const tresc=document.getElementById('edytTresc').value.trim();
-  if(!tresc){toast('Wiadomość nie może być pusta.');return;}
-  if(maStop(tresc)){toast('Wiadomość zawiera niedozwolone słowo.');return;}
-  try{ await Baza.edytuj(edytowaneId,{wiadomosc:tresc}); toast('Zapisano! ♥'); edytowaneId=null; let lista=[]; try{lista=await Baza.znajdzPoHash(mojeHash);}catch(e){} pokazPodkrok('#ekranMoje .podkrok','mojeListaPanel'); rysujMoje(lista); }
-  catch(e){console.error(e);toast('Nie udało się zapisać.');}
-}
-
 /* ════ CZYSZCZENIE DANYCH ════ */
 function wyczyscDane(){
   if(!confirm('Wyczyścić wszystkie dane z tej przeglądarki?\n\nUsunie to: zapisany nick, zgodę na regulamin, ukryte wiadomości oraz wiadomości z trybu testowego. (Wiadomości zapisane w Firebase pozostają.)')) return;
@@ -835,10 +681,15 @@ function wyczyscDane(){
   try{document.getElementById('zgodaReg').checked=zgodaZapisana();}catch(e){}
 })();
 /* ════ LICZNIK WEJŚĆ ════ */
-(async function licznikWejsc(){
+(async function licznikWejsc(proba){
+  proba=proba||0;
   const todayEl=document.getElementById('stats-today');
   const totalEl=document.getElementById('stats-total');
-  if(!Baza.online||!Baza.db){ todayEl.textContent='—'; totalEl.textContent='—'; return; }
+  // jeśli baza jeszcze nie gotowa — spróbuj ponownie (max ~5 s), zamiast od razu kreski
+  if(!Baza.online||!Baza.db){
+    if(proba<10){ setTimeout(()=>licznikWejsc(proba+1),500); return; }
+    todayEl.textContent='—'; totalEl.textContent='—'; return;
+  }
   try{
     const db=Baza.db;
     const today=new Date().toISOString().split('T')[0];
