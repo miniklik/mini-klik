@@ -325,7 +325,7 @@ input[type=range]{flex:1;accent-color:var(--wino)}
   <div class="podkrok aktywny" id="krok1">
     <div class="panel">
       <span class="etykieta etykieta-duza">Do kogo piszesz?</span>
-      <input type="text" id="naimie" placeholder="np. Piegusia" maxlength="40" autocomplete="off">
+      <input type="text" id="naimie" placeholder="np. Skarbek" maxlength="40" autocomplete="off">
     </div>
     <div class="rzad">
       <button class="btn btn-drugi" onclick="pokaz('ekranStart')">← Wróć</button>
@@ -390,7 +390,7 @@ input[type=range]{flex:1;accent-color:var(--wino)}
     <div class="panel">
       <span class="etykieta etykieta-duza">Wpisz swoje imię</span>
       <p class="podpowiedz" style="text-align:center">albo tak, jak mógłby Cię ktoś nazywać 💕</p>
-      <input type="text" id="mojeImie" placeholder="np. Piegusia" maxlength="40" autocomplete="off">
+      <input type="text" id="mojeImie" placeholder="np. Skarbek" maxlength="40" autocomplete="off">
     </div>
     <button class="btn btn-glowny btn-pelny" onclick="wlaczDetektor()">Szukaj ♥</button>
     <p class="mini-notka">Twoja pozycja nie jest nigdzie wysyłana — wszystko liczy się na Twoim telefonie.</p>
@@ -775,16 +775,21 @@ async function szukajWInnychMiejscach(grupa){
   const ukr=ukryteLok();
   const odNiego=wszystkie.filter(c=>pseudoKlucz(c)===grupa.pseudoNorm && ukr.indexOf(c.id)===-1);
   const poz=aktualnaPoz();
-  const wInnych=poz?odNiego.filter(c=>metrowDo(poz.lat,poz.lng,c.lat,c.lng)>MAX_PROWADZ_M):[];
+  // pokaż wszystkie listy od wielbiciela poza tym dokładnie pod nogami (<25 m), żeby bubu mógł iść po kłębku
+  const wInnych=poz?odNiego.filter(c=>metrowDo(poz.lat,poz.lng,c.lat,c.lng)>25):odNiego.slice();
   const wynikBox=document.getElementById('wynikInne');
   if(!wInnych.length){
     wynikBox.innerHTML='<div style="font-size:46px">🙁</div><div style="font-family:\'Caveat\',cursive;font-size:25px;color:var(--wino);margin-top:8px">Wielbiciel nie zostawił jeszcze innych listów…</div><div style="font-size:17px;color:var(--atrament-mil);margin-top:8px;line-height:1.55">Ale bądź cierpliwa i sprawdzaj często ♥</div>';
   } else {
     const ile=wInnych.length; const slowo=ile===1?'list':(ile<5?'listy':'listów');
-    const dyst=wInnych.map(c=>metrowDo(poz.lat,poz.lng,c.lat,c.lng));
-    const minD=Math.min(...dyst),maxD=Math.max(...dyst);
     const fmt=d=>d<1000?'≈ '+Math.round(d/5)*5+' m':'≈ '+(d/1000).toFixed(1).replace('.',',')+' km';
-    wynikBox.innerHTML='<div style="font-family:\'Caveat\',cursive;font-size:22px;color:var(--wino)">W innych miejscach czeka jeszcze <b>'+ile+'</b> '+slowo+' ♥</div><div style="font-size:15px;color:var(--atrament-mil);margin:6px 0 14px">szukaj cierpliwie tych miejsc…</div><div class="wiecej-odleglosci">'+(ile===1?'<div class="odl-karta"><div class="etyk">odległość</div><div class="wartosc">'+fmt(minD)+'</div></div>':'<div class="odl-karta"><div class="etyk">najbliższy</div><div class="wartosc">'+fmt(minD)+'</div></div><div class="odl-karta"><div class="etyk">najdalszy</div><div class="wartosc daleko">'+fmt(maxD)+'</div></div>')+'</div>';
+    let odlBlok='';
+    if(poz){
+      const dyst=wInnych.map(c=>metrowDo(poz.lat,poz.lng,c.lat,c.lng));
+      const minD=Math.min(...dyst),maxD=Math.max(...dyst);
+      odlBlok='<div class="wiecej-odleglosci">'+(ile===1?'<div class="odl-karta"><div class="etyk">odległość</div><div class="wartosc">'+fmt(minD)+'</div></div>':'<div class="odl-karta"><div class="etyk">najbliższy</div><div class="wartosc">'+fmt(minD)+'</div></div><div class="odl-karta"><div class="etyk">najdalszy</div><div class="wartosc daleko">'+fmt(maxD)+'</div></div>')+'</div>';
+    }
+    wynikBox.innerHTML='<div style="font-family:\'Caveat\',cursive;font-size:24px;color:var(--wino)"><b>'+escHtml(grupa.disp)+'</b> zostawił dla Ciebie <b>'+ile+'</b> '+slowo+' ♥</div><div style="font-size:16px;color:var(--atrament-mil);margin:8px 0 14px;line-height:1.5">Idź śladem serca i odnajduj je jedno po drugim…</div>'+odlBlok;
   }
   document.getElementById('inneNaglo').innerHTML='Listy od <b>'+escHtml(grupa.disp)+'</b>';
   pokazPodkrok('#ekranOdbiorca .podkrok','innePanel');
