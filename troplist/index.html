@@ -122,7 +122,29 @@ textarea{resize:vertical;min-height:110px;line-height:1.5}
 .kroki .k.zrobiony{background:var(--zloto);color:var(--papier-2);border-color:var(--zloto)}
 .kroki .kreska{width:20px;height:1px;background:rgba(139,38,53,.25)}
 .podkrok{display:none}.podkrok.aktywny{display:block;animation:wejscie .35s ease both}
-.mapa{height:300px;border-radius:12px;overflow:hidden;border:1px solid rgba(139,38,53,.3);margin-bottom:6px}
+.mapa{position:relative;height:300px;border-radius:12px;overflow:hidden;border:1px solid rgba(139,38,53,.3);margin-bottom:6px}
+.mapa-btn{
+  position:absolute;top:10px;right:10px;z-index:500;
+  width:42px;height:42px;
+  display:flex;align-items:center;justify-content:center;
+  background:rgba(255,250,239,.92);
+  border:1.5px solid rgba(139,38,53,.4);
+  border-radius:10px;cursor:pointer;
+  font-size:20px;line-height:1;
+  box-shadow:0 2px 8px rgba(0,0,0,.25);
+  transition:all .2s;
+}
+.mapa-btn:hover{
+  border-color:var(--zloto);
+  box-shadow:0 3px 12px rgba(0,0,0,.3),0 0 12px rgba(184,134,11,.3);
+  transform:translateY(-1px);
+}
+.mapa-btn.active{
+  background:linear-gradient(135deg,var(--wino),var(--zloto));
+  border-color:var(--zloto);
+}
+body.magia .mapa-btn{background:rgba(42,24,48,.92);border-color:rgba(245,184,210,.4)}
+body.magia .mapa-btn.active{background:linear-gradient(135deg,var(--wino),var(--zloto))}
 .mapa-info{font-size:14px;color:var(--atrament-mil);text-align:center;margin-bottom:14px;font-style:italic}
 .suwak-wiersz{display:flex;align-items:center;gap:14px;margin:8px 0 16px}
 .suwak-wiersz label{font-size:15px;color:var(--atrament-mil);white-space:nowrap}
@@ -338,7 +360,7 @@ input[type=range]{flex:1;accent-color:var(--wino)}
   <div class="podkrok" id="krok2">
     <div class="panel">
       <span class="etykieta etykieta-duza">Ustaw tajemnicze miejsce</span>
-      <div class="mapa" id="mapaNad"></div>
+      <div class="mapa" id="mapaNad"><div class="mapa-btn" id="mapaBtn" onclick="przelaczMape()" title="Przełącz na widok satelitarny">🛰️</div></div>
       <div class="mapa-info" id="mapaInfo">Dotknij mapy, aby postawić serce.</div>
       <div class="suwak-wiersz"><label>Promień</label><input type="range" id="suwakPromien" min="20" max="150" value="60" step="5"><span class="promien-val" id="promienVal">60 m</span></div>
     </div>
@@ -532,7 +554,7 @@ function pokazFiltrBlok(pole){ const b=document.getElementById('filtrBlok'); b.i
 function ukryjFiltrBlok(){ document.getElementById('filtrBlok').classList.remove('poka'); }
 
 /* ════ NADAWCA ════ */
-let mapaNad=null,znacznikNad=null,okragNad=null,wybranaPoz=null;
+let mapaNad=null,znacznikNad=null,okragNad=null,wybranaPoz=null,warstwaKlasyczna=null,warstwaSatelita=null;
 let autorHashAkt=null;          // hash zalogowanego autora
 let promienNasluch=false;
 
@@ -572,14 +594,33 @@ function wrocDoKroku(n){
 function initMapaNad(){
   if(!mapaNad){
     mapaNad=L.map('mapaNad').setView([52.0,19.0],6);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(mapaNad);
+    warstwaKlasyczna=L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(mapaNad);
+    warstwaSatelita=L.tileLayer.wms('https://mapy.geoportal.gov.pl/wss/service/PZGIK/ORTO/WMS/StandardResolution',{layers:'Raster',format:'image/jpeg',transparent:false,version:'1.3.0',maxZoom:20,attribution:'© <a href="https://www.geoportal.gov.pl/" target="_blank">Geoportal Ortofotomapa</a> · GUGiK'});
+    mapaNad.attributionControl.setPrefix('');
     if(navigator.geolocation)navigator.geolocation.getCurrentPosition(p=>{if(!wybranaPoz)mapaNad.setView([p.coords.latitude,p.coords.longitude],15);},()=>{},{timeout:6000});
     mapaNad.on('click',e=>{ dodajNowyPunkt(e.latlng.lat,e.latlng.lng); });
+    L.DomEvent.disableClickPropagation(document.getElementById('mapaBtn'));
     if(!promienNasluch){
       document.getElementById('suwakPromien').addEventListener('input',e=>{document.getElementById('promienVal').textContent=e.target.value+' m';if(okragNad)okragNad.setRadius(parseInt(e.target.value,10));});
       promienNasluch=true;
     }
   } else { mapaNad.invalidateSize(); }
+}
+
+function przelaczMape(){
+  if(!mapaNad)return;
+  const btn=document.getElementById('mapaBtn');
+  if(mapaNad.hasLayer(warstwaKlasyczna)){
+    mapaNad.removeLayer(warstwaKlasyczna);
+    warstwaSatelita.addTo(mapaNad);
+    btn.classList.add('active');
+    btn.title='Przełącz na widok klasyczny';
+  }else{
+    mapaNad.removeLayer(warstwaSatelita);
+    warstwaKlasyczna.addTo(mapaNad);
+    btn.classList.remove('active');
+    btn.title='Przełącz na widok satelitarny';
+  }
 }
 
 function dodajNowyPunkt(lat,lng){
@@ -665,7 +706,20 @@ function nowaWiadomosc(){
 /* ════ ODBIORCA ════ */
 let mojaPoz=null,cele=[],szukaneImie='',aktualnaGrupa=null,ostatniLiscik='',ostatniCelId=null,watchId=null,naListach=false;
 function zacznijSzukac(){ pokaz('ekranOdbiorca'); pokazPodkrok('#ekranOdbiorca .podkrok','szukImie'); }
-function zakonczSzukanie(){ try{speechSynthesis.cancel();}catch(e){} naListach=false; if(watchId!==null){navigator.geolocation.clearWatch(watchId);watchId=null;} pokaz('ekranStart'); }
+function zakonczSzukanie(){
+  // Jeśli jesteśmy na wynikach (lub głębiej), cofnij tylko o krok — do wpisywania imienia.
+  const naWpisywaniu=document.getElementById('szukImie').classList.contains('aktywny');
+  if(!naWpisywaniu){
+    try{speechSynthesis.cancel();}catch(e){}
+    naListach=false;
+    if(watchId!==null){navigator.geolocation.clearWatch(watchId);watchId=null;}
+    aktualnaGrupa=null;
+    pokazPodkrok('#ekranOdbiorca .podkrok','szukImie');
+    return;
+  }
+  // Na ekranie wpisywania imienia — Wróć wychodzi do startu (jak dotąd).
+  try{speechSynthesis.cancel();}catch(e){} naListach=false; if(watchId!==null){navigator.geolocation.clearWatch(watchId);watchId=null;} pokaz('ekranStart');
+}
 function aktualnaPoz(){ return mojaPoz; }
 
 async function wlaczDetektor(){
