@@ -546,9 +546,11 @@ function pokazPodkrok(sel,id){ document.querySelectorAll(sel).forEach(e=>e.class
 
 /* ════ FILTR SŁÓW ════ */
 const STOP=['kurw','choj','chuj','huj','pizd','pisd','jeb','pierdol','pierdal','spierdal','wypierdal','dupa','dupe','dupek','gowno','sraj','srac','rzygac','cipa','cycek','kutas','fiut','suka','suko','sukinsyn','skurwiel','szmata','zdzira','dziwka','debil','kretyn','idiot','imbecyl','pedal','pedzio','masturb','porno','porn','orgaz','sperma','zabije','zabij','zdychaj','gwalt','zgwalc','fuck','shit','bitch','cunt','whore','retard','faggot','nigger','asshole','dick','bastard'];
+const CZARNA_LISTA=['bomba','bomb','ladunek','detonator','granat','material wybuchowy','trotyl','dynamit','mina','pistolet','karabin','bron','zamach','wysadzic','wysadzic','zastrzelec','podpalic','zabic','zlikwidowac','napad','atak terrorystyczny','terrorysta','terroryst','isis','al-qaida','jihad','dzihad','zamachowiec','strzelanina','egzekucja','snajper','kill','shoot','explode','explosion','terrorist','attack','weapon','grenade','rifle','detonate'];
 function normF(s){ return(s||'').toLowerCase().replace(/ł/g,'l').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[@4]/g,'a').replace(/0/g,'o').replace(/[1!|]/g,'i').replace(/3/g,'e').replace(/5/g,'s').replace(/7/g,'t').replace(/\$/g,'s'); }
 function zbij(s){ return s.replace(/(.)\1{2,}/g,'$1$1').replace(/(.)\1/g,'$1'); }
 function maStop(t){ const n=zbij(normF(t).replace(/[^a-z0-9]/g,'')); const sl=normF(t).split(/[^a-z0-9]+/).filter(Boolean).map(zbij); for(const s of STOP){const ss=zbij(s);if(n.indexOf(ss)!==-1)return true;for(const w of sl)if(w.indexOf(ss)!==-1)return true;} return false; }
+function maCzarnaListe(t){ const n=zbij(normF(t).replace(/[^a-z0-9]/g,'')); const sl=normF(t).split(/[^a-z0-9]+/).filter(Boolean).map(zbij); for(const s of CZARNA_LISTA){const ss=zbij(normF(s).replace(/[^a-z0-9]/g,''));if(ss&&n.indexOf(ss)!==-1)return s;for(const w of sl)if(ss&&w.indexOf(ss)!==-1)return s;} return null; }
 function sprawdzTresci(im,ps,wd){ if(maStop(im))return 'imieniu'; if(maStop(ps))return 'podpisie'; if(maStop(wd))return 'wiadomości'; return null; }
 function pokazFiltrBlok(pole){ const b=document.getElementById('filtrBlok'); b.innerHTML='Twój tekst zawiera słowo, którego tu nie używamy (w '+pole+'). Troplist to miejsce na ciepłe słowa.'; b.classList.add('poka'); }
 function ukryjFiltrBlok(){ document.getElementById('filtrBlok').classList.remove('poka'); }
@@ -691,6 +693,7 @@ async function opublikuj(){
   if(tresc.length>1000){toast('Wiadomość może mieć maksymalnie 1000 znaków.');return;}
   const czekaj=sprawdzAntyspam(tresc);
   if(czekaj!==null){toast('Identyczna wiadomość — poczekaj jeszcze '+czekaj+' s. ⏳');return;}
+  const flagaSlowo=maCzarnaListe(tresc);
   const problem=sprawdzTresci(im,podpis,tresc); if(problem){pokazFiltrBlok(problem);return;} ukryjFiltrBlok();
   const btn=document.getElementById('btnOpublikuj'); btn.disabled=true; btn.textContent='Zapisuję…';
   const pseudoWysw=podpis||'Tajemniczy wielbiciel';
@@ -698,9 +701,10 @@ async function opublikuj(){
   const widocIdx=parseInt(document.getElementById('suwakWidoc').value,10);
   const dniWidoc=(WIDOC_OPCJE[widocIdx]||WIDOC_OPCJE[2]).dni;
   try{
-    const rek={imie:normImie(im),imieWyswietl:im,pseudonim:pseudoWysw,pseudoNorm:pseudoNorm,autorHash:autorHashAkt,lat:wybranaPoz[0],lng:wybranaPoz[1],promien:r,wiadomosc:tresc,utworzono:Date.now(),wygasa:Date.now()+dniWidoc*24*60*60*1000};
+    const rek={imie:normImie(im),imieWyswietl:im,pseudonim:pseudoWysw,pseudoNorm:pseudoNorm,autorHash:autorHashAkt,lat:wybranaPoz[0],lng:wybranaPoz[1],promien:r,wiadomosc:tresc,utworzono:Date.now(),wygasa:Date.now()+dniWidoc*24*60*60*1000,...(flagaSlowo?{podejrzana:true,powodFlagi:flagaSlowo}:{})};
     await Baza.zostaw(rek);
     zapiszAntyspam(tresc);
+    if(flagaSlowo){ document.getElementById('potwNaglo').textContent='Wiadomość wysłana ✓'; document.getElementById('potwImie').textContent=im; setTimeout(()=>toast('Spokojnie — wiadomość wysłana. W trosce o bezpieczeństwo informujemy, że użyte zostało podejrzane słowo z czarnej listy.'),400); pokazPodkrok('#ekranNadawca .podkrok','krokOK'); ustawKroki(3); btn.disabled=false; return; }
     document.getElementById('potwNaglo').textContent='Gotowe.';
     document.getElementById('potwImie').textContent=im;
     pokazPodkrok('#ekranNadawca .podkrok','krokOK'); ustawKroki(3);
