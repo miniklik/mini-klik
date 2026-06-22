@@ -349,7 +349,7 @@ input[type=range]{flex:1;accent-color:var(--wino)}
   <div class="podkrok aktywny" id="krok1">
     <div class="panel">
       <span class="etykieta etykieta-duza">Do kogo piszesz?</span>
-      <input type="text" id="naimie" placeholder="np. Skarbek" maxlength="40" autocomplete="off">
+      <input type="text" id="naimie" placeholder="np. Skarbek" maxlength="15" autocomplete="off">
     </div>
     <div class="rzad">
       <button class="btn btn-drugi" onclick="pokaz('ekranStart')">← Wróć</button>
@@ -373,8 +373,8 @@ input[type=range]{flex:1;accent-color:var(--wino)}
   <div class="podkrok" id="krok3">
     <div class="panel">
       <span class="etykieta etykieta-duza">Co chcesz jej (jemu) powiedzieć?</span>
-      <textarea id="wiadtresc" placeholder="Wpisz tu swoje wyznanie…" maxlength="400"></textarea>
-      <div class="licznik"><span id="licznikZnak">0</span> / 400</div>
+      <textarea id="wiadtresc" placeholder="Wpisz tu swoje wyznanie…" maxlength="1000"></textarea>
+      <div class="licznik"><span id="licznikZnak">0</span> / 1000</div>
       <button class="btn btn-drugi btn-pelny" style="margin-top:6px" onclick="posluchajPodglad()">🔊 Posłuchaj, jak zabrzmi</button>
     </div>
     <div class="panel">
@@ -414,7 +414,7 @@ input[type=range]{flex:1;accent-color:var(--wino)}
     <div class="panel">
       <span class="etykieta etykieta-duza">Wpisz swoje imię</span>
       <p class="podpowiedz" style="text-align:center">albo tak, jak mógłby Cię ktoś nazywać 💕</p>
-      <input type="text" id="mojeImie" placeholder="np. Skarbek" maxlength="40" autocomplete="off">
+      <input type="text" id="mojeImie" placeholder="np. Skarbek" maxlength="15" autocomplete="off">
     </div>
     <button class="btn btn-glowny btn-pelny" onclick="wlaczDetektor()">Szukaj ♥</button>
     <p class="mini-notka">Twoja pozycja nie jest nigdzie wysyłana — wszystko liczy się na Twoim telefonie.</p>
@@ -578,6 +578,7 @@ function otworzNadawce(){
 async function krokDoMapy(){
   const im=document.getElementById('naimie').value.trim();
   if(!im){ toast('Wpisz imię osoby.'); return; }
+  if(im.length>15){ toast('Imię może mieć maksymalnie 15 znaków.'); return; }
   wybranaPoz=null;
   document.getElementById('btnDoTresci').disabled=true;
   document.getElementById('mapaInfo').textContent='Dotknij mapy, aby postawić serce.';
@@ -665,12 +666,31 @@ function aktualizujWidoc(){
 }
 function posluchajPodglad(){ const t=document.getElementById('wiadtresc').value.trim(); if(!t){toast('Wpisz wiadomość.');return;} if(maStop(t)){pokazFiltrBlok('wiadomości');return;} ukryjFiltrBlok(); odblokujMowe(); powiedz(t); }
 
+/* ════ ANTYSPAM ════ */
+function hashTresc(s){ let h=2166136261; for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=(h*16777619)>>>0;} return h.toString(36); }
+function sprawdzAntyspam(tresc){
+  try{
+    const zapisany=JSON.parse(localStorage.getItem('tl_ostatnia')||'null');
+    if(!zapisany) return null;
+    const pozostalo=Math.ceil((60000-(Date.now()-zapisany.czas))/1000);
+    if(zapisany.hash===hashTresc(tresc) && pozostalo>0) return pozostalo;
+  }catch(e){}
+  return null;
+}
+function zapiszAntyspam(tresc){
+  try{ localStorage.setItem('tl_ostatnia',JSON.stringify({hash:hashTresc(tresc),czas:Date.now()})); }catch(e){}
+}
+
 async function opublikuj(){
   const im=document.getElementById('naimie').value.trim();
   const tresc=document.getElementById('wiadtresc').value.trim();
   const podpis=document.getElementById('podpis').value.trim();
   const r=parseInt(document.getElementById('suwakPromien').value,10);
   if(!im||!wybranaPoz||!tresc){toast('Uzupełnij imię, miejsce i wiadomość.');return;}
+  if(im.length>15){toast('Imię może mieć maksymalnie 15 znaków.');return;}
+  if(tresc.length>1000){toast('Wiadomość może mieć maksymalnie 1000 znaków.');return;}
+  const czekaj=sprawdzAntyspam(tresc);
+  if(czekaj!==null){toast('Identyczna wiadomość — poczekaj jeszcze '+czekaj+' s. ⏳');return;}
   const problem=sprawdzTresci(im,podpis,tresc); if(problem){pokazFiltrBlok(problem);return;} ukryjFiltrBlok();
   const btn=document.getElementById('btnOpublikuj'); btn.disabled=true; btn.textContent='Zapisuję…';
   const pseudoWysw=podpis||'Tajemniczy wielbiciel';
@@ -680,6 +700,7 @@ async function opublikuj(){
   try{
     const rek={imie:normImie(im),imieWyswietl:im,pseudonim:pseudoWysw,pseudoNorm:pseudoNorm,autorHash:autorHashAkt,lat:wybranaPoz[0],lng:wybranaPoz[1],promien:r,wiadomosc:tresc,utworzono:Date.now(),wygasa:Date.now()+dniWidoc*24*60*60*1000};
     await Baza.zostaw(rek);
+    zapiszAntyspam(tresc);
     document.getElementById('potwNaglo').textContent='Gotowe.';
     document.getElementById('potwImie').textContent=im;
     pokazPodkrok('#ekranNadawca .podkrok','krokOK'); ustawKroki(3);
