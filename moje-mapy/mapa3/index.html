@@ -6,6 +6,36 @@
 <title>Troplist — listy ukryte w nocy</title>
 <meta name="description" content="Troplist — wyszukiwarka ukrytych listów. Wpisz imię i sprawdź, czy ktoś zostawił dla Ciebie słowa.">
 <meta name="theme-color" content="#060608">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="favicon-32.png" sizes="32x32">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Troplist">
+
+<!-- ════ PODGLĄD LINKU (Facebook, Messenger, WhatsApp, SMS-y ze wsparciem podglądu itd.) ════ -->
+<!-- WAŻNE: podmień adresy poniżej na te, pod którymi faktycznie umieścisz tę stronę na mini-klik.pl -->
+<meta property="og:title" content="Troplist — czy ktoś zostawił dla Ciebie list?">
+<meta property="og:description" content="Wpisz imię i sprawdź, czy w zasięgu nie czeka na Ciebie ukryty list.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://mini-klik.pl/troplist/szukaj/">
+<meta property="og:image" content="https://mini-klik.pl/troplist/szukaj/podglad-odbiorca.png">
+<meta property="og:locale" content="pl_PL">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Troplist — czy ktoś zostawił dla Ciebie list?">
+<meta name="twitter:description" content="Wpisz imię i sprawdź, czy w zasięgu nie czeka na Ciebie ukryty list.">
+<meta name="twitter:image" content="https://mini-klik.pl/troplist/szukaj/podglad-odbiorca.png">
+
+<!-- ════ ZAPISZ NA EKRANIE GŁÓWNYM / PWA ════ -->
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="favicon-32.png" sizes="32x32">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Troplist">
+<meta name="mobile-web-app-capable" content="yes">
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,400;1,500;1,600&family=Outfit:wght@200;300;400;500;600&family=La+Belle+Aurore&display=swap" rel="stylesheet">
@@ -147,6 +177,18 @@ input{font-family:inherit}
 #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 .spin{display:inline-block;animation:spin 1s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── Udostępnij / Zainstaluj ── */
+.quick-actions{position:fixed;top:1rem;right:1rem;z-index:50;display:flex;gap:.5rem}
+.quick-actions .icon-btn{background:rgba(15,15,19,.7);backdrop-filter:blur(10px)}
+.share-sheet{position:fixed;inset:0;z-index:200;background:rgba(6,6,8,.72);backdrop-filter:blur(6px);display:none;align-items:center;justify-content:center;padding:24px}
+.share-sheet.show{display:flex;animation:fadeIn .25s ease}
+.share-box{width:100%;max-width:22rem;background:linear-gradient(180deg,var(--surface2),#0d0d12);border:1px solid rgba(229,184,105,.25);border-radius:1.1rem;padding:1.5rem;box-shadow:0 24px 70px -10px rgba(0,0,0,.7)}
+.share-title{font-family:'Cormorant Garamond',serif;font-weight:300;font-size:1.6rem;color:var(--gold);text-align:center;margin-bottom:1.25rem}
+.share-link{display:flex;align-items:center;gap:.65rem;width:100%;text-align:left;padding:.8rem 1rem;margin-bottom:.6rem;border-radius:.7rem;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.03);color:var(--text);font-size:.95rem;text-decoration:none;transition:.2s;cursor:pointer;font-family:inherit}
+.share-link:hover{border-color:rgba(229,184,105,.4);color:var(--gold);transform:translateY(-1px)}
+.share-close{display:block;width:100%;text-align:center;margin-top:.5rem;background:none;border:none;color:var(--muted);font-size:.75rem;text-transform:uppercase;letter-spacing:.25em;padding:.6rem;transition:.2s}
+.share-close:hover{color:var(--text2)}
 </style>
 </head>
 <body>
@@ -155,6 +197,23 @@ input{font-family:inherit}
   <div class="glow a"></div><div class="glow b"></div><div class="glow c"></div>
   <div id="stars"></div>
   <div class="vignette"></div>
+</div>
+
+<div class="quick-actions">
+  <button class="icon-btn" onclick="shareApp()" title="Udostępnij" aria-label="Udostępnij">📤</button>
+  <button class="icon-btn" id="installBtn" onclick="handleInstall()" title="Zainstaluj" aria-label="Zainstaluj" style="display:none">📲</button>
+</div>
+
+<div id="shareSheet" class="share-sheet" onclick="if(event.target===this)closeShareSheet()">
+  <div class="share-box">
+    <div class="share-title">Udostępnij Troplist</div>
+    <button class="share-link" id="shareNative" onclick="shareNative()" style="display:none">📤 Udostępnij przez telefon</button>
+    <a class="share-link" id="shareSms">💬 Wyślij SMS-em</a>
+    <a class="share-link" id="shareWa" target="_blank" rel="noopener">🟢 WhatsApp</a>
+    <a class="share-link" id="shareFb" target="_blank" rel="noopener">📘 Facebook</a>
+    <button class="share-link" onclick="copyShareLink()">🔗 Kopiuj link</button>
+    <button class="share-close" onclick="closeShareSheet()">Zamknij</button>
+  </div>
 </div>
 
 <!-- INTRO -->
@@ -458,6 +517,62 @@ function toggleRead(){
   box.innerHTML=html;
 })();
 
+/* ════════ UDOSTĘPNIJ ════════ */
+let shareLinkCache='', shareTextCache='';
+function shareApp(){
+  const url=location.href.split('?')[0];
+  const text='Troplist — sprawdź, czy ktoś zostawił dla Ciebie list w pobliżu 💌';
+  shareLinkCache=url;shareTextCache=text;
+  document.getElementById('shareSms').href='sms:?body='+encodeURIComponent(text+' '+url);
+  document.getElementById('shareWa').href='https://wa.me/?text='+encodeURIComponent(text+' '+url);
+  document.getElementById('shareFb').href='https://www.facebook.com/sharer/sharer.php?u='+encodeURIComponent(url);
+  document.getElementById('shareNative').style.display=navigator.share?'flex':'none';
+  document.getElementById('shareSheet').classList.add('show');
+}
+function shareNative(){
+  navigator.share({title:'Troplist',text:shareTextCache,url:shareLinkCache}).catch(()=>{});
+  closeShareSheet();
+}
+function closeShareSheet(){document.getElementById('shareSheet').classList.remove('show');}
+function copyShareLink(){
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(shareLinkCache).then(()=>toast('Link skopiowany ✓')).catch(()=>toast('Nie udało się skopiować.'));
+  }else{toast('Skopiuj ręcznie: '+shareLinkCache);}
+  closeShareSheet();
+}
+
+/* ════════ ZAINSTALUJ (PWA) ════════ */
+let deferredInstall=null;
+function isIOS(){return /iphone|ipad|ipod/i.test(navigator.userAgent)&&!window.MSStream;}
+function isStandaloneMode(){return window.matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;}
+window.addEventListener('beforeinstallprompt',e=>{
+  e.preventDefault();deferredInstall=e;
+  const b=document.getElementById('installBtn');if(b)b.style.display='inline-flex';
+});
+window.addEventListener('appinstalled',()=>{
+  deferredInstall=null;const b=document.getElementById('installBtn');if(b)b.style.display='none';
+  toast('Zainstalowano ✓');
+});
+async function handleInstall(){
+  if(deferredInstall){
+    deferredInstall.prompt();
+    try{await deferredInstall.userChoice;}catch(e){}
+    deferredInstall=null;
+    const b=document.getElementById('installBtn');if(b)b.style.display='none';
+    return;
+  }
+  if(isIOS()){toast('Dotknij Udostępnij ⬆️ w Safari, potem „Dodaj do ekranu początkowego”.');return;}
+  toast('W menu przeglądarki wybierz „Zainstaluj aplikację” albo „Dodaj do ekranu głównego”.');
+}
+(function initInstallBtn(){
+  const b=document.getElementById('installBtn');if(!b)return;
+  if(isStandaloneMode()){b.style.display='none';return;}
+  if(isIOS()){b.style.display='inline-flex';}
+})();
+if('serviceWorker'in navigator){
+  window.addEventListener('load',()=>{navigator.serviceWorker.register('sw.js').catch(e=>console.warn('SW:',e));});
+}
+
 /* ── start: wczytaj imiona/statystyki + obsługa ?name= / ?skip= ── */
 loadMeta();
 (function deepLink(){
@@ -465,7 +580,10 @@ loadMeta();
   const name=p.get('name'),skip=p.get('skip')==='1';
   if(name){goSearch();runSearch(name);}
   else if(skip){goSearch();}
-})();
+})();/* ════ PWA: zapisz na ekranie głównym ════ */
+if('serviceWorker'in navigator){
+  window.addEventListener('load',()=>{navigator.serviceWorker.register('sw.js').catch(()=>{});});
+}
 </script>
 </body>
 </html>
