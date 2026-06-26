@@ -1449,18 +1449,6 @@ document.addEventListener('DOMContentLoaded', odswiezLicznikPobran);
   </div>
 </div>
 
-<!-- Okienko wyboru sposobu zapisu JSON -->
-<div class="opis-strony-modal" id="zapisJsonModal">
-  <div class="opis-strony-box" style="max-width:380px;text-align:center">
-    <button class="opis-strony-zamknij" onclick="zamknijZapisJsonModal()" aria-label="Zamknij">×</button>
-    <h2>💾 Zapisz JSON</h2>
-    <div class="menu-stack">
-      <button onclick="zapiszJSON_WhatsApp()">📲 Wyślij WhatsApp</button>
-      <button onclick="zapiszJSON_Drive()">☁️ Zapisz na Dysk Google</button>
-      <button onclick="zapiszJSON_Telefon()">📱 Zapisz w telefonie</button>
-    </div>
-  </div>
-</div>
 
 <!-- PRAWY hamburger - menu zapisu (dotyk + tryb admin) -->
 <div class="hamburger hamburger-prawy" id="hamburgerPrawy" onclick="przelacznikPaneluZapis()" aria-label="Zapis">
@@ -2341,104 +2329,60 @@ function zapiszStrone() {
 // JSON = kopia robocza (backup/przenoszenie). HTML = gotowy plik na serwer.
 // ============================================================
 
-// --- ZAPISZ JSON: przygotowuje dane wspólne dla wszystkich 3 opcji ---
-function _przygotujJsonDoZapisu() {
-  const dane = {
-    _typ: 'skarbiec-mapa',
-    _wersja: 1,
-    _data: new Date().toISOString(),
-    tytulStrony: tytulStrony || '',
-    introStrony: introStrony === true,
-    autorStrony: autorStrony || '',
-    kategorieMapy: kategorieMapy,
-    opisStrony: opisStrony || '',
-    miejsca: Array.isArray(miejsca) ? miejsca : []
-  };
-  const tekst = JSON.stringify(dane, null, 2);
-  const blob = new Blob([tekst], { type: 'application/json' });
-
-  const teraz = new Date();
-  const pad = n => String(n).padStart(2, '0');
-  const nazwa = 'skarbiec-mapa-'
-    + teraz.getFullYear() + '-'
-    + pad(teraz.getMonth()+1) + '-'
-    + pad(teraz.getDate()) + '-'
-    + pad(teraz.getHours()) + '-'
-    + pad(teraz.getMinutes()) + '.json';
-
-  return { dane, blob, nazwa };
-}
-
-// Pobranie pliku na dysk (wspólne dla wariantu "telefon" i dla fallbacków)
-function _pobierzPlikLokalnie(blob, nazwa) {
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url; a.download = nazwa;
-  document.body.appendChild(a); a.click(); document.body.removeChild(a);
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
-}
-
-// Klik na "Zapisz JSON" -> otwiera okienko z 3 opcjami
-function zapiszJSON() {
-  const m = document.getElementById('zapisJsonModal');
-  if (m) m.classList.add('visible');
-}
-function zamknijZapisJsonModal() {
-  const m = document.getElementById('zapisJsonModal');
-  if (m) m.classList.remove('visible');
-}
-
-// OPCJA 1: Wyślij WhatsApp (systemowe okno udostępniania telefonu)
-async function zapiszJSON_WhatsApp() {
-  zamknijZapisJsonModal();
+// --- ZAPISZ JSON: pyta o folder zapisu (na Androidzie/Chrome), a gdy
+//     przeglądarka tego nie wspiera (typowe na iPhone) - normalne pobranie ---
+async function zapiszJSON() {
   try {
-    const { dane, blob, nazwa } = _przygotujJsonDoZapisu();
-    const plik = new File([blob], nazwa, { type: 'application/json' });
+    const dane = {
+      _typ: 'skarbiec-mapa',
+      _wersja: 1,
+      _data: new Date().toISOString(),
+      tytulStrony: tytulStrony || '',
+      introStrony: introStrony === true,
+      autorStrony: autorStrony || '',
+      kategorieMapy: kategorieMapy,
+      opisStrony: opisStrony || '',
+      miejsca: Array.isArray(miejsca) ? miejsca : []
+    };
+    const tekst = JSON.stringify(dane, null, 2);
+    const blob = new Blob([tekst], { type: 'application/json' });
 
-    if (navigator.canShare && navigator.canShare({ files: [plik] })) {
-      await navigator.share({
-        files: [plik],
-        title: 'Skarbiec - mapa miejsc',
-        text: 'Plik JSON z mapą miejsc (' + dane.miejsca.length + ' miejsc)'
-      });
-    } else {
-      _pobierzPlikLokalnie(blob, nazwa);
-      alert('ℹ️ Ta przeglądarka nie wspiera bezpośredniego wysyłania do WhatsApp.\n\nPlik został zapisany jako:\n' + nazwa + '\n\nOtwórz WhatsApp i dołącz go ręcznie jako dokument.');
+    const teraz = new Date();
+    const pad = n => String(n).padStart(2, '0');
+    const nazwa = 'skarbiec-mapa-'
+      + teraz.getFullYear() + '-'
+      + pad(teraz.getMonth()+1) + '-'
+      + pad(teraz.getDate()) + '-'
+      + pad(teraz.getHours()) + '-'
+      + pad(teraz.getMinutes()) + '.json';
+
+    // Próba: okno "Zapisz jako" z wyborem folderu (Android/Chrome, desktop Chrome/Edge)
+    if (window.showSaveFilePicker) {
+      try {
+        const uchwyt = await window.showSaveFilePicker({
+          suggestedName: nazwa,
+          types: [{ description: 'Plik JSON', accept: { 'application/json': ['.json'] } }]
+        });
+        const zapisywalny = await uchwyt.createWritable();
+        await zapisywalny.write(blob);
+        await zapisywalny.close();
+        alert('✓ Zapisano ' + dane.miejsca.length + ' miejsc do pliku:\n\n' + nazwa);
+        return;
+      } catch(err) {
+        if (err.name === 'AbortError') return; // zamknięto okno wyboru folderu - nic więcej nie robimy
+        // inny błąd -> przejdź do zwykłego pobrania poniżej
+      }
     }
-  } catch(err) {
-    if (err.name !== 'AbortError') alert('⚠️ Błąd: ' + err.message);
-  }
-}
 
-// OPCJA 2: Zapisz na Dysk Google (systemowe okno udostępniania -> wybierz "Dysk")
-async function zapiszJSON_Drive() {
-  zamknijZapisJsonModal();
-  try {
-    const { dane, blob, nazwa } = _przygotujJsonDoZapisu();
-    const plik = new File([blob], nazwa, { type: 'application/json' });
+    // Zapasowy wariant: przeglądarka nie wspiera wyboru folderu (typowe na iPhone) -
+    // zwykłe pobranie do "Pobranych" (na iPhone można to zmienić w
+    // Ustawienia -> Aplikacje -> Safari -> Pobrane pliki -> "Pytaj o każdym pobieraniu")
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = nazwa;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
 
-    if (navigator.canShare && navigator.canShare({ files: [plik] })) {
-      await navigator.share({
-        files: [plik],
-        title: 'Skarbiec - mapa miejsc',
-        text: 'Plik JSON z mapą miejsc (' + dane.miejsca.length + ' miejsc) - wybierz aplikację "Dysk"'
-      });
-    } else {
-      _pobierzPlikLokalnie(blob, nazwa);
-      alert('ℹ️ Ta przeglądarka nie wspiera bezpośredniego zapisu na Dysk Google.\n\nPlik został zapisany jako:\n' + nazwa + '\n\nZa chwilę otworzy się Dysk Google - wgraj go tam ręcznie.');
-      window.open('https://drive.google.com/drive/my-drive', '_blank');
-    }
-  } catch(err) {
-    if (err.name !== 'AbortError') alert('⚠️ Błąd: ' + err.message);
-  }
-}
-
-// OPCJA 3: Zapisz w telefonie/komputerze (klasyczne pobranie pliku)
-function zapiszJSON_Telefon() {
-  zamknijZapisJsonModal();
-  try {
-    const { dane, blob, nazwa } = _przygotujJsonDoZapisu();
-    _pobierzPlikLokalnie(blob, nazwa);
     alert('✓ Zapisano ' + dane.miejsca.length + ' miejsc do pliku:\n\n' + nazwa);
   } catch(err) {
     alert('⚠️ Błąd zapisu JSON: ' + err.message);
