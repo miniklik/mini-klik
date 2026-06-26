@@ -2329,68 +2329,208 @@ function zapiszStrone() {
 // JSON = kopia robocza (backup/przenoszenie). HTML = gotowy plik na serwer.
 // ============================================================
 
-// --- ZAPISZ JSON: pyta o folder zapisu (na Androidzie/Chrome), a gdy
-//     przeglądarka tego nie wspiera (typowe na iPhone) - normalne pobranie ---
+// --- ZAPISZ JSON: pyta o nazwę projektu, zapisuje pod nią w bazie lub jako plik ---
 async function zapiszJSON() {
+  // Sanityzacja nazwy projektu -> bezpieczny klucz (małe litery, tylko a-z0-9-)
+  function sanityzujNazwe(n) {
+    return n.trim().toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // usuń diakrytyki
+      .replace(/ł/g,'l').replace(/ż/g,'z').replace(/ź/g,'z')
+      .replace(/ś/g,'s').replace(/ą/g,'a').replace(/ę/g,'e')
+      .replace(/ó/g,'o').replace(/ć/g,'c').replace(/ń/g,'n')
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 60);
+  }
+
+  // Zapytaj o nazwę projektu
+  const wejscie = prompt(
+    '📦 Podaj nazwę projektu (skarbca):\n\n'
+    + 'Np. "kulik", "zamki-lubelskie", "trase-2025"\n\n'
+    + 'Tej samej nazwy użyjesz potem do wczytania na innym urządzeniu.',
+    tytulStrony ? sanityzujNazwe(tytulStrony) : ''
+  );
+  if (!wejscie || !wejscie.trim()) { alert('Anulowano — nie podano nazwy.'); return; }
+
+  const nazwaKlucz = sanityzujNazwe(wejscie);
+  if (!nazwaKlucz) { alert('⚠️ Nazwa nieprawidłowa. Użyj liter i cyfr.'); return; }
+
+  const dane = {
+    _typ: 'skarbiec-mapa',
+    _wersja: 1,
+    _data: new Date().toISOString(),
+    _projekt: nazwaKlucz,
+    tytulStrony: tytulStrony || '',
+    introStrony: introStrony === true,
+    autorStrony: autorStrony || '',
+    kategorieMapy: kategorieMapy,
+    opisStrony: opisStrony || '',
+    miejsca: Array.isArray(miejsca) ? miejsca : []
+  };
+
+  // WARIANT A: baza online (Skarbiec / Firebase)
+  if (window.__db_licznik) {
+    try {
+      await window.__db_licznik.collection('skarbiec_mapy').doc(nazwaKlucz).set(dane);
+      alert('✓ Zapisano projekt „' + nazwaKlucz + '" (' + dane.miejsca.length + ' miejsc) w bazie online.\n\nNa innym urządzeniu kliknij "📂 Wczytaj JSON" i podaj tę samą nazwę: ' + nazwaKlucz);
+      return;
+    } catch(err) {
+      alert('⚠️ Błąd zapisu do bazy: ' + err.message + '\n\nZapisuję lokalnie jako plik.');
+    }
+  }
+
+  // WARIANT B: zapis lokalny jako plik
   try {
-    const dane = {
-      _typ: 'skarbiec-mapa',
-      _wersja: 1,
-      _data: new Date().toISOString(),
-      tytulStrony: tytulStrony || '',
-      introStrony: introStrony === true,
-      autorStrony: autorStrony || '',
-      kategorieMapy: kategorieMapy,
-      opisStrony: opisStrony || '',
-      miejsca: Array.isArray(miejsca) ? miejsca : []
-    };
     const tekst = JSON.stringify(dane, null, 2);
     const blob = new Blob([tekst], { type: 'application/json' });
-
-    const teraz = new Date();
-    const pad = n => String(n).padStart(2, '0');
-    const nazwa = 'skarbiec-mapa-'
-      + teraz.getFullYear() + '-'
-      + pad(teraz.getMonth()+1) + '-'
-      + pad(teraz.getDate()) + '-'
-      + pad(teraz.getHours()) + '-'
-      + pad(teraz.getMinutes()) + '.json';
-
-    // Próba: okno "Zapisz jako" z wyborem folderu (Android/Chrome, desktop Chrome/Edge)
-    if (window.showSaveFilePicker) {
-      try {
-        const uchwyt = await window.showSaveFilePicker({
-          suggestedName: nazwa,
-          types: [{ description: 'Plik JSON', accept: { 'application/json': ['.json'] } }]
-        });
-        const zapisywalny = await uchwyt.createWritable();
-        await zapisywalny.write(blob);
-        await zapisywalny.close();
-        alert('✓ Zapisano ' + dane.miejsca.length + ' miejsc do pliku:\n\n' + nazwa);
-        return;
-      } catch(err) {
-        if (err.name === 'AbortError') return; // zamknięto okno wyboru folderu - nic więcej nie robimy
-        // inny błąd -> przejdź do zwykłego pobrania poniżej
-      }
-    }
-
-    // Zapasowy wariant: przeglądarka nie wspiera wyboru folderu (typowe na iPhone) -
-    // zwykłe pobranie do "Pobranych" (na iPhone można to zmienić w
-    // Ustawienia -> Aplikacje -> Safari -> Pobrane pliki -> "Pytaj o każdym pobieraniu")
     const url = URL.createObjectURL(blob);
+    const nazwaPliku = nazwaKlucz + '.json';
+
     const a = document.createElement('a');
-    a.href = url; a.download = nazwa;
+    a.href = url; a.download = nazwaPliku;
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
     setTimeout(() => URL.revokeObjectURL(url), 1000);
 
-    alert('✓ Zapisano ' + dane.miejsca.length + ' miejsc do pliku:\n\n' + nazwa);
+    alert('✓ Zapisano projekt „' + nazwaKlucz + '" (' + dane.miejsca.length + ' miejsc) do pliku:\n\n' + nazwaPliku + '\n\nAby wczytać na innym komputerze: kliknij "📂 Wczytaj JSON" i wybierz ten plik.');
   } catch(err) {
     alert('⚠️ Błąd zapisu JSON: ' + err.message);
   }
 }
 
 // --- WCZYTAJ JSON: wybór pliku z dysku -> nadpisuje miejsca ---
-function wczytajJSON() {
+// Wspólna logika po wczytaniu danych (z bazy online ALBO z pliku) -
+// decyduje czy POŁĄCZYĆ z obecną mapą czy ZASTĄPIĆ, zapisuje i odświeża.
+function _zastosujWczytaneDane(dane) {
+  if (dane._typ !== 'skarbiec-mapa') {
+    if (!confirm('⚠️ To nie wygląda na backup tej mapy.\n\nKontynuować mimo wszystko?')) return;
+  }
+  const wczMiejsca = Array.isArray(dane.miejsca) ? dane.miejsca : [];
+  if (wczMiejsca.length === 0) {
+    alert('Brak miejsc w wczytanych danych.');
+    return;
+  }
+
+  // Jeśli mapa jest pusta - po prostu wczytaj (bez pytania o łączenie)
+  if (miejsca.length === 0) {
+    localStorage.setItem(KEY_MIEJSCA, JSON.stringify(wczMiejsca));
+    if (dane.tytulStrony || dane.opisStrony || dane.autorStrony || dane.introStrony || (Array.isArray(dane.kategorieMapy) && dane.kategorieMapy.length)) {
+      localStorage.setItem(KEY_STRONA, JSON.stringify({tytul:dane.tytulStrony||'', opis:dane.opisStrony||'', autor:dane.autorStrony||'', intro:dane.introStrony === true, kategorie:Array.isArray(dane.kategorieMapy) ? dane.kategorieMapy : []}));
+    }
+    alert('✓ Wczytano ' + wczMiejsca.length + ' miejsc.\n\nStrona za chwilę się odświeży.');
+    location.reload();
+    return;
+  }
+
+  // Mapa NIE jest pusta - pytamy: połączyć czy nowa mapa?
+  const polacz = confirm(
+    'Masz już ' + miejsca.length + ' miejsc na mapie.\n\n'
+    + 'Wczytujesz ' + wczMiejsca.length + ' miejsc.\n\n'
+    + '➡ OK = POŁĄCZ (dodaj nowe do obecnych)\n'
+    + '➡ Anuluj = NOWA MAPA (zastąp wszystko wczytanymi)'
+  );
+
+  let wynik, komunikat;
+  if (polacz) {
+    // POŁĄCZ - dodaj tylko te których jeszcze nie ma (pomiń duplikaty)
+    const sygnatura = m => (m.klucz || '') + '|' + m.typ + '|' +
+      (m.pozycja ? m.pozycja[0].toFixed(5) + ',' + m.pozycja[1].toFixed(5) : '') + '|' + (m.nazwa||'');
+    const istniejace = new Set(miejsca.map(sygnatura));
+    let dodane = 0, pominiete = 0;
+    const polaczone = miejsca.slice();
+    wczMiejsca.forEach(m => {
+      if (istniejace.has(sygnatura(m))) { pominiete++; }
+      else {
+        if (!m.klucz || polaczone.some(x => x.klucz === m.klucz)) {
+          m.klucz = (m.typ || 'pkt') + '-' + Date.now() + '-' + Math.floor(Math.random()*1000);
+        }
+        polaczone.push(m); dodane++;
+      }
+    });
+    wynik = polaczone;
+    komunikat = '✓ Połączono mapy.\n\nDodano: ' + dodane + ' nowych\nPominięto duplikatów: ' + pominiete + '\nRazem: ' + wynik.length + ' miejsc.';
+  } else {
+    // NOWA MAPA - zastąp
+    if (!confirm('Na pewno ZASTĄPIĆ obecne ' + miejsca.length + ' miejsc?\n\nObecna mapa zniknie. (Jeśli chcesz ją zachować — najpierw Zapisz JSON.)')) {
+      return;
+    }
+    wynik = wczMiejsca;
+    komunikat = '✓ Wczytano nową mapę: ' + wynik.length + ' miejsc.';
+  }
+
+  localStorage.setItem(KEY_MIEJSCA, JSON.stringify(wynik));
+  // Nowa mapa: bierz tytuł/opis z wczytanych danych. Połącz: ustaw tylko jeśli obecny pusty.
+  if (!polacz && (dane.tytulStrony || dane.opisStrony || dane.autorStrony || dane.introStrony || (Array.isArray(dane.kategorieMapy) && dane.kategorieMapy.length))) {
+    localStorage.setItem(KEY_STRONA, JSON.stringify({tytul:dane.tytulStrony||'', opis:dane.opisStrony||'', autor:dane.autorStrony||'', intro:dane.introStrony === true, kategorie:Array.isArray(dane.kategorieMapy) ? dane.kategorieMapy : []}));
+  } else if (polacz && !tytulStrony && !opisStrony && (dane.tytulStrony || dane.opisStrony || dane.autorStrony || dane.introStrony || (Array.isArray(dane.kategorieMapy) && dane.kategorieMapy.length))) {
+    localStorage.setItem(KEY_STRONA, JSON.stringify({tytul:dane.tytulStrony||'', opis:dane.opisStrony||'', autor:dane.autorStrony||'', intro:dane.introStrony === true, kategorie:Array.isArray(dane.kategorieMapy) ? dane.kategorieMapy : []}));
+  }
+  alert(komunikat + '\n\nStrona za chwilę się odświeży.');
+  location.reload();
+}
+
+// --- WCZYTAJ JSON: pyta o nazwę projektu, wczytuje z bazy lub z pliku ---
+async function wczytajJSON() {
+  function sanityzujNazwe(n) {
+    return n.trim().toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/ł/g,'l').replace(/ż/g,'z').replace(/ź/g,'z')
+      .replace(/ś/g,'s').replace(/ą/g,'a').replace(/ę/g,'e')
+      .replace(/ó/g,'o').replace(/ć/g,'c').replace(/ń/g,'n')
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 60);
+  }
+
+  // 1) Próbuj z bazy online — najpierw pokaż listę dostępnych projektów
+  if (window.__db_licznik) {
+    try {
+      // Pobierz listę dokumentów (projektów) z kolekcji
+      let listaInfo = '';
+      try {
+        const snap = await window.__db_licznik.collection('skarbiec_mapy').get();
+        if (!snap.empty) {
+          const nazwy = snap.docs.map(d => {
+            const data = d.data();
+            const dt = data._data ? new Date(data._data).toLocaleDateString('pl-PL') : '?';
+            const ile = Array.isArray(data.miejsca) ? data.miejsca.length : '?';
+            return '• ' + d.id + '  (' + ile + ' miejsc, ' + dt + ')';
+          });
+          listaInfo = '\n\nDostępne projekty w bazie:\n' + nazwy.join('\n');
+        } else {
+          listaInfo = '\n\n(Baza jest jeszcze pusta — zapisz najpierw projekt na innym urządzeniu)';
+        }
+      } catch(e) { /* listowanie nie jest konieczne */ }
+
+      const wejscie = prompt(
+        '📂 Podaj nazwę projektu do wczytania:' + listaInfo + '\n\nNazwa:',
+        ''
+      );
+      if (!wejscie || !wejscie.trim()) { alert('Anulowano.'); return; }
+
+      const nazwaKlucz = sanityzujNazwe(wejscie);
+      if (!nazwaKlucz) { alert('⚠️ Nieprawidłowa nazwa.'); return; }
+
+      const doc = await window.__db_licznik.collection('skarbiec_mapy').doc(nazwaKlucz).get();
+      if (doc.exists) {
+        _zastosujWczytaneDane(doc.data());
+        return;
+      } else {
+        const odPliku = confirm(
+          '⚠️ Projekt „' + nazwaKlucz + '" nie istnieje w bazie online.\n\n'
+          + 'Czy chcesz wczytać plik JSON z dysku zamiast tego?'
+        );
+        if (!odPliku) return;
+        // przejdź do wczytywania z pliku poniżej
+      }
+    } catch(err) {
+      // brak internetu -> przejdź do pliku
+    }
+  } else {
+    // Brak bazy - zapytaj tylko o plik
+    alert('ℹ️ Baza online jest niedostępna.\n\nWybierz plik JSON zapisany wcześniej na tym komputerze.');
+  }
+
+  // 2) Wczytaj z pliku (jeśli baza nieosiągalna lub projekt nie istnieje w bazie)
   const input = document.createElement('input');
   input.type = 'file';
   input.accept = '.json,application/json';
@@ -2405,74 +2545,10 @@ function wczytajJSON() {
     reader.onload = function(e) {
       try {
         const dane = JSON.parse(e.target.result);
-        if (dane._typ !== 'skarbiec-mapa') {
-          if (!confirm('⚠️ To nie wygląda na backup tej mapy.\n\nKontynuować mimo wszystko?')) {
-            document.body.removeChild(input); return;
-          }
-        }
-        const wczMiejsca = Array.isArray(dane.miejsca) ? dane.miejsca : [];
-        if (wczMiejsca.length === 0) {
-          alert('Plik nie zawiera żadnych miejsc.');
-          document.body.removeChild(input); return;
-        }
-
-        // Jeśli mapa jest pusta - po prostu wczytaj (bez pytania o łączenie)
-        if (miejsca.length === 0) {
-          localStorage.setItem(KEY_MIEJSCA, JSON.stringify(wczMiejsca));
-          if (dane.tytulStrony || dane.opisStrony || dane.autorStrony || dane.introStrony || (Array.isArray(dane.kategorieMapy) && dane.kategorieMapy.length)) {
-            localStorage.setItem(KEY_STRONA, JSON.stringify({tytul:dane.tytulStrony||'', opis:dane.opisStrony||'', autor:dane.autorStrony||'', intro:dane.introStrony === true, kategorie:Array.isArray(dane.kategorieMapy) ? dane.kategorieMapy : []}));
-          }
-          alert('✓ Wczytano ' + wczMiejsca.length + ' miejsc.\n\nStrona za chwilę się odświeży.');
-          location.reload();
-          return;
-        }
-
-        // Mapa NIE jest pusta - pytamy: połączyć czy nowa mapa?
-        const polacz = confirm(
-          'Masz już ' + miejsca.length + ' miejsc na mapie.\n\n'
-          + 'Wczytujesz plik z ' + wczMiejsca.length + ' miejscami.\n\n'
-          + '➡ OK = POŁĄCZ (dodaj nowe do obecnych)\n'
-          + '➡ Anuluj = NOWA MAPA (zastąp wszystko wczytanymi)'
-        );
-
-        let wynik, komunikat;
-        if (polacz) {
-          // POŁĄCZ - dodaj tylko te których jeszcze nie ma (pomiń duplikaty)
-          const sygnatura = m => (m.klucz || '') + '|' + m.typ + '|' +
-            (m.pozycja ? m.pozycja[0].toFixed(5) + ',' + m.pozycja[1].toFixed(5) : '') + '|' + (m.nazwa||'');
-          const istniejace = new Set(miejsca.map(sygnatura));
-          let dodane = 0, pominiete = 0;
-          const polaczone = miejsca.slice();
-          wczMiejsca.forEach(m => {
-            if (istniejace.has(sygnatura(m))) { pominiete++; }
-            else {
-              // upewnij się że klucz jest unikalny
-              if (!m.klucz || polaczone.some(x => x.klucz === m.klucz)) {
-                m.klucz = (m.typ || 'pkt') + '-' + Date.now() + '-' + Math.floor(Math.random()*1000);
-              }
-              polaczone.push(m); dodane++;
-            }
-          });
-          wynik = polaczone;
-          komunikat = '✓ Połączono mapy.\n\nDodano: ' + dodane + ' nowych\nPominięto duplikatów: ' + pominiete + '\nRazem: ' + wynik.length + ' miejsc.';
-        } else {
-          // NOWA MAPA - zastąp
-          if (!confirm('Na pewno ZASTĄPIĆ obecne ' + miejsca.length + ' miejsc?\n\nObecna mapa zniknie. (Jeśli chcesz ją zachować — najpierw Zapisz JSON.)')) {
-            document.body.removeChild(input); return;
-          }
-          wynik = wczMiejsca;
-          komunikat = '✓ Wczytano nową mapę: ' + wynik.length + ' miejsc.';
-        }
-
-        localStorage.setItem(KEY_MIEJSCA, JSON.stringify(wynik));
-        // Nowa mapa: bierz tytuł/opis z pliku. Połącz: ustaw tylko jeśli obecny pusty.
-        if (!polacz && (dane.tytulStrony || dane.opisStrony || dane.autorStrony || dane.introStrony || (Array.isArray(dane.kategorieMapy) && dane.kategorieMapy.length))) {
-          localStorage.setItem(KEY_STRONA, JSON.stringify({tytul:dane.tytulStrony||'', opis:dane.opisStrony||'', autor:dane.autorStrony||'', intro:dane.introStrony === true, kategorie:Array.isArray(dane.kategorieMapy) ? dane.kategorieMapy : []}));
-        } else if (polacz && !tytulStrony && !opisStrony && (dane.tytulStrony || dane.opisStrony || dane.autorStrony || dane.introStrony || (Array.isArray(dane.kategorieMapy) && dane.kategorieMapy.length))) {
-          localStorage.setItem(KEY_STRONA, JSON.stringify({tytul:dane.tytulStrony||'', opis:dane.opisStrony||'', autor:dane.autorStrony||'', intro:dane.introStrony === true, kategorie:Array.isArray(dane.kategorieMapy) ? dane.kategorieMapy : []}));
-        }
-        alert(komunikat + '\n\nStrona za chwilę się odświeży.');
-        location.reload();
+        // Pokaż nazwę projektu z pliku jeśli dostępna
+        const nazwaProj = dane._projekt || plik.name.replace(/\.json$/i,'');
+        if (nazwaProj) dane._projektInfo = nazwaProj;
+        _zastosujWczytaneDane(dane);
       } catch(err) {
         alert('⚠️ Błąd wczytywania JSON: ' + err.message);
       }
