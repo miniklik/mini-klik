@@ -2481,87 +2481,70 @@ async function wczytajJSON() {
       .slice(0, 60);
   }
 
-  // 1) Próbuj z bazy online — najpierw pokaż listę dostępnych projektów
-  if (window.__db_licznik) {
-    try {
-      // Pobierz listę dokumentów (projektów) z kolekcji
-      let listaInfo = '';
-      try {
-        const snap = await window.__db_licznik.collection('skarbiec_mapy').get();
-        if (!snap.empty) {
-          const nazwy = snap.docs.map(d => {
-            const data = d.data();
-            const dt = data._data ? new Date(data._data).toLocaleDateString('pl-PL') : '?';
-            const ile = Array.isArray(data.miejsca) ? data.miejsca.length : '?';
-            return '• ' + d.id + '  (' + ile + ' miejsc, ' + dt + ')';
-          });
-          listaInfo = '\n\nDostępne projekty w bazie:\n' + nazwy.join('\n');
-        } else {
-          listaInfo = '\n\n(Baza jest jeszcze pusta — zapisz najpierw projekt na innym urządzeniu)';
+  function wczytajZPliku() {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json,application/json';
+    input.style.display = 'none';
+    document.body.appendChild(input);
+    input.addEventListener('change', function(ev) {
+      const plik = ev.target.files && ev.target.files[0];
+      if (!plik) { document.body.removeChild(input); return; }
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const dane = JSON.parse(e.target.result);
+          _zastosujWczytaneDane(dane);
+        } catch(err) {
+          alert('⚠️ Błąd wczytywania JSON: ' + err.message);
         }
-      } catch(e) { /* listowanie nie jest konieczne */ }
-
-      const wejscie = prompt(
-        '📂 Podaj nazwę projektu do wczytania:' + listaInfo + '\n\nNazwa:',
-        ''
-      );
-      if (!wejscie || !wejscie.trim()) { alert('Anulowano.'); return; }
-
-      const nazwaKlucz = sanityzujNazwe(wejscie);
-      if (!nazwaKlucz) { alert('⚠️ Nieprawidłowa nazwa.'); return; }
-
-      const doc = await window.__db_licznik.collection('skarbiec_mapy').doc(nazwaKlucz).get();
-      if (doc.exists) {
-        _zastosujWczytaneDane(doc.data());
-        return;
-      } else {
-        const odPliku = confirm(
-          '⚠️ Projekt „' + nazwaKlucz + '" nie istnieje w bazie online.\n\n'
-          + 'Czy chcesz wczytać plik JSON z dysku zamiast tego?'
-        );
-        if (!odPliku) return;
-        // przejdź do wczytywania z pliku poniżej
-      }
-    } catch(err) {
-      // brak internetu -> przejdź do pliku
-    }
-  } else {
-    // Brak bazy - zapytaj tylko o plik
-    alert('ℹ️ Baza online jest niedostępna.\n\nWybierz plik JSON zapisany wcześniej na tym komputerze.');
+        document.body.removeChild(input);
+      };
+      reader.onerror = function() {
+        alert('⚠️ Nie udało się odczytać pliku.');
+        document.body.removeChild(input);
+      };
+      reader.readAsText(plik);
+    });
+    input.click();
   }
 
-  // 2) Wczytaj z pliku (jeśli baza nieosiągalna lub projekt nie istnieje w bazie)
-  const input = document.createElement('input');
-  input.type = 'file';
-  input.accept = '.json,application/json';
-  input.style.display = 'none';
-  document.body.appendChild(input);
+  // Zapytaj: baza online czy plik z dysku?
+  const skad = confirm(
+    '📂 Skąd wczytać projekt?\n\n'
+    + '✅ OK = z bazy online (podaj nazwę projektu)\n'
+    + '❌ Anuluj = z pliku JSON na dysku'
+  );
 
-  input.addEventListener('change', function(ev) {
-    const plik = ev.target.files && ev.target.files[0];
-    if (!plik) { document.body.removeChild(input); return; }
+  if (!skad) {
+    // Wczytaj z pliku lokalnego
+    wczytajZPliku();
+    return;
+  }
 
-    const reader = new FileReader();
-    reader.onload = function(e) {
-      try {
-        const dane = JSON.parse(e.target.result);
-        // Pokaż nazwę projektu z pliku jeśli dostępna
-        const nazwaProj = dane._projekt || plik.name.replace(/\.json$/i,'');
-        if (nazwaProj) dane._projektInfo = nazwaProj;
-        _zastosujWczytaneDane(dane);
-      } catch(err) {
-        alert('⚠️ Błąd wczytywania JSON: ' + err.message);
-      }
-      document.body.removeChild(input);
-    };
-    reader.onerror = function() {
-      alert('⚠️ Nie udało się odczytać pliku.');
-      document.body.removeChild(input);
-    };
-    reader.readAsText(plik);
-  });
+  // Wczytaj z bazy online po nazwie (bez listy — nazwa to hasło)
+  if (!window.__db_licznik) {
+    alert('⚠️ Baza online jest niedostępna.\n\nWybierz plik JSON z dysku.');
+    wczytajZPliku();
+    return;
+  }
 
-  input.click();
+  const wejscie = prompt('🔑 Podaj nazwę projektu:');
+  if (!wejscie || !wejscie.trim()) { alert('Anulowano.'); return; }
+
+  const nazwaKlucz = sanityzujNazwe(wejscie);
+  if (!nazwaKlucz) { alert('⚠️ Nieprawidłowa nazwa.'); return; }
+
+  try {
+    const doc = await window.__db_licznik.collection('skarbiec_mapy').doc(nazwaKlucz).get();
+    if (doc.exists) {
+      _zastosujWczytaneDane(doc.data());
+    } else {
+      alert('⚠️ Projekt „' + nazwaKlucz + '" nie istnieje w bazie.\n\nSprawdź nazwę i spróbuj ponownie.');
+    }
+  } catch(err) {
+    alert('⚠️ Błąd połączenia z bazą: ' + err.message + '\n\nSpróbuj wczytać z pliku.');
+  }
 }
 
 // --- ZAPISZ HTML: gotowy index.html z wbudowanymi miejscami ---
