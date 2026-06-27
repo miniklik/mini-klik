@@ -2509,15 +2509,36 @@ async function wczytajJSON() {
     input.click();
   }
 
-  // Zapytaj: baza online czy plik z dysku?
-  const skad = confirm(
-    '📂 Skąd wczytać projekt?\n\n'
-    + '✅ OK = z bazy online (podaj nazwę projektu)\n'
-    + '❌ Anuluj = z pliku JSON na dysku'
-  );
+  // Własny modal: Skąd wczytać projekt?
+  const skad = await new Promise(resolve => {
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:99999;display:flex;align-items:center;justify-content:center';
 
-  if (!skad) {
-    // Wczytaj z pliku lokalnego
+    const box = document.createElement('div');
+    box.style.cssText = 'background:var(--panel);border:2px solid var(--obrys);border-radius:14px;padding:28px 28px 22px;max-width:320px;width:90%;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.4)';
+
+    box.innerHTML = `
+      <div style="font-size:28px;margin-bottom:10px">📂</div>
+      <div style="font-size:17px;font-weight:700;color:var(--tekst);margin-bottom:6px">Skąd wczytać projekt?</div>
+      <div style="font-size:13px;color:var(--tekst-2);margin-bottom:22px">Wybierz źródło danych</div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <button id="btn-baza" style="padding:11px 16px;border-radius:9px;border:none;background:var(--akcent,#3a7bd5);color:#fff;font-size:15px;font-weight:600;cursor:pointer">🌐 Baza online (wpisz nazwę)</button>
+        <button id="btn-dysk" style="padding:11px 16px;border-radius:9px;border:none;background:var(--panel-2,#444);color:var(--tekst);font-size:15px;font-weight:600;cursor:pointer;border:1.5px solid var(--obrys)">💾 Plik z dysku</button>
+        <button id="btn-esc" style="padding:7px;border-radius:9px;border:none;background:transparent;color:var(--tekst-2);font-size:13px;cursor:pointer">Anuluj</button>
+      </div>`;
+
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+
+    box.querySelector('#btn-baza').onclick = () => { document.body.removeChild(overlay); resolve('baza'); };
+    box.querySelector('#btn-dysk').onclick = () => { document.body.removeChild(overlay); resolve('dysk'); };
+    box.querySelector('#btn-esc').onclick  = () => { document.body.removeChild(overlay); resolve(null); };
+    overlay.addEventListener('click', e => { if (e.target === overlay) { document.body.removeChild(overlay); resolve(null); } });
+  });
+
+  if (skad === null) return;
+
+  if (skad === 'dysk') {
     wczytajZPliku();
     return;
   }
