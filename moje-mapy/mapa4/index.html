@@ -218,6 +218,32 @@ input[type=range]{flex:1;accent-color:var(--wino)}
 .share-link:hover{border-color:rgba(232,160,192,.6);color:var(--wino,#8b2635);transform:translateY(-1px)}
 .share-close{display:block;width:100%;text-align:center;margin-top:.5rem;background:none;border:none;color:var(--atrament-cichy,#a08898);font-size:.75rem;text-transform:uppercase;letter-spacing:.25em;padding:.6rem;cursor:pointer;transition:.2s}
 .share-close:hover{color:var(--atrament,#2a1830)}
+/* przycisk instalacji PWA */
+.share-install{
+  background:linear-gradient(135deg,rgba(156,43,43,.12),rgba(184,134,11,.10)) !important;
+  border-color:rgba(156,43,43,.3) !important;
+  font-weight:600;
+  position:relative;
+  overflow:hidden;
+}
+.share-install::before{
+  content:'';position:absolute;inset:0;
+  background:linear-gradient(90deg,transparent 0%,rgba(255,255,255,.12) 50%,transparent 100%);
+  transform:translateX(-100%);
+  transition:transform .5s ease;
+}
+.share-install:hover::before{transform:translateX(100%)}
+.share-install:hover{
+  border-color:var(--wino,#8b2635) !important;
+  background:linear-gradient(135deg,rgba(156,43,43,.18),rgba(184,134,11,.15)) !important;
+}
+body.magia .share-install{
+  background:linear-gradient(135deg,rgba(232,160,192,.14),rgba(245,210,114,.10)) !important;
+  border-color:rgba(232,160,192,.35) !important;
+}
+body.magia .share-install:hover{
+  border-color:var(--wino) !important;
+}
 /* ════ MODAL POTWIERDZENIA ════ */
 #modalTlo{position:fixed;inset:0;z-index:19999;background:rgba(40,20,10,.55);backdrop-filter:blur(3px);display:none;align-items:center;justify-content:center;padding:20px}
 #modalTlo.poka{display:flex;animation:wejscie .25s ease both}
@@ -341,7 +367,7 @@ body.magia #modalBox{border-color:rgba(232,160,192,.3);outline-color:rgba(232,16
     <a class="share-link" id="shareWa" target="_blank" rel="noopener">🟢 WhatsApp</a>
     <a class="share-link" id="shareFb" target="_blank" rel="noopener">📘 Facebook</a>
     <button class="share-link" onclick="copyShareLink()">🔗 Kopiuj link</button>
-    <button class="share-link" id="installBtn" onclick="handleInstall()">📲 Dodaj do ekranu głównego</button>
+    <button class="share-link share-install" id="installBtn" onclick="handleInstall()" style="display:none">📲 Dodaj ikonkę Troplist</button>
     <button class="share-close" onclick="closeShareSheet()">Zamknij</button>
   </div>
 </div>
@@ -1125,28 +1151,85 @@ function ustawMotyw(m){
 (function(){ try{ const z=localStorage.getItem('tl_motyw'); if(z==='retro'){ ustawMotyw('retro'); } else { ustawMotyw('magia'); } }catch(e){ ustawMotyw('magia'); } })();
 
 /* ════════ ZAINSTALUJ (PWA) ════════ */
-let deferredInstall=null;
-function isIOS(){return /iphone|ipad|ipod/i.test(navigator.userAgent)&&!window.MSStream;}
-window.addEventListener('beforeinstallprompt',e=>{
+let deferredInstall = null;
+let appJuzZainstalowana = window.matchMedia('(display-mode: standalone)').matches
+  || window.navigator.standalone === true;
+
+function isIOS() {
+  return /iphone|ipad|ipod/i.test(navigator.userAgent) && !window.MSStream;
+}
+function isSafari() {
+  return /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+}
+
+function aktualizujPrzyciskInstalacji() {
+  const btn = document.getElementById('installBtn');
+  if (!btn) return;
+
+  // Już zainstalowana jako PWA — ukryj przycisk
+  if (appJuzZainstalowana) {
+    btn.style.display = 'none';
+    return;
+  }
+
+  // iOS Safari — pokaż z instrukcją "Dodaj do ekranu"
+  if (isIOS() && isSafari()) {
+    btn.style.display = 'flex';
+    btn.textContent = '📲 Dodaj ikonkę Troplist';
+    return;
+  }
+
+  // Android/Chrome z gotowym promptem — pokaż
+  if (deferredInstall) {
+    btn.style.display = 'flex';
+    btn.textContent = '📲 Dodaj ikonkę Troplist';
+    return;
+  }
+
+  // W pozostałych przypadkach ukryj (Firefox desktop, już zainstalowana itp.)
+  btn.style.display = 'none';
+}
+
+window.addEventListener('beforeinstallprompt', e => {
   e.preventDefault();
-  deferredInstall=e;
+  deferredInstall = e;
+  aktualizujPrzyciskInstalacji();
 });
-window.addEventListener('appinstalled',()=>{
-  toast('Zainstalowano ✓ Szukaj ikonki Troplist na ekranie głównym!');
+
+window.addEventListener('appinstalled', () => {
+  appJuzZainstalowana = true;
+  deferredInstall = null;
+  aktualizujPrzyciskInstalacji();
+  toast('Gotowe! Ikonka Troplist pojawiła się na ekranie głównym 💌');
 });
-async function handleInstall(){
-  if(deferredInstall){
+
+// Wywołaj raz na starcie żeby ustawić stan przycisku
+document.addEventListener('DOMContentLoaded', aktualizujPrzyciskInstalacji);
+
+async function handleInstall() {
+  // Android/Chrome — natywny prompt
+  if (deferredInstall) {
     deferredInstall.prompt();
-    try{await deferredInstall.userChoice;}catch(e){}
-    deferredInstall=null;
+    try { await deferredInstall.userChoice; } catch(e) {}
+    deferredInstall = null;
+    closeShareSheet();
     return;
   }
-  if(isIOS()){
-    toast('W Safari: dotknij ⬆️ Udostępnij → „Dodaj do ekranu głównego"');
+
+  // iOS Safari — instrukcja krok po kroku
+  if (isIOS() && isSafari()) {
+    closeShareSheet();
+    setTimeout(() => {
+      toast('W Safari: dotknij ⬆ Udostępnij → „Dodaj do ekranu głównego"');
+    }, 300);
     return;
   }
-  // Chrome już zainstalował — otwórz instrukcję ręczną
-  toast('Otwórz menu Chrome ⋮ → „Zainstaluj aplikację" lub „Dodaj do ekranu głównego"');
+
+  // Chrome — już zainstalowane lub brak prompta
+  closeShareSheet();
+  setTimeout(() => {
+    toast('Otwórz menu Chrome ⋮ → „Zainstaluj aplikację"');
+  }, 300);
 }
 </script>
 </body>
