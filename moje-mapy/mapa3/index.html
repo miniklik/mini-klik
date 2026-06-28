@@ -4,1252 +4,502 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>SKRYTKA — Podejmij Wyzwanie</title>
-<meta property="og:title" content="SKRYTKA — Podejmij Wyzwanie">
-<meta property="og:description" content="Ukryj zagadkę w prawdziwym miejscu. Ktoś ją znajdzie. Albo nie.">
-<meta property="og:type" content="website">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
-
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
 :root {
-  --czerń: #07070f;
-  --grafit: #0e0e1a;
-  --panel: #13131f;
-  --panel2: #1c1c2e;
-  --panel3: #232338;
-  --ramka: rgba(0,255,136,0.15);
-  --ramka2: rgba(0,255,136,0.35);
-  --akcent: #00ff88;
-  --akcent-dim: rgba(0,255,136,0.6);
-  --akcent2: #ff3366;
-  --akcent2-dim: rgba(255,51,102,0.6);
-  --złoto: #ffd700;
-  --złoto-dim: rgba(255,215,0,0.5);
-  --tekst: #c8c8f0;
-  --tekst-jasny: #e8e8ff;
-  --tekst-cichy: #555580;
-  --tekst-sredni: #8888bb;
-  --r: 4px;
-  --cień: 0 0 30px rgba(0,255,136,0.08);
-  --cień-g: 0 0 60px rgba(0,255,136,0.15);
-}
-
-* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
-html, body { height:100%; overflow:hidden; }
-
-body {
-  font-family: 'Inter', sans-serif;
-  background: var(--czerń);
-  color: var(--tekst);
-  position: relative;
-}
-
-/* ══════════════════════════════════════
-   SIATKA TŁA
-══════════════════════════════════════ */
-body::before {
-  content:'';
-  position:fixed; inset:0; z-index:0;
-  background-image:
-    linear-gradient(rgba(0,255,136,0.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(0,255,136,0.03) 1px, transparent 1px);
-  background-size: 40px 40px;
-  pointer-events:none;
-}
-
-/* ══════════════════════════════════════
-   LAYOUT GŁÓWNY
-══════════════════════════════════════ */
-#app {
-  position:relative; z-index:2;
-  height:100vh;
-  display:flex; flex-direction:column;
-  max-width:560px; margin:0 auto;
-  overflow:hidden;
-}
-
-.ekran { display:none; flex:1; overflow-y:auto; padding:16px 16px 90px; animation: wejscie .4s ease both; }
-.ekran.aktywny { display:flex; flex-direction:column; }
-@keyframes wejscie { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:none} }
-
-/* ══════════════════════════════════════
-   INTRO
-══════════════════════════════════════ */
-#intro {
-  position:fixed; inset:0; z-index:9999;
-  display:flex; flex-direction:column;
-  align-items:center; justify-content:center;
-  background: var(--czerń);
-  overflow:hidden;
-}
-
-#intro::before {
-  content:'';
-  position:absolute; inset:0;
-  background:
-    radial-gradient(ellipse at 30% 20%, rgba(0,255,136,0.06) 0%, transparent 50%),
-    radial-gradient(ellipse at 70% 80%, rgba(255,51,102,0.04) 0%, transparent 50%);
-}
-
-.intro-sonar {
-  position:absolute;
-  width:600px; height:600px;
-  border-radius:50%;
-  top:50%; left:50%;
-  transform:translate(-50%,-50%);
-}
-
-.intro-fala {
-  position:absolute; inset:0;
-  border-radius:50%;
-  border:1px solid var(--akcent);
-  opacity:0;
-  animation: introFala 3s ease-out infinite;
-}
-.intro-fala:nth-child(2) { animation-delay:1s; }
-.intro-fala:nth-child(3) { animation-delay:2s; }
-
-@keyframes introFala {
-  0%   { transform:scale(0); opacity:0.8; }
-  100% { transform:scale(1); opacity:0; }
-}
-
-.intro-srodek {
-  position:relative; z-index:2;
-  display:flex; flex-direction:column;
-  align-items:center; gap:6px;
-  text-align:center;
-}
-
-.intro-ikona {
-  font-size:64px;
-  animation: ikPuls 2s ease-in-out infinite;
-  filter: drop-shadow(0 0 20px rgba(0,255,136,0.5));
-}
-@keyframes ikPuls { 0%,100%{transform:scale(1)} 50%{transform:scale(1.08)} }
-
-.intro-tytul {
-  font-family:'Orbitron',sans-serif;
-  font-weight:900;
-  font-size:52px;
-  letter-spacing:8px;
-  color: var(--akcent);
-  text-shadow: 0 0 40px rgba(0,255,136,0.6), 0 0 80px rgba(0,255,136,0.3);
-  opacity:0;
-  animation: tytulWjazd 1s ease .5s both;
-}
-@keyframes tytulWjazd { from{opacity:0;letter-spacing:20px} to{opacity:1;letter-spacing:8px} }
-
-.intro-haslo {
-  font-family:'Share Tech Mono',monospace;
-  font-size:13px;
-  letter-spacing:4px;
-  color: var(--tekst-sredni);
-  text-transform:uppercase;
-  opacity:0;
-  animation: fadeIn .8s ease 1.4s both;
-}
-
-.intro-linia {
-  width:120px; height:1px;
-  background: linear-gradient(90deg, transparent, var(--akcent), transparent);
-  margin:16px 0;
-  opacity:0;
-  animation: fadeIn .6s ease 1.8s both;
-}
-
-.intro-opis-box {
-  height:60px;
-  display:flex; align-items:center; justify-content:center;
-  overflow:hidden;
-  opacity:0;
-  animation: fadeIn .6s ease 2s both;
-}
-
-.intro-opis {
-  font-size:15px;
-  color: var(--tekst-sredni);
-  font-style:italic;
-  text-align:center;
-  line-height:1.5;
-  animation: napisPrzesuw 12s ease 2.2s infinite;
-}
-
-@keyframes napisPrzesuw {
-  0%,20%  { opacity:1; transform:translateY(0); }
-  25%     { opacity:0; transform:translateY(-20px); }
-  26%     { opacity:0; transform:translateY(20px); }
-  50%,70% { opacity:1; transform:translateY(0); }
-  75%     { opacity:0; transform:translateY(-20px); }
-  76%     { opacity:0; transform:translateY(20px); }
-  100%    { opacity:1; transform:translateY(0); }
-}
-
-.intro-btn {
-  margin-top:32px;
-  opacity:0;
-  animation: fadeIn 1s ease 3s both;
-  display:flex; gap:12px; flex-direction:column; align-items:center;
-}
-
-@keyframes fadeIn { from{opacity:0} to{opacity:1} }
-
-#intro.znika { animation: introZnika .6s ease both; }
-@keyframes introZnika { to{opacity:0;pointer-events:none} }
-
-/* ══════════════════════════════════════
-   TYPOGRAFIA
-══════════════════════════════════════ */
-.mono { font-family:'Share Tech Mono',monospace; }
-.orb  { font-family:'Orbitron',sans-serif; }
-
-h2.naglowek {
-  font-family:'Orbitron',sans-serif;
-  font-size:18px;
-  font-weight:700;
-  color: var(--akcent);
-  letter-spacing:3px;
-  text-transform:uppercase;
-  text-align:center;
-  padding:14px 0 10px;
-  border-bottom:1px solid var(--ramka);
-  margin-bottom:16px;
-  text-shadow:0 0 20px rgba(0,255,136,0.4);
-}
-
-/* ══════════════════════════════════════
-   PRZYCISKI
-══════════════════════════════════════ */
-.btn {
-  font-family:'Orbitron',sans-serif;
-  font-size:13px;
-  font-weight:700;
-  letter-spacing:2px;
-  text-transform:uppercase;
-  border:none;
-  border-radius:var(--r);
-  padding:14px 24px;
-  cursor:pointer;
-  transition:.2s;
-  position:relative;
-  overflow:hidden;
-}
-.btn::after {
-  content:'';
-  position:absolute; inset:0;
-  background:linear-gradient(rgba(255,255,255,0.08),transparent);
-  pointer-events:none;
-}
-
-.btn-akcent {
-  background: linear-gradient(135deg, #00cc6e, #00ff88);
-  color: #07070f;
-  box-shadow: 0 4px 20px rgba(0,255,136,0.35), inset 0 1px 0 rgba(255,255,255,0.2);
-}
-.btn-akcent:hover { transform:translateY(-1px); box-shadow:0 6px 28px rgba(0,255,136,0.5); }
-.btn-akcent:disabled { background:#333; color:#666; box-shadow:none; cursor:not-allowed; transform:none; }
-
-.btn-ramka {
-  background: transparent;
-  color: var(--akcent);
-  border:1px solid var(--ramka2);
-  box-shadow: 0 0 12px rgba(0,255,136,0.08);
-}
-.btn-ramka:hover { background:rgba(0,255,136,0.08); border-color:var(--akcent); }
-
-.btn-danger {
-  background: linear-gradient(135deg, #cc0033, #ff3366);
-  color: #fff;
-  box-shadow:0 4px 20px rgba(255,51,102,0.3);
-}
-.btn-danger:hover { transform:translateY(-1px); box-shadow:0 6px 28px rgba(255,51,102,0.45); }
-
-.btn-pelny { width:100%; }
-.btn-maly { padding:9px 16px; font-size:11px; }
-.rzad { display:flex; gap:10px; }
-.rzad .btn { flex:1; }
-
-/* ══════════════════════════════════════
-   PANELE
-══════════════════════════════════════ */
-.panel {
-  background: var(--panel);
-  border:1px solid var(--ramka);
-  border-radius:var(--r);
-  padding:18px;
-  margin-bottom:12px;
-  box-shadow: var(--cień);
-  position:relative;
-}
-.panel::before {
-  content:'';
-  position:absolute;
-  top:0; left:0; right:0; height:1px;
-  background:linear-gradient(90deg,transparent,var(--akcent-dim),transparent);
-}
-.panel-tytul {
-  font-family:'Share Tech Mono',monospace;
-  font-size:10px;
-  letter-spacing:3px;
-  text-transform:uppercase;
-  color:var(--akcent);
-  margin-bottom:12px;
-  opacity:0.7;
-}
-
-/* ══════════════════════════════════════
-   INPUTY
-══════════════════════════════════════ */
-input[type=text], input[type=password], textarea {
-  width:100%;
-  font-family:'Share Tech Mono',monospace;
-  font-size:16px;
-  color:var(--tekst-jasny);
-  background:rgba(0,0,0,0.4);
-  border:1px solid rgba(0,255,136,0.2);
-  border-radius:var(--r);
-  padding:13px 15px;
-  transition:.2s;
-  letter-spacing:1px;
-}
-input:focus, textarea:focus {
-  outline:none;
-  border-color:var(--akcent);
-  box-shadow:0 0 0 3px rgba(0,255,136,0.1), 0 0 20px rgba(0,255,136,0.1);
-}
-input::placeholder, textarea::placeholder { color:var(--tekst-cichy); letter-spacing:1px; }
-textarea { resize:vertical; min-height:100px; line-height:1.5; }
-.etykieta {
-  display:block;
-  font-family:'Share Tech Mono',monospace;
-  font-size:11px;
-  letter-spacing:2px;
-  color:var(--akcent);
-  text-transform:uppercase;
-  margin-bottom:7px;
-}
-.licznik { text-align:right; font-size:11px; color:var(--tekst-cichy); margin-top:5px; font-family:'Share Tech Mono',monospace; }
-
-/* ══════════════════════════════════════
-   NAWIGACJA DOLNA
-══════════════════════════════════════ */
-#nav {
-  position:fixed;
-  bottom:0; left:50%; transform:translateX(-50%);
-  width:100%; max-width:560px;
-  background:rgba(7,7,15,0.95);
-  border-top:1px solid var(--ramka);
-  display:none;
-  z-index:500;
-  backdrop-filter:blur(20px);
-}
-#nav.widoczny { display:flex; }
-
-.nav-btn {
-  flex:1;
-  display:flex; flex-direction:column;
-  align-items:center; justify-content:center;
-  gap:3px;
-  padding:10px 6px 12px;
-  background:none;
-  border:none;
-  cursor:pointer;
-  color:var(--tekst-cichy);
-  transition:.2s;
-  font-size:10px;
-  font-family:'Share Tech Mono',monospace;
-  letter-spacing:1px;
-  text-transform:uppercase;
-}
-.nav-btn svg { width:22px; height:22px; stroke:currentColor; fill:none; stroke-width:1.5; stroke-linecap:round; stroke-linejoin:round; }
-.nav-btn.aktywny { color:var(--akcent); }
-.nav-btn.aktywny svg { filter:drop-shadow(0 0 8px rgba(0,255,136,0.6)); }
-.nav-btn:hover { color:var(--tekst); }
-
-/* ══════════════════════════════════════
-   HEADER GRACZA
-══════════════════════════════════════ */
-.hud {
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  padding:10px 16px;
-  background:rgba(7,7,15,0.9);
-  border-bottom:1px solid var(--ramka);
-  position:sticky; top:0; z-index:100;
-  backdrop-filter:blur(10px);
-  flex-shrink:0;
-}
-.hud-nick {
-  font-family:'Orbitron',sans-serif;
-  font-size:12px;
-  font-weight:700;
-  color:var(--akcent);
-  letter-spacing:2px;
-}
-.hud-stats {
-  display:flex; gap:14px;
-}
-.hud-stat {
-  display:flex; flex-direction:column; align-items:center;
-  font-family:'Share Tech Mono',monospace;
-}
-.hud-stat .val {
-  font-size:18px; font-weight:700;
-  color:var(--złoto);
-  line-height:1;
-  text-shadow:0 0 10px rgba(255,215,0,0.5);
-}
-.hud-stat .lab {
-  font-size:8px; letter-spacing:2px;
-  color:var(--tekst-cichy); text-transform:uppercase;
-}
-
-/* ══════════════════════════════════════
-   EKRAN LOGOWANIA
-══════════════════════════════════════ */
-#ekranLogin {
-  align-items:center;
-  justify-content:center;
-  min-height:100vh;
-  padding:24px;
-}
-
-.login-logo {
-  text-align:center;
-  margin-bottom:32px;
-}
-.login-logo .ikon { font-size:48px; display:block; margin-bottom:8px; filter:drop-shadow(0 0 16px rgba(0,255,136,0.5)); }
-.login-logo h1 {
-  font-family:'Orbitron',sans-serif;
-  font-size:32px; font-weight:900;
-  color:var(--akcent);
-  letter-spacing:6px;
-  text-shadow:0 0 30px rgba(0,255,136,0.5);
-}
-.login-logo p {
-  font-family:'Share Tech Mono',monospace;
-  font-size:11px; letter-spacing:3px;
-  color:var(--tekst-sredni);
-  text-transform:uppercase;
-  margin-top:4px;
-}
-
-/* login-tabs removed */
-
-/* ══════════════════════════════════════
-   EKRAN MAPY — SONAR
-══════════════════════════════════════ */
-#ekranMapa {
-  padding:0;
-  position:relative;
-}
-
-#mapaLeaflet {
-  flex:1;
-  min-height:0;
-}
-
-.sonar-overlay {
-  position:absolute;
-  bottom:100px; left:50%;
-  transform:translateX(-50%);
-  z-index:1000;
-  pointer-events:none;
-}
-
-.sonar-info {
-  position:absolute;
-  top:12px; left:12px; right:12px;
-  z-index:1000;
-  display:flex;
-  gap:8px;
-}
-
-.sonar-chip {
-  background:rgba(7,7,15,0.88);
-  border:1px solid var(--ramka);
-  border-radius:20px;
-  padding:7px 14px;
-  font-family:'Share Tech Mono',monospace;
-  font-size:12px;
-  color:var(--akcent);
-  backdrop-filter:blur(10px);
-  white-space:nowrap;
-}
-
-.mapa-btn-warstwy {
-  position:absolute;
-  top:12px; right:12px;
-  z-index:1000;
-  width:40px; height:40px;
-  background:rgba(7,7,15,0.88);
-  border:1px solid var(--ramka);
-  border-radius:var(--r);
-  display:flex; align-items:center; justify-content:center;
-  cursor:pointer;
-  font-size:18px;
-  backdrop-filter:blur(10px);
-  transition:.2s;
-}
-.mapa-btn-warstwy:hover { border-color:var(--akcent); }
-
-/* ══════════════════════════════════════
-   PANEL SKRYTKI (pop-up gdy w zasięgu)
-══════════════════════════════════════ */
-.skrytka-popup {
-  position:fixed;
-  bottom:0; left:50%; transform:translateX(-50%) translateY(100%);
-  width:100%; max-width:560px;
-  background:var(--panel);
-  border-top:2px solid var(--akcent);
-  border-radius:16px 16px 0 0;
-  padding:20px 20px 100px;
-  z-index:2000;
-  transition:transform .4s cubic-bezier(.4,0,.2,1);
-  box-shadow:0 -20px 60px rgba(0,255,136,0.15);
-}
-.skrytka-popup.aktywny { transform:translateX(-50%) translateY(0); }
-.popup-uchwyt {
-  width:40px; height:3px;
-  background:var(--ramka2);
-  border-radius:2px;
-  margin:0 auto 16px;
-}
-
-.zagadka-tekst {
-  font-size:22px;
-  line-height:1.5;
-  color:var(--tekst-jasny);
-  text-align:center;
-  margin:16px 0;
-  font-style:italic;
-  text-shadow:0 0 30px rgba(200,200,255,0.2);
-}
-
-.odp-status {
-  text-align:center;
-  padding:8px;
-  border-radius:var(--r);
-  font-family:'Share Tech Mono',monospace;
-  font-size:13px;
-  margin-top:8px;
-  display:none;
-}
-.odp-status.ok { display:block; background:rgba(0,255,136,0.1); color:var(--akcent); border:1px solid rgba(0,255,136,0.3); }
-.odp-status.err { display:block; background:rgba(255,51,102,0.1); color:var(--akcent2); border:1px solid rgba(255,51,102,0.3); }
-
-/* ══════════════════════════════════════
-   ANIMACJA SUKCESU
-══════════════════════════════════════ */
-.sukces-overlay {
-  position:fixed; inset:0; z-index:9000;
-  background:rgba(0,0,0,0.85);
-  display:none;
-  align-items:center; justify-content:center;
-  flex-direction:column;
-  gap:16px;
-}
-.sukces-overlay.poka { display:flex; animation:fadeIn .3s ease; }
-
-.sukces-eksplozja {
-  font-size:80px;
-  animation:eksplozja .6s cubic-bezier(.4,0,.2,1);
-  filter:drop-shadow(0 0 40px rgba(0,255,136,0.8));
-}
-@keyframes eksplozja {
-  0%  { transform:scale(0) rotate(-180deg); opacity:0; }
-  60% { transform:scale(1.3) rotate(10deg); }
-  100%{ transform:scale(1) rotate(0deg); opacity:1; }
-}
-
-.sukces-pkt {
-  font-family:'Orbitron',sans-serif;
-  font-size:48px; font-weight:900;
-  color:var(--złoto);
-  text-shadow:0 0 40px rgba(255,215,0,0.8);
-  animation:skaluj .5s ease .3s both;
-}
-@keyframes skaluj { from{transform:scale(0)} to{transform:scale(1)} }
-
-.sukces-tekst {
-  font-family:'Share Tech Mono',monospace;
-  font-size:14px; letter-spacing:3px;
-  color:var(--akcent);
-  text-transform:uppercase;
-}
-
-/* ══════════════════════════════════════
-   ZOSTAWIANIE SKRYTKI — KROKI
-══════════════════════════════════════ */
-.kroki-pasek {
-  display:flex; align-items:center; justify-content:center;
-  gap:8px; margin-bottom:20px;
-}
-.krok-kol {
-  width:30px; height:30px;
-  border-radius:50%;
-  display:flex; align-items:center; justify-content:center;
-  font-family:'Orbitron',sans-serif;
-  font-size:12px; font-weight:700;
-  border:1px solid var(--ramka);
-  color:var(--tekst-cichy);
-  background:var(--panel);
-  transition:.3s;
-}
-.krok-kol.aktywny { background:var(--akcent); color:#07070f; border-color:var(--akcent); box-shadow:0 0 16px rgba(0,255,136,0.5); }
-.krok-kol.zrobiony { background:rgba(0,255,136,0.15); color:var(--akcent); border-color:var(--akcent-dim); }
-.krok-kreska { width:24px; height:1px; background:var(--ramka); }
-
-.podkrok { display:none; flex-direction:column; gap:12px; }
-.podkrok.aktywny { display:flex; animation:wejscie .3s ease; }
-
-.mapa-zost {
-  height:240px;
-  border-radius:var(--r);
-  overflow:hidden;
-  border:1px solid var(--ramka);
-}
-
-.suwak-wiersz { display:flex; align-items:center; gap:12px; }
-.suwak-wiersz label { font-family:'Share Tech Mono',monospace; font-size:11px; color:var(--tekst-sredni); white-space:nowrap; letter-spacing:1px; }
-input[type=range] { flex:1; accent-color:var(--akcent); }
-.suwak-val { font-family:'Orbitron',monospace; font-size:16px; font-weight:700; color:var(--akcent); min-width:60px; text-align:right; }
-
-/* ══════════════════════════════════════
-   TABELA RANKINGOWA
-══════════════════════════════════════ */
-.rank-wiersz {
-  display:flex;
-  align-items:center;
-  gap:12px;
-  padding:12px 16px;
-  background:var(--panel);
-  border:1px solid var(--ramka);
-  border-radius:var(--r);
-  margin-bottom:8px;
-  transition:.2s;
-  position:relative;
-  overflow:hidden;
-}
-.rank-wiersz:hover { border-color:var(--ramka2); }
-.rank-wiersz.ja { border-color:var(--akcent); box-shadow:0 0 20px rgba(0,255,136,0.1); }
-.rank-wiersz.ja::before {
-  content:'';
-  position:absolute; left:0; top:0; bottom:0;
-  width:3px; background:var(--akcent);
-}
-
-.rank-poz {
-  font-family:'Orbitron',sans-serif;
-  font-size:18px; font-weight:900;
-  color:var(--tekst-cichy);
-  min-width:28px;
-  text-align:center;
-}
-.rank-poz.zloto { color:#ffd700; text-shadow:0 0 10px rgba(255,215,0,0.6); }
-.rank-poz.srebro { color:#c0c0c0; }
-.rank-poz.braz { color:#cd7f32; }
-
-.rank-info { flex:1; }
-.rank-nick {
-  font-family:'Orbitron',sans-serif;
-  font-size:14px; font-weight:700;
-  color:var(--tekst-jasny);
-  letter-spacing:1px;
-}
-.rank-ranga {
-  font-family:'Share Tech Mono',monospace;
-  font-size:11px;
-  color:var(--tekst-cichy);
-  margin-top:2px;
-}
-
-.rank-pkt {
-  font-family:'Orbitron',sans-serif;
-  font-size:22px; font-weight:900;
-  color:var(--złoto);
-  text-shadow:0 0 10px rgba(255,215,0,0.4);
-}
-
-/* ══════════════════════════════════════
-   MOJE SKRYTKI
-══════════════════════════════════════ */
-.skrytka-karta {
-  background:var(--panel);
-  border:1px solid var(--ramka);
-  border-radius:var(--r);
-  padding:14px 16px;
-  margin-bottom:10px;
-  transition:.2s;
-  position:relative;
-  overflow:hidden;
-}
-.skrytka-karta::after {
-  content:'';
-  position:absolute; bottom:0; left:0; right:0; height:1px;
-  background:linear-gradient(90deg,transparent,var(--ramka),transparent);
-}
-.skrytka-karta:hover { border-color:var(--ramka2); }
-.sk-naglowek { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px; }
-.sk-zagadka {
-  font-size:14px; color:var(--tekst-sredni);
-  line-height:1.4; font-style:italic;
-  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
-}
-.sk-meta {
-  display:flex; gap:14px; margin-top:10px;
-  font-family:'Share Tech Mono',monospace; font-size:11px; color:var(--tekst-cichy);
-}
-.sk-badge {
-  display:inline-flex; align-items:center; gap:4px;
-  padding:3px 8px;
-  border-radius:10px;
-  font-family:'Share Tech Mono',monospace;
-  font-size:11px;
-  letter-spacing:1px;
-}
-.sk-badge-akt { background:rgba(0,255,136,0.12); color:var(--akcent); border:1px solid rgba(0,255,136,0.3); }
-.sk-badge-wygasla { background:rgba(100,100,120,0.2); color:var(--tekst-cichy); border:1px solid rgba(100,100,120,0.3); }
-
-/* ══════════════════════════════════════
-   STATYSTYKI GRACZA
-══════════════════════════════════════ */
-.stat-siatka {
-  display:grid;
-  grid-template-columns:1fr 1fr;
-  gap:10px;
-  margin-bottom:16px;
-}
-.stat-kafel {
-  background:var(--panel);
-  border:1px solid var(--ramka);
-  border-radius:var(--r);
-  padding:16px;
-  text-align:center;
-  position:relative;
-  overflow:hidden;
-}
-.stat-kafel::before {
-  content:'';
-  position:absolute; top:0; left:0; right:0; height:1px;
-  background:linear-gradient(90deg,transparent,var(--akcent-dim),transparent);
-}
-.stat-val {
-  font-family:'Orbitron',sans-serif;
-  font-size:32px; font-weight:900;
-  color:var(--złoto);
-  text-shadow:0 0 20px rgba(255,215,0,0.4);
-  line-height:1;
-}
-.stat-lab {
-  font-family:'Share Tech Mono',monospace;
-  font-size:10px; letter-spacing:2px;
-  color:var(--tekst-cichy); text-transform:uppercase;
-  margin-top:4px;
-}
-
-.ranga-box {
-  background:var(--panel);
-  border:1px solid var(--akcent);
-  border-radius:var(--r);
-  padding:20px;
-  text-align:center;
-  margin-bottom:16px;
-  box-shadow:0 0 30px rgba(0,255,136,0.08);
-}
-.ranga-ikona { font-size:48px; display:block; margin-bottom:8px; }
-.ranga-nazwa {
-  font-family:'Orbitron',sans-serif;
-  font-size:20px; font-weight:900;
-  color:var(--akcent);
-  letter-spacing:3px;
-}
-.ranga-opis { font-size:13px; color:var(--tekst-sredni); margin-top:6px; }
-
-/* ══════════════════════════════════════
-   TOAST
-══════════════════════════════════════ */
-#toast {
-  position:fixed;
-  bottom:80px; left:50%; transform:translateX(-50%) translateY(20px);
-  background:var(--panel2);
-  border:1px solid var(--ramka2);
-  color:var(--tekst-jasny);
-  padding:12px 22px;
-  border-radius:20px;
-  font-family:'Share Tech Mono',monospace;
-  font-size:13px;
-  letter-spacing:1px;
-  box-shadow:0 4px 30px rgba(0,255,136,0.15);
-  opacity:0;
-  pointer-events:none;
-  transition:.3s;
-  z-index:9999;
-  max-width:90vw;
-  text-align:center;
-  white-space:nowrap;
-}
-#toast.poka { opacity:1; transform:translateX(-50%) translateY(0); }
-
-/* ══════════════════════════════════════
-   SCAN ANIMACJA (wejście w skrytkę)
-══════════════════════════════════════ */
-.scan-overlay {
-  position:fixed; inset:0; z-index:8000;
-  display:none;
-  align-items:center; justify-content:center;
-  background:rgba(0,0,0,0.9);
-  flex-direction:column; gap:20px;
-}
-.scan-overlay.poka { display:flex; }
-.scan-kolo {
-  width:160px; height:160px;
-  border-radius:50%;
-  border:2px solid rgba(0,255,136,0.2);
-  position:relative;
-  animation:obrот 2s linear infinite;
-}
-@keyframes obrот { to{transform:rotate(360deg)} }
-.scan-kolo::before {
-  content:'';
-  position:absolute; inset:0;
-  border-radius:50%;
-  border-top:2px solid var(--akcent);
-  box-shadow:0 0 20px rgba(0,255,136,0.6);
-}
-.scan-kolo-wew {
-  position:absolute;
-  inset:20px;
-  border-radius:50%;
-  border:1px solid rgba(0,255,136,0.15);
-  animation:obrот 1s linear infinite reverse;
-}
-.scan-tekst {
-  font-family:'Share Tech Mono',monospace;
-  font-size:14px; letter-spacing:4px;
-  color:var(--akcent);
-  text-transform:uppercase;
-  animation:migaj 1s ease-in-out infinite;
-}
-@keyframes migaj { 0%,100%{opacity:1} 50%{opacity:0.3} }
-.scan-ikona {
-  position:absolute;
-  font-size:40px;
-  top:50%; left:50%;
-  transform:translate(-50%,-50%);
-}
-
-/* ══════════════════════════════════════
-   WIDOCZNOŚĆ WYSYŁEK
-══════════════════════════════════════ */
-.wysylki-bar {
-  display:flex; gap:4px; align-items:center;
-  margin-bottom:14px;
-}
-.wysylka-pkt {
-  width:16px; height:16px;
-  border-radius:2px;
-  background:rgba(0,255,136,0.12);
-  border:1px solid rgba(0,255,136,0.3);
-  transition:.3s;
-}
-.wysylka-pkt.aktywna {
-  background:rgba(0,255,136,0.5);
-  border-color:var(--akcent);
-  box-shadow:0 0 8px rgba(0,255,136,0.4);
-}
-.wysylki-lab {
-  font-family:'Share Tech Mono',monospace;
-  font-size:11px; color:var(--tekst-cichy);
-  margin-left:6px; letter-spacing:1px;
-}
-
-/* ══════════════════════════════════════
-   PUSTO / ŁADOWANIE
-══════════════════════════════════════ */
-.pusto {
-  text-align:center;
-  padding:40px 20px;
-  color:var(--tekst-cichy);
-  font-family:'Share Tech Mono',monospace;
-  font-size:14px;
-  letter-spacing:1px;
-  line-height:2;
-}
-.pusto .ikon { font-size:40px; display:block; margin-bottom:12px; opacity:0.5; }
-.ladowanie {
-  text-align:center; padding:30px;
-  font-family:'Share Tech Mono',monospace;
-  font-size:12px; color:var(--akcent);
-  letter-spacing:3px;
-  animation:migaj 1s infinite;
-}
-
-/* ══════════════════════════════════════
-   RESPONSYWNOŚĆ
-══════════════════════════════════════ */
-@media(max-width:400px) {
-  .intro-tytul { font-size:40px; }
-  .hud-stat .val { font-size:15px; }
-}
+  --bg:     #07070f;
+  --panel:  #111120;
+  --panel2: #1a1a2e;
+  --border: rgba(0,255,136,0.15);
+  --border2:rgba(0,255,136,0.4);
+  --g:      #00ff88;
+  --g2:     rgba(0,255,136,0.6);
+  --red:    #ff3366;
+  --gold:   #ffd700;
+  --txt:    #c8c8f0;
+  --txt2:   #8888bb;
+  --txt3:   #444466;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--txt);font-family:'Inter',sans-serif}
+
+/* siatka tła */
+body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
+  background-image:linear-gradient(rgba(0,255,136,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(0,255,136,.025) 1px,transparent 1px);
+  background-size:44px 44px}
+
+/* ── INTRO ── */
+#intro{position:fixed;inset:0;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;background:var(--bg)}
+.i-fale{position:absolute;width:500px;height:500px;top:50%;left:50%;transform:translate(-50%,-50%)}
+.i-fala{position:absolute;inset:0;border-radius:50%;border:1px solid var(--g);opacity:0;animation:iFala 3s ease-out infinite}
+.i-fala:nth-child(2){animation-delay:1s}.i-fala:nth-child(3){animation-delay:2s}
+@keyframes iFala{0%{transform:scale(.1);opacity:.7}100%{transform:scale(1);opacity:0}}
+.i-tytul{position:relative;z-index:2;text-align:center}
+.i-ikon{font-size:60px;display:block;margin-bottom:12px;filter:drop-shadow(0 0 24px rgba(0,255,136,.6));animation:puls 2s ease-in-out infinite}
+@keyframes puls{0%,100%{transform:scale(1)}50%{transform:scale(1.07)}}
+.i-h1{font-family:'Orbitron',sans-serif;font-size:52px;font-weight:900;color:var(--g);letter-spacing:8px;
+  text-shadow:0 0 40px rgba(0,255,136,.6),0 0 80px rgba(0,255,136,.3);
+  animation:litery 1s ease .4s both}
+@keyframes litery{from{opacity:0;letter-spacing:24px}to{opacity:1;letter-spacing:8px}}
+.i-sub{font-family:'Share Tech Mono',monospace;font-size:12px;letter-spacing:5px;color:var(--txt2);margin-top:6px;animation:fin .6s ease 1.3s both}
+.i-linia{width:100px;height:1px;background:linear-gradient(90deg,transparent,var(--g),transparent);margin:20px auto;animation:fin .6s ease 1.7s both}
+.i-opis{font-size:14px;color:var(--txt2);font-style:italic;min-height:22px;animation:fin .6s ease 2s both}
+.i-btn{margin-top:28px;animation:fin 1s ease 2.8s both}
+@keyframes fin{from{opacity:0}to{opacity:1}}
+#intro.out{animation:introOut .5s ease forwards}
+@keyframes introOut{to{opacity:0;pointer-events:none}}
+
+/* ── LAYOUT ── */
+#app{position:relative;z-index:2;height:100vh;display:flex;flex-direction:column;max-width:560px;margin:0 auto;opacity:0;transition:opacity .5s}
+.ekran{display:none;flex:1;overflow-y:auto;padding:14px 14px 88px;animation:fadeUp .35s ease both}
+.ekran.on{display:flex;flex-direction:column}
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+
+/* ── HUD ── */
+#hud{display:none;flex-shrink:0;padding:10px 16px;background:rgba(7,7,15,.95);border-bottom:1px solid var(--border);
+  backdrop-filter:blur(12px);align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
+.hud-nick{font-family:'Orbitron',sans-serif;font-size:12px;font-weight:700;color:var(--g);letter-spacing:2px}
+.hud-stats{display:flex;gap:16px}
+.hud-s{display:flex;flex-direction:column;align-items:center;font-family:'Share Tech Mono',monospace}
+.hud-v{font-size:19px;font-weight:700;color:var(--gold);line-height:1;text-shadow:0 0 10px rgba(255,215,0,.4)}
+.hud-l{font-size:8px;letter-spacing:2px;color:var(--txt3);text-transform:uppercase}
+
+/* ── NAV ── */
+#nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:560px;
+  background:rgba(7,7,15,.96);border-top:1px solid var(--border);display:none;z-index:500;backdrop-filter:blur(20px)}
+#nav.on{display:flex}
+.nb{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+  padding:9px 4px 12px;background:none;border:none;cursor:pointer;color:var(--txt3);
+  font-size:9px;font-family:'Share Tech Mono',monospace;letter-spacing:1px;text-transform:uppercase;transition:.2s}
+.nb svg{width:21px;height:21px;stroke:currentColor;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+.nb.on{color:var(--g)}.nb.on svg{filter:drop-shadow(0 0 6px rgba(0,255,136,.6))}
+
+/* ── BUTTONS ── */
+.btn{font-family:'Orbitron',sans-serif;font-size:12px;font-weight:700;letter-spacing:2px;text-transform:uppercase;
+  border:none;border-radius:4px;padding:13px 22px;cursor:pointer;transition:.2s;position:relative;overflow:hidden}
+.btn::after{content:'';position:absolute;inset:0;background:linear-gradient(rgba(255,255,255,.07),transparent);pointer-events:none}
+.btn-g{background:linear-gradient(135deg,#00cc6e,#00ff88);color:#07070f;box-shadow:0 4px 20px rgba(0,255,136,.3)}
+.btn-g:hover{transform:translateY(-1px);box-shadow:0 6px 28px rgba(0,255,136,.5)}
+.btn-g:disabled{background:#222;color:#555;box-shadow:none;cursor:not-allowed;transform:none}
+.btn-o{background:transparent;color:var(--g);border:1px solid var(--border2)}
+.btn-o:hover{background:rgba(0,255,136,.08)}
+.btn-r{background:linear-gradient(135deg,#cc0033,#ff3366);color:#fff;box-shadow:0 4px 20px rgba(255,51,102,.3)}
+.btn-full{width:100%}.btn-sm{padding:9px 14px;font-size:10px}
+.row{display:flex;gap:10px}.row .btn{flex:1}
+
+/* ── PANEL ── */
+.panel{background:var(--panel);border:1px solid var(--border);border-radius:4px;padding:16px;margin-bottom:12px;position:relative}
+.panel::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--g2),transparent)}
+.ptit{font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:3px;color:var(--g);text-transform:uppercase;margin-bottom:12px;opacity:.7}
+
+/* ── INPUTS ── */
+input[type=text],input[type=password],textarea{width:100%;font-family:'Share Tech Mono',monospace;font-size:16px;
+  color:var(--txt);background:rgba(0,0,0,.4);border:1px solid rgba(0,255,136,.18);border-radius:4px;
+  padding:12px 14px;transition:.2s;letter-spacing:1px}
+input:focus,textarea:focus{outline:none;border-color:var(--g);box-shadow:0 0 0 3px rgba(0,255,136,.08)}
+input::placeholder,textarea::placeholder{color:var(--txt3);letter-spacing:1px}
+textarea{resize:vertical;min-height:130px;line-height:1.5}
+.lbl{display:block;font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:2px;color:var(--g);text-transform:uppercase;margin-bottom:6px}
+.cnt{text-align:right;font-size:10px;color:var(--txt3);margin-top:4px;font-family:'Share Tech Mono',monospace}
+
+/* ── NAGŁÓWEK ── */
+h2.nh{font-family:'Orbitron',sans-serif;font-size:16px;font-weight:700;color:var(--g);letter-spacing:3px;
+  text-align:center;padding:12px 0 10px;border-bottom:1px solid var(--border);margin-bottom:14px;
+  text-shadow:0 0 20px rgba(0,255,136,.4);text-transform:uppercase}
+
+/* ── MAPA ── */
+#ekranMapa{padding:0}
+#mapDiv{height:calc(100vh - 60px)}
+.mchip{position:absolute;top:12px;left:12px;z-index:1000;
+  background:rgba(7,7,15,.85);border:1px solid var(--border);border-radius:20px;
+  padding:7px 14px;font-family:'Share Tech Mono',monospace;font-size:12px;color:var(--g);
+  backdrop-filter:blur(10px);white-space:nowrap;pointer-events:none}
+.mchip2{top:12px;left:auto;right:auto;left:calc(12px + 180px);min-width:70px;text-align:center}
+.mlay{position:absolute;top:12px;right:58px;z-index:1000;width:38px;height:38px;
+  background:rgba(7,7,15,.85);border:1px solid var(--border);border-radius:4px;
+  display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:18px;backdrop-filter:blur(10px)}
+.mlay:hover{border-color:var(--g)}
+
+/* widget wyboru miejsca */
+#wWidget{display:none;position:absolute;bottom:76px;left:50%;transform:translateX(-50%);
+  z-index:1000;width:calc(100% - 20px);max-width:520px;pointer-events:none}
+.ww-suwak{pointer-events:all;background:rgba(7,7,15,.84);backdrop-filter:blur(14px);
+  border:1px solid rgba(0,255,136,.22);border-radius:12px;padding:11px 16px;
+  margin-bottom:8px;display:flex;align-items:center;gap:12px}
+.ww-suwak span{font-family:'Orbitron',monospace;font-size:14px;font-weight:700;color:#fff;min-width:52px;text-align:right}
+input[type=range]{flex:1;accent-color:var(--g);height:4px}
+.ww-btns{pointer-events:all;display:flex;gap:8px}
+.ww-anuluj{width:48px;height:48px;background:rgba(7,7,15,.84);backdrop-filter:blur(14px);
+  border:1px solid rgba(255,51,102,.3);border-radius:10px;color:var(--red);font-size:20px;
+  cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.ww-dalej{flex:1;height:48px;background:rgba(0,255,136,.12);backdrop-filter:blur(14px);
+  border:1px solid rgba(0,255,136,.35);border-radius:10px;font-family:'Orbitron',sans-serif;
+  font-size:13px;font-weight:700;letter-spacing:2px;color:#fff;cursor:pointer;transition:.2s;
+  opacity:.45;text-shadow:0 0 8px rgba(255,255,255,.3)}
+.ww-dalej.ok{opacity:1;background:rgba(0,255,136,.22);border-color:rgba(0,255,136,.7)}
+
+/* ── KROKI ── */
+.kroki{display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:18px}
+.kk{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font-family:'Orbitron',sans-serif;font-size:11px;font-weight:700;border:1px solid var(--border);
+  color:var(--txt3);background:var(--panel);transition:.3s}
+.kk.on{background:var(--g);color:#07070f;border-color:var(--g);box-shadow:0 0 14px rgba(0,255,136,.5)}
+.kk.done{background:rgba(0,255,136,.12);color:var(--g);border-color:var(--g2)}
+.kl{width:22px;height:1px;background:var(--border)}
+.krok{display:none;flex-direction:column;gap:12px}.krok.on{display:flex;animation:fadeUp .3s ease}
+
+/* ── DRAWER POPUP ── */
+#drawer{position:fixed;bottom:0;left:50%;transform:translateX(-50%) translateY(100%);
+  width:100%;max-width:560px;background:var(--panel);border-top:2px solid var(--g);
+  border-radius:16px 16px 0 0;z-index:2000;transition:transform .4s cubic-bezier(.4,0,.2,1);
+  box-shadow:0 -20px 60px rgba(0,255,136,.12);user-select:none}
+#drawer.on{transform:translateX(-50%) translateY(0)}
+#drawer.min{transform:translateX(-50%) translateY(calc(100% - 36px))}
+.dhandle{width:100%;height:36px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
+.dhandle::after{content:'';display:block;width:72px;height:4px;background:var(--border2);border-radius:2px;transition:.2s}
+.dhandle:hover::after{background:var(--g2);width:90px}
+#drawer.min .dhandle::after{background:var(--g);box-shadow:0 0 8px rgba(0,255,136,.5);width:90px}
+.dbody{padding:0 20px 100px}
+.dtit{text-align:center;font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:3px;color:var(--gold);text-transform:uppercase;margin-bottom:12px}
+.dlist{font-size:21px;color:var(--txt);line-height:1.55;font-style:italic;text-align:center;margin:14px 0}
+.dfrom{font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--txt3);text-align:center;margin-bottom:14px}
+.dodl{padding:10px;background:rgba(255,215,0,.06);border:1px solid rgba(255,215,0,.2);border-radius:4px;
+  font-family:'Share Tech Mono',monospace;font-size:12px;color:var(--gold);text-align:center;margin-bottom:14px}
+/* faza 2 */
+#dFaza2{display:none;text-align:center;padding:20px 0}
+.dsukces-ikon{font-size:56px;animation:eksp .5s ease}
+@keyframes eksp{0%{transform:scale(0) rotate(-180deg)}60%{transform:scale(1.2)}100%{transform:scale(1)}}
+.dsukces-h{font-family:'Orbitron',sans-serif;font-size:18px;font-weight:900;color:var(--g);letter-spacing:2px;margin:10px 0 6px}
+.dsukces-s{font-family:'Share Tech Mono',monospace;font-size:12px;color:var(--txt2)}
+
+/* ── SCAN overlay ── */
+#scan{position:fixed;inset:0;z-index:8000;display:none;align-items:center;justify-content:center;
+  flex-direction:column;gap:18px;background:rgba(0,0,0,.88)}
+#scan.on{display:flex}
+.scan-ring{width:150px;height:150px;border-radius:50%;border:2px solid rgba(0,255,136,.2);position:relative;animation:spin 2s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.scan-ring::before{content:'';position:absolute;inset:0;border-radius:50%;border-top:2px solid var(--g);box-shadow:0 0 18px rgba(0,255,136,.5)}
+.scan-inner{position:absolute;inset:18px;border-radius:50%;border:1px solid rgba(0,255,136,.12);animation:spin 1s linear infinite reverse}
+.scan-icon{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:36px}
+.scan-txt{font-family:'Share Tech Mono',monospace;font-size:13px;letter-spacing:4px;color:var(--g);text-transform:uppercase;animation:blink 1s ease-in-out infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* ── SUKCES overlay ── */
+#sukces{position:fixed;inset:0;z-index:9000;display:none;align-items:center;justify-content:center;
+  flex-direction:column;gap:14px;background:rgba(0,0,0,.82)}
+#sukces.on{display:flex;animation:fin .3s ease}
+.sik{font-size:80px;animation:eksp .6s ease;filter:drop-shadow(0 0 30px rgba(0,255,136,.7))}
+.spkt{font-family:'Orbitron',sans-serif;font-size:46px;font-weight:900;color:var(--gold);text-shadow:0 0 30px rgba(255,215,0,.7);animation:fin .5s ease .3s both}
+.stxt{font-family:'Share Tech Mono',monospace;font-size:13px;letter-spacing:3px;color:var(--g);text-transform:uppercase}
+.swys{font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--g2);margin-top:4px}
+
+/* ── MODAL nowy agent ── */
+#mModal{display:none;position:fixed;inset:0;z-index:8500;background:rgba(0,0,0,.88);align-items:center;justify-content:center;padding:22px}
+#mModal.on{display:flex}
+.mbox{width:100%;max-width:360px;background:var(--panel);border:1px solid var(--border2);border-radius:8px;padding:28px 22px;text-align:center}
+.mbox-ikon{font-size:44px;margin-bottom:12px;filter:drop-shadow(0 0 14px rgba(0,255,136,.4))}
+.mbox-h{font-family:'Orbitron',sans-serif;font-size:15px;font-weight:900;color:var(--g);letter-spacing:2px;margin-bottom:6px}
+.mbox-nick{font-family:'Share Tech Mono',monospace;font-size:14px;color:var(--gold);margin-bottom:14px;letter-spacing:1px}
+.mbox-p{font-size:13px;color:var(--txt2);line-height:1.65;margin-bottom:22px}
+
+/* ── RANKING / AKTA ── */
+.rw{display:flex;align-items:center;gap:12px;padding:11px 14px;background:var(--panel);
+  border:1px solid var(--border);border-radius:4px;margin-bottom:8px;transition:.2s;position:relative;overflow:hidden}
+.rw:hover{border-color:var(--border2)}
+.rw.ja{border-color:var(--g);box-shadow:0 0 18px rgba(0,255,136,.08)}
+.rw.ja::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--g)}
+.rpos{font-family:'Orbitron',sans-serif;font-size:17px;font-weight:900;color:var(--txt3);min-width:26px;text-align:center}
+.rpos.g1{color:#ffd700;text-shadow:0 0 8px rgba(255,215,0,.5)}
+.rpos.g2{color:#c0c0c0}.rpos.g3{color:#cd7f32}
+.rnick{font-family:'Orbitron',sans-serif;font-size:13px;font-weight:700;color:var(--txt)}
+.rranga{font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--txt3);margin-top:2px}
+.rpkt{font-family:'Orbitron',sans-serif;font-size:21px;font-weight:900;color:var(--gold);text-shadow:0 0 8px rgba(255,215,0,.3)}
+.sgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+.sk{background:var(--panel);border:1px solid var(--border);border-radius:4px;padding:15px;text-align:center;position:relative;overflow:hidden}
+.sk::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--g2),transparent)}
+.skv{font-family:'Orbitron',sans-serif;font-size:30px;font-weight:900;color:var(--gold);text-shadow:0 0 16px rgba(255,215,0,.3);line-height:1}
+.skl{font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:2px;color:var(--txt3);text-transform:uppercase;margin-top:4px}
+.ranga-b{background:var(--panel);border:1px solid var(--g);border-radius:4px;padding:18px;text-align:center;margin-bottom:14px;box-shadow:0 0 24px rgba(0,255,136,.06)}
+.ri{font-size:44px;display:block;margin-bottom:8px}
+.rn{font-family:'Orbitron',sans-serif;font-size:18px;font-weight:900;color:var(--g);letter-spacing:3px}
+.ro{font-size:12px;color:var(--txt2);margin-top:5px}
+.wbar{display:flex;gap:4px;align-items:center;flex-wrap:wrap}
+.wdot{width:14px;height:14px;border-radius:2px;background:rgba(0,255,136,.1);border:1px solid rgba(0,255,136,.25);transition:.3s}
+.wdot.on{background:rgba(0,255,136,.45);border-color:var(--g);box-shadow:0 0 6px rgba(0,255,136,.3)}
+.wlab{font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--txt3);margin-left:6px}
+.sk-karta{background:var(--panel);border:1px solid var(--border);border-radius:4px;padding:13px 15px;margin-bottom:9px}
+.sk-badge{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:10px;font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:1px}
+.sk-a{background:rgba(0,255,136,.1);color:var(--g);border:1px solid rgba(0,255,136,.25)}
+.sk-w{background:rgba(80,80,100,.2);color:var(--txt3);border:1px solid rgba(80,80,100,.3)}
+.sk-txt{font-size:13px;color:var(--txt2);font-style:italic;margin:7px 0 8px;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.sk-meta{display:flex;gap:12px;font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--txt3)}
+.pusto{text-align:center;padding:40px 20px;color:var(--txt3);font-family:'Share Tech Mono',monospace;font-size:13px;letter-spacing:1px;line-height:2}
+.pusto span{font-size:38px;display:block;margin-bottom:12px;opacity:.4}
+.load{text-align:center;padding:28px;font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--g);letter-spacing:3px;animation:blink 1s infinite}
+
+/* toast */
+#toast{position:fixed;bottom:78px;left:50%;transform:translateX(-50%) translateY(14px);
+  background:var(--panel2);border:1px solid var(--border2);color:var(--txt);
+  padding:11px 20px;border-radius:20px;font-family:'Share Tech Mono',monospace;font-size:12px;
+  letter-spacing:1px;box-shadow:0 4px 24px rgba(0,255,136,.12);opacity:0;pointer-events:none;
+  transition:.3s;z-index:9999;max-width:88vw;text-align:center;white-space:nowrap}
+#toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
 </style>
 </head>
 <body>
 
-<!-- ══════════════════════════════════
-     INTRO
-══════════════════════════════════ -->
+<!-- INTRO -->
 <div id="intro">
-  <div class="intro-sonar">
-    <div class="intro-fala"></div>
-    <div class="intro-fala"></div>
-    <div class="intro-fala"></div>
+  <div class="i-fale"><div class="i-fala"></div><div class="i-fala"></div><div class="i-fala"></div></div>
+  <div class="i-tytul">
+    <span class="i-ikon">📦</span>
+    <div class="i-h1">SKRYTKA</div>
+    <div class="i-sub">— podejmij wyzwanie —</div>
+    <div class="i-linia"></div>
+    <div class="i-opis" id="iOpis">Ukryj tajemnicę w prawdziwym miejscu</div>
+    <div class="i-btn"><button class="btn btn-g" style="padding:16px 48px;font-size:15px;letter-spacing:4px" onclick="startApp()">WCHODZĘ →</button></div>
   </div>
-  <div class="intro-srodek">
-    <div class="intro-ikona">📦</div>
-    <div class="intro-tytul">SKRYTKA</div>
-    <div class="intro-haslo">— podejmij wyzwanie —</div>
-    <div class="intro-linia"></div>
-    <div class="intro-opis-box">
-      <div class="intro-opis" id="introOpis">Ukryj zagadkę w prawdziwym miejscu świata</div>
+</div>
+
+<!-- SCAN -->
+<div id="scan">
+  <div class="scan-ring"><div class="scan-inner"></div><div class="scan-icon">📦</div></div>
+  <div class="scan-txt" id="scanTxt">SKANOWANIE...</div>
+</div>
+
+<!-- SUKCES -->
+<div id="sukces">
+  <div class="sik">🔓</div>
+  <div class="spkt">+1 PKT</div>
+  <div class="stxt">SKRYTKA ODNALEZIONA</div>
+  <div class="swys" id="swys">+2 wysyłki odblokowane</div>
+</div>
+
+<!-- MODAL nowy agent -->
+<div id="mModal">
+  <div class="mbox">
+    <div class="mbox-ikon">📦</div>
+    <div class="mbox-h">NOWY PROFIL AGENTA</div>
+    <div class="mbox-nick" id="mNick"></div>
+    <div class="mbox-p">Otwierasz nowe konto.<br>Zapamiętaj pseudonim i kod — bez nich nie wrócisz do profilu.</div>
+    <div class="row"><button class="btn btn-o" onclick="modalCofnij()">COFNIJ</button><button class="btn btn-g" onclick="modalPotwierdz()" id="mBtn">WCHODZĘ →</button></div>
+  </div>
+</div>
+
+<!-- DRAWER -->
+<div id="drawer">
+  <div class="dhandle" id="dHandle"></div>
+  <div class="dbody">
+    <!-- faza 1: list -->
+    <div id="dFaza1">
+      <div class="dtit">🔵 WIADOMOŚĆ OD AGENTA</div>
+      <div class="dlist" id="dList">…</div>
+      <div class="dfrom" id="dFrom"></div>
+      <div class="dodl">🔴 Strefa odnalezienia: <b id="dOdl">szukaj...</b></div>
+      <div class="row">
+        <button class="btn btn-o" onclick="drawerZamknij()">Zamknij</button>
+        <button class="btn btn-g" onclick="drawerOdnalazlem()" id="dBtn">📦 ODNALAZŁEM!</button>
+      </div>
     </div>
-    <div class="intro-btn">
-      <button class="btn btn-akcent" style="padding:16px 48px;font-size:15px;letter-spacing:3px" onclick="zakonczIntro()">WCHODZĘ →</button>
+    <!-- faza 2: sukces -->
+    <div id="dFaza2">
+      <div class="dsukces-ikon">🔓</div>
+      <div class="dsukces-h">SKRYTKA ODNALEZIONA!</div>
+      <div class="dsukces-s">+1 punkt · +2 wysyłki</div>
+      <button class="btn btn-g btn-full" onclick="drawerZamknij()" style="margin-top:16px">ŚWIETNIE →</button>
     </div>
   </div>
 </div>
 
-<!-- ══════════════════════════════════
-     SCAN OVERLAY
-══════════════════════════════════ -->
-<div class="scan-overlay" id="scanOverlay">
-  <div class="scan-kolo">
-    <div class="scan-kolo-wew"></div>
-    <div class="scan-ikona">📦</div>
-  </div>
-  <div class="scan-tekst" id="scanTekst">SKANOWANIE...</div>
-</div>
+<!-- APP -->
+<div id="app">
 
-<!-- ══════════════════════════════════
-     SUKCES OVERLAY
-══════════════════════════════════ -->
-<div class="sukces-overlay" id="sukcesOverlay">
-  <div class="sukces-eksplozja" id="sukcesIkona">🔓</div>
-  <div class="sukces-pkt" id="sukcesPkt">+1 PKT</div>
-  <div class="sukces-tekst" id="sukcesTekst">SKRYTKA ODNALEZIONA</div>
-  <div style="margin-top:8px;font-family:'Share Tech Mono',monospace;font-size:12px;color:var(--akcent-dim)" id="sukcesWys"></div>
-</div>
-
-<!-- ══════════════════════════════════
-     POPUP SKRYTKI
-══════════════════════════════════ -->
-<div class="skrytka-popup" id="skrytkaPopup">
-  <div class="popup-uchwyt"></div>
-  <!-- FAZA 1: list nawigacyjny (duży okrąg) -->
-  <div id="popupFaza1">
-    <div style="text-align:center;margin-bottom:10px">
-      <span style="font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:3px;color:var(--złoto);text-transform:uppercase">🔵 WIADOMOŚĆ OD AGENTA</span>
-    </div>
-    <div class="zagadka-tekst" id="popupZagadka">…</div>
-    <div style="margin-top:8px;text-align:center;font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--tekst-cichy)" id="popupAutoNick"></div>
-    <div style="margin-top:14px;padding:10px;background:rgba(255,215,0,0.06);border:1px solid rgba(255,215,0,0.2);border-radius:4px;font-family:'Share Tech Mono',monospace;font-size:12px;color:var(--złoto);text-align:center">
-      🔴 Strefa odnalezienia: <b id="popupOdl">szukaj...</b>
-    </div>
-    <div style="margin-top:14px" class="rzad">
-      <button class="btn btn-ramka" onclick="zamknijPopup()">Zamknij</button>
-      <button class="btn btn-akcent" onclick="potwierdzOdnalezienie()" id="btnOdnalazlem">📦 ODNALAZŁEM!</button>
-    </div>
-  </div>
-  <!-- FAZA 2: potwierdzenie (mały okrąg 20m) -->
-  <div id="popupFaza2" style="display:none;text-align:center;padding:16px 0">
-    <div style="font-size:52px;margin-bottom:12px;animation:eksplozja .5s ease">🔓</div>
-    <div style="font-family:'Orbitron',sans-serif;font-size:18px;font-weight:900;color:var(--akcent);letter-spacing:2px">SKRYTKA ODNALEZIONA!</div>
-    <div style="font-family:'Share Tech Mono',monospace;font-size:13px;color:var(--tekst-sredni);margin-top:8px">+1 punkt · +2 wysyłki</div>
-    <button class="btn btn-akcent btn-pelny" onclick="zamknijPopup()" style="margin-top:16px">ŚWIETNIE →</button>
-  </div>
-</div>
-
-<!-- ══════════════════════════════════
-     APP
-══════════════════════════════════ -->
-<div id="app" style="opacity:0;transition:opacity .5s">
-
-  <!-- HUD -->
-  <div class="hud" id="hud" style="display:none">
+  <div id="hud">
     <div class="hud-nick" id="hudNick">AGENT</div>
     <div class="hud-stats">
-      <div class="hud-stat">
-        <div class="val" id="hudPkt">0</div>
-        <div class="lab">PKT</div>
-      </div>
-      <div class="hud-stat">
-        <div class="val" id="hudWys">5</div>
-        <div class="lab">WYSYŁKI</div>
-      </div>
+      <div class="hud-s"><div class="hud-v" id="hudPkt">0</div><div class="hud-l">PKT</div></div>
+      <div class="hud-s"><div class="hud-v" id="hudWys">5</div><div class="hud-l">WYSYŁKI</div></div>
     </div>
   </div>
 
-  <!-- ══ EKRAN: LOGIN ══ -->
-  <div id="ekranLogin" class="ekran aktywny" style="justify-content:center;padding-top:0;min-height:100vh">
-    <div style="width:100%;max-width:400px;margin:auto;padding:24px 0">
-
-      <div style="text-align:center;margin-bottom:32px">
-        <div style="font-size:56px;margin-bottom:10px;filter:drop-shadow(0 0 20px rgba(0,255,136,0.5));animation:ikPuls 2s ease-in-out infinite">📦</div>
-        <div style="font-family:'Orbitron',sans-serif;font-size:36px;font-weight:900;color:var(--akcent);letter-spacing:6px;text-shadow:0 0 30px rgba(0,255,136,0.5)">SKRYTKA</div>
-        <div style="font-family:'Share Tech Mono',monospace;font-size:11px;letter-spacing:4px;color:var(--tekst-sredni);margin-top:4px">— podejmij wyzwanie —</div>
+  <!-- ═══ LOGIN ═══ -->
+  <div id="eLogin" class="ekran on" style="justify-content:center;padding-top:0;min-height:100vh">
+    <div style="width:100%;max-width:390px;margin:auto;padding:22px 0">
+      <div style="text-align:center;margin-bottom:30px">
+        <div style="font-size:52px;margin-bottom:10px;filter:drop-shadow(0 0 18px rgba(0,255,136,.5));animation:puls 2s ease-in-out infinite">📦</div>
+        <div style="font-family:'Orbitron',sans-serif;font-size:34px;font-weight:900;color:var(--g);letter-spacing:6px;text-shadow:0 0 28px rgba(0,255,136,.5)">SKRYTKA</div>
+        <div style="font-family:'Share Tech Mono',monospace;font-size:11px;letter-spacing:4px;color:var(--txt2);margin-top:4px">— podejmij wyzwanie —</div>
       </div>
-
       <div class="panel">
-        <div class="panel-tytul">IDENTYFIKACJA AGENTA</div>
-        <label class="etykieta" style="margin-top:0">Pseudonim</label>
-        <input type="text" id="loginNick" placeholder="wybierz pseudonim..." maxlength="16"
+        <div class="ptit">IDENTYFIKACJA AGENTA</div>
+        <label class="lbl">Pseudonim</label>
+        <input type="text" id="lNick" placeholder="wybierz pseudonim..." maxlength="16"
           autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
-          style="margin-bottom:14px;font-size:17px"
-          onkeydown="if(event.key==='Enter')document.getElementById('loginPin').focus()">
-        <label class="etykieta">Kod dostępu</label>
-        <input type="password" id="loginPin" placeholder="min. 4 znaki — zapamiętaj!" maxlength="20"
-          autocomplete="off"
-          onkeydown="if(event.key==='Enter')wejdz()">
-
+          style="margin-bottom:13px;font-size:17px"
+          onkeydown="if(event.key==='Enter')document.getElementById('lPin').focus()">
+        <label class="lbl">Kod dostępu</label>
+        <input type="password" id="lPin" placeholder="min. 4 znaki — zapamiętaj!" maxlength="20"
+          autocomplete="off" onkeydown="if(event.key==='Enter')wejdz()">
       </div>
-
-      <button class="btn btn-akcent btn-pelny" onclick="wejdz()" id="btnWejdz"
-        style="font-size:16px;padding:18px;letter-spacing:4px;margin-top:4px">
-        WCHODZĘ →
-      </button>
-
-      <div style="margin-top:14px;text-align:center">
-        <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--tekst-cichy);letter-spacing:2px" id="trybStatus">● ŁĄCZENIE...</div>
-      </div>
-
+      <button class="btn btn-g btn-full" onclick="wejdz()" id="lBtn" style="font-size:15px;padding:17px;letter-spacing:4px;margin-top:2px">WCHODZĘ →</button>
+      <div style="margin-top:13px;text-align:center;font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--txt3);letter-spacing:2px" id="lStatus">● ŁĄCZENIE...</div>
     </div>
   </div>
 
-  <!-- MODAL: nowy agent -->
-  <div id="modalNowyAgent" style="display:none;position:fixed;inset:0;z-index:8500;background:rgba(0,0,0,0.88);align-items:center;justify-content:center;padding:24px">
-    <div style="width:100%;max-width:380px;background:var(--panel);border:1px solid rgba(0,255,136,0.3);border-radius:8px;padding:28px 24px;text-align:center;box-shadow:0 0 60px rgba(0,255,136,0.1)">
-      <div style="font-size:48px;margin-bottom:14px;filter:drop-shadow(0 0 16px rgba(0,255,136,0.4))">📦</div>
-      <div style="font-family:'Orbitron',sans-serif;font-size:16px;font-weight:900;color:var(--akcent);letter-spacing:2px;margin-bottom:6px">NOWY PROFIL AGENTA</div>
-      <div style="font-family:'Share Tech Mono',monospace;font-size:14px;color:var(--złoto);margin-bottom:16px;letter-spacing:1px" id="modalNick"></div>
-      <div style="font-size:13px;color:var(--tekst-sredni);line-height:1.7;margin-bottom:24px">
-        Otwierasz nowe konto.<br>Zapamiętaj swój pseudonim i kod dostępu — bez nich nie wrócisz do tego profilu.
+  <!-- ═══ MAPA ═══ -->
+  <div id="eMapa" class="ekran" style="padding:0;position:relative">
+    <div style="position:absolute;top:12px;left:12px;z-index:1000;display:flex;gap:8px;pointer-events:none">
+      <div class="mchip" id="mChip" style="position:relative;top:auto;left:auto">📡 SONAR AKTYWNY</div>
+      <div class="mchip" id="mOdl" style="position:relative;top:auto;left:auto;display:none;cursor:pointer;pointer-events:all" onclick="chipKlik(0)"></div>
+      <div class="mchip" id="mOdl2" style="position:relative;top:auto;left:auto;display:none;cursor:pointer;pointer-events:all;opacity:0.65" onclick="chipKlik(1)"></div>
+    </div>
+    <div class="mlay" onclick="mapWarstwy()" id="mLayBtn">🛰️</div>
+    <!-- widget wyboru -->
+    <div id="wWidget">
+      <div class="ww-suwak">
+        <span style="font-size:16px">⭕</span>
+        <input type="range" id="wSuwak" min="50" max="300" value="100" step="10" oninput="wSuwakChange()">
+        <span id="wSuwakVal">100 m</span>
       </div>
-      <div class="rzad">
-        <button class="btn btn-ramka" onclick="anulujNowyProfil()" style="letter-spacing:1px">COFNIJ</button>
-        <button class="btn btn-akcent" onclick="potwierdzNowyProfil()" style="letter-spacing:1px">WCHODZĘ →</button>
+      <div class="ww-btns">
+        <button class="ww-anuluj" onclick="wAnuluj()">✕</button>
+        <button class="ww-dalej" id="wDalej" onclick="wPotwierdz()">DALEJ →</button>
       </div>
     </div>
+    <div id="mapDiv"></div>
   </div>
 
-  <!-- ══ EKRAN: MAPA ══ -->
-  <div id="ekranMapa" class="ekran" style="padding:0">
-    <div class="sonar-info">
-      <div class="sonar-chip" id="sonarChip">📡 SONAR AKTYWNY</div>
-      <div class="sonar-chip" id="sonarOdl" style="display:none">📍 —</div>
-    </div>
-    <button class="mapa-btn-warstwy" onclick="przelaczWarstwy()" title="Zmień warstwę" id="btnWarstwy">🛰️</button>
-
-    <!-- WIDGET WYBORU MIEJSCA (widoczny tylko w trybie dodawania) -->
-    <div id="wybórWidget" style="display:none;position:absolute;bottom:80px;left:50%;transform:translateX(-50%);z-index:1000;width:calc(100% - 24px);max-width:520px;pointer-events:none">
-      <!-- suwak promienia -->
-      <div style="pointer-events:all;background:rgba(7,7,15,0.82);backdrop-filter:blur(12px);border:1px solid rgba(0,255,136,0.25);border-radius:12px;padding:12px 16px;margin-bottom:8px;display:flex;align-items:center;gap:12px">
-        <span style="font-size:18px">⭕</span>
-        <input type="range" id="suwakPromien" min="50" max="300" value="100" step="10"
-          style="flex:1;accent-color:var(--akcent);height:4px"
-          oninput="aktualizujPromien()">
-        <span style="font-family:'Orbitron',monospace;font-size:14px;font-weight:700;color:var(--akcent);min-width:54px;text-align:right" id="promienVal">100 m</span>
-      </div>
-      <!-- przycisk DALEJ -->
-      <div style="pointer-events:all;display:flex;gap:8px">
-        <button onclick="anulujWyborMiejsca()" style="flex:0 0 48px;height:48px;background:rgba(7,7,15,0.82);backdrop-filter:blur(12px);border:1px solid rgba(255,51,102,0.3);border-radius:10px;color:var(--akcent2);font-size:20px;cursor:pointer">✕</button>
-        <button id="btnDalej" onclick="potwierdzMiejsce()" disabled
-          style="flex:1;height:48px;background:rgba(0,255,136,0.15);backdrop-filter:blur(12px);border:1px solid rgba(0,255,136,0.4);border-radius:10px;font-family:'Orbitron',sans-serif;font-size:13px;font-weight:700;letter-spacing:2px;color:#ffffff;cursor:pointer;transition:.2s;opacity:0.5;text-shadow:0 0 10px rgba(255,255,255,0.5)">
-          DALEJ →
-        </button>
-      </div>
+  <!-- ═══ ZOSTAW ═══ -->
+  <div id="eZostaw" class="ekran">
+    <h2 class="nh">📦 NOWA SKRYTKA</h2>
+    <div class="kroki">
+      <div class="kk on" id="kk1">1</div><div class="kl"></div>
+      <div class="kk" id="kk2">2</div><div class="kl"></div>
+      <div class="kk" id="kk3">3</div>
     </div>
 
-    <div id="mapaLeaflet" style="height:calc(100vh - 60px)"></div>
-  </div>
-
-  <!-- ══ EKRAN: ZOSTAW ══ -->
-  <div id="ekranZostaw" class="ekran">
-    <h2 class="naglowek">📦 NOWA SKRYTKA</h2>
-    <div class="kroki-pasek">
-      <div class="krok-kol aktywny" id="zk1">1</div>
-      <div class="krok-kreska"></div>
-      <div class="krok-kol" id="zk2">2</div>
-      <div class="krok-kreska"></div>
-      <div class="krok-kol" id="zk3">3</div>
+    <!-- krok 1 -->
+    <div class="krok on" id="zk1">
+      <div class="panel" style="text-align:center;padding:26px 18px">
+        <div class="ptit">KROK 1 / 3 — WYBIERZ MIEJSCE</div>
+        <div style="font-size:44px;margin:14px 0;filter:drop-shadow(0 0 14px rgba(0,255,136,.4))">📍</div>
+        <div style="font-size:14px;color:var(--txt2);line-height:1.7;margin-bottom:18px">Przejdź na mapę i <b style="color:var(--g)">dotknij miejsce</b><br>gdzie chcesz ukryć skrytkę.</div>
+        <div id="z1info" style="font-family:'Share Tech Mono',monospace;font-size:12px;color:var(--txt3);margin-bottom:14px;min-height:18px">Brak wybranego miejsca</div>
+        <button class="btn btn-o btn-full" onclick="wOtworzMape()">🗺️ OTWÓRZ MAPĘ →</button>
+      </div>
+      <button class="btn btn-g btn-full" id="z1dalej" onclick="krok(2)" disabled>DALEJ →</button>
     </div>
 
-    <!-- krok 1: miejsce -->
-    <div class="podkrok aktywny" id="zKrok1">
-      <div class="panel" style="text-align:center;padding:28px 20px">
-        <div class="panel-tytul">KROK 1 / 3 — WYBIERZ MIEJSCE</div>
-        <div style="font-size:48px;margin:16px 0;filter:drop-shadow(0 0 16px rgba(0,255,136,0.4))">📍</div>
-        <div style="font-size:15px;color:var(--tekst-sredni);line-height:1.7;margin-bottom:20px">
-          Przejdź na mapę i <b style="color:var(--akcent)">dotknij miejsce</b><br>gdzie chcesz ukryć skrytkę.
-        </div>
-        <div id="mapaZostInfo" style="font-family:'Share Tech Mono',monospace;font-size:13px;color:var(--tekst-cichy);margin-bottom:16px;min-height:20px">
-          Brak wybranego miejsca
-        </div>
-        <button class="btn btn-ramka btn-pelny" onclick="idNaMapeDlaSkrytki()" style="margin-bottom:12px">
-          🗺️ OTWÓRZ MAPĘ →
-        </button>
-        <div style="font-size:12px;color:var(--tekst-cichy);font-family:'Share Tech Mono',monospace">
-          Po wybraniu miejsca wróć tu automatycznie
-        </div>
-      </div>
-      <div class="panel" id="promienPanel" style="display:none">
-        <div class="panel-tytul">PROMIEŃ WYKRYCIA</div>
-        <div class="suwak-wiersz">
-          <label>Promień</label>
-          <input type="range" id="suwakPromien" min="20" max="150" value="60" step="5" oninput="aktualizujPromien()">
-          <div class="suwak-val" id="promienVal">60 m</div>
-        </div>
-      </div>
-      <button class="btn btn-akcent btn-pelny" id="btnDoKrok2" onclick="krokDo(2)" disabled>DALEJ →</button>
-    </div>
-
-    <!-- krok 2: list nawigacyjny -->
-    <div class="podkrok" id="zKrok2">
+    <!-- krok 2 -->
+    <div class="krok" id="zk2">
       <div class="panel">
-        <div class="panel-tytul">KROK 2 / 3 — PODPOWIEDŹ DLA POSZUKIWACZY</div>
-        <textarea id="zagadkaInput" placeholder="Np. Jesteś blisko! Idź w kierunku starego dębu przy fontannie. Skrytka ukryta jest pod kamieniem z lewej strony..." maxlength="600" style="min-height:160px" oninput="document.getElementById('zagadkaLicz').textContent=this.value.length"></textarea>
-        <div class="licznik"><span id="zagadkaLicz">0</span>/600</div>
+        <div class="ptit">KROK 2 / 3 — PODPOWIEDŹ DLA POSZUKIWACZY</div>
+        <textarea id="zTxt" placeholder="Np. Jesteś blisko! Idź w kierunku starego dębu przy fontannie. Skrytka ukryta jest pod kamieniem z lewej strony..." maxlength="600" oninput="document.getElementById('zCnt').textContent=this.value.length"></textarea>
+        <div class="cnt"><span id="zCnt">0</span>/600</div>
       </div>
-      <div class="rzad">
-        <button class="btn btn-ramka" onclick="krokDo(1)">← WSTECZ</button>
-        <button class="btn btn-akcent" onclick="krokDo(3)">DALEJ →</button>
+      <div class="row">
+        <button class="btn btn-o" onclick="krok(1)">← WSTECZ</button>
+        <button class="btn btn-g" onclick="krok(3)">DALEJ →</button>
       </div>
     </div>
 
-    <!-- krok 3: podsumowanie -->
-    <div class="podkrok" id="zKrok3">
+    <!-- krok 3 -->
+    <div class="krok" id="zk3">
       <div class="panel">
-        <div class="panel-tytul">KROK 3 / 3 — CZAS ŻYCIA</div>
-        <input type="range" id="suwakCzas" min="0" max="5" value="2" step="1" oninput="aktualizujCzas()">
-        <div style="text-align:center;margin-top:8px">
-          <span style="font-family:'Orbitron',monospace;font-size:24px;font-weight:900;color:var(--akcent)" id="czasVal">30 dni</span>
-        </div>
+        <div class="ptit">KROK 3 / 3 — CZAS ŻYCIA SKRYTKI</div>
+        <input type="range" id="zCzas" min="0" max="5" value="2" step="1" oninput="czasChange()" style="width:100%;margin-bottom:10px">
+        <div style="text-align:center;font-family:'Orbitron',monospace;font-size:24px;font-weight:900;color:var(--g)" id="zCzasVal">30 dni</div>
       </div>
-      <div class="panel" id="podgladPanel">
-        <div class="panel-tytul">PODGLĄD SKRYTKI</div>
-        <div style="font-size:14px;color:var(--tekst-sredni);font-style:italic;line-height:1.5;margin-bottom:12px" id="podgladZagadka">…</div>
-        <div style="display:flex;gap:12px;font-family:'Share Tech Mono',monospace;font-size:12px;color:var(--tekst-cichy)">
-          <span>📍 <span id="podgladPoz">—</span></span>
-          <span>⭕ <span id="podgladPromien">—</span></span>
+      <div class="panel">
+        <div class="ptit">PODGLĄD</div>
+        <div style="font-size:13px;color:var(--txt2);font-style:italic;line-height:1.5;margin-bottom:10px" id="zPodgląd">…</div>
+        <div style="display:flex;gap:14px;font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--txt3)">
+          <span>📍 <span id="zPPoz">—</span></span>
+          <span>⭕ <span id="zPProm">—</span></span>
         </div>
       </div>
       <div class="panel">
-        <div class="panel-tytul">KOSZT WYSYŁKI</div>
         <div style="display:flex;justify-content:space-between;align-items:center">
-          <div style="font-size:14px;color:var(--tekst-sredni)">Zostanie odjęta <b style="color:var(--akcent2)">1 wysyłka</b></div>
-          <div style="font-family:'Orbitron',monospace;font-size:22px;font-weight:900;color:var(--akcent)" id="podgladWys">—</div>
+          <div style="font-size:13px;color:var(--txt2)">Koszt: <b style="color:var(--red)">−1 wysyłka</b></div>
+          <div style="font-family:'Orbitron',monospace;font-size:20px;font-weight:900;color:var(--g)" id="zPWys">—</div>
         </div>
       </div>
-      <div class="rzad">
-        <button class="btn btn-ramka" onclick="krokDo(2)">← WSTECZ</button>
-        <button class="btn btn-akcent" onclick="opublikujSkrytke()" id="btnPubl">UKRYJ SKRYTKĘ 📦</button>
+      <div class="row">
+        <button class="btn btn-o" onclick="krok(2)">← WSTECZ</button>
+        <button class="btn btn-g" onclick="publikuj()" id="zPublBtn">UKRYJ SKRYTKĘ 📦</button>
       </div>
     </div>
 
     <!-- sukces publikacji -->
-    <div class="podkrok" id="zKrokOK">
-      <div class="panel" style="text-align:center;padding:32px 24px">
-        <div style="font-size:64px;margin-bottom:16px;filter:drop-shadow(0 0 20px rgba(0,255,136,0.5))">📦</div>
-        <div style="font-family:'Orbitron',sans-serif;font-size:20px;font-weight:900;color:var(--akcent);letter-spacing:2px;margin-bottom:10px">SKRYTKA UKRYTA</div>
-        <div style="font-size:15px;color:var(--tekst-sredni);line-height:1.6">Twoja zagadka czeka na odważnych.<br>Dostaniesz <b style="color:var(--złoto)">+2 pkt</b> gdy ktoś ją rozwiąże.</div>
+    <div class="krok" id="zkOK">
+      <div class="panel" style="text-align:center;padding:30px 20px">
+        <div style="font-size:60px;margin-bottom:14px;filter:drop-shadow(0 0 18px rgba(0,255,136,.4))">📦</div>
+        <div style="font-family:'Orbitron',sans-serif;font-size:18px;font-weight:900;color:var(--g);letter-spacing:2px;margin-bottom:10px">SKRYTKA UKRYTA!</div>
+        <div style="font-size:14px;color:var(--txt2);line-height:1.6">Twoja podpowiedź czeka na poszukiwaczy.<br>Dostajesz <b style="color:var(--gold)">+2 pkt</b> gdy ktoś ją odnajdzie.</div>
       </div>
-      <div class="rzad">
-        <button class="btn btn-ramka" onclick="resetZostawania()">+ KOLEJNA</button>
-        <button class="btn btn-akcent" onclick="pokaz('ekranMapa')">MAPA →</button>
+      <div class="row">
+        <button class="btn btn-o" onclick="resetZostaw()">+ KOLEJNA</button>
+        <button class="btn btn-g" onclick="goEkran('eMapa')">MAPA →</button>
       </div>
     </div>
   </div>
 
-  <!-- ══ EKRAN: MOJE ══ -->
-  <div id="ekranMoje" class="ekran">
-    <h2 class="naglowek">📁 AKTA AGENTA</h2>
-    <div class="ranga-box" id="rangaBox">
-      <span class="ranga-ikona" id="rangaIkona">🔎</span>
-      <div class="ranga-nazwa" id="rangaNazwa">NOWICJUSZ</div>
-      <div class="ranga-opis" id="rangaOpis">Dopiero zaczynasz swoją misję</div>
+  <!-- ═══ AKTA ═══ -->
+  <div id="eAkta" class="ekran">
+    <h2 class="nh">📁 AKTA AGENTA</h2>
+    <div class="ranga-b"><span class="ri" id="aRI">🔎</span><div class="rn" id="aRN">NOWICJUSZ</div><div class="ro" id="aRO">Dopiero zaczynasz</div></div>
+    <div class="sgrid">
+      <div class="sk"><div class="skv" id="aPkt">0</div><div class="skl">Punkty</div></div>
+      <div class="sk"><div class="skv" id="aWys">5</div><div class="skl">Wysyłki</div></div>
+      <div class="sk"><div class="skv" id="aZost">0</div><div class="skl">Zostawione</div></div>
+      <div class="sk"><div class="skv" id="aZnal">0</div><div class="skl">Znalezione</div></div>
     </div>
-    <div class="stat-siatka">
-      <div class="stat-kafel">
-        <div class="stat-val" id="statPkt">0</div>
-        <div class="stat-lab">Punkty</div>
-      </div>
-      <div class="stat-kafel">
-        <div class="stat-val" id="statWys">5</div>
-        <div class="stat-lab">Wysyłki</div>
-      </div>
-      <div class="stat-kafel">
-        <div class="stat-val" id="statZostawione">0</div>
-        <div class="stat-lab">Zostawione</div>
-      </div>
-      <div class="stat-kafel">
-        <div class="stat-val" id="statZnalezione">0</div>
-        <div class="stat-lab">Znalezione</div>
-      </div>
-    </div>
-    <div style="margin-bottom:14px">
-      <div style="font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:3px;color:var(--akcent);margin-bottom:10px;text-transform:uppercase">Wysyłki (zasoby)</div>
-      <div class="wysylki-bar" id="wysylkiBar"></div>
+    <div style="margin-bottom:13px">
+      <div style="font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:3px;color:var(--g);margin-bottom:9px;text-transform:uppercase">Wysyłki</div>
+      <div class="wbar" id="aWBar"></div>
     </div>
     <div>
-      <div style="font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:3px;color:var(--akcent);margin-bottom:10px;text-transform:uppercase">Moje skrytki</div>
-      <div id="mojeSkrytki"><div class="ladowanie">ŁADOWANIE AKT...</div></div>
+      <div style="font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:3px;color:var(--g);margin-bottom:9px;text-transform:uppercase">Moje skrytki</div>
+      <div id="aMoje"><div class="load">ŁADOWANIE...</div></div>
     </div>
-    <button class="btn btn-danger btn-pelny" style="margin-top:20px" onclick="wyloguj()">WYLOGUJ AGENTA</button>
+    <button class="btn btn-r btn-full" style="margin-top:18px" onclick="wyloguj()">WYLOGUJ AGENTA</button>
   </div>
 
-  <!-- ══ EKRAN: RANKING ══ -->
-  <div id="ekranRanking" class="ekran">
-    <h2 class="naglowek">🏆 RANKING AGENTÓW</h2>
-    <div id="rankingLista"><div class="ladowanie">POBIERANIE DANYCH...</div></div>
-    <div style="margin-top:16px;text-align:center;font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--tekst-cichy);letter-spacing:2px">ODŚWIEŻONO: <span id="rankingCzas">—</span></div>
+  <!-- ═══ RANKING ═══ -->
+  <div id="eRanking" class="ekran">
+    <h2 class="nh">🏆 RANKING AGENTÓW</h2>
+    <div id="rankLista"><div class="load">POBIERANIE...</div></div>
+    <div style="margin-top:14px;text-align:center;font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--txt3);letter-spacing:2px">ODŚWIEŻONO: <span id="rankCzas">—</span></div>
   </div>
 
 </div><!-- /#app -->
 
-<!-- ══════════════════════════════════
-     NAWIGACJA
-══════════════════════════════════ -->
 <nav id="nav">
-  <button class="nav-btn" id="navMapa" onclick="pokaz('ekranMapa')">
-    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 18a8 8 0 1 1 8-8 8 8 0 0 1-8 8z" stroke-width="1"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="12" x2="15" y2="14"/></svg>
-    SONAR
+  <button class="nb" id="nbMapa" onclick="goEkran('eMapa')">
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2z" stroke-width="1"/></svg>SONAR
   </button>
-  <button class="nav-btn" id="navZostaw" onclick="pokaz('ekranZostaw')">
-    <svg viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="1"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="17"/><line x1="9.5" y1="14.5" x2="14.5" y2="14.5"/></svg>
-    ZOSTAW
+  <button class="nb" id="nbZostaw" onclick="goEkran('eZostaw')">
+    <svg viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="1"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="17"/><line x1="9.5" y1="14.5" x2="14.5" y2="14.5"/></svg>ZOSTAW
   </button>
-  <button class="nav-btn" id="navMoje" onclick="pokaz('ekranMoje');ladujMoje()">
-    <svg viewBox="0 0 24 24"><path d="M20 7H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
-    AKTA
+  <button class="nb" id="nbAkta" onclick="goEkran('eAkta');ladujAkta()">
+    <svg viewBox="0 0 24 24"><path d="M20 7H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>AKTA
   </button>
-  <button class="nav-btn" id="navRanking" onclick="pokaz('ekranRanking');ladujRanking()">
-    <svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
-    RANKING
+  <button class="nb" id="nbRank" onclick="goEkran('eRanking');ladujRanking()">
+    <svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>RANKING
   </button>
 </nav>
 
 <div id="toast"></div>
 
-<!-- ══════════════════════════════════
-     SKRYPT
-══════════════════════════════════ -->
 <script>
-/* ════ FIREBASE ════ */
-const FB_CFG = {
+/* ════════════════════════════════
+   FIREBASE
+════════════════════════════════ */
+const FB = {
   apiKey:"AIzaSyDRR3vSfgpEmbpZz_-VldMTnTHoXRfuGKg",
   authDomain:"ksiega-ramzi.firebaseapp.com",
   projectId:"ksiega-ramzi",
@@ -1258,800 +508,665 @@ const FB_CFG = {
   appId:"1:400735142662:web:0b52a57f4fedf367839487"
 };
 
-const Baza = {
-  online:false, db:null,
-  init(){
-    const ok = FB_CFG.apiKey && FB_CFG.apiKey.indexOf('WKLEJ')!==0;
-    if(ok && window.firebase){
-      try{
-        if(!firebase.apps.length) firebase.initializeApp(FB_CFG);
-        this.db = firebase.firestore();
-        this.online = true;
-      }catch(e){ this.online=false; }
-    }
-    return this.online;
-  },
+let db=null, online=false;
+function initFB(){
+  if(online) return true;
+  try{
+    if(!firebase.apps.length) firebase.initializeApp(FB);
+    db=firebase.firestore(); online=true;
+  }catch(e){ online=false; }
+  return online;
+}
+
+const DB = {
   async getGracz(hash){
-    if(!this.online) return this._lokGracz(hash);
-    try{
-      const s = await this.db.collection('sk_gracze').doc(hash).get();
-      return s.exists ? s.data() : null;
-    }catch(e){return null;}
+    if(!online) return JSON.parse(localStorage.getItem('sk_g_'+hash)||'null');
+    try{ const s=await db.collection('sk_gracze').doc(hash).get(); return s.exists?s.data():null; }catch(e){return null;}
   },
-  async setGracz(hash, dane){
-    if(!this.online){ this._saveLokGracz(hash,dane); return; }
-    await this.db.collection('sk_gracze').doc(hash).set(dane,{merge:true});
-  },
-  async updateGracz(hash, pola){
-    if(!this.online){ const d=this._lokGracz(hash)||{}; Object.assign(d,pola); this._saveLokGracz(hash,d); return; }
-    await this.db.collection('sk_gracze').doc(hash).update(pola);
-  },
-  async nickWolny(nick){
-    if(!this.online) return true;
-    try{
-      const n = normNick(nick);
-      // Sprawdzamy po nickNorm jako id dokumentu żeby uniknąć indeksów
-      const s = await this.db.collection('sk_nick_index').doc(n).get();
-      return !s.exists;
-    }catch(e){ return true; } // przy błędzie pozwól — Firebase i tak odrzuci duplikat
+  async setGracz(hash,d){
+    if(!online){ localStorage.setItem('sk_g_'+hash,JSON.stringify(d)); return; }
+    await db.collection('sk_gracze').doc(hash).set(d,{merge:true});
   },
   async dodajSkrytke(rek){
-    if(!this.online){ const id='lok_'+Date.now(); this._lokSkrytki().push(Object.assign({id},rek)); this._saveLokSkrytki(this._lokSkrytki()); return id; }
-    const r = await this.db.collection('sk_skrytki').add(rek);
-    return r.id;
+    if(!online){
+      const lok=JSON.parse(localStorage.getItem('sk_s')||'[]');
+      const id='lok_'+Date.now(); lok.push({...rek,id});
+      localStorage.setItem('sk_s',JSON.stringify(lok)); return id;
+    }
+    const r=await db.collection('sk_skrytki').add(rek); return r.id;
   },
   async pobierzSkrytki(){
-    const now = Date.now();
-    if(!this.online) return this._lokSkrytki().filter(s=>!s.wygasa||s.wygasa>now);
-    const snap = await this.db.collection('sk_skrytki').where('aktywna','==',true).get();
-    const res=[];
-    snap.forEach(d=>{const v=d.data();v.id=d.id;if(!v.wygasa||v.wygasa>now)res.push(v);});
-    return res;
+    const now=Date.now();
+    if(!online){ return JSON.parse(localStorage.getItem('sk_s')||'[]').filter(s=>!s.wygasa||s.wygasa>now); }
+    const snap=await db.collection('sk_skrytki').get();
+    const res=[]; snap.forEach(d=>{const v=d.data();v.id=d.id;if(v.aktywna&&(!v.wygasa||v.wygasa>now))res.push(v);}); return res;
   },
-  async pobierzMojeSkrytki(nickNorm){
-    if(!this.online) return this._lokSkrytki().filter(s=>s.autorNorm===nickNorm);
-    const snap = await this.db.collection('sk_skrytki').where('autorNorm','==',nickNorm).orderBy('utworzono','desc').get();
-    const res=[];
-    snap.forEach(d=>{const v=d.data();v.id=d.id;res.push(v);});
-    return res;
+  async pobierzMoje(nickN){
+    if(!online){ return JSON.parse(localStorage.getItem('sk_s')||'[]').filter(s=>s.autorNorm===nickN); }
+    const snap=await db.collection('sk_skrytki').where('autorNorm','==',nickN).get();
+    const res=[]; snap.forEach(d=>{const v=d.data();v.id=d.id;res.push(v);}); res.sort((a,b)=>(b.utworzono||0)-(a.utworzono||0)); return res;
   },
   async pobierzRanking(){
-    if(!this.online) return [];
-    const snap = await this.db.collection('sk_gracze').orderBy('punkty','desc').limit(20).get();
-    const res=[];
-    snap.forEach(d=>{const v=d.data();v.id=d.id;res.push(v);});
-    return res;
+    if(!online) return [];
+    const snap=await db.collection('sk_gracze').get();
+    const res=[]; snap.forEach(d=>{const v=d.data();v.id=d.id;res.push(v);}); res.sort((a,b)=>(b.punkty||0)-(a.punkty||0)); return res.slice(0,20);
   },
-  async zapiszRozwiazanie(skrytkaId, nickNorm, autorNorm){
-    if(!this.online) return;
-    const bat = this.db.batch();
-    const skRef = this.db.collection('sk_skrytki').doc(skrytkaId);
-    bat.update(skRef,{ rozwiazania: firebase.firestore.FieldValue.increment(1) });
-    // +2 pkt autorowi
-    const autRef = this.db.collection('sk_gracze').doc(autorNorm);
-    bat.update(autRef,{ punkty: firebase.firestore.FieldValue.increment(2) });
-    await bat.commit();
-  },
-  _lokGracz(h){ try{return JSON.parse(localStorage.getItem('sk_g_'+h)||'null');}catch(e){return null;} },
-  _saveLokGracz(h,d){ try{localStorage.setItem('sk_g_'+h,JSON.stringify(d));}catch(e){} },
-  _lokSkrytki(){ try{return JSON.parse(localStorage.getItem('sk_skrytki')||'[]');}catch(e){return[];} },
-  _saveLokSkrytki(t){ try{localStorage.setItem('sk_skrytki',JSON.stringify(t));}catch(e){} }
+  async nagrodzAutora(skId, autorNorm){
+    if(!online||!skId) return;
+    try{
+      await db.collection('sk_skrytki').doc(skId).update({rozwiazania: firebase.firestore.FieldValue.increment(1)});
+      await db.collection('sk_gracze').doc(autorNorm).update({punkty: firebase.firestore.FieldValue.increment(2)});
+    }catch(e){}
+  }
 };
 
-/* ════ POMOCNICZE ════ */
-function normNick(s){ return (s||'').trim().toLowerCase().replace(/ł/g,'l').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9_]/g,''); }
-function normOdp(s){ return (s||'').trim().toLowerCase().replace(/ł/g,'l').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]/g,''); }
-function hashStr(s){ let h=2166136261; for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=(h*16777619)>>>0;} return 'sk_'+h.toString(36); }
-function metrow(la1,lo1,la2,lo2){ const R=6371000,t1=la1*Math.PI/180,t2=la2*Math.PI/180,dt=(la2-la1)*Math.PI/180,dl=(lo2-lo1)*Math.PI/180; const a=Math.sin(dt/2)**2+Math.cos(t1)*Math.cos(t2)*Math.sin(dl/2)**2; return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a)); }
-function toast(txt,kol){ const t=document.getElementById('toast'); t.textContent=txt; t.style.borderColor=kol?kol:'rgba(0,255,136,0.35)'; t.style.color=kol?kol:'var(--tekst-jasny)'; t.classList.add('poka'); clearTimeout(t._tk); t._tk=setTimeout(()=>t.classList.remove('poka'),2800); }
+/* ════════════════════════════════
+   UTILS
+════════════════════════════════ */
+function normN(s){ return (s||'').trim().toLowerCase().replace(/ł/g,'l').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9_]/g,''); }
+function hash(s){ let h=2166136261; for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=(h*16777619)>>>0;} return 'sk_'+h.toString(36); }
+function dist(la1,lo1,la2,lo2){ const R=6371000,t1=la1*Math.PI/180,t2=la2*Math.PI/180,dt=(la2-la1)*Math.PI/180,dl=(lo2-lo1)*Math.PI/180; return R*2*Math.atan2(Math.sqrt(Math.sin(dt/2)**2+Math.cos(t1)*Math.cos(t2)*Math.sin(dl/2)**2),Math.sqrt(1-(Math.sin(dt/2)**2+Math.cos(t1)*Math.cos(t2)*Math.sin(dl/2)**2))); }
 function esc(s){ return (s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 
-/* ════ RANGI ════ */
-const RANGI = [
-  {min:0,   ikona:'🔎', nazwa:'NOWICJUSZ',  opis:'Dopiero zaczynasz swoją misję'},
-  {min:10,  ikona:'🗺️', nazwa:'TROPICIEL',  opis:'Znasz już smak odkrycia'},
-  {min:30,  ikona:'🕵️', nazwa:'AGENT',       opis:'Działasz w cieniu'},
-  {min:60,  ikona:'🔐', nazwa:'SZPIEG',      opis:'Mistrz ukrytych wiadomości'},
-  {min:100, ikona:'💀', nazwa:'WIDMO',       opis:'Niewidzialny i wszechobecny'},
-  {min:200, ikona:'👁️', nazwa:'ARCHIWISTA',  opis:'Znasz wszystkie tajemnice'}
+let _toastTk;
+function toast(txt, kol){
+  const t=document.getElementById('toast');
+  t.textContent=txt; t.style.borderColor=kol||'rgba(0,255,136,.4)'; t.style.color=kol?'#fff':'var(--txt)';
+  t.classList.add('on'); clearTimeout(_toastTk); _toastTk=setTimeout(()=>t.classList.remove('on'),2600);
+}
+
+const RANGI=[
+  {min:0,   i:'🔎',n:'NOWICJUSZ', o:'Dopiero zaczynasz swoją misję'},
+  {min:10,  i:'🗺️',n:'TROPICIEL', o:'Znasz już smak odkrycia'},
+  {min:30,  i:'🕵️',n:'AGENT',     o:'Działasz w cieniu'},
+  {min:60,  i:'🔐',n:'SZPIEG',    o:'Mistrz ukrytych wiadomości'},
+  {min:100, i:'💀',n:'WIDMO',     o:'Niewidzialny i wszechobecny'},
+  {min:200, i:'👁️',n:'ARCHIWISTA',o:'Znasz wszystkie tajemnice'}
 ];
-function ranga(pkt){ let r=RANGI[0]; for(const x of RANGI){ if(pkt>=x.min) r=x; } return r; }
+function ranga(pkt){ let r=RANGI[0]; for(const x of RANGI) if(pkt>=x.min) r=x; return r; }
 
-/* ════ STAN GRACZA ════ */
-let gracz = null; // {nick, nickNorm, hash, punkty, wysylki, znalezione, zostawione}
+const CZASY=[{d:1,t:'1 dzień'},{d:7,t:'1 tydzień'},{d:30,t:'30 dni'},{d:90,t:'3 miesiące'},{d:365,t:'1 rok'},{d:36500,t:'Na zawsze ∞'}];
 
-function zaladujGracza(){
-  try{
-    const raw = localStorage.getItem('sk_aktywny');
-    if(raw){ gracz=JSON.parse(raw); return true; }
-  }catch(e){}
-  return false;
-}
-function zapiszGraczaLok(){
-  try{ localStorage.setItem('sk_aktywny',JSON.stringify(gracz)); }catch(e){}
-}
-function aktualizujHUD(){
-  if(!gracz) return;
-  document.getElementById('hudNick').textContent = gracz.nick.toUpperCase();
-  document.getElementById('hudPkt').textContent = gracz.punkty;
-  document.getElementById('hudWys').textContent = gracz.wysylki;
+/* ════════════════════════════════
+   GRACZ
+════════════════════════════════ */
+let G=null; // {nick,nickN,hash,punkty,wysylki,znalezione,zostawione}
+let _pNick=null,_pNickN=null,_pHash=null;
+
+function zapiszG(){ try{localStorage.setItem('sk_me',JSON.stringify(G));}catch(e){} }
+function wczytajG(){ try{const r=localStorage.getItem('sk_me'); if(r){G=JSON.parse(r);return true;}}catch(e){} return false; }
+function hudUp(){ if(!G)return; document.getElementById('hudNick').textContent=G.nick.toUpperCase(); document.getElementById('hudPkt').textContent=G.punkty; document.getElementById('hudWys').textContent=G.wysylki; }
+
+/* ════════════════════════════════
+   INTRO
+════════════════════════════════ */
+const OPISY=['Ukryj tajemnicę w prawdziwym miejscu','Ktoś wejdzie w to miejsce i przeczyta','Sonar wykryje gdy jesteś blisko','Każde odnalezienie daje punkty','Im więcej znajdziesz — tym więcej ukryjesz'];
+let _oi=0;
+setInterval(()=>{ _oi=(_oi+1)%OPISY.length; const e=document.getElementById('iOpis'); if(e)e.textContent=OPISY[_oi]; },3000);
+
+function startApp(){
+  const intro=document.getElementById('intro');
+  intro.classList.add('out');
+  document.getElementById('app').style.opacity='1';
+  setTimeout(()=>intro.remove(),600);
+  initFB();
+  const st=document.getElementById('lStatus');
+  if(st) st.textContent=online?'● POŁĄCZONO Z BAZĄ':'○ TRYB LOKALNY';
+  // jeśli był zalogowany — prefill nick
+  if(wczytajG()&&G){
+    const el=document.getElementById('lNick'); if(el) el.value=G.nick;
+    G=null; localStorage.removeItem('sk_me');
+    setTimeout(()=>{ const p=document.getElementById('lPin'); if(p)p.focus(); },300);
+  }
+  goEkran('eLogin',true);
 }
 
-/* ════ NAWIGACJA ════ */
-function pokaz(id){
-  document.querySelectorAll('.ekran').forEach(e=>e.classList.remove('aktywny'));
-  document.getElementById(id).classList.add('aktywny');
+/* ════════════════════════════════
+   NAWIGACJA
+════════════════════════════════ */
+function goEkran(id, skipCancel){
+  // Anuluj tryb wyboru miejsca jeśli wychodzimy z mapy
+  if(!skipCancel && wTryb){ wAnuluj(); }
+
+  document.querySelectorAll('.ekran').forEach(e=>e.classList.remove('on'));
+  document.getElementById(id).classList.add('on');
   window.scrollTo(0,0);
-  // nav aktywny
-  ['navMapa','navZostaw','navMoje','navRanking'].forEach(n=>{
-    document.getElementById(n).classList.remove('aktywny');
-  });
-  const mapa = {ekranMapa:'navMapa',ekranZostaw:'navZostaw',ekranMoje:'navMoje',ekranRanking:'navRanking'};
-  if(mapa[id]) document.getElementById(mapa[id]).classList.add('aktywny');
-  // mapa — odśwież
-  if(id==='ekranMapa') setTimeout(()=>{ if(mapa_L) mapa_L.invalidateSize(); },100);
-  // ekranZostaw nie potrzebuje własnej mapy
+
+  // nav
+  ['nbMapa','nbZostaw','nbAkta','nbRank'].forEach(n=>document.getElementById(n).classList.remove('on'));
+  const nm={eMapa:'nbMapa',eZostaw:'nbZostaw',eAkta:'nbAkta',eRanking:'nbRank'};
+  if(nm[id]) document.getElementById(nm[id]).classList.add('on');
+
+  if(id==='eMapa') setTimeout(()=>{ if(mapL) mapL.invalidateSize(); },100);
 }
 
-/* ════ INTRO ════ */
-const introOpisTeksty = [
-  'Ukryj zagadkę w prawdziwym miejscu świata',
-  'Ktoś wejdzie w to miejsce i spróbuje ją rozwiązać',
-  'Dostajesz punkty gdy ktoś odgadnie',
-  'Sonar podpowie Ci, że jesteś blisko',
-  'Im więcej znajdziesz — tym więcej możesz ukryć'
-];
-let introOpIdx = 0;
-setInterval(()=>{
-  introOpIdx = (introOpIdx+1) % introOpisTeksty.length;
-  const el = document.getElementById('introOpis');
-  if(el) el.textContent = introOpisTeksty[introOpIdx];
-}, 3000);
-
-function zakonczIntro(){
-  const i = document.getElementById('intro');
-  const a = document.getElementById('app');
-  i.classList.add('znika');
-  a.style.opacity = '1';
-  setTimeout(()=>{ if(i&&i.parentNode) i.parentNode.removeChild(i); }, 700);
-
-  // Zawsze pokaż ekran logowania — użytkownik klika WCHODZĘ sam
-  // (nie pomijamy ekranu nawet jeśli był zalogowany — czytelność)
-  const online = Baza.init();
-  const el = document.getElementById('trybStatus');
-  if(el) el.textContent = online ? '● POŁĄCZONO Z BAZĄ' : '○ TRYB LOKALNY';
-
-  // Jeśli był zalogowany — wypełnij nick dla wygody ale nie loguj automatycznie
-  if(zaladujGracza() && gracz){
-    const nickEl = document.getElementById('loginNick');
-    if(nickEl) nickEl.value = gracz.nick;
-    const pinEl = document.getElementById('loginPin');
-    if(pinEl) setTimeout(()=>pinEl.focus(), 400);
-    if(el) el.textContent = (online?'● ':'○ ') + 'Witaj z powrotem, ' + gracz.nick + '!';
-    gracz = null; // resetuj — niech wejdz() sprawdzi od nowa
-    localStorage.removeItem('sk_aktywny');
-  }
-  pokaz('ekranLogin');
-}
-
-/* ════ LOGOWANIE / REJESTRACJA — JEDEN PRZYCISK ════ */
-// tymczasowe dane podczas weryfikacji
-let _pendingNick=null, _pendingNickN=null, _pendingHash=null;
-
+/* ════════════════════════════════
+   LOGIN
+════════════════════════════════ */
 async function wejdz(){
-  const nick = document.getElementById('loginNick').value.trim();
-  const pin  = document.getElementById('loginPin').value.trim();
-  if(!nick || nick.length < 2){ toast('Wpisz pseudonim (min. 2 znaki)','var(--akcent2)'); return; }
-  if(!pin  || pin.length  < 4){ toast('Kod dostępu min. 4 znaki','var(--akcent2)'); return; }
-
-  const btn = document.getElementById('btnWejdz');
-  btn.disabled = true;
-  btn.textContent = 'WERYFIKACJA...';
-
-  try {
-    Baza.init();
-    const nickN = normNick(nick);
-    const hash  = hashStr(nickN + '|' + pin);
-    const dane  = await Baza.getGracz(hash);
-
-    if(dane){
-      // === POWRÓT — agent istnieje ===
-      gracz = {
-        nick: dane.nick, nickNorm: dane.nickNorm, hash,
-        punkty: dane.punkty||0, wysylki: dane.wysylki||5,
-        znalezione: dane.znalezione||0, zostawione: dane.zostawione||0
-      };
-      zapiszGraczaLok();
-      toast('Witaj z powrotem, ' + dane.nick + '! 🕵️');
-      pokazGlowny();
-    } else {
-      // === NOWY AGENT — pokaż modal potwierdzenia ===
-      _pendingNick  = nick;
-      _pendingNickN = nickN;
-      _pendingHash  = hash;
-      document.getElementById('modalNick').textContent = '« ' + nick.toUpperCase() + ' »';
-      const modal = document.getElementById('modalNowyAgent');
-      modal.style.display = 'flex';
-    }
-  } catch(e){
-    console.error(e);
-    toast('Błąd połączenia — spróbuj jeszcze raz','var(--akcent2)');
-  } finally {
-    btn.disabled = false;
-    btn.textContent = 'WCHODZĘ →';
-  }
-}
-
-function anulujNowyProfil(){
-  document.getElementById('modalNowyAgent').style.display = 'none';
-  _pendingNick = _pendingNickN = _pendingHash = null;
-  // Wyczyść pola żeby użytkownik mógł poprawić literówkę
-  document.getElementById('loginPin').value = '';
-  document.getElementById('loginPin').focus();
-}
-
-async function potwierdzNowyProfil(){
-  if(!_pendingNick) return;
-  const btn = document.querySelector('#modalNowyAgent .btn-akcent');
-  btn.disabled = true;
-  btn.textContent = 'TWORZĘ KONTO...';
+  const nick=document.getElementById('lNick').value.trim();
+  const pin =document.getElementById('lPin').value.trim();
+  if(!nick||nick.length<2){ toast('Pseudonim min. 2 znaki','var(--red)'); return; }
+  if(!pin||pin.length<4){ toast('Kod min. 4 znaki','var(--red)'); return; }
+  const btn=document.getElementById('lBtn'); btn.disabled=true; btn.textContent='WERYFIKACJA...';
   try{
-    const now = Date.now();
-    const nowyAgent = {
-      nick: _pendingNick, nickNorm: _pendingNickN,
-      punkty:0, wysylki:5, znalezione:0, zostawione:0,
-      ranga:'NOWICJUSZ', utworzono: now
-    };
-    await Baza.setGracz(_pendingHash, nowyAgent);
-    gracz = { nick:_pendingNick, nickNorm:_pendingNickN, hash:_pendingHash, punkty:0, wysylki:5, znalezione:0, zostawione:0 };
-    zapiszGraczaLok();
-    document.getElementById('modalNowyAgent').style.display = 'none';
-    toast('Profil aktywowany! Witaj, ' + _pendingNick + '! 📦');
-    _pendingNick = _pendingNickN = _pendingHash = null;
-    pokazGlowny();
-  } catch(e){
-    console.error(e);
-    toast('Błąd tworzenia profilu','var(--akcent2)');
-  } finally {
-    btn.disabled = false;
-    btn.textContent = 'WCHODZĘ →';
-  }
+    initFB();
+    const nickN=normN(nick), h=hash(nickN+'|'+pin);
+    const dane=await DB.getGracz(h);
+    if(dane){
+      G={nick:dane.nick,nickN:dane.nickNorm,hash:h,punkty:dane.punkty||0,wysylki:dane.wysylki||5,znalezione:dane.znalezione||0,zostawione:dane.zostawione||0};
+      zapiszG(); toast('Witaj z powrotem, '+dane.nick+'! 🕵️'); pokazGlowny();
+    } else {
+      _pNick=nick; _pNickN=nickN; _pHash=h;
+      document.getElementById('mNick').textContent='« '+nick.toUpperCase()+' »';
+      document.getElementById('mModal').classList.add('on');
+    }
+  }catch(e){ toast('Błąd połączenia','var(--red)'); }
+  finally{ btn.disabled=false; btn.textContent='WCHODZĘ →'; }
 }
 
-function loginTab(){}
-async function zaloguj(){ await wejdz(); }
-async function zarejestruj(){ await wejdz(); }
+function modalCofnij(){
+  document.getElementById('mModal').classList.remove('on');
+  _pNick=_pNickN=_pHash=null;
+  document.getElementById('lPin').value='';
+  document.getElementById('lPin').focus();
+}
+
+async function modalPotwierdz(){
+  if(!_pNick) return;
+  const btn=document.getElementById('mBtn'); btn.disabled=true; btn.textContent='TWORZĘ...';
+  try{
+    const now=Date.now();
+    await DB.setGracz(_pHash,{nick:_pNick,nickNorm:_pNickN,punkty:0,wysylki:5,znalezione:0,zostawione:0,ranga:'NOWICJUSZ',utworzono:now});
+    G={nick:_pNick,nickN:_pNickN,hash:_pHash,punkty:0,wysylki:5,znalezione:0,zostawione:0};
+    zapiszG(); document.getElementById('mModal').classList.remove('on');
+    toast('Witaj, '+_pNick+'! 📦'); _pNick=_pNickN=_pHash=null; pokazGlowny();
+  }catch(e){ toast('Błąd tworzenia profilu','var(--red)'); }
+  finally{ btn.disabled=false; btn.textContent='WCHODZĘ →'; }
+}
 
 function wyloguj(){
-  gracz=null;
-  try{ localStorage.removeItem('sk_aktywny'); }catch(e){}
-  document.getElementById('nav').classList.remove('widoczny');
+  G=null; localStorage.removeItem('sk_me');
+  document.getElementById('nav').classList.remove('on');
   document.getElementById('hud').style.display='none';
-  pokaz('ekranLogin');
+  goEkran('eLogin',true);
 }
 
 function pokazGlowny(){
-  if(!Baza.online) Baza.init();
-  document.getElementById('nav').classList.add('widoczny');
+  document.getElementById('nav').classList.add('on');
   document.getElementById('hud').style.display='flex';
-  aktualizujHUD();
-  pokaz('ekranMapa');
-  setTimeout(initMapa, 200);
+  hudUp(); goEkran('eMapa',true);
+  setTimeout(initMapa,200);
 }
 
-/* ════ MAPA + SONAR ════ */
-let mapa_L=null, warsKlasyczna=null, warsSatelita=null;
-let gpsWatch=null, mojaPoz=null;
-let wszystkieSkrytki=[];
+/* ════════════════════════════════
+   MAPA GŁÓWNA
+════════════════════════════════ */
+let mapL=null, warsKlas=null, warsSat=null;
 let markerMoj=null, sonarKolo=null;
-let sonarAnimId=null;
-let aktualnaSk=null, probyBlednych=0;
-const rozwiazaneSession = new Set();
+let gpsWatch=null, mojaPoz=null;
+let skrytki=[], marMoje=[], odblokowane=new Set(), znalezione=new Set();
+let aktSk=null;
 
 function initMapa(){
-  if(mapa_L){ mapa_L.invalidateSize(); startGPS(); return; }
-  mapa_L = L.map('mapaLeaflet',{zoomControl:false}).setView([52.0,19.0],6);
-  warsKlasyczna = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OSM'}).addTo(mapa_L);
-  warsSatelita = L.tileLayer.wms('https://mapy.geoportal.gov.pl/wss/service/PZGIK/ORTO/WMS/StandardResolution',{layers:'Raster',format:'image/jpeg',transparent:false,version:'1.3.0',maxZoom:20});
-  mapa_L.attributionControl.setPrefix('');
-  L.control.zoom({position:'bottomright'}).addTo(mapa_L);
+  if(mapL){ mapL.invalidateSize(); startGPS(); return; }
+  mapL=L.map('mapDiv',{zoomControl:false}).setView([52,19],6);
+  warsKlas=L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OSM'}).addTo(mapL);
+  warsSat=L.tileLayer.wms('https://mapy.geoportal.gov.pl/wss/service/PZGIK/ORTO/WMS/StandardResolution',{layers:'Raster',format:'image/jpeg',transparent:false,version:'1.3.0',maxZoom:20});
+  mapL.attributionControl.setPrefix('');
+  L.control.zoom({position:'bottomright'}).addTo(mapL);
   ladujSkrytki();
   startGPS();
 }
 
 async function ladujSkrytki(){
-  wszystkieSkrytki = await Baza.pobierzSkrytki();
+  skrytki=await DB.pobierzSkrytki();
   rysujSkrytki();
 }
 
-let markerySkrytek=[];
 function rysujSkrytki(){
-  markerySkrytek.forEach(m=>mapa_L.removeLayer(m));
-  markerySkrytek=[];
-  wszystkieSkrytki.forEach(sk=>{
-    // Nie pokazuj własnych skrytek na mapie (nie zdradzamy)
-    if(sk.autorNorm===gracz.nickNorm) return;
-    if(rozwiazaneSession.has(sk.id)) return;
-    const ik = L.divIcon({
-      html:`<div style="font-size:20px;opacity:0.4;filter:drop-shadow(0 0 6px rgba(0,255,136,0.5))">📦</div>`,
-      className:'', iconSize:[24,24], iconAnchor:[12,12]
+  // usuń stare
+  marMoje.forEach(m=>mapL.removeLayer(m)); marMoje=[];
+  // Własne skrytki = ikona listu z licznikiem odkryć
+  skrytki.forEach(sk=>{
+    if(sk.autorNorm!==G.nickN) return; // tylko własne
+    const rozw = sk.rozwiazania||0;
+    const badge = rozw>0
+      ? `<div style="position:absolute;top:-6px;right:-8px;background:${rozw>=3?'var(--gold)':'var(--g)'};color:#07070f;border-radius:10px;font-family:'Orbitron',sans-serif;font-size:9px;font-weight:900;padding:1px 5px;line-height:14px;min-width:14px;text-align:center">${rozw}</div>`
+      : '';
+    const ik=L.divIcon({
+      html:`<div style="position:relative;display:inline-block;cursor:pointer">
+              <div style="width:28px;height:22px;background:#fff;border-radius:3px;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,.35);border:1.5px solid #ddd">
+                <svg width="18" height="14" viewBox="0 0 18 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <rect width="18" height="14" rx="2" fill="#fff"/>
+                  <path d="M1 1.5L9 8.5L17 1.5" stroke="#e02040" stroke-width="1.8" stroke-linecap="round"/>
+                  <rect x="1" y="1" width="16" height="12" rx="1.5" stroke="#e02040" stroke-width="1.5" fill="none"/>
+                </svg>
+              </div>
+              ${badge}
+            </div>`,
+      className:'',iconSize:[28,24],iconAnchor:[14,24],popupAnchor:[0,-28]
     });
-    const m = L.marker([sk.lat,sk.lng],{icon:ik}).addTo(mapa_L);
-    markerySkrytek.push(m);
+    const marker = L.marker([sk.lat,sk.lng],{icon:ik}).addTo(mapL);
+    marker.on('click',()=> mojaSkrytkaInfo(sk));
+    marMoje.push(marker);
   });
+  // Obce skrytki — NIEWIDOCZNE, tylko sonar wykrywa
+}
+
+function mojaSkrytkaInfo(sk){
+  const rozw = sk.rozwiazania||0;
+  const rozTxt = rozw===0?'Nikt jeszcze nie odkrył':rozw===1?'1 agent odnalazł':rozw+' agentów odnalazło';
+  const rozKol = rozw===0?'var(--txt2)':rozw<3?'var(--g)':'var(--gold)';
+  const now = Date.now();
+  const ok = sk.aktywna&&(!sk.wygasa||sk.wygasa>now);
+  toast(`${ok?'● AKTYWNA':'○ WYGASŁA'} · 👁 ${rozTxt}`);
+}
+
+function mapWarstwy(){
+  const btn=document.getElementById('mLayBtn');
+  if(mapL.hasLayer(warsKlas)){ mapL.removeLayer(warsKlas); warsSat.addTo(mapL); btn.textContent='🗺️'; }
+  else{ mapL.removeLayer(warsSat); warsKlas.addTo(mapL); btn.textContent='🛰️'; }
 }
 
 function startGPS(){
   if(gpsWatch!==null) return;
-  if(!navigator.geolocation){ toast('Brak GPS w przeglądarce','var(--akcent2)'); return; }
-  gpsWatch = navigator.geolocation.watchPosition(
-    p => {
-      mojaPoz = {lat:p.coords.latitude, lng:p.coords.longitude};
-      aktualizujSonar();
-    },
-    e => { console.warn('GPS:',e); },
-    {enableHighAccuracy:true, maximumAge:3000, timeout:15000}
+  if(!navigator.geolocation){ toast('Brak GPS','var(--red)'); return; }
+  gpsWatch=navigator.geolocation.watchPosition(
+    p=>{ mojaPoz={lat:p.coords.latitude,lng:p.coords.longitude}; aktualizujSonar(); },
+    e=>{ console.warn(e); },
+    {enableHighAccuracy:true,maximumAge:3000,timeout:15000}
   );
 }
 
-// Sonar marker (pulsujący okrąg na mapie)
 function aktualizujSonar(){
-  if(!mojaPoz||!mapa_L) return;
-  const latlng = [mojaPoz.lat,mojaPoz.lng];
-  // Marker gracza
+  if(!mojaPoz||!mapL) return;
+  const ll=[mojaPoz.lat,mojaPoz.lng];
   if(!markerMoj){
-    const ik = L.divIcon({
-      html:`<div style="width:16px;height:16px;border-radius:50%;background:var(--akcent);box-shadow:0 0 20px rgba(0,255,136,0.8);border:2px solid #fff"></div>`,
-      className:'', iconSize:[16,16], iconAnchor:[8,8]
-    });
-    markerMoj = L.marker(latlng,{icon:ik,zIndexOffset:1000}).addTo(mapa_L);
-    mapa_L.setView(latlng,15);
-  } else {
-    markerMoj.setLatLng(latlng);
-  }
-  // Sonar okrąg SVG na leaflet
+    const ik=L.divIcon({html:'<div style="width:15px;height:15px;border-radius:50%;background:var(--g);box-shadow:0 0 18px rgba(0,255,136,.8);border:2px solid #fff"></div>',className:'',iconSize:[15,15],iconAnchor:[7,7]});
+    markerMoj=L.marker(ll,{icon:ik,zIndexOffset:1000}).addTo(mapL);
+    mapL.setView(ll,15);
+  } else { markerMoj.setLatLng(ll); }
   if(!sonarKolo){
-    sonarKolo = L.circle(latlng,{
-      radius:100,
-      color:'rgba(0,255,136,0.6)',
-      fillColor:'rgba(0,255,136,0.04)',
-      fillOpacity:1,
-      weight:1.5,
-      dashArray:'4 4',
-      className:'sonar-pulse-circle'
-    }).addTo(mapa_L);
-  } else {
-    sonarKolo.setLatLng(latlng);
-  }
-  // Sprawdź pobliskie skrytki
-  sprawdzPobliskie();
+    sonarKolo=L.circle(ll,{radius:100,color:'rgba(0,255,136,.5)',fillColor:'rgba(0,255,136,.03)',fillOpacity:1,weight:1.5,dashArray:'4 4'}).addTo(mapL);
+  } else { sonarKolo.setLatLng(ll); }
+  if(!wTryb) sprawdzPobliskie();
 }
 
 function sprawdzPobliskie(){
-  if(!mojaPoz||!mapa_L||trybWyboru) return;
-  const chip = document.getElementById('sonarChip');
-  const odlEl = document.getElementById('sonarOdl');
-  let najblizszaDyst = Infinity;
+  if(!mojaPoz||!mapL||wTryb) return;
+  const chip=document.getElementById('mChip'), odlEl=document.getElementById('mOdl');
+  top2=[]; // [{d, sk}, {d, sk}] — dwie najbliższe obce
 
-  wszystkieSkrytki.forEach(sk=>{
-    if(sk.autorNorm===gracz.nickNorm) return;
-    if(rozwiazaneSession.has(sk.id)) return;
-    const d = metrow(mojaPoz.lat,mojaPoz.lng,sk.lat,sk.lng);
-    if(d<najblizszaDyst) najblizszaDyst=d;
+  skrytki.forEach(sk=>{
+    if(sk.autorNorm===G.nickN) return; // własne — ignoruj
+    if(znalezione.has(sk.id)) return;
+    const d=dist(mojaPoz.lat,mojaPoz.lng,sk.lat,sk.lng);
+    top2.push({d,sk}); top2.sort((a,b)=>a.d-b.d); if(top2.length>2) top2=top2.slice(0,2);
+    const najD=top2[0]?top2[0].d:Infinity;
 
-    const promienDuzy = sk.promien||100;
-    const promienMaly = 20; // strefa odnalezienia — zawsze 20m
-
-    // Duży okrąg → pokaż list nawigacyjny
-    if(d<=promienDuzy){
-      odblokujSkrytke(sk, 1);
-      // Aktualizuj odległość w popupie
-      if(aktualnaSk && aktualnaSk.id===sk.id){
-        const el=document.getElementById('popupOdl');
-        if(el) el.textContent = d<=promienMaly ? '✅ JESTEŚ NA MIEJSCU!' : Math.round(d)+' m';
-      }
+    // Duży okrąg → pokaż drawer z listem (tylko jeśli nie odrzucona)
+    if(d<=(sk.promien||100) && !odblokowane.has(sk.id) && !odrzucone.has(sk.id)){
+      odblokowane.add(sk.id);
+      pokazScan(sk);
     }
-    // Mały okrąg 20m → skrytka odnaleziona!
-    if(d<=promienMaly && !rozwiazaneSession.has(sk.id)){
-      odblokujSkrytke(sk, 2);
+    // Mały okrąg 20m → odnalezienie
+    if(d<=20 && !znalezione.has(sk.id)){
+      if(aktSk&&aktSk.id===sk.id) pokazFaze2();
+      else { znalezione.add(sk.id); przyznajPunkty(sk); }
+    }
+    // Aktualizuj odległość w drawerze
+    if(aktSk&&aktSk.id===sk.id){
+      const el=document.getElementById('dOdl');
+      if(el) el.textContent=d<=20?'✅ JESTEŚ NA MIEJSCU!':Math.round(d)+' m';
     }
   });
 
-  // Sonar chip wg odległości
-  if(!trybWyboru){
-    if(najblizszaDyst<Infinity){
-      odlEl.style.display='block';
-      const dist=Math.round(najblizszaDyst);
-      odlEl.textContent = dist<1000?'📍 '+dist+' m':'📍 '+(dist/1000).toFixed(1)+' km';
-      if(najblizszaDyst<=20){
-        chip.style.color='var(--akcent2)'; chip.textContent='🔴 JESTEŚ NA MIEJSCU!';
-        if(sonarKolo) sonarKolo.setStyle({color:'rgba(255,51,102,0.9)',weight:3});
-      } else if(najblizszaDyst<=100){
-        chip.style.color='var(--złoto)'; chip.textContent='🔵 LIST ODBLOKOWANY';
-        if(sonarKolo) sonarKolo.setStyle({color:'rgba(255,215,0,0.7)',weight:2});
-      } else if(najblizszaDyst<=400){
-        chip.style.color='var(--akcent)'; chip.textContent='📡 SYGNAŁ W POBLIŻU';
-        if(sonarKolo) sonarKolo.setStyle({color:'rgba(0,255,136,0.6)',weight:1.5});
-      } else {
-        chip.style.color='var(--akcent)'; chip.textContent='📡 SONAR AKTYWNY';
-        if(sonarKolo) sonarKolo.setStyle({color:'rgba(0,255,136,0.4)',weight:1.5});
-      }
-    } else {
-      odlEl.style.display='none';
-      chip.style.color='var(--akcent)'; chip.textContent='📡 SONAR AKTYWNY';
-      if(sonarKolo) sonarKolo.setStyle({color:'rgba(0,255,136,0.4)',weight:1.5});
-    }
+  // Chip sonar — wg pierwszej (najbliższej)
+  const najD = top2[0]?top2[0].d:Infinity;
+  const odlEl2 = document.getElementById('mOdl2');
+
+  function chipDystTxt(d, sk){
+    const dm=Math.round(d);
+    const odrzucona = odrzucone.has(sk.id);
+    return (odrzucona?'👁 ':'')+(dm<1000?dm+' m':(dm/1000).toFixed(1)+' km');
   }
+  function chipKol(sk){ return odrzucone.has(sk.id)?'var(--gold)':'var(--g)'; }
+  function chipBorder(sk){ return odrzucone.has(sk.id)?'rgba(255,215,0,.4)':''; }
+
+  // Chip 1
+  if(top2[0]){
+    const {d,sk}=top2[0];
+    odlEl.style.display='block';
+    odlEl.textContent=chipDystTxt(d,sk);
+    odlEl.style.color=chipKol(sk);
+    odlEl.style.borderColor=chipBorder(sk);
+  } else { odlEl.style.display='none'; }
+
+  // Chip 2
+  if(top2[1]){
+    const {d,sk}=top2[1];
+    odlEl2.style.display='block';
+    odlEl2.textContent=chipDystTxt(d,sk);
+    odlEl2.style.color=chipKol(sk);
+    odlEl2.style.borderColor=chipBorder(sk);
+  } else { odlEl2.style.display='none'; }
+
+  // Kolor sonaru wg najbliższej
+  if(najD<=20){ chip.style.color='var(--red)'; chip.textContent='🔴 JESTEŚ NA MIEJSCU!'; sonarKolo&&sonarKolo.setStyle({color:'rgba(255,51,102,.8)',weight:2}); }
+  else if(najD<=300){ chip.style.color='var(--gold)'; chip.textContent='🔵 LIST ODBLOKOWANY'; sonarKolo&&sonarKolo.setStyle({color:'rgba(255,215,0,.6)',weight:2}); }
+  else if(najD<=600){ chip.style.color='var(--g)'; chip.textContent='📡 SYGNAŁ W POBLIŻU'; sonarKolo&&sonarKolo.setStyle({color:'rgba(0,255,136,.5)',weight:1.5}); }
+  else if(najD<Infinity){ chip.style.color='var(--g)'; chip.textContent='📡 SONAR AKTYWNY'; sonarKolo&&sonarKolo.setStyle({color:'rgba(0,255,136,.35)',weight:1.5}); }
+  else { odlEl.style.display='none'; odlEl2&&(odlEl2.style.display='none'); chip.style.color='var(--g)'; chip.textContent='📡 SONAR AKTYWNY'; sonarKolo&&sonarKolo.setStyle({color:'rgba(0,255,136,.35)',weight:1.5}); }
 }
 
-let odblokowaneSk = new Set();  // pokazano list (duży okrąg)
-let wMalymOkregu = new Set();   // w strefie 20m
-
-function odblokujSkrytke(sk, faza){
-  if(faza===1){
-    if(odblokowaneSk.has(sk.id)) return;
-    odblokowaneSk.add(sk.id);
-    pokazScan(sk);
-  } else if(faza===2){
-    if(wMalymOkregu.has(sk.id)) return;
-    wMalymOkregu.add(sk.id);
-    // Jeśli popup jest otwarty na tej skrytce — przełącz na fazę 2
-    if(aktualnaSk && aktualnaSk.id===sk.id){
-      pokazFaze2();
-    } else {
-      // Jeśli nie ma otwartego popupu — od razu sukces
-      pokazSkan2(sk);
-    }
-  }
-}
-
-function pokazFaze2(){
-  document.getElementById('popupFaza1').style.display='none';
-  document.getElementById('popupFaza2').style.display='block';
-  // Przyznaj punkty
-  przyznajPunkty();
-}
-
-function pokazSkan2(sk){
-  aktualnaSk=sk;
-  pokazPopupSkrytki(sk, true);
-}
-
+/* ════════════════════════════════
+   SCAN + DRAWER
+════════════════════════════════ */
 function pokazScan(sk){
-  const ov = document.getElementById('scanOverlay');
-  const tx = document.getElementById('scanTekst');
-  ov.classList.add('poka');
-  tx.textContent = 'SKANOWANIE...';
-  setTimeout(()=>{ tx.textContent = 'SKRYTKA ZNALEZIONA'; },800);
-  setTimeout(()=>{ tx.textContent = 'ODBLOKOWANIE...'; },1600);
-  setTimeout(()=>{
-    ov.classList.remove('poka');
-    pokazPopupSkrytki(sk);
-  },2400);
+  const sc=document.getElementById('scan'), tx=document.getElementById('scanTxt');
+  sc.classList.add('on'); tx.textContent='SKANOWANIE...';
+  setTimeout(()=>tx.textContent='SKRYTKA WYKRYTA',800);
+  setTimeout(()=>tx.textContent='ODBLOKOWANIE...',1600);
+  setTimeout(()=>{ sc.classList.remove('on'); pokazDrawer(sk); },2400);
 }
 
-function pokazPopupSkrytki(sk, bezSkanu){
-  aktualnaSk = sk;
-  document.getElementById('popupZagadka').textContent = sk.list || sk.zagadka || '…';
-  document.getElementById('popupAutoNick').textContent = 'wiadomość od: '+sk.autorNick;
-  document.getElementById('popupFaza1').style.display='block';
-  document.getElementById('popupFaza2').style.display='none';
-  document.getElementById('popupOdl').textContent = 'szukaj...';
-  const popup = document.getElementById('skrytkaPopup');
-  popup.classList.add('aktywny');
+function pokazDrawer(sk){
+  aktSk=sk;
+  document.getElementById('dList').textContent=sk.list||sk.zagadka||'…';
+  document.getElementById('dFrom').textContent='wiadomość od: '+sk.autorNick;
+  document.getElementById('dOdl').textContent='szukaj...';
+  document.getElementById('dFaza1').style.display='block';
+  document.getElementById('dFaza2').style.display='none';
+  const dr=document.getElementById('drawer');
+  dr.classList.remove('min'); dr.classList.add('on');
 }
 
-function potwierdzOdnalezienie(){
-  // Sprawdź czy w małym okręgu
-  if(!aktualnaSk||!mojaPoz) return;
-  const d = metrow(mojaPoz.lat,mojaPoz.lng,aktualnaSk.lat,aktualnaSk.lng);
-  if(d>20){
-    toast('Jesteś za daleko! Podejdź bliżej — '+Math.round(d)+'m','var(--akcent2)');
-    return;
+function drawerZamknij(){
+  const dr=document.getElementById('drawer');
+  dr.classList.remove('on','min');
+  if(aktSk){ 
+    odrzucone.add(aktSk.id); // zapamiętaj że użytkownik zamknął
+    aktSk=null;
   }
+}
+
+function drawerOdnalazlem(){
+  if(!aktSk||!mojaPoz){ toast('Brak GPS','var(--red)'); return; }
+  const d=dist(mojaPoz.lat,mojaPoz.lng,aktSk.lat,aktSk.lng);
+  if(d>20){ toast('Za daleko! '+Math.round(d)+'m od skrytki','var(--red)'); return; }
   pokazFaze2();
 }
 
-function przyznajPunkty(){
-  if(!aktualnaSk) return;
-  rozwiazaneSession.add(aktualnaSk.id);
-  gracz.punkty += 1;
-  gracz.wysylki += 2;
-  gracz.znalezione += 1;
-  zapiszGraczaLok();
-  aktualizujHUD();
-  Baza.setGracz(gracz.hash,{punkty:gracz.punkty,wysylki:gracz.wysylki,znalezione:gracz.znalezione});
-  if(aktualnaSk.autorNorm!==gracz.nickNorm){
-    Baza.zapiszRozwiazanie(aktualnaSk.id,gracz.nickNorm,aktualnaSk.autorNorm);
-  }
+function pokazFaze2(){
+  if(!aktSk) return;
+  znalezione.add(aktSk.id);
+  document.getElementById('dFaza1').style.display='none';
+  document.getElementById('dFaza2').style.display='block';
+  przyznajPunkty(aktSk);
+}
+
+function przyznajPunkty(sk){
+  G.punkty+=1; G.wysylki+=2; G.znalezione+=1; zapiszG(); hudUp();
+  DB.setGracz(G.hash,{punkty:G.punkty,wysylki:G.wysylki,znalezione:G.znalezione});
+  if(sk.autorNorm!==G.nickN) DB.nagrodzAutora(sk.id,sk.autorNorm);
   rysujSkrytki();
+  // Sukces overlay
+  const sv=document.getElementById('sukces');
+  sv.classList.add('on'); setTimeout(()=>sv.classList.remove('on'),3000);
 }
 
-function zamknijPopup(){
-  document.getElementById('skrytkaPopup').classList.remove('aktywny');
-  if(aktualnaSk) odblokowaneSk.delete(aktualnaSk.id);
-  aktualnaSk=null;
-}
-
-// sprawdzOdpowiedz zastąpiona przez potwierdzOdnalezienie()
-
-function pokazSukces(sk){
-  const ov = document.getElementById('sukcesOverlay');
-  document.getElementById('sukcesIkona').textContent='🔓';
-  document.getElementById('sukcesPkt').textContent='+1 PKT';
-  document.getElementById('sukcesTekst').textContent='SKRYTKA ODNALEZIONA';
-  document.getElementById('sukcesWys').textContent='+2 WYSYŁKI ODBLOKOWNE';
-  ov.classList.add('poka');
-  setTimeout(()=>ov.classList.remove('poka'),3000);
-}
-
-function przelaczWarstwy(){
-  if(!mapa_L) return;
-  const btn = document.getElementById('btnWarstwy');
-  if(mapa_L.hasLayer(warsKlasyczna)){
-    mapa_L.removeLayer(warsKlasyczna);
-    warsSatelita.addTo(mapa_L);
-    btn.textContent='🗺️';
-  } else {
-    mapa_L.removeLayer(warsSatelita);
-    warsKlasyczna.addTo(mapa_L);
-    btn.textContent='🛰️';
+/* DRAWER handle drag/tap */
+(function(){
+  let sy=0,st=0,drag=false;
+  function init(){
+    const h=document.getElementById('dHandle'); if(!h)return;
+    h.addEventListener('click',e=>{ if(!drag) toggleDrawer(); });
+    h.addEventListener('touchstart',e=>{ sy=e.touches[0].clientY; st=Date.now(); drag=false; },{passive:true});
+    h.addEventListener('touchmove',e=>{ if(Math.abs(e.touches[0].clientY-sy)>8)drag=true; },{passive:true});
+    h.addEventListener('touchend',e=>{
+      const dy=e.changedTouches[0].clientY-sy,dt=Date.now()-st,dr=document.getElementById('drawer');
+      if(Math.abs(dy)<10&&dt<300){toggleDrawer();}
+      else if(dy>40){dr.classList.add('min');}
+      else if(dy<-40){dr.classList.remove('min');}
+      setTimeout(()=>drag=false,50);
+    },{passive:true});
   }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',init);
+  else setTimeout(init,400);
+})();
+
+function chipKlik(idx){
+  if(!mojaPoz||!top2||!top2[idx]) return;
+  const {d,sk}=top2[idx];
+  // Sprawdź czy jesteś w zasięgu dużego okręgu
+  if(d>(sk.promien||100)){
+    const dm=Math.round(d);
+    const txt=dm<1000?dm+' m':(dm/1000).toFixed(1)+' km';
+    toast('📍 List dostępny dopiero z zasięgu — jeszcze '+txt);
+    return;
+  }
+  odrzucone.delete(sk.id);
+  odblokowane.delete(sk.id);
+  pokazDrawer(sk);
 }
 
-/* ════ ZOSTAWIANIE ════ */
-let markZost=null, okragZost=null;
-let wybranaPos=null;
-let trybWyboru=false; // czy mapa jest w trybie wyboru miejsca skrytki
+// top2 dostępne globalnie
+let top2=[];
 
-const CZAS_OPC = [{d:1,t:'1 dzień'},{d:7,t:'1 tydzień'},{d:30,t:'30 dni'},{d:90,t:'3 miesiące'},{d:365,t:'1 rok'},{d:36500,t:'Na zawsze ∞'}];
-
-function aktualizujCzas(){
-  const i=parseInt(document.getElementById('suwakCzas').value);
-  document.getElementById('czasVal').textContent=CZAS_OPC[i].t;
+function toggleDrawer(){
+  const dr=document.getElementById('drawer');
+  dr.classList.toggle('min');
 }
 
-function aktualizujPromien(){
-  const v=document.getElementById('suwakPromien').value;
-  document.getElementById('promienVal').textContent=v+' m';
-  if(okragZost){ okragZost.setRadius(parseInt(v)); }
+/* ════════════════════════════════
+   WYBÓR MIEJSCA na mapie
+════════════════════════════════ */
+let wTryb=false, wPoz=null, wMarker=null, wKolo=null;
+let odrzucone=new Set(); // zamknięte przez użytkownika — nie otwierać ponownie
+
+function wOtworzMape(){
+  wTryb=true;
+  // chip mapy
+  const chip=document.getElementById('mChip');
+  chip.textContent='📍 Dotknij mapę — wybierz miejsce'; chip.style.color='var(--gold)';
+  // pokaż widget
+  document.getElementById('wWidget').style.display='block';
+  document.getElementById('wDalej').disabled=true;
+  document.getElementById('wDalej').classList.remove('ok');
+  // przejdź na mapę BEZ anulowania trybu
+  document.querySelectorAll('.ekran').forEach(e=>e.classList.remove('on'));
+  document.getElementById('eMapa').classList.add('on');
+  ['nbMapa','nbZostaw','nbAkta','nbRank'].forEach(n=>document.getElementById(n).classList.remove('on'));
+  document.getElementById('nbMapa').classList.add('on');
+  setTimeout(()=>{ if(mapL){ mapL.invalidateSize(); mapL.on('click',onMapKlik); }},100);
 }
 
+function onMapKlik(e){ ustawPunkt(e.latlng.lat,e.latlng.lng); }
+
+function ustawPunkt(lat,lng){
+  wPoz=[lat,lng];
+  const r=parseInt(document.getElementById('wSuwak').value);
+  if(wMarker) mapL.removeLayer(wMarker);
+  if(wKolo)   mapL.removeLayer(wKolo);
+  const ik=L.divIcon({html:'<div style="font-size:26px;transform:translate(-50%,-88%)">📦</div>',className:'',iconSize:[1,1]});
+  wMarker=L.marker([lat,lng],{icon:ik}).addTo(mapL);
+  wKolo=L.circle([lat,lng],{radius:r,color:'rgba(255,215,0,.7)',fillColor:'rgba(255,215,0,.05)',weight:2,dashArray:'6 4'}).addTo(mapL);
+  // mały okrąg 20m
+  L.circle([lat,lng],{radius:20,color:'rgba(255,51,102,.6)',fillColor:'rgba(255,51,102,.04)',weight:1.5}).addTo(mapL);
+  // info w kroku 1
+  const inf=document.getElementById('z1info');
+  if(inf) inf.textContent='📍 '+lat.toFixed(4)+'°N, '+lng.toFixed(4)+'°E';
+  // aktywuj DALEJ
+  const btn=document.getElementById('wDalej');
+  btn.disabled=false; btn.classList.add('ok');
+}
+
+function wSuwakChange(){
+  const v=parseInt(document.getElementById('wSuwak').value);
+  document.getElementById('wSuwakVal').textContent=v+' m';
+  if(wKolo) wKolo.setRadius(v);
+}
+
+function wAnuluj(){
+  wTryb=false;
+  if(mapL) mapL.off('click',onMapKlik);
+  document.getElementById('wWidget').style.display='none';
+  const chip=document.getElementById('mChip');
+  chip.textContent='📡 SONAR AKTYWNY'; chip.style.color='var(--g)';
+  // usuń markery wyboru
+  if(wMarker){mapL.removeLayer(wMarker);wMarker=null;}
+  if(wKolo){mapL.removeLayer(wKolo);wKolo=null;}
+  wPoz=null;
+  // wróć do ZOSTAW
+  goEkran('eZostaw',true);
+  document.getElementById('nbZostaw').classList.add('on');
+  document.getElementById('nbMapa').classList.remove('on');
+}
+
+function wPotwierdz(){
+  if(!wPoz) return;
+  wTryb=false;
+  if(mapL) mapL.off('click',onMapKlik);
+  document.getElementById('wWidget').style.display='none';
+  const chip=document.getElementById('mChip');
+  chip.textContent='📡 SONAR AKTYWNY'; chip.style.color='var(--g)';
+  // wróć do ZOSTAW krok 2
+  goEkran('eZostaw',true);
+  document.getElementById('nbZostaw').classList.add('on');
+  document.getElementById('nbMapa').classList.remove('on');
+  krok(2);
+}
+
+/* ════════════════════════════════
+   KROKI ZOSTAWIANIA
+════════════════════════════════ */
 let zKrok=1;
-function krokDo(n){
-  if(n===2){
-    if(!wybranaPos){ toast('Wybierz miejsce na mapie','var(--akcent2)'); return; }
-  }
+function krok(n){
+  if(n===2 && !wPoz){ toast('Wybierz miejsce na mapie','var(--red)'); return; }
   if(n===3){
-    const z=document.getElementById('zagadkaInput').value.trim();
-    if(!z){ toast('Napisz list dla znalazcy','var(--akcent2)'); return; }
-    // aktualizuj podgląd
-    document.getElementById('podgladZagadka').textContent=z;
-    document.getElementById('podgladPoz').textContent=wybranaPos?wybranaPos[0].toFixed(4)+', '+wybranaPos[1].toFixed(4):'—';
-    document.getElementById('podgladPromien').textContent=document.getElementById('suwakPromien').value+' m';
-    document.getElementById('podgladWys').textContent=(gracz.wysylki-1)+' pozostanie';
+    const txt=document.getElementById('zTxt').value.trim();
+    if(!txt){ toast('Napisz podpowiedź dla poszukiwaczy','var(--red)'); return; }
+    document.getElementById('zPodgląd').textContent=txt;
+    document.getElementById('zPPoz').textContent=wPoz?wPoz[0].toFixed(4)+'°N':'—';
+    document.getElementById('zPProm').textContent=document.getElementById('wSuwak').value+' m';
+    document.getElementById('zPWys').textContent=(G.wysylki-1)+' pozostanie';
   }
   zKrok=n;
   [1,2,3].forEach(i=>{
-    const el=document.getElementById('zk'+i);
-    el.classList.remove('aktywny','zrobiony');
-    if(i<n) el.classList.add('zrobiony');
-    else if(i===n) el.classList.add('aktywny');
-    const kr=document.getElementById('zKrok'+i);
-    if(kr){ kr.classList.remove('aktywny'); }
+    const kk=document.getElementById('kk'+i), kr=document.getElementById('zk'+i);
+    kk.classList.remove('on','done'); if(kr) kr.classList.remove('on');
+    if(i<n) kk.classList.add('done');
+    else if(i===n){ kk.classList.add('on'); if(kr) kr.classList.add('on'); }
   });
-  const kr=document.getElementById('zKrok'+n);
-  if(kr) kr.classList.add('aktywny');
-  // krok 2 nie potrzebuje mapy
 }
 
-function idNaMapeDlaSkrytki(){
-  trybWyboru = true;
-  // Zmień chip
-  const chip = document.getElementById('sonarChip');
-  chip.textContent = '📍 Dotknij mapę — wybierz miejsce';
-  chip.style.color = 'var(--złoto)';
-  // Pokaż widget
-  document.getElementById('wybórWidget').style.display = 'block';
-  document.getElementById('btnDalej').disabled = true;
-  document.getElementById('btnDalej').style.opacity = '0.5';
-  // Przejdź na mapę
-  document.querySelectorAll('.ekran').forEach(e=>e.classList.remove('aktywny'));
-  document.getElementById('ekranMapa').classList.add('aktywny');
-  ['navMapa','navZostaw','navMoje','navRanking'].forEach(n=>document.getElementById(n).classList.remove('aktywny'));
-  setTimeout(()=>{ if(mapa_L) mapa_L.invalidateSize(); },100);
-  // Klik na mapę = ustaw punkt (wielokrotnie, nie once)
-  if(mapa_L) mapa_L.on('click', onMapaKlikWybor);
+function czasChange(){
+  const i=parseInt(document.getElementById('zCzas').value);
+  document.getElementById('zCzasVal').textContent=CZASY[i].t;
 }
 
-function onMapaKlikWybor(e){
-  ustawPunktZost(e.latlng.lat, e.latlng.lng);
-}
-
-function anulujWyborMiejsca(){
-  zakończTrybWyboru();
-  // Wróć do ZOSTAW bez zapisywania
-  wybranaPos = null;
-  if(markZost&&mapa_L){mapa_L.removeLayer(markZost);markZost=null;}
-  if(okragZost&&mapa_L){mapa_L.removeLayer(okragZost);okragZost=null;}
-  document.querySelectorAll('.ekran').forEach(e=>e.classList.remove('aktywny'));
-  document.getElementById('ekranZostaw').classList.add('aktywny');
-  document.getElementById('navZostaw').classList.add('aktywny');
-}
-
-function potwierdzMiejsce(){
-  if(!wybranaPos) return;
-  zakończTrybWyboru();
-  // Wróć do ZOSTAW krok 2
-  document.querySelectorAll('.ekran').forEach(e=>e.classList.remove('aktywny'));
-  document.getElementById('ekranZostaw').classList.add('aktywny');
-  document.getElementById('navZostaw').classList.add('aktywny');
-  krokDo(2);
-}
-
-function zakończTrybWyboru(){
-  trybWyboru = false;
-  if(mapa_L) mapa_L.off('click', onMapaKlikWybor);
-  document.getElementById('wybórWidget').style.display = 'none';
-  const chip = document.getElementById('sonarChip');
-  chip.textContent = '📡 SONAR AKTYWNY';
-  chip.style.color = '';
-}
-
-function ustawPunktZost(lat,lng){
-  wybranaPos=[lat,lng];
-  const r=parseInt(document.getElementById('suwakPromien').value);
-  if(markZost) mapa_L.removeLayer(markZost);
-  if(okragZost) mapa_L.removeLayer(okragZost);
-  const ik=L.divIcon({html:'<div style="font-size:28px;transform:translate(-50%,-90%)">📦</div>',className:'',iconSize:[1,1]});
-  markZost=L.marker([lat,lng],{icon:ik}).addTo(mapa_L);
-  okragZost=L.circle([lat,lng],{radius:r,color:'rgba(255,215,0,0.7)',fillColor:'rgba(255,215,0,0.05)',weight:2,dashArray:'6 4'}).addTo(mapa_L);
-  // Odblokuj przycisk DALEJ na mapie
-  const btnD = document.getElementById('btnDalej');
-  if(btnD){ btnD.disabled=false; btnD.style.opacity='1'; btnD.style.background='rgba(0,255,136,0.3)'; btnD.style.color='#ffffff'; btnD.style.borderColor='rgba(0,255,136,0.8)'; }
-  // Aktualizuj info w kroku 1 (jeśli widoczny)
-  const info = document.getElementById('mapaZostInfo');
-  if(info) info.textContent = '📍 '+lat.toFixed(4)+'°N, '+lng.toFixed(4)+'°E';
-  document.getElementById('btnDoKrok2').disabled=false;
-}
-
-async function opublikujSkrytke(){
-  if(!gracz||!wybranaPos) return;
-  if(gracz.wysylki<1){ toast('Brak wysyłek! Znajdź skrytki żeby odblokować.','var(--akcent2)'); return; }
-  const zagadka=document.getElementById('zagadkaInput').value.trim();
-  if(!zagadka){ toast('Napisz podpowiedź dla poszukiwaczy','var(--akcent2)'); return; }
-  const btn=document.getElementById('btnPubl');
-  btn.disabled=true; btn.textContent='UKRYWAM...';
-  const czasIdx=parseInt(document.getElementById('suwakCzas').value);
-  const dni=CZAS_OPC[czasIdx].d;
-  const now=Date.now();
+async function publikuj(){
+  if(!G||!wPoz){ toast('Brak miejsca!','var(--red)'); return; }
+  if(G.wysylki<1){ toast('Brak wysyłek!','var(--red)'); return; }
+  const txt=document.getElementById('zTxt').value.trim();
+  if(!txt){ toast('Napisz podpowiedź!','var(--red)'); return; }
+  const btn=document.getElementById('zPublBtn'); btn.disabled=true; btn.textContent='UKRYWAM...';
+  const ci=parseInt(document.getElementById('zCzas').value), now=Date.now();
   const rek={
-    autorNick:gracz.nick, autorNorm:gracz.nickNorm,
-    lat:wybranaPos[0], lng:wybranaPos[1],
-    promien:parseInt(document.getElementById('suwakPromien').value),
-    list: zagadka,
-    aktywna:true,
-    rozwiazania:0,
-    wygasa:now+dni*24*60*60*1000,
-    utworzono:now
+    autorNick:G.nick, autorNorm:G.nickN,
+    lat:wPoz[0], lng:wPoz[1],
+    promien:parseInt(document.getElementById('wSuwak').value),
+    list:txt, aktywna:true, rozwiazania:0,
+    wygasa:now+CZASY[ci].d*86400000, utworzono:now
   };
   try{
-    await Baza.dodajSkrytke(rek);
-    gracz.wysylki--;
-    gracz.zostawione++;
-    zapiszGraczaLok();
-    aktualizujHUD();
-    await Baza.setGracz(gracz.hash,{wysylki:gracz.wysylki,zostawione:gracz.zostawione});
-    // refresh skrytek
-    ladujSkrytki();
-    // sukces
-    [1,2,3].forEach(i=>{ const el=document.getElementById('zKrok'+i); if(el) el.classList.remove('aktywny'); ['zk'+i].forEach(n=>{ const x=document.getElementById(n); if(x) x.classList.remove('aktywny','zrobiony'); }); });
-    document.getElementById('zKrokOK').classList.add('aktywny');
-    [1,2,3].forEach(i=>{ const x=document.getElementById('zk'+i); if(x){x.classList.remove('aktywny'); x.classList.add('zrobiony');} });
-  }catch(e){ console.error(e); toast('Błąd zapisu','var(--akcent2)'); }
+    await DB.dodajSkrytke(rek);
+    G.wysylki--; G.zostawione++; zapiszG(); hudUp();
+    await DB.setGracz(G.hash,{wysylki:G.wysylki,zostawione:G.zostawione});
+    await ladujSkrytki();
+    // pokaż sukces
+    [1,2,3].forEach(i=>{ document.getElementById('zk'+i).classList.remove('on'); document.getElementById('kk'+i).classList.remove('on'); document.getElementById('kk'+i).classList.add('done'); });
+    document.getElementById('zkOK').classList.add('on');
+    toast('Skrytka ukryta! 📦');
+  }catch(e){ console.error(e); toast('Błąd zapisu','var(--red)'); }
   finally{ btn.disabled=false; btn.textContent='UKRYJ SKRYTKĘ 📦'; }
 }
 
-function resetZostawania(){
-  wybranaPos=null; zKrok=1;
-  if(markZost&&mapa_L){mapa_L.removeLayer(markZost);markZost=null;}
-  if(okragZost&&mapa_L){mapa_L.removeLayer(okragZost);okragZost=null;}
-  document.getElementById('zagadkaInput').value='';
-  document.getElementById('zagadkaLicz').textContent='0';
-  document.getElementById('mapaZostInfo').textContent='Dotknij mapę → postaw skrytkę';
-  document.getElementById('btnDoKrok2').disabled=true;
-  document.getElementById('zKrokOK').classList.remove('aktywny');
-  krokDo(1);
+function resetZostaw(){
+  wPoz=null; zKrok=1;
+  if(wMarker&&mapL){mapL.removeLayer(wMarker);wMarker=null;}
+  if(wKolo&&mapL){mapL.removeLayer(wKolo);wKolo=null;}
+  document.getElementById('zTxt').value='';
+  document.getElementById('zCnt').textContent='0';
+  document.getElementById('z1info').textContent='Brak wybranego miejsca';
+  document.getElementById('z1dalej').disabled=true;
+  document.getElementById('zkOK').classList.remove('on');
+  [1,2,3].forEach(i=>{ document.getElementById('zk'+i).classList.remove('on'); const kk=document.getElementById('kk'+i); kk.classList.remove('on','done'); });
+  document.getElementById('kk1').classList.add('on');
+  document.getElementById('zk1').classList.add('on');
 }
 
-/* ════ MOJE AKTA ════ */
-async function ladujMoje(){
-  if(!gracz) return;
-  // stat
-  document.getElementById('statPkt').textContent=gracz.punkty;
-  document.getElementById('statWys').textContent=gracz.wysylki;
-  document.getElementById('statZostawione').textContent=gracz.zostawione;
-  document.getElementById('statZnalezione').textContent=gracz.znalezione;
-  // ranga
-  const r=ranga(gracz.punkty);
-  document.getElementById('rangaIkona').textContent=r.ikona;
-  document.getElementById('rangaNazwa').textContent=r.nazwa;
-  document.getElementById('rangaOpis').textContent=r.opis;
+/* ════════════════════════════════
+   AKTA
+════════════════════════════════ */
+async function ladujAkta(){
+  if(!G) return;
+  document.getElementById('aPkt').textContent=G.punkty;
+  document.getElementById('aWys').textContent=G.wysylki;
+  document.getElementById('aZost').textContent=G.zostawione;
+  document.getElementById('aZnal').textContent=G.znalezione;
+  const r=ranga(G.punkty);
+  document.getElementById('aRI').textContent=r.i;
+  document.getElementById('aRN').textContent=r.n;
+  document.getElementById('aRO').textContent=r.o;
   // wysyłki bar
-  const bar=document.getElementById('wysylkiBar');
-  bar.innerHTML='';
-  const maks=Math.max(gracz.wysylki,10);
-  for(let i=0;i<maks;i++){
-    const d=document.createElement('div');
-    d.className='wysylka-pkt'+(i<gracz.wysylki?' aktywna':'');
-    bar.appendChild(d);
-  }
-  const lab=document.createElement('span');
-  lab.className='wysylki-lab';
-  lab.textContent=gracz.wysylki+' dostępnych';
-  bar.appendChild(lab);
-  // Skrytki
-  const box=document.getElementById('mojeSkrytki');
-  box.innerHTML='<div class="ladowanie">ŁADOWANIE...</div>';
+  const bar=document.getElementById('aWBar'); bar.innerHTML='';
+  const maks=Math.max(G.wysylki,10);
+  for(let i=0;i<maks;i++){ const d=document.createElement('div'); d.className='wdot'+(i<G.wysylki?' on':''); bar.appendChild(d); }
+  const lb=document.createElement('span'); lb.className='wlab'; lb.textContent=G.wysylki+' dostępnych'; bar.appendChild(lb);
+  // moje skrytki
+  const box=document.getElementById('aMoje'); box.innerHTML='<div class="load">ŁADOWANIE...</div>';
   try{
-    const lista=await Baza.pobierzMojeSkrytki(gracz.nickNorm);
-    if(!lista.length){ box.innerHTML='<div class="pusto"><span class="ikon">📦</span>Nie zostawiłeś jeszcze żadnej skrytki</div>'; return; }
-    const now=Date.now();
-    box.innerHTML='';
+    const lista=await DB.pobierzMoje(G.nickN);
+    if(!lista.length){ box.innerHTML='<div class="pusto"><span>📦</span>Nie zostawiłeś jeszcze żadnej skrytki</div>'; return; }
+    const now=Date.now(); box.innerHTML='';
     lista.forEach(sk=>{
-      const aktywna=(!sk.wygasa||sk.wygasa>now)&&sk.aktywna;
-      const d=document.createElement('div');
-      d.className='skrytka-karta';
-      d.innerHTML=`
-        <div class="sk-naglowek">
-          <span class="sk-badge ${aktywna?'sk-badge-akt':'sk-badge-wygasla'}">${aktywna?'● AKTYWNA':'○ WYGASŁA'}</span>
-          <span style="font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--tekst-cichy)">${sk.rozwiazania||0}× rozwiązana</span>
-        </div>
-        <div class="sk-zagadka">"${esc(sk.list||sk.zagadka||'…')}"</div>
-        <div class="sk-meta">
-          <span>📍 ${sk.lat?sk.lat.toFixed(3)+'°N':'-'}</span>
-          <span>⭕ ${sk.promien||60}m</span>
-          <span>${sk.rozwiazania?'🏆 +'+((sk.rozwiazania||0)*2)+' pkt zdobyte':''}</span>
-        </div>`;
+      const ok=sk.aktywna&&(!sk.wygasa||sk.wygasa>now);
+      const d=document.createElement('div'); d.className='sk-karta';
+      const rozw = sk.rozwiazania||0;
+      const rozKol = rozw===0?'var(--txt3)':rozw<3?'var(--g)':'var(--gold)';
+      const rozTxt = rozw===0?'nikt jeszcze':rozw===1?'1 agent':rozw+' agentów';
+      d.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <span class="sk-badge ${ok?'sk-a':'sk-w'}">${ok?'● AKTYWNA':'○ WYGASŁA'}</span>
+        <span style="font-family:'Share Tech Mono',monospace;font-size:11px;color:${rozKol};font-weight:700">👁 ${rozTxt}</span>
+      </div>
+      <div class="sk-txt">"${esc(sk.list||sk.zagadka||'')}"</div>
+      <div class="sk-meta"><span>📍 ${sk.lat?sk.lat.toFixed(3)+'°N':'—'}</span><span>⭕ ${sk.promien||100}m</span>${rozw?`<span>🏆 +${rozw*2} pkt zdobyte</span>`:''}</div>`;
       box.appendChild(d);
     });
   }catch(e){ box.innerHTML='<div class="pusto">Błąd ładowania</div>'; }
 }
 
-/* ════ RANKING ════ */
+/* ════════════════════════════════
+   RANKING
+════════════════════════════════ */
 async function ladujRanking(){
-  const box=document.getElementById('rankingLista');
-  box.innerHTML='<div class="ladowanie">POBIERANIE RANKINGU...</div>';
+  const box=document.getElementById('rankLista'); box.innerHTML='<div class="load">POBIERANIE...</div>';
   try{
-    const lista=await Baza.pobierzRanking();
-    if(!lista.length){ box.innerHTML='<div class="pusto"><span class="ikon">🏆</span>Ranking pusty — bądź pierwszy!</div>'; return; }
+    const lista=await DB.pobierzRanking();
+    if(!lista.length){ box.innerHTML='<div class="pusto"><span>🏆</span>Ranking pusty — bądź pierwszy!</div>'; return; }
     box.innerHTML='';
     lista.forEach((g,i)=>{
-      const jaJa=gracz&&g.nickNorm===gracz.nickNorm;
-      const r=ranga(g.punkty||0);
-      const poz=i+1;
-      let klPoz='rank-poz';
-      if(poz===1) klPoz+=' zloto';
-      else if(poz===2) klPoz+=' srebro';
-      else if(poz===3) klPoz+=' braz';
-      const d=document.createElement('div');
-      d.className='rank-wiersz'+(jaJa?' ja':'');
-      d.innerHTML=`
-        <div class="${klPoz}">${poz===1?'👑':poz===2?'🥈':poz===3?'🥉':poz}</div>
-        <div class="rank-info">
-          <div class="rank-nick">${esc(g.nick||'?')}${jaJa?' ← TY':''}</div>
-          <div class="rank-ranga">${r.ikona} ${r.nazwa} · ${g.znalezione||0} znalezionych · ${g.zostawione||0} zostawionych</div>
-        </div>
-        <div class="rank-pkt">${g.punkty||0}</div>`;
+      const jaJa=G&&g.nickNorm===G.nickN, r=ranga(g.punkty||0), poz=i+1;
+      let pc='rpos'; if(poz===1)pc+=' g1'; else if(poz===2)pc+=' g2'; else if(poz===3)pc+=' g3';
+      const d=document.createElement('div'); d.className='rw'+(jaJa?' ja':'');
+      d.innerHTML=`<div class="${pc}">${poz===1?'👑':poz===2?'🥈':poz===3?'🥉':poz}</div><div style="flex:1"><div class="rnick">${esc(g.nick||'?')}${jaJa?' ← TY':''}</div><div class="rranga">${r.i} ${r.n} · ${g.znalezione||0} znaleziono · ${g.zostawione||0} zostawiono</div></div><div class="rpkt">${g.punkty||0}</div>`;
       box.appendChild(d);
     });
-    document.getElementById('rankingCzas').textContent=new Date().toLocaleTimeString('pl-PL');
-  }catch(e){ box.innerHTML='<div class="pusto">Błąd pobierania rankingu</div>'; }
+    document.getElementById('rankCzas').textContent=new Date().toLocaleTimeString('pl-PL');
+  }catch(e){ box.innerHTML='<div class="pusto">Błąd pobierania</div>'; }
 }
-
-/* ════ INIT ════ */
-// Intro textów rotacja już uruchomiona powyżej
-// Jeśli gracz był zalogowany — pokaż od razu po intro
 </script>
 </body>
 </html>
