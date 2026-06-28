@@ -3,604 +3,2055 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Troplist — listy ukryte w nocy</title>
-<meta name="description" content="Troplist — wyszukiwarka ukrytych listów. Wpisz imię i sprawdź, czy ktoś zostawił dla Ciebie słowa.">
-<meta name="theme-color" content="#060608">
-<link rel="manifest" href="manifest.json">
-<link rel="icon" href="favicon-32.png" sizes="32x32">
-<link rel="apple-touch-icon" href="apple-touch-icon.png">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Troplist">
-
-<!-- ════ PODGLĄD LINKU (Facebook, Messenger, WhatsApp, SMS-y ze wsparciem podglądu itd.) ════ -->
-<!-- WAŻNE: podmień adresy poniżej na te, pod którymi faktycznie umieścisz tę stronę na mini-klik.pl -->
-<meta property="og:title" content="Troplist — czy ktoś zostawił dla Ciebie list?">
-<meta property="og:description" content="Wpisz imię i sprawdź, czy w zasięgu nie czeka na Ciebie ukryty list.">
+<title>SKRYTKA — Podejmij Wyzwanie</title>
+<meta property="og:title" content="SKRYTKA — Podejmij Wyzwanie">
+<meta property="og:description" content="Ukryj zagadkę w prawdziwym miejscu. Ktoś ją znajdzie. Albo nie.">
 <meta property="og:type" content="website">
-<meta property="og:url" content="https://mini-klik.pl/troplist/szukaj/">
-<meta property="og:image" content="https://mini-klik.pl/troplist/szukaj/podglad-odbiorca.png">
-<meta property="og:locale" content="pl_PL">
-<meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Troplist — czy ktoś zostawił dla Ciebie list?">
-<meta name="twitter:description" content="Wpisz imię i sprawdź, czy w zasięgu nie czeka na Ciebie ukryty list.">
-<meta name="twitter:image" content="https://mini-klik.pl/troplist/szukaj/podglad-odbiorca.png">
-
-<!-- ════ ZAPISZ NA EKRANIE GŁÓWNYM / PWA ════ -->
-<link rel="manifest" href="manifest.json">
-<link rel="icon" href="favicon-32.png" sizes="32x32">
-<link rel="apple-touch-icon" href="apple-touch-icon.png">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Troplist">
-<meta name="mobile-web-app-capable" content="yes">
-
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,400;1,500;1,600&family=Outfit:wght@200;300;400;500;600&family=La+Belle+Aurore&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+
 <style>
-:root{
-  --bg:#060608; --surface:#0F0F13; --surface2:#15151c;
-  --text:#F4F0EA; --text2:#A3A3B5; --muted:#6E6F85; --faint:#4c4d60;
-  --gold:#E5B869; --gold2:#F0C882; --teal:#8BA3A3; --rose:#c45a6e;
+:root {
+  --czerń: #07070f;
+  --grafit: #0e0e1a;
+  --panel: #13131f;
+  --panel2: #1c1c2e;
+  --panel3: #232338;
+  --ramka: rgba(0,255,136,0.15);
+  --ramka2: rgba(0,255,136,0.35);
+  --akcent: #00ff88;
+  --akcent-dim: rgba(0,255,136,0.6);
+  --akcent2: #ff3366;
+  --akcent2-dim: rgba(255,51,102,0.6);
+  --złoto: #ffd700;
+  --złoto-dim: rgba(255,215,0,0.5);
+  --tekst: #c8c8f0;
+  --tekst-jasny: #e8e8ff;
+  --tekst-cichy: #555580;
+  --tekst-sredni: #8888bb;
+  --r: 4px;
+  --cień: 0 0 30px rgba(0,255,136,0.08);
+  --cień-g: 0 0 60px rgba(0,255,136,0.15);
 }
-*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-html,body{height:100%}
-body{
-  font-family:'Outfit',system-ui,sans-serif;font-weight:300;
-  background:var(--bg);color:var(--text);overflow-x:hidden;
-  -webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;
+
+* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+html, body { height:100%; overflow:hidden; }
+
+body {
+  font-family: 'Inter', sans-serif;
+  background: var(--czerń);
+  color: var(--tekst);
+  position: relative;
 }
-.font-heading{font-family:'Cormorant Garamond',serif}
-.font-hand{font-family:'La Belle Aurore',cursive}
-::selection{background:rgba(229,184,105,.28);color:#fff}
-::-webkit-scrollbar{width:9px;height:9px}
-::-webkit-scrollbar-track{background:transparent}
-::-webkit-scrollbar-thumb{background:rgba(229,184,105,.16);border-radius:20px}
-::-webkit-scrollbar-thumb:hover{background:rgba(229,184,105,.3)}
-button{font-family:inherit;cursor:pointer}
-input{font-family:inherit}
 
-/* ── Ambiance ── */
-#ambiance{position:fixed;inset:0;z-index:-10;overflow:hidden;background:var(--bg)}
-.glow{position:absolute;border-radius:50%;filter:blur(120px)}
-.glow.a{top:-25%;left:-25%;width:70vh;height:70vh;background:radial-gradient(circle,rgba(229,184,105,.10),transparent 70%);animation:glowPulse 9s ease-in-out infinite}
-.glow.b{bottom:-25%;right:-25%;width:75vh;height:75vh;background:radial-gradient(circle,rgba(139,163,163,.10),transparent 70%);animation:glowPulse 11s ease-in-out infinite}
-.glow.c{left:50%;top:33%;width:40vh;height:40vh;transform:translateX(-50%);background:radial-gradient(circle,rgba(196,90,110,.08),transparent 70%);filter:blur(100px)}
-#stars{position:absolute;inset:0;animation:drift 60s linear infinite alternate}
-.star{position:absolute;border-radius:50%;background:#f4f0ea}
-.vignette{position:absolute;inset:0;background:radial-gradient(circle at 50% 30%,transparent 30%,rgba(0,0,0,.55) 100%)}
-@keyframes glowPulse{0%,100%{opacity:.5}50%{opacity:.85}}
-@keyframes drift{0%{transform:translate3d(0,0,0)}100%{transform:translate3d(-40px,-30px,0)}}
-@keyframes twinkle{0%,100%{opacity:.15;transform:scale(.8)}50%{opacity:.9;transform:scale(1.15)}}
+/* ══════════════════════════════════════
+   SIATKA TŁA
+══════════════════════════════════════ */
+body::before {
+  content:'';
+  position:fixed; inset:0; z-index:0;
+  background-image:
+    linear-gradient(rgba(0,255,136,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,255,136,0.03) 1px, transparent 1px);
+  background-size: 40px 40px;
+  pointer-events:none;
+}
 
-/* ── Screens ── */
-.screen{display:none;min-height:100vh}
-.screen.active{display:block;animation:fadeUp .6s cubic-bezier(.22,1,.36,1) both}
-@keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
-@keyframes fadeIn{from{opacity:0}to{opacity:1}}
-@keyframes cardIn{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:none}}
-@keyframes paperIn{from{opacity:0;transform:translateY(40px) rotateX(16deg) scale(.96)}to{opacity:1;transform:none}}
+/* ══════════════════════════════════════
+   LAYOUT GŁÓWNY
+══════════════════════════════════════ */
+#app {
+  position:relative; z-index:2;
+  height:100vh;
+  display:flex; flex-direction:column;
+  max-width:560px; margin:0 auto;
+  overflow:hidden;
+}
 
-.center{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:24px;text-align:center}
-.wrap{width:100%;max-width:42rem;margin:0 auto}
-.glow-gold{text-shadow:0 0 22px rgba(229,184,105,.45)}
+.ekran { display:none; flex:1; overflow-y:auto; padding:16px 16px 90px; animation: wejscie .4s ease both; }
+.ekran.aktywny { display:flex; flex-direction:column; }
+@keyframes wejscie { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:none} }
 
-/* ── Intro ── */
-.intro-eyebrow{display:flex;flex-direction:column;align-items:center;gap:.25rem;font-family:'La Belle Aurore',cursive;font-size:1.75rem;letter-spacing:.08em;color:var(--teal);opacity:0;animation:fadeIn 1.4s ease forwards}
-.intro-eyebrow span{line-height:1.15}
-.intro-brand{font-family:'Cormorant Garamond',serif;font-weight:300;font-size:clamp(4rem,14vw,7rem);line-height:1;margin-top:1rem;letter-spacing:.02em;opacity:0;animation:introBrand 1.8s cubic-bezier(.22,1,.36,1) .2s forwards}
-@keyframes introBrand{from{opacity:0;transform:translateY(22px);letter-spacing:.4em}to{opacity:1;transform:none;letter-spacing:.02em}}
-.intro-brand em{font-style:italic;color:var(--gold)}
-.intro-q{font-family:'Cormorant Garamond',serif;font-weight:300;font-style:italic;font-size:clamp(1.5rem,5vw,1.875rem);color:var(--text2);margin-top:2rem;opacity:0;transition:opacity 1.2s ease,filter 1.2s ease}
-.intro-enter{margin-top:3.5rem;display:inline-flex;align-items:center;gap:.75rem;border:1px solid rgba(229,184,105,.4);background:rgba(255,255,255,.03);color:var(--gold);padding:.875rem 2.25rem;border-radius:999px;font-size:.875rem;text-transform:uppercase;letter-spacing:.25em;backdrop-filter:blur(16px);opacity:0;transform:translateY(10px);transition:opacity .8s ease,transform .8s ease,background .2s ease}
-.intro-enter:hover{background:rgba(229,184,105,.1);transform:scale(1.04)}
-.intro-enter .arr{transition:transform .3s ease}
-.intro-enter:hover .arr{transform:translateX(4px)}
-.intro-skip{position:absolute;bottom:5.5rem;left:50%;transform:translateX(-50%);background:none;border:none;color:var(--muted);font-size:.75rem;text-transform:uppercase;letter-spacing:.3em;transition:color .2s}
-.intro-skip:hover{color:var(--text2)}
+/* ══════════════════════════════════════
+   INTRO
+══════════════════════════════════════ */
+#intro {
+  position:fixed; inset:0; z-index:9999;
+  display:flex; flex-direction:column;
+  align-items:center; justify-content:center;
+  background: var(--czerń);
+  overflow:hidden;
+}
 
-/* ── Search ── */
-.eyebrow{display:flex;align-items:center;justify-content:center;gap:.75rem;font-size:11px;text-transform:uppercase;letter-spacing:.3em;color:var(--muted);margin-bottom:.5rem}
-.eyebrow .ln{height:1px;width:2rem;background:rgba(229,184,105,.4)}
-.search-form{position:relative;width:100%;max-width:42rem}
-.input-wrap{position:relative}
-.big-input{width:100%;background:transparent;border:none;outline:none;caret-color:var(--gold);text-align:center;font-family:'Cormorant Garamond',serif;font-weight:300;font-size:clamp(3rem,9vw,3.75rem);color:var(--text);padding-bottom:1rem}
-.big-input::placeholder{color:var(--faint)}
-.underline{position:absolute;bottom:0;left:50%;transform:translateX(-50%);height:1px;width:42%;opacity:.4;background:linear-gradient(90deg,transparent,var(--gold),transparent);transition:width .5s cubic-bezier(.22,1,.36,1),opacity .5s}
-.has-val .underline{width:100%;opacity:1}
-.submit-btn{margin:2.5rem auto 0;display:inline-flex;align-items:center;gap:.6rem;height:3.5rem;padding:0 2rem;border-radius:999px;border:1px solid rgba(229,184,105,.7);background:linear-gradient(135deg,#f0c882,#caa153);color:#1c1404;font-weight:600;font-size:1rem;letter-spacing:.04em;box-shadow:0 10px 28px -8px rgba(229,184,105,.55);opacity:0;transform:scale(.6) translateY(8px);transition:opacity .3s,transform .3s,filter .2s,box-shadow .2s;pointer-events:none}
-.has-val .submit-btn{opacity:1;transform:scale(1);pointer-events:auto}
-.submit-btn:hover{filter:brightness(1.08);transform:scale(1.05);box-shadow:0 14px 32px -8px rgba(229,184,105,.7)}
-.submit-btn:active{transform:scale(.96)}
-.submit-btn .arr{transition:transform .25s ease}
-.submit-btn:hover .arr{transform:translateX(4px)}
-.submit-btn.loading{pointer-events:none}
-.dh{margin-top:3rem;font-family:'La Belle Aurore',cursive;font-size:1.625rem;line-height:1.5;color:var(--muted)}
+#intro::before {
+  content:'';
+  position:absolute; inset:0;
+  background:
+    radial-gradient(ellipse at 30% 20%, rgba(0,255,136,0.06) 0%, transparent 50%),
+    radial-gradient(ellipse at 70% 80%, rgba(255,51,102,0.04) 0%, transparent 50%);
+}
 
-/* ── List screens ── */
-.page{max-width:42rem;margin:0 auto;padding:0 1.25rem 6rem;min-height:100vh}
-.header{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:1rem;margin:0 -1.25rem;padding:1.25rem;background:rgba(6,6,8,.7);backdrop-filter:blur(16px)}
-.icon-btn{display:flex;align-items:center;justify-content:center;height:2.5rem;width:2.5rem;border-radius:50%;border:1px solid rgba(255,255,255,.1);background:none;color:var(--text2);font-size:1.1rem;transition:.2s}
-.icon-btn:hover{border-color:rgba(229,184,105,.4);color:var(--gold)}
-.back-btn{display:inline-flex;align-items:center;gap:.45rem;height:2.6rem;padding:0 1.15rem 0 .9rem;border-radius:999px;border:1px solid rgba(229,184,105,.45);background:rgba(229,184,105,.1);color:var(--gold);font-size:.8rem;font-weight:600;text-transform:uppercase;letter-spacing:.12em;white-space:nowrap;transition:.2s;flex-shrink:0}
-.back-btn .arrow{font-size:1.05rem;line-height:1;transition:transform .2s ease}
-.back-btn:hover{background:rgba(229,184,105,.2);border-color:rgba(229,184,105,.7)}
-.back-btn:hover .arrow{transform:translateX(-3px)}
-.back-btn:active{transform:scale(.96)}
+.intro-sonar {
+  position:absolute;
+  width:600px; height:600px;
+  border-radius:50%;
+  top:50%; left:50%;
+  transform:translate(-50%,-50%);
+}
 
-.site-footer{position:fixed;left:0;right:0;bottom:0;z-index:60;display:flex;justify-content:center;padding:1.1rem 1.25rem calc(1.1rem + env(safe-area-inset-bottom));background:rgba(6,6,8,.92);backdrop-filter:blur(14px);border-top:1px solid rgba(229,184,105,.25)}
-.site-footer a{font-family:'Cormorant Garamond',serif;font-style:italic;font-weight:500;font-size:1.15rem;color:var(--gold);text-decoration:none;letter-spacing:.01em;transition:.2s;display:inline-flex;align-items:center;gap:.5rem;text-align:center}
-.site-footer a:hover{filter:brightness(1.15)}
-.site-footer .pen{font-size:1.3rem}
-.header .htitle{font-size:.75rem;text-transform:uppercase;letter-spacing:.3em;color:var(--muted)}
-.lead{margin-top:.5rem;text-align:center}
-.lead .kicker{font-size:.75rem;text-transform:uppercase;letter-spacing:.3em;color:var(--muted)}
-.lead .big{font-family:'Cormorant Garamond',serif;font-weight:300;font-size:clamp(3rem,8vw,3.75rem);margin-top:.25rem}
-.lead .hand{font-family:'La Belle Aurore',cursive;font-size:1.25rem;color:var(--teal);margin-top:.75rem}
-.lead .sub{font-size:.95rem;color:var(--teal);margin-top:.5rem}
-.loc-btn{margin:1.5rem auto 0;display:flex;align-items:center;gap:.5rem;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.03);border-radius:999px;padding:.375rem 1rem;font-size:.75rem;text-transform:uppercase;letter-spacing:.15em;color:var(--text2);transition:.2s}
-.loc-btn:hover{border-color:rgba(229,184,105,.4);color:var(--gold)}
-.cards{margin-top:2.5rem;display:flex;flex-direction:column;gap:.875rem}
-.card{display:flex;align-items:center;gap:1.25rem;width:100%;text-align:left;border:1px solid rgba(255,255,255,.06);background:rgba(15,15,19,.8);border-radius:1rem;padding:1.4rem 1.5rem;backdrop-filter:blur(12px);transition:transform .25s,border-color .25s;opacity:0;animation:cardIn .55s cubic-bezier(.22,1,.36,1) both}
-.card:hover{transform:translateY(-5px);border-color:rgba(229,184,105,.3)}
-.card .ic{flex:none;display:flex;align-items:center;justify-content:center;height:3rem;width:3rem;border-radius:50%;border:1px solid rgba(229,184,105,.2);background:rgba(229,184,105,.05);color:var(--gold);font-size:1.2rem}
-.card.letter .ic{border-radius:.75rem;height:2.75rem;width:2.75rem}
-.card .info{flex:1;min-width:0}
-.card .name{font-family:'La Belle Aurore',cursive;font-size:1.5rem;color:var(--text);display:block;line-height:1.2}
-.card .name.lit{font-family:'Cormorant Garamond',serif;font-style:italic;font-size:1.25rem}
-.card .meta{margin-top:.15rem;display:flex;align-items:center;gap:.75rem;font-size:.7rem;text-transform:uppercase;letter-spacing:.18em;color:var(--muted)}
-.card .meta .dot{height:6px;width:6px;border-radius:50%;background:var(--gold);display:inline-block;margin-right:.4rem;animation:twinkle 2.4s ease-in-out infinite;vertical-align:middle}
-.card .meta .dist{color:var(--teal)}
-.card .prev{margin-top:.15rem;font-size:.85rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.card .chev{flex:none;color:var(--muted);font-size:1.3rem;transition:.25s}
-.card:hover .chev{transform:translateX(4px);color:var(--gold)}
+.intro-fala {
+  position:absolute; inset:0;
+  border-radius:50%;
+  border:1px solid var(--akcent);
+  opacity:0;
+  animation: introFala 3s ease-out infinite;
+}
+.intro-fala:nth-child(2) { animation-delay:1s; }
+.intro-fala:nth-child(3) { animation-delay:2s; }
 
-/* ── Empty ── */
-.empty{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:5rem 1.5rem}
-.empty .mark{font-family:'Cormorant Garamond',serif;font-size:4rem;color:#2c2d3a}
-.empty p{font-family:'Cormorant Garamond',serif;font-weight:300;font-style:italic;font-size:1.5rem;line-height:1.35;color:var(--text2);max-width:28rem;margin-top:1.5rem}
-.empty p b{color:var(--gold);font-weight:400}
-.empty .again{margin-top:2.5rem;background:none;border:none;border-bottom:1px solid rgba(229,184,105,.4);color:var(--gold);padding-bottom:.25rem;font-size:.875rem;text-transform:uppercase;letter-spacing:.2em;transition:.2s}
-.empty .again:hover{border-color:var(--gold)}
+@keyframes introFala {
+  0%   { transform:scale(0); opacity:0.8; }
+  100% { transform:scale(1); opacity:0; }
+}
 
-/* ── Reader ── */
-.reader-screen{display:none;flex-direction:column;align-items:center;min-height:100vh;padding:2rem 1.25rem}
-.reader-screen.active{display:flex}
-.reader-top{display:flex;width:100%;max-width:42rem;align-items:center;justify-content:space-between}
-.dist-chip{display:none;align-items:center;gap:.4rem;border:1px solid rgba(229,184,105,.3);border-radius:999px;padding:.4rem .9rem;font-size:11px;text-transform:uppercase;letter-spacing:.2em;color:var(--gold)}
-.dist-chip.show{display:flex}
-.paper{position:relative;margin-top:2rem;width:100%;max-width:42rem;flex:1;overflow:hidden;border-radius:20px;border:1px solid rgba(255,255,255,.08);background:linear-gradient(180deg,var(--surface2),#0d0d12);padding:3rem 1.75rem;box-shadow:0 30px 80px -20px rgba(0,0,0,.8);animation:paperIn .9s cubic-bezier(.22,1,.36,1) both}
-@media(min-width:640px){.paper{padding:4rem 3.5rem}}
-.paper::before{content:"";position:absolute;inset:0;pointer-events:none;background-image:radial-gradient(circle at 20% 25%,rgba(229,184,105,.05),transparent 40%),radial-gradient(circle at 85% 80%,rgba(139,163,163,.05),transparent 45%),url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E")}
-.seal{position:relative;margin:0 auto 2.5rem;display:flex;align-items:center;justify-content:center;height:3.5rem;width:3.5rem;border-radius:50%;border:1px solid rgba(229,184,105,.3);background:rgba(229,184,105,.08);font-family:'La Belle Aurore',cursive;font-size:1.5rem;color:var(--gold)}
-.salu{position:relative;font-family:'La Belle Aurore',cursive;font-size:1.875rem;color:var(--gold);text-shadow:0 0 22px rgba(229,184,105,.45)}
-.msg{position:relative;margin-top:2rem;white-space:pre-wrap;font-size:clamp(1.5rem,4vw,1.75rem);font-weight:300;line-height:1.6;letter-spacing:.01em;color:var(--text)}
-.sign{position:relative;margin-top:3rem;text-align:right}
-.sign-label{font-size:.75rem;text-transform:uppercase;letter-spacing:.25em;color:var(--muted)}
-.sign-name{font-family:'La Belle Aurore',cursive;font-size:1.875rem;color:var(--text);margin-top:.25rem}
-.paper-date{position:relative;margin-top:2.5rem;text-align:center;font-size:11px;text-transform:uppercase;letter-spacing:.3em;color:var(--faint)}
-.read-bar{position:sticky;bottom:4.5rem;z-index:30;margin-top:1.5rem;width:100%;max-width:42rem}
-.read-aloud{display:flex;width:100%;align-items:center;justify-content:center;gap:.75rem;border:1px solid rgba(255,255,255,.1);background:rgba(0,0,0,.6);color:var(--text);border-radius:999px;padding:1rem 1.5rem;font-size:.875rem;text-transform:uppercase;letter-spacing:.25em;backdrop-filter:blur(24px);transition:.25s}
-.read-aloud:hover{border-color:rgba(229,184,105,.4)}
-.read-aloud.playing{border-color:var(--gold);background:rgba(229,184,105,.2);color:var(--gold);text-shadow:0 0 22px rgba(229,184,105,.45)}
+.intro-srodek {
+  position:relative; z-index:2;
+  display:flex; flex-direction:column;
+  align-items:center; gap:6px;
+  text-align:center;
+}
 
-/* ── Toast ── */
-#toast{position:fixed;top:1.5rem;left:50%;transform:translateX(-50%) translateY(-20px);z-index:100;background:var(--surface);border:1px solid rgba(255,255,255,.1);color:var(--text);padding:.75rem 1.25rem;border-radius:.75rem;font-size:.9rem;opacity:0;pointer-events:none;transition:.3s}
-#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
-.spin{display:inline-block;animation:spin 1s linear infinite}
-@keyframes spin{to{transform:rotate(360deg)}}
+.intro-ikona {
+  font-size:64px;
+  animation: ikPuls 2s ease-in-out infinite;
+  filter: drop-shadow(0 0 20px rgba(0,255,136,0.5));
+}
+@keyframes ikPuls { 0%,100%{transform:scale(1)} 50%{transform:scale(1.08)} }
 
-/* ── Udostępnij / Zainstaluj ── */
-.quick-actions{position:fixed;top:1rem;right:1rem;z-index:50;display:flex;gap:.5rem}
-.quick-actions .icon-btn{background:rgba(15,15,19,.7);backdrop-filter:blur(10px)}
-.share-sheet{position:fixed;inset:0;z-index:200;background:rgba(6,6,8,.72);backdrop-filter:blur(6px);display:none;align-items:center;justify-content:center;padding:24px}
-.share-sheet.show{display:flex;animation:fadeIn .25s ease}
-.share-box{width:100%;max-width:22rem;background:linear-gradient(180deg,var(--surface2),#0d0d12);border:1px solid rgba(229,184,105,.25);border-radius:1.1rem;padding:1.5rem;box-shadow:0 24px 70px -10px rgba(0,0,0,.7)}
-.share-title{font-family:'Cormorant Garamond',serif;font-weight:300;font-size:1.6rem;color:var(--gold);text-align:center;margin-bottom:1.25rem}
-.share-link{display:flex;align-items:center;gap:.65rem;width:100%;text-align:left;padding:.8rem 1rem;margin-bottom:.6rem;border-radius:.7rem;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.03);color:var(--text);font-size:.95rem;text-decoration:none;transition:.2s;cursor:pointer;font-family:inherit}
-.share-link:hover{border-color:rgba(229,184,105,.4);color:var(--gold);transform:translateY(-1px)}
-.share-close{display:block;width:100%;text-align:center;margin-top:.5rem;background:none;border:none;color:var(--muted);font-size:.75rem;text-transform:uppercase;letter-spacing:.25em;padding:.6rem;transition:.2s}
-.share-close:hover{color:var(--text2)}
+.intro-tytul {
+  font-family:'Orbitron',sans-serif;
+  font-weight:900;
+  font-size:52px;
+  letter-spacing:8px;
+  color: var(--akcent);
+  text-shadow: 0 0 40px rgba(0,255,136,0.6), 0 0 80px rgba(0,255,136,0.3);
+  opacity:0;
+  animation: tytulWjazd 1s ease .5s both;
+}
+@keyframes tytulWjazd { from{opacity:0;letter-spacing:20px} to{opacity:1;letter-spacing:8px} }
+
+.intro-haslo {
+  font-family:'Share Tech Mono',monospace;
+  font-size:13px;
+  letter-spacing:4px;
+  color: var(--tekst-sredni);
+  text-transform:uppercase;
+  opacity:0;
+  animation: fadeIn .8s ease 1.4s both;
+}
+
+.intro-linia {
+  width:120px; height:1px;
+  background: linear-gradient(90deg, transparent, var(--akcent), transparent);
+  margin:16px 0;
+  opacity:0;
+  animation: fadeIn .6s ease 1.8s both;
+}
+
+.intro-opis-box {
+  height:60px;
+  display:flex; align-items:center; justify-content:center;
+  overflow:hidden;
+  opacity:0;
+  animation: fadeIn .6s ease 2s both;
+}
+
+.intro-opis {
+  font-size:15px;
+  color: var(--tekst-sredni);
+  font-style:italic;
+  text-align:center;
+  line-height:1.5;
+  animation: napisPrzesuw 12s ease 2.2s infinite;
+}
+
+@keyframes napisPrzesuw {
+  0%,20%  { opacity:1; transform:translateY(0); }
+  25%     { opacity:0; transform:translateY(-20px); }
+  26%     { opacity:0; transform:translateY(20px); }
+  50%,70% { opacity:1; transform:translateY(0); }
+  75%     { opacity:0; transform:translateY(-20px); }
+  76%     { opacity:0; transform:translateY(20px); }
+  100%    { opacity:1; transform:translateY(0); }
+}
+
+.intro-btn {
+  margin-top:32px;
+  opacity:0;
+  animation: fadeIn 1s ease 3s both;
+  display:flex; gap:12px; flex-direction:column; align-items:center;
+}
+
+@keyframes fadeIn { from{opacity:0} to{opacity:1} }
+
+#intro.znika { animation: introZnika .6s ease both; }
+@keyframes introZnika { to{opacity:0;pointer-events:none} }
+
+/* ══════════════════════════════════════
+   TYPOGRAFIA
+══════════════════════════════════════ */
+.mono { font-family:'Share Tech Mono',monospace; }
+.orb  { font-family:'Orbitron',sans-serif; }
+
+h2.naglowek {
+  font-family:'Orbitron',sans-serif;
+  font-size:18px;
+  font-weight:700;
+  color: var(--akcent);
+  letter-spacing:3px;
+  text-transform:uppercase;
+  text-align:center;
+  padding:14px 0 10px;
+  border-bottom:1px solid var(--ramka);
+  margin-bottom:16px;
+  text-shadow:0 0 20px rgba(0,255,136,0.4);
+}
+
+/* ══════════════════════════════════════
+   PRZYCISKI
+══════════════════════════════════════ */
+.btn {
+  font-family:'Orbitron',sans-serif;
+  font-size:13px;
+  font-weight:700;
+  letter-spacing:2px;
+  text-transform:uppercase;
+  border:none;
+  border-radius:var(--r);
+  padding:14px 24px;
+  cursor:pointer;
+  transition:.2s;
+  position:relative;
+  overflow:hidden;
+}
+.btn::after {
+  content:'';
+  position:absolute; inset:0;
+  background:linear-gradient(rgba(255,255,255,0.08),transparent);
+  pointer-events:none;
+}
+
+.btn-akcent {
+  background: linear-gradient(135deg, #00cc6e, #00ff88);
+  color: #07070f;
+  box-shadow: 0 4px 20px rgba(0,255,136,0.35), inset 0 1px 0 rgba(255,255,255,0.2);
+}
+.btn-akcent:hover { transform:translateY(-1px); box-shadow:0 6px 28px rgba(0,255,136,0.5); }
+.btn-akcent:disabled { background:#333; color:#666; box-shadow:none; cursor:not-allowed; transform:none; }
+
+.btn-ramka {
+  background: transparent;
+  color: var(--akcent);
+  border:1px solid var(--ramka2);
+  box-shadow: 0 0 12px rgba(0,255,136,0.08);
+}
+.btn-ramka:hover { background:rgba(0,255,136,0.08); border-color:var(--akcent); }
+
+.btn-danger {
+  background: linear-gradient(135deg, #cc0033, #ff3366);
+  color: #fff;
+  box-shadow:0 4px 20px rgba(255,51,102,0.3);
+}
+.btn-danger:hover { transform:translateY(-1px); box-shadow:0 6px 28px rgba(255,51,102,0.45); }
+
+.btn-pelny { width:100%; }
+.btn-maly { padding:9px 16px; font-size:11px; }
+.rzad { display:flex; gap:10px; }
+.rzad .btn { flex:1; }
+
+/* ══════════════════════════════════════
+   PANELE
+══════════════════════════════════════ */
+.panel {
+  background: var(--panel);
+  border:1px solid var(--ramka);
+  border-radius:var(--r);
+  padding:18px;
+  margin-bottom:12px;
+  box-shadow: var(--cień);
+  position:relative;
+}
+.panel::before {
+  content:'';
+  position:absolute;
+  top:0; left:0; right:0; height:1px;
+  background:linear-gradient(90deg,transparent,var(--akcent-dim),transparent);
+}
+.panel-tytul {
+  font-family:'Share Tech Mono',monospace;
+  font-size:10px;
+  letter-spacing:3px;
+  text-transform:uppercase;
+  color:var(--akcent);
+  margin-bottom:12px;
+  opacity:0.7;
+}
+
+/* ══════════════════════════════════════
+   INPUTY
+══════════════════════════════════════ */
+input[type=text], input[type=password], textarea {
+  width:100%;
+  font-family:'Share Tech Mono',monospace;
+  font-size:16px;
+  color:var(--tekst-jasny);
+  background:rgba(0,0,0,0.4);
+  border:1px solid rgba(0,255,136,0.2);
+  border-radius:var(--r);
+  padding:13px 15px;
+  transition:.2s;
+  letter-spacing:1px;
+}
+input:focus, textarea:focus {
+  outline:none;
+  border-color:var(--akcent);
+  box-shadow:0 0 0 3px rgba(0,255,136,0.1), 0 0 20px rgba(0,255,136,0.1);
+}
+input::placeholder, textarea::placeholder { color:var(--tekst-cichy); letter-spacing:1px; }
+textarea { resize:vertical; min-height:100px; line-height:1.5; }
+.etykieta {
+  display:block;
+  font-family:'Share Tech Mono',monospace;
+  font-size:11px;
+  letter-spacing:2px;
+  color:var(--akcent);
+  text-transform:uppercase;
+  margin-bottom:7px;
+}
+.licznik { text-align:right; font-size:11px; color:var(--tekst-cichy); margin-top:5px; font-family:'Share Tech Mono',monospace; }
+
+/* ══════════════════════════════════════
+   NAWIGACJA DOLNA
+══════════════════════════════════════ */
+#nav {
+  position:fixed;
+  bottom:0; left:50%; transform:translateX(-50%);
+  width:100%; max-width:560px;
+  background:rgba(7,7,15,0.95);
+  border-top:1px solid var(--ramka);
+  display:none;
+  z-index:500;
+  backdrop-filter:blur(20px);
+}
+#nav.widoczny { display:flex; }
+
+.nav-btn {
+  flex:1;
+  display:flex; flex-direction:column;
+  align-items:center; justify-content:center;
+  gap:3px;
+  padding:10px 6px 12px;
+  background:none;
+  border:none;
+  cursor:pointer;
+  color:var(--tekst-cichy);
+  transition:.2s;
+  font-size:10px;
+  font-family:'Share Tech Mono',monospace;
+  letter-spacing:1px;
+  text-transform:uppercase;
+}
+.nav-btn svg { width:22px; height:22px; stroke:currentColor; fill:none; stroke-width:1.5; stroke-linecap:round; stroke-linejoin:round; }
+.nav-btn.aktywny { color:var(--akcent); }
+.nav-btn.aktywny svg { filter:drop-shadow(0 0 8px rgba(0,255,136,0.6)); }
+.nav-btn:hover { color:var(--tekst); }
+
+/* ══════════════════════════════════════
+   HEADER GRACZA
+══════════════════════════════════════ */
+.hud {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:10px 16px;
+  background:rgba(7,7,15,0.9);
+  border-bottom:1px solid var(--ramka);
+  position:sticky; top:0; z-index:100;
+  backdrop-filter:blur(10px);
+  flex-shrink:0;
+}
+.hud-nick {
+  font-family:'Orbitron',sans-serif;
+  font-size:12px;
+  font-weight:700;
+  color:var(--akcent);
+  letter-spacing:2px;
+}
+.hud-stats {
+  display:flex; gap:14px;
+}
+.hud-stat {
+  display:flex; flex-direction:column; align-items:center;
+  font-family:'Share Tech Mono',monospace;
+}
+.hud-stat .val {
+  font-size:18px; font-weight:700;
+  color:var(--złoto);
+  line-height:1;
+  text-shadow:0 0 10px rgba(255,215,0,0.5);
+}
+.hud-stat .lab {
+  font-size:8px; letter-spacing:2px;
+  color:var(--tekst-cichy); text-transform:uppercase;
+}
+
+/* ══════════════════════════════════════
+   EKRAN LOGOWANIA
+══════════════════════════════════════ */
+#ekranLogin {
+  align-items:center;
+  justify-content:center;
+  min-height:100vh;
+  padding:24px;
+}
+
+.login-logo {
+  text-align:center;
+  margin-bottom:32px;
+}
+.login-logo .ikon { font-size:48px; display:block; margin-bottom:8px; filter:drop-shadow(0 0 16px rgba(0,255,136,0.5)); }
+.login-logo h1 {
+  font-family:'Orbitron',sans-serif;
+  font-size:32px; font-weight:900;
+  color:var(--akcent);
+  letter-spacing:6px;
+  text-shadow:0 0 30px rgba(0,255,136,0.5);
+}
+.login-logo p {
+  font-family:'Share Tech Mono',monospace;
+  font-size:11px; letter-spacing:3px;
+  color:var(--tekst-sredni);
+  text-transform:uppercase;
+  margin-top:4px;
+}
+
+/* login-tabs removed */
+
+/* ══════════════════════════════════════
+   EKRAN MAPY — SONAR
+══════════════════════════════════════ */
+#ekranMapa {
+  padding:0;
+  position:relative;
+}
+
+#mapaLeaflet {
+  flex:1;
+  min-height:0;
+}
+
+.sonar-overlay {
+  position:absolute;
+  bottom:100px; left:50%;
+  transform:translateX(-50%);
+  z-index:1000;
+  pointer-events:none;
+}
+
+.sonar-info {
+  position:absolute;
+  top:12px; left:12px; right:12px;
+  z-index:1000;
+  display:flex;
+  gap:8px;
+}
+
+.sonar-chip {
+  background:rgba(7,7,15,0.88);
+  border:1px solid var(--ramka);
+  border-radius:20px;
+  padding:7px 14px;
+  font-family:'Share Tech Mono',monospace;
+  font-size:12px;
+  color:var(--akcent);
+  backdrop-filter:blur(10px);
+  white-space:nowrap;
+}
+
+.mapa-btn-warstwy {
+  position:absolute;
+  top:12px; right:12px;
+  z-index:1000;
+  width:40px; height:40px;
+  background:rgba(7,7,15,0.88);
+  border:1px solid var(--ramka);
+  border-radius:var(--r);
+  display:flex; align-items:center; justify-content:center;
+  cursor:pointer;
+  font-size:18px;
+  backdrop-filter:blur(10px);
+  transition:.2s;
+}
+.mapa-btn-warstwy:hover { border-color:var(--akcent); }
+
+/* ══════════════════════════════════════
+   PANEL SKRYTKI (pop-up gdy w zasięgu)
+══════════════════════════════════════ */
+.skrytka-popup {
+  position:fixed;
+  bottom:0; left:50%; transform:translateX(-50%) translateY(100%);
+  width:100%; max-width:560px;
+  background:var(--panel);
+  border-top:2px solid var(--akcent);
+  border-radius:16px 16px 0 0;
+  padding:20px 20px 100px;
+  z-index:2000;
+  transition:transform .4s cubic-bezier(.4,0,.2,1);
+  box-shadow:0 -20px 60px rgba(0,255,136,0.15);
+}
+.skrytka-popup.aktywny { transform:translateX(-50%) translateY(0); }
+.popup-uchwyt {
+  width:40px; height:3px;
+  background:var(--ramka2);
+  border-radius:2px;
+  margin:0 auto 16px;
+}
+
+.zagadka-tekst {
+  font-size:22px;
+  line-height:1.5;
+  color:var(--tekst-jasny);
+  text-align:center;
+  margin:16px 0;
+  font-style:italic;
+  text-shadow:0 0 30px rgba(200,200,255,0.2);
+}
+
+.odp-status {
+  text-align:center;
+  padding:8px;
+  border-radius:var(--r);
+  font-family:'Share Tech Mono',monospace;
+  font-size:13px;
+  margin-top:8px;
+  display:none;
+}
+.odp-status.ok { display:block; background:rgba(0,255,136,0.1); color:var(--akcent); border:1px solid rgba(0,255,136,0.3); }
+.odp-status.err { display:block; background:rgba(255,51,102,0.1); color:var(--akcent2); border:1px solid rgba(255,51,102,0.3); }
+
+/* ══════════════════════════════════════
+   ANIMACJA SUKCESU
+══════════════════════════════════════ */
+.sukces-overlay {
+  position:fixed; inset:0; z-index:9000;
+  background:rgba(0,0,0,0.85);
+  display:none;
+  align-items:center; justify-content:center;
+  flex-direction:column;
+  gap:16px;
+}
+.sukces-overlay.poka { display:flex; animation:fadeIn .3s ease; }
+
+.sukces-eksplozja {
+  font-size:80px;
+  animation:eksplozja .6s cubic-bezier(.4,0,.2,1);
+  filter:drop-shadow(0 0 40px rgba(0,255,136,0.8));
+}
+@keyframes eksplozja {
+  0%  { transform:scale(0) rotate(-180deg); opacity:0; }
+  60% { transform:scale(1.3) rotate(10deg); }
+  100%{ transform:scale(1) rotate(0deg); opacity:1; }
+}
+
+.sukces-pkt {
+  font-family:'Orbitron',sans-serif;
+  font-size:48px; font-weight:900;
+  color:var(--złoto);
+  text-shadow:0 0 40px rgba(255,215,0,0.8);
+  animation:skaluj .5s ease .3s both;
+}
+@keyframes skaluj { from{transform:scale(0)} to{transform:scale(1)} }
+
+.sukces-tekst {
+  font-family:'Share Tech Mono',monospace;
+  font-size:14px; letter-spacing:3px;
+  color:var(--akcent);
+  text-transform:uppercase;
+}
+
+/* ══════════════════════════════════════
+   ZOSTAWIANIE SKRYTKI — KROKI
+══════════════════════════════════════ */
+.kroki-pasek {
+  display:flex; align-items:center; justify-content:center;
+  gap:8px; margin-bottom:20px;
+}
+.krok-kol {
+  width:30px; height:30px;
+  border-radius:50%;
+  display:flex; align-items:center; justify-content:center;
+  font-family:'Orbitron',sans-serif;
+  font-size:12px; font-weight:700;
+  border:1px solid var(--ramka);
+  color:var(--tekst-cichy);
+  background:var(--panel);
+  transition:.3s;
+}
+.krok-kol.aktywny { background:var(--akcent); color:#07070f; border-color:var(--akcent); box-shadow:0 0 16px rgba(0,255,136,0.5); }
+.krok-kol.zrobiony { background:rgba(0,255,136,0.15); color:var(--akcent); border-color:var(--akcent-dim); }
+.krok-kreska { width:24px; height:1px; background:var(--ramka); }
+
+.podkrok { display:none; flex-direction:column; gap:12px; }
+.podkrok.aktywny { display:flex; animation:wejscie .3s ease; }
+
+.mapa-zost {
+  height:240px;
+  border-radius:var(--r);
+  overflow:hidden;
+  border:1px solid var(--ramka);
+}
+
+.suwak-wiersz { display:flex; align-items:center; gap:12px; }
+.suwak-wiersz label { font-family:'Share Tech Mono',monospace; font-size:11px; color:var(--tekst-sredni); white-space:nowrap; letter-spacing:1px; }
+input[type=range] { flex:1; accent-color:var(--akcent); }
+.suwak-val { font-family:'Orbitron',monospace; font-size:16px; font-weight:700; color:var(--akcent); min-width:60px; text-align:right; }
+
+/* ══════════════════════════════════════
+   TABELA RANKINGOWA
+══════════════════════════════════════ */
+.rank-wiersz {
+  display:flex;
+  align-items:center;
+  gap:12px;
+  padding:12px 16px;
+  background:var(--panel);
+  border:1px solid var(--ramka);
+  border-radius:var(--r);
+  margin-bottom:8px;
+  transition:.2s;
+  position:relative;
+  overflow:hidden;
+}
+.rank-wiersz:hover { border-color:var(--ramka2); }
+.rank-wiersz.ja { border-color:var(--akcent); box-shadow:0 0 20px rgba(0,255,136,0.1); }
+.rank-wiersz.ja::before {
+  content:'';
+  position:absolute; left:0; top:0; bottom:0;
+  width:3px; background:var(--akcent);
+}
+
+.rank-poz {
+  font-family:'Orbitron',sans-serif;
+  font-size:18px; font-weight:900;
+  color:var(--tekst-cichy);
+  min-width:28px;
+  text-align:center;
+}
+.rank-poz.zloto { color:#ffd700; text-shadow:0 0 10px rgba(255,215,0,0.6); }
+.rank-poz.srebro { color:#c0c0c0; }
+.rank-poz.braz { color:#cd7f32; }
+
+.rank-info { flex:1; }
+.rank-nick {
+  font-family:'Orbitron',sans-serif;
+  font-size:14px; font-weight:700;
+  color:var(--tekst-jasny);
+  letter-spacing:1px;
+}
+.rank-ranga {
+  font-family:'Share Tech Mono',monospace;
+  font-size:11px;
+  color:var(--tekst-cichy);
+  margin-top:2px;
+}
+
+.rank-pkt {
+  font-family:'Orbitron',sans-serif;
+  font-size:22px; font-weight:900;
+  color:var(--złoto);
+  text-shadow:0 0 10px rgba(255,215,0,0.4);
+}
+
+/* ══════════════════════════════════════
+   MOJE SKRYTKI
+══════════════════════════════════════ */
+.skrytka-karta {
+  background:var(--panel);
+  border:1px solid var(--ramka);
+  border-radius:var(--r);
+  padding:14px 16px;
+  margin-bottom:10px;
+  transition:.2s;
+  position:relative;
+  overflow:hidden;
+}
+.skrytka-karta::after {
+  content:'';
+  position:absolute; bottom:0; left:0; right:0; height:1px;
+  background:linear-gradient(90deg,transparent,var(--ramka),transparent);
+}
+.skrytka-karta:hover { border-color:var(--ramka2); }
+.sk-naglowek { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px; }
+.sk-zagadka {
+  font-size:14px; color:var(--tekst-sredni);
+  line-height:1.4; font-style:italic;
+  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
+}
+.sk-meta {
+  display:flex; gap:14px; margin-top:10px;
+  font-family:'Share Tech Mono',monospace; font-size:11px; color:var(--tekst-cichy);
+}
+.sk-badge {
+  display:inline-flex; align-items:center; gap:4px;
+  padding:3px 8px;
+  border-radius:10px;
+  font-family:'Share Tech Mono',monospace;
+  font-size:11px;
+  letter-spacing:1px;
+}
+.sk-badge-akt { background:rgba(0,255,136,0.12); color:var(--akcent); border:1px solid rgba(0,255,136,0.3); }
+.sk-badge-wygasla { background:rgba(100,100,120,0.2); color:var(--tekst-cichy); border:1px solid rgba(100,100,120,0.3); }
+
+/* ══════════════════════════════════════
+   STATYSTYKI GRACZA
+══════════════════════════════════════ */
+.stat-siatka {
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:10px;
+  margin-bottom:16px;
+}
+.stat-kafel {
+  background:var(--panel);
+  border:1px solid var(--ramka);
+  border-radius:var(--r);
+  padding:16px;
+  text-align:center;
+  position:relative;
+  overflow:hidden;
+}
+.stat-kafel::before {
+  content:'';
+  position:absolute; top:0; left:0; right:0; height:1px;
+  background:linear-gradient(90deg,transparent,var(--akcent-dim),transparent);
+}
+.stat-val {
+  font-family:'Orbitron',sans-serif;
+  font-size:32px; font-weight:900;
+  color:var(--złoto);
+  text-shadow:0 0 20px rgba(255,215,0,0.4);
+  line-height:1;
+}
+.stat-lab {
+  font-family:'Share Tech Mono',monospace;
+  font-size:10px; letter-spacing:2px;
+  color:var(--tekst-cichy); text-transform:uppercase;
+  margin-top:4px;
+}
+
+.ranga-box {
+  background:var(--panel);
+  border:1px solid var(--akcent);
+  border-radius:var(--r);
+  padding:20px;
+  text-align:center;
+  margin-bottom:16px;
+  box-shadow:0 0 30px rgba(0,255,136,0.08);
+}
+.ranga-ikona { font-size:48px; display:block; margin-bottom:8px; }
+.ranga-nazwa {
+  font-family:'Orbitron',sans-serif;
+  font-size:20px; font-weight:900;
+  color:var(--akcent);
+  letter-spacing:3px;
+}
+.ranga-opis { font-size:13px; color:var(--tekst-sredni); margin-top:6px; }
+
+/* ══════════════════════════════════════
+   TOAST
+══════════════════════════════════════ */
+#toast {
+  position:fixed;
+  bottom:80px; left:50%; transform:translateX(-50%) translateY(20px);
+  background:var(--panel2);
+  border:1px solid var(--ramka2);
+  color:var(--tekst-jasny);
+  padding:12px 22px;
+  border-radius:20px;
+  font-family:'Share Tech Mono',monospace;
+  font-size:13px;
+  letter-spacing:1px;
+  box-shadow:0 4px 30px rgba(0,255,136,0.15);
+  opacity:0;
+  pointer-events:none;
+  transition:.3s;
+  z-index:9999;
+  max-width:90vw;
+  text-align:center;
+  white-space:nowrap;
+}
+#toast.poka { opacity:1; transform:translateX(-50%) translateY(0); }
+
+/* ══════════════════════════════════════
+   SCAN ANIMACJA (wejście w skrytkę)
+══════════════════════════════════════ */
+.scan-overlay {
+  position:fixed; inset:0; z-index:8000;
+  display:none;
+  align-items:center; justify-content:center;
+  background:rgba(0,0,0,0.9);
+  flex-direction:column; gap:20px;
+}
+.scan-overlay.poka { display:flex; }
+.scan-kolo {
+  width:160px; height:160px;
+  border-radius:50%;
+  border:2px solid rgba(0,255,136,0.2);
+  position:relative;
+  animation:obrот 2s linear infinite;
+}
+@keyframes obrот { to{transform:rotate(360deg)} }
+.scan-kolo::before {
+  content:'';
+  position:absolute; inset:0;
+  border-radius:50%;
+  border-top:2px solid var(--akcent);
+  box-shadow:0 0 20px rgba(0,255,136,0.6);
+}
+.scan-kolo-wew {
+  position:absolute;
+  inset:20px;
+  border-radius:50%;
+  border:1px solid rgba(0,255,136,0.15);
+  animation:obrот 1s linear infinite reverse;
+}
+.scan-tekst {
+  font-family:'Share Tech Mono',monospace;
+  font-size:14px; letter-spacing:4px;
+  color:var(--akcent);
+  text-transform:uppercase;
+  animation:migaj 1s ease-in-out infinite;
+}
+@keyframes migaj { 0%,100%{opacity:1} 50%{opacity:0.3} }
+.scan-ikona {
+  position:absolute;
+  font-size:40px;
+  top:50%; left:50%;
+  transform:translate(-50%,-50%);
+}
+
+/* ══════════════════════════════════════
+   WIDOCZNOŚĆ WYSYŁEK
+══════════════════════════════════════ */
+.wysylki-bar {
+  display:flex; gap:4px; align-items:center;
+  margin-bottom:14px;
+}
+.wysylka-pkt {
+  width:16px; height:16px;
+  border-radius:2px;
+  background:rgba(0,255,136,0.12);
+  border:1px solid rgba(0,255,136,0.3);
+  transition:.3s;
+}
+.wysylka-pkt.aktywna {
+  background:rgba(0,255,136,0.5);
+  border-color:var(--akcent);
+  box-shadow:0 0 8px rgba(0,255,136,0.4);
+}
+.wysylki-lab {
+  font-family:'Share Tech Mono',monospace;
+  font-size:11px; color:var(--tekst-cichy);
+  margin-left:6px; letter-spacing:1px;
+}
+
+/* ══════════════════════════════════════
+   PUSTO / ŁADOWANIE
+══════════════════════════════════════ */
+.pusto {
+  text-align:center;
+  padding:40px 20px;
+  color:var(--tekst-cichy);
+  font-family:'Share Tech Mono',monospace;
+  font-size:14px;
+  letter-spacing:1px;
+  line-height:2;
+}
+.pusto .ikon { font-size:40px; display:block; margin-bottom:12px; opacity:0.5; }
+.ladowanie {
+  text-align:center; padding:30px;
+  font-family:'Share Tech Mono',monospace;
+  font-size:12px; color:var(--akcent);
+  letter-spacing:3px;
+  animation:migaj 1s infinite;
+}
+
+/* ══════════════════════════════════════
+   RESPONSYWNOŚĆ
+══════════════════════════════════════ */
+@media(max-width:400px) {
+  .intro-tytul { font-size:40px; }
+  .hud-stat .val { font-size:15px; }
+}
 </style>
 </head>
 <body>
 
-<div id="ambiance">
-  <div class="glow a"></div><div class="glow b"></div><div class="glow c"></div>
-  <div id="stars"></div>
-  <div class="vignette"></div>
-</div>
-
-<div class="quick-actions">
-  <button class="icon-btn" onclick="shareApp()" title="Udostępnij" aria-label="Udostępnij">📤</button>
-  <button class="icon-btn" id="installBtn" onclick="handleInstall()" title="Zainstaluj" aria-label="Zainstaluj" style="display:none">📲</button>
-</div>
-
-<div id="shareSheet" class="share-sheet" onclick="if(event.target===this)closeShareSheet()">
-  <div class="share-box">
-    <div class="share-title">Udostępnij Troplist</div>
-    <button class="share-link" id="shareNative" onclick="shareNative()" style="display:none">📤 Udostępnij przez telefon</button>
-    <a class="share-link" id="shareSms">💬 Wyślij SMS-em</a>
-    <a class="share-link" id="shareWa" target="_blank" rel="noopener">🟢 WhatsApp</a>
-    <a class="share-link" id="shareFb" target="_blank" rel="noopener">📘 Facebook</a>
-    <button class="share-link" onclick="copyShareLink()">🔗 Kopiuj link</button>
-    <button class="share-close" onclick="closeShareSheet()">Zamknij</button>
+<!-- ══════════════════════════════════
+     INTRO
+══════════════════════════════════ -->
+<div id="intro">
+  <div class="intro-sonar">
+    <div class="intro-fala"></div>
+    <div class="intro-fala"></div>
+    <div class="intro-fala"></div>
   </div>
-</div>
-
-<div class="site-footer">
-  <a href="https://mini-klik.pl/troplist/" target="_blank" rel="noopener"><span class="pen">✎</span> Chcesz zostawić swój list? Napisz tutaj →</a>
-</div>
-
-<!-- INTRO -->
-<section id="screen-intro" class="screen active">
-  <div class="center" style="position:relative">
-    <div class="intro-eyebrow"><span>listy</span><span>w</span><span>sieci</span></div>
-    <h1 class="intro-brand">Trop<em>list</em></h1>
-    <p class="intro-q" id="introQ">Dla kogo szukasz słów?</p>
-    <button class="intro-enter" id="introEnter" onclick="goSearch()">Wejdź <span class="arr">→</span></button>
-    <button class="intro-skip" onclick="goSearch()">pomiń</button>
-  </div>
-</section>
-
-<!-- SEARCH -->
-<section id="screen-search" class="screen">
-  <div class="center" style="position:relative">
-    <div class="eyebrow"><span class="ln"></span> wpisz imię <span class="ln"></span></div>
-    <form id="searchForm" class="search-form" onsubmit="onSubmit(event)">
-      <div class="input-wrap">
-        <input id="nameInput" class="big-input" placeholder="Skarbek…" maxlength="20" autocomplete="off">
-        <span class="underline"></span>
-      </div>
-      <button type="submit" id="submitBtn" class="submit-btn" aria-label="Szukaj">Szukaj <span class="arr">→</span></button>
-    </form>
-    <p class="dh">czyje słowa<br>czekają na Ciebie</p>
-  </div>
-</section>
-
-<!-- SENDERS -->
-<section id="screen-senders" class="screen">
-  <div class="page">
-    <div class="header"><button class="back-btn" onclick="goSearch()"><span class="arrow">←</span>Wróć</button><span class="htitle" id="sendersTitle">Odnalezione słowa</span></div>
-    <div id="sendersBody"></div>
-  </div>
-</section>
-
-<!-- LETTERS -->
-<section id="screen-letters" class="screen">
-  <div class="page">
-    <div class="header"><button class="back-btn" onclick="showSenders()"><span class="arrow">←</span>Wróć</button><span class="htitle">Listy od wielbiciela</span></div>
-    <div class="lead">
-      <p class="kicker">od</p>
-      <h2 class="big font-hand" id="lettersSender" style="font-family:'La Belle Aurore',cursive;font-size:clamp(2.25rem,7vw,3rem)"></h2>
-      <p class="sub" id="lettersSub"></p>
+  <div class="intro-srodek">
+    <div class="intro-ikona">📦</div>
+    <div class="intro-tytul">SKRYTKA</div>
+    <div class="intro-haslo">— podejmij wyzwanie —</div>
+    <div class="intro-linia"></div>
+    <div class="intro-opis-box">
+      <div class="intro-opis" id="introOpis">Ukryj zagadkę w prawdziwym miejscu świata</div>
     </div>
-    <div class="cards" id="lettersBody"></div>
+    <div class="intro-btn">
+      <button class="btn btn-akcent" style="padding:16px 48px;font-size:15px;letter-spacing:3px" onclick="zakonczIntro()">WCHODZĘ →</button>
+    </div>
   </div>
-</section>
+</div>
 
-<!-- READER -->
-<section id="screen-reader" class="reader-screen">
-  <div class="reader-top">
-    <button class="back-btn" onclick="showLetters()"><span class="arrow">←</span>Wróć</button>
-    <span class="dist-chip" id="readerDist"></span>
+<!-- ══════════════════════════════════
+     SCAN OVERLAY
+══════════════════════════════════ -->
+<div class="scan-overlay" id="scanOverlay">
+  <div class="scan-kolo">
+    <div class="scan-kolo-wew"></div>
+    <div class="scan-ikona">📦</div>
   </div>
-  <article class="paper" id="readerPaper">
-    <div class="seal">♥</div>
-    <p class="salu" id="readerSalu"></p>
-    <p class="msg" id="readerMsg"></p>
-    <div class="sign"><p class="sign-label">zawsze Twój</p><p class="sign-name" id="readerSign"></p></div>
-    <p class="paper-date" id="readerDate"></p>
-  </article>
-  <div class="read-bar" id="readBar">
-    <button class="read-aloud" id="readBtn" onclick="toggleRead()">🔊 Przeczytaj na głos</button>
+  <div class="scan-tekst" id="scanTekst">SKANOWANIE...</div>
+</div>
+
+<!-- ══════════════════════════════════
+     SUKCES OVERLAY
+══════════════════════════════════ -->
+<div class="sukces-overlay" id="sukcesOverlay">
+  <div class="sukces-eksplozja" id="sukcesIkona">🔓</div>
+  <div class="sukces-pkt" id="sukcesPkt">+1 PKT</div>
+  <div class="sukces-tekst" id="sukcesTekst">SKRYTKA ODNALEZIONA</div>
+  <div style="margin-top:8px;font-family:'Share Tech Mono',monospace;font-size:12px;color:var(--akcent-dim)" id="sukcesWys"></div>
+</div>
+
+<!-- ══════════════════════════════════
+     POPUP SKRYTKI
+══════════════════════════════════ -->
+<div class="skrytka-popup" id="skrytkaPopup">
+  <div class="popup-uchwyt"></div>
+  <!-- FAZA 1: list nawigacyjny (duży okrąg) -->
+  <div id="popupFaza1">
+    <div style="text-align:center;margin-bottom:10px">
+      <span style="font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:3px;color:var(--złoto);text-transform:uppercase">🔵 WIADOMOŚĆ OD AGENTA</span>
+    </div>
+    <div class="zagadka-tekst" id="popupZagadka">…</div>
+    <div style="margin-top:8px;text-align:center;font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--tekst-cichy)" id="popupAutoNick"></div>
+    <div style="margin-top:14px;padding:10px;background:rgba(255,215,0,0.06);border:1px solid rgba(255,215,0,0.2);border-radius:4px;font-family:'Share Tech Mono',monospace;font-size:12px;color:var(--złoto);text-align:center">
+      🔴 Strefa odnalezienia: <b id="popupOdl">szukaj...</b>
+    </div>
+    <div style="margin-top:14px" class="rzad">
+      <button class="btn btn-ramka" onclick="zamknijPopup()">Zamknij</button>
+      <button class="btn btn-akcent" onclick="potwierdzOdnalezienie()" id="btnOdnalazlem">📦 ODNALAZŁEM!</button>
+    </div>
   </div>
-</section>
+  <!-- FAZA 2: potwierdzenie (mały okrąg 20m) -->
+  <div id="popupFaza2" style="display:none;text-align:center;padding:16px 0">
+    <div style="font-size:52px;margin-bottom:12px;animation:eksplozja .5s ease">🔓</div>
+    <div style="font-family:'Orbitron',sans-serif;font-size:18px;font-weight:900;color:var(--akcent);letter-spacing:2px">SKRYTKA ODNALEZIONA!</div>
+    <div style="font-family:'Share Tech Mono',monospace;font-size:13px;color:var(--tekst-sredni);margin-top:8px">+1 punkt · +2 wysyłki</div>
+    <button class="btn btn-akcent btn-pelny" onclick="zamknijPopup()" style="margin-top:16px">ŚWIETNIE →</button>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════
+     APP
+══════════════════════════════════ -->
+<div id="app" style="opacity:0;transition:opacity .5s">
+
+  <!-- HUD -->
+  <div class="hud" id="hud" style="display:none">
+    <div class="hud-nick" id="hudNick">AGENT</div>
+    <div class="hud-stats">
+      <div class="hud-stat">
+        <div class="val" id="hudPkt">0</div>
+        <div class="lab">PKT</div>
+      </div>
+      <div class="hud-stat">
+        <div class="val" id="hudWys">5</div>
+        <div class="lab">WYSYŁKI</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ EKRAN: LOGIN ══ -->
+  <div id="ekranLogin" class="ekran aktywny" style="justify-content:center;padding-top:0;min-height:100vh">
+    <div style="width:100%;max-width:400px;margin:auto;padding:24px 0">
+
+      <div style="text-align:center;margin-bottom:32px">
+        <div style="font-size:56px;margin-bottom:10px;filter:drop-shadow(0 0 20px rgba(0,255,136,0.5));animation:ikPuls 2s ease-in-out infinite">📦</div>
+        <div style="font-family:'Orbitron',sans-serif;font-size:36px;font-weight:900;color:var(--akcent);letter-spacing:6px;text-shadow:0 0 30px rgba(0,255,136,0.5)">SKRYTKA</div>
+        <div style="font-family:'Share Tech Mono',monospace;font-size:11px;letter-spacing:4px;color:var(--tekst-sredni);margin-top:4px">— podejmij wyzwanie —</div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-tytul">IDENTYFIKACJA AGENTA</div>
+        <label class="etykieta" style="margin-top:0">Pseudonim</label>
+        <input type="text" id="loginNick" placeholder="wybierz pseudonim..." maxlength="16"
+          autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+          style="margin-bottom:14px;font-size:17px"
+          onkeydown="if(event.key==='Enter')document.getElementById('loginPin').focus()">
+        <label class="etykieta">Kod dostępu</label>
+        <input type="password" id="loginPin" placeholder="min. 4 znaki — zapamiętaj!" maxlength="20"
+          autocomplete="off"
+          onkeydown="if(event.key==='Enter')wejdz()">
+
+      </div>
+
+      <button class="btn btn-akcent btn-pelny" onclick="wejdz()" id="btnWejdz"
+        style="font-size:16px;padding:18px;letter-spacing:4px;margin-top:4px">
+        WCHODZĘ →
+      </button>
+
+      <div style="margin-top:14px;text-align:center">
+        <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--tekst-cichy);letter-spacing:2px" id="trybStatus">● ŁĄCZENIE...</div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- MODAL: nowy agent -->
+  <div id="modalNowyAgent" style="display:none;position:fixed;inset:0;z-index:8500;background:rgba(0,0,0,0.88);align-items:center;justify-content:center;padding:24px">
+    <div style="width:100%;max-width:380px;background:var(--panel);border:1px solid rgba(0,255,136,0.3);border-radius:8px;padding:28px 24px;text-align:center;box-shadow:0 0 60px rgba(0,255,136,0.1)">
+      <div style="font-size:48px;margin-bottom:14px;filter:drop-shadow(0 0 16px rgba(0,255,136,0.4))">📦</div>
+      <div style="font-family:'Orbitron',sans-serif;font-size:16px;font-weight:900;color:var(--akcent);letter-spacing:2px;margin-bottom:6px">NOWY PROFIL AGENTA</div>
+      <div style="font-family:'Share Tech Mono',monospace;font-size:14px;color:var(--złoto);margin-bottom:16px;letter-spacing:1px" id="modalNick"></div>
+      <div style="font-size:13px;color:var(--tekst-sredni);line-height:1.7;margin-bottom:24px">
+        Otwierasz nowe konto.<br>Zapamiętaj swój pseudonim i kod dostępu — bez nich nie wrócisz do tego profilu.
+      </div>
+      <div class="rzad">
+        <button class="btn btn-ramka" onclick="anulujNowyProfil()" style="letter-spacing:1px">COFNIJ</button>
+        <button class="btn btn-akcent" onclick="potwierdzNowyProfil()" style="letter-spacing:1px">WCHODZĘ →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ EKRAN: MAPA ══ -->
+  <div id="ekranMapa" class="ekran" style="padding:0">
+    <div class="sonar-info">
+      <div class="sonar-chip" id="sonarChip">📡 SONAR AKTYWNY</div>
+      <div class="sonar-chip" id="sonarOdl" style="display:none">📍 —</div>
+    </div>
+    <button class="mapa-btn-warstwy" onclick="przelaczWarstwy()" title="Zmień warstwę" id="btnWarstwy">🛰️</button>
+
+    <!-- WIDGET WYBORU MIEJSCA (widoczny tylko w trybie dodawania) -->
+    <div id="wybórWidget" style="display:none;position:absolute;bottom:80px;left:50%;transform:translateX(-50%);z-index:1000;width:calc(100% - 24px);max-width:520px;pointer-events:none">
+      <!-- suwak promienia -->
+      <div style="pointer-events:all;background:rgba(7,7,15,0.82);backdrop-filter:blur(12px);border:1px solid rgba(0,255,136,0.25);border-radius:12px;padding:12px 16px;margin-bottom:8px;display:flex;align-items:center;gap:12px">
+        <span style="font-size:18px">⭕</span>
+        <input type="range" id="suwakPromien" min="50" max="300" value="100" step="10"
+          style="flex:1;accent-color:var(--akcent);height:4px"
+          oninput="aktualizujPromien()">
+        <span style="font-family:'Orbitron',monospace;font-size:14px;font-weight:700;color:var(--akcent);min-width:54px;text-align:right" id="promienVal">100 m</span>
+      </div>
+      <!-- przycisk DALEJ -->
+      <div style="pointer-events:all;display:flex;gap:8px">
+        <button onclick="anulujWyborMiejsca()" style="flex:0 0 48px;height:48px;background:rgba(7,7,15,0.82);backdrop-filter:blur(12px);border:1px solid rgba(255,51,102,0.3);border-radius:10px;color:var(--akcent2);font-size:20px;cursor:pointer">✕</button>
+        <button id="btnDalej" onclick="potwierdzMiejsce()" disabled
+          style="flex:1;height:48px;background:rgba(0,255,136,0.15);backdrop-filter:blur(12px);border:1px solid rgba(0,255,136,0.4);border-radius:10px;font-family:'Orbitron',sans-serif;font-size:13px;font-weight:700;letter-spacing:2px;color:#ffffff;cursor:pointer;transition:.2s;opacity:0.5;text-shadow:0 0 10px rgba(255,255,255,0.5)">
+          DALEJ →
+        </button>
+      </div>
+    </div>
+
+    <div id="mapaLeaflet" style="height:calc(100vh - 60px)"></div>
+  </div>
+
+  <!-- ══ EKRAN: ZOSTAW ══ -->
+  <div id="ekranZostaw" class="ekran">
+    <h2 class="naglowek">📦 NOWA SKRYTKA</h2>
+    <div class="kroki-pasek">
+      <div class="krok-kol aktywny" id="zk1">1</div>
+      <div class="krok-kreska"></div>
+      <div class="krok-kol" id="zk2">2</div>
+      <div class="krok-kreska"></div>
+      <div class="krok-kol" id="zk3">3</div>
+    </div>
+
+    <!-- krok 1: miejsce -->
+    <div class="podkrok aktywny" id="zKrok1">
+      <div class="panel" style="text-align:center;padding:28px 20px">
+        <div class="panel-tytul">KROK 1 / 3 — WYBIERZ MIEJSCE</div>
+        <div style="font-size:48px;margin:16px 0;filter:drop-shadow(0 0 16px rgba(0,255,136,0.4))">📍</div>
+        <div style="font-size:15px;color:var(--tekst-sredni);line-height:1.7;margin-bottom:20px">
+          Przejdź na mapę i <b style="color:var(--akcent)">dotknij miejsce</b><br>gdzie chcesz ukryć skrytkę.
+        </div>
+        <div id="mapaZostInfo" style="font-family:'Share Tech Mono',monospace;font-size:13px;color:var(--tekst-cichy);margin-bottom:16px;min-height:20px">
+          Brak wybranego miejsca
+        </div>
+        <button class="btn btn-ramka btn-pelny" onclick="idNaMapeDlaSkrytki()" style="margin-bottom:12px">
+          🗺️ OTWÓRZ MAPĘ →
+        </button>
+        <div style="font-size:12px;color:var(--tekst-cichy);font-family:'Share Tech Mono',monospace">
+          Po wybraniu miejsca wróć tu automatycznie
+        </div>
+      </div>
+      <div class="panel" id="promienPanel" style="display:none">
+        <div class="panel-tytul">PROMIEŃ WYKRYCIA</div>
+        <div class="suwak-wiersz">
+          <label>Promień</label>
+          <input type="range" id="suwakPromien" min="20" max="150" value="60" step="5" oninput="aktualizujPromien()">
+          <div class="suwak-val" id="promienVal">60 m</div>
+        </div>
+      </div>
+      <button class="btn btn-akcent btn-pelny" id="btnDoKrok2" onclick="krokDo(2)" disabled>DALEJ →</button>
+    </div>
+
+    <!-- krok 2: list nawigacyjny -->
+    <div class="podkrok" id="zKrok2">
+      <div class="panel">
+        <div class="panel-tytul">KROK 2 / 3 — PODPOWIEDŹ DLA POSZUKIWACZY</div>
+        <textarea id="zagadkaInput" placeholder="Np. Jesteś blisko! Idź w kierunku starego dębu przy fontannie. Skrytka ukryta jest pod kamieniem z lewej strony..." maxlength="600" style="min-height:160px" oninput="document.getElementById('zagadkaLicz').textContent=this.value.length"></textarea>
+        <div class="licznik"><span id="zagadkaLicz">0</span>/600</div>
+      </div>
+      <div class="rzad">
+        <button class="btn btn-ramka" onclick="krokDo(1)">← WSTECZ</button>
+        <button class="btn btn-akcent" onclick="krokDo(3)">DALEJ →</button>
+      </div>
+    </div>
+
+    <!-- krok 3: podsumowanie -->
+    <div class="podkrok" id="zKrok3">
+      <div class="panel">
+        <div class="panel-tytul">KROK 3 / 3 — CZAS ŻYCIA</div>
+        <input type="range" id="suwakCzas" min="0" max="5" value="2" step="1" oninput="aktualizujCzas()">
+        <div style="text-align:center;margin-top:8px">
+          <span style="font-family:'Orbitron',monospace;font-size:24px;font-weight:900;color:var(--akcent)" id="czasVal">30 dni</span>
+        </div>
+      </div>
+      <div class="panel" id="podgladPanel">
+        <div class="panel-tytul">PODGLĄD SKRYTKI</div>
+        <div style="font-size:14px;color:var(--tekst-sredni);font-style:italic;line-height:1.5;margin-bottom:12px" id="podgladZagadka">…</div>
+        <div style="display:flex;gap:12px;font-family:'Share Tech Mono',monospace;font-size:12px;color:var(--tekst-cichy)">
+          <span>📍 <span id="podgladPoz">—</span></span>
+          <span>⭕ <span id="podgladPromien">—</span></span>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-tytul">KOSZT WYSYŁKI</div>
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div style="font-size:14px;color:var(--tekst-sredni)">Zostanie odjęta <b style="color:var(--akcent2)">1 wysyłka</b></div>
+          <div style="font-family:'Orbitron',monospace;font-size:22px;font-weight:900;color:var(--akcent)" id="podgladWys">—</div>
+        </div>
+      </div>
+      <div class="rzad">
+        <button class="btn btn-ramka" onclick="krokDo(2)">← WSTECZ</button>
+        <button class="btn btn-akcent" onclick="opublikujSkrytke()" id="btnPubl">UKRYJ SKRYTKĘ 📦</button>
+      </div>
+    </div>
+
+    <!-- sukces publikacji -->
+    <div class="podkrok" id="zKrokOK">
+      <div class="panel" style="text-align:center;padding:32px 24px">
+        <div style="font-size:64px;margin-bottom:16px;filter:drop-shadow(0 0 20px rgba(0,255,136,0.5))">📦</div>
+        <div style="font-family:'Orbitron',sans-serif;font-size:20px;font-weight:900;color:var(--akcent);letter-spacing:2px;margin-bottom:10px">SKRYTKA UKRYTA</div>
+        <div style="font-size:15px;color:var(--tekst-sredni);line-height:1.6">Twoja zagadka czeka na odważnych.<br>Dostaniesz <b style="color:var(--złoto)">+2 pkt</b> gdy ktoś ją rozwiąże.</div>
+      </div>
+      <div class="rzad">
+        <button class="btn btn-ramka" onclick="resetZostawania()">+ KOLEJNA</button>
+        <button class="btn btn-akcent" onclick="pokaz('ekranMapa')">MAPA →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ EKRAN: MOJE ══ -->
+  <div id="ekranMoje" class="ekran">
+    <h2 class="naglowek">📁 AKTA AGENTA</h2>
+    <div class="ranga-box" id="rangaBox">
+      <span class="ranga-ikona" id="rangaIkona">🔎</span>
+      <div class="ranga-nazwa" id="rangaNazwa">NOWICJUSZ</div>
+      <div class="ranga-opis" id="rangaOpis">Dopiero zaczynasz swoją misję</div>
+    </div>
+    <div class="stat-siatka">
+      <div class="stat-kafel">
+        <div class="stat-val" id="statPkt">0</div>
+        <div class="stat-lab">Punkty</div>
+      </div>
+      <div class="stat-kafel">
+        <div class="stat-val" id="statWys">5</div>
+        <div class="stat-lab">Wysyłki</div>
+      </div>
+      <div class="stat-kafel">
+        <div class="stat-val" id="statZostawione">0</div>
+        <div class="stat-lab">Zostawione</div>
+      </div>
+      <div class="stat-kafel">
+        <div class="stat-val" id="statZnalezione">0</div>
+        <div class="stat-lab">Znalezione</div>
+      </div>
+    </div>
+    <div style="margin-bottom:14px">
+      <div style="font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:3px;color:var(--akcent);margin-bottom:10px;text-transform:uppercase">Wysyłki (zasoby)</div>
+      <div class="wysylki-bar" id="wysylkiBar"></div>
+    </div>
+    <div>
+      <div style="font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:3px;color:var(--akcent);margin-bottom:10px;text-transform:uppercase">Moje skrytki</div>
+      <div id="mojeSkrytki"><div class="ladowanie">ŁADOWANIE AKT...</div></div>
+    </div>
+    <button class="btn btn-danger btn-pelny" style="margin-top:20px" onclick="wyloguj()">WYLOGUJ AGENTA</button>
+  </div>
+
+  <!-- ══ EKRAN: RANKING ══ -->
+  <div id="ekranRanking" class="ekran">
+    <h2 class="naglowek">🏆 RANKING AGENTÓW</h2>
+    <div id="rankingLista"><div class="ladowanie">POBIERANIE DANYCH...</div></div>
+    <div style="margin-top:16px;text-align:center;font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--tekst-cichy);letter-spacing:2px">ODŚWIEŻONO: <span id="rankingCzas">—</span></div>
+  </div>
+
+</div><!-- /#app -->
+
+<!-- ══════════════════════════════════
+     NAWIGACJA
+══════════════════════════════════ -->
+<nav id="nav">
+  <button class="nav-btn" id="navMapa" onclick="pokaz('ekranMapa')">
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 18a8 8 0 1 1 8-8 8 8 0 0 1-8 8z" stroke-width="1"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="12" x2="15" y2="14"/></svg>
+    SONAR
+  </button>
+  <button class="nav-btn" id="navZostaw" onclick="pokaz('ekranZostaw')">
+    <svg viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="1"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="17"/><line x1="9.5" y1="14.5" x2="14.5" y2="14.5"/></svg>
+    ZOSTAW
+  </button>
+  <button class="nav-btn" id="navMoje" onclick="pokaz('ekranMoje');ladujMoje()">
+    <svg viewBox="0 0 24 24"><path d="M20 7H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+    AKTA
+  </button>
+  <button class="nav-btn" id="navRanking" onclick="pokaz('ekranRanking');ladujRanking()">
+    <svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+    RANKING
+  </button>
+</nav>
 
 <div id="toast"></div>
 
+<!-- ══════════════════════════════════
+     SKRYPT
+══════════════════════════════════ -->
 <script>
-/* ════════ KONFIGURACJA (publiczne dane z Twojego pliku) ════════ */
-const PROJECT="ksiega-ramzi";
-const KEY="AIzaSyDRR3vSfgpEmbpZz_-VldMTnTHoXRfuGKg";
-const COLL="serca";
+/* ════ FIREBASE ════ */
+const FB_CFG = {
+  apiKey:"AIzaSyDRR3vSfgpEmbpZz_-VldMTnTHoXRfuGKg",
+  authDomain:"ksiega-ramzi.firebaseapp.com",
+  projectId:"ksiega-ramzi",
+  storageBucket:"ksiega-ramzi.firebasestorage.app",
+  messagingSenderId:"400735142662",
+  appId:"1:400735142662:web:0b52a57f4fedf367839487"
+};
 
-/* ════════ STAN ════════ */
-let ALL=null, NAMES=[], USERPOS=null, RESULT=null, SENDER=null, LETTER=null, locating=false, playing=false;
-let CANDIDATES=[], SEARCH_NAME='', WATCH_ID=null, ON_LIST=false;
+const Baza = {
+  online:false, db:null,
+  init(){
+    const ok = FB_CFG.apiKey && FB_CFG.apiKey.indexOf('WKLEJ')!==0;
+    if(ok && window.firebase){
+      try{
+        if(!firebase.apps.length) firebase.initializeApp(FB_CFG);
+        this.db = firebase.firestore();
+        this.online = true;
+      }catch(e){ this.online=false; }
+    }
+    return this.online;
+  },
+  async getGracz(hash){
+    if(!this.online) return this._lokGracz(hash);
+    try{
+      const s = await this.db.collection('sk_gracze').doc(hash).get();
+      return s.exists ? s.data() : null;
+    }catch(e){return null;}
+  },
+  async setGracz(hash, dane){
+    if(!this.online){ this._saveLokGracz(hash,dane); return; }
+    await this.db.collection('sk_gracze').doc(hash).set(dane,{merge:true});
+  },
+  async updateGracz(hash, pola){
+    if(!this.online){ const d=this._lokGracz(hash)||{}; Object.assign(d,pola); this._saveLokGracz(hash,d); return; }
+    await this.db.collection('sk_gracze').doc(hash).update(pola);
+  },
+  async nickWolny(nick){
+    if(!this.online) return true;
+    try{
+      const n = normNick(nick);
+      // Sprawdzamy po nickNorm jako id dokumentu żeby uniknąć indeksów
+      const s = await this.db.collection('sk_nick_index').doc(n).get();
+      return !s.exists;
+    }catch(e){ return true; } // przy błędzie pozwól — Firebase i tak odrzuci duplikat
+  },
+  async dodajSkrytke(rek){
+    if(!this.online){ const id='lok_'+Date.now(); this._lokSkrytki().push(Object.assign({id},rek)); this._saveLokSkrytki(this._lokSkrytki()); return id; }
+    const r = await this.db.collection('sk_skrytki').add(rek);
+    return r.id;
+  },
+  async pobierzSkrytki(){
+    const now = Date.now();
+    if(!this.online) return this._lokSkrytki().filter(s=>!s.wygasa||s.wygasa>now);
+    const snap = await this.db.collection('sk_skrytki').where('aktywna','==',true).get();
+    const res=[];
+    snap.forEach(d=>{const v=d.data();v.id=d.id;if(!v.wygasa||v.wygasa>now)res.push(v);});
+    return res;
+  },
+  async pobierzMojeSkrytki(nickNorm){
+    if(!this.online) return this._lokSkrytki().filter(s=>s.autorNorm===nickNorm);
+    const snap = await this.db.collection('sk_skrytki').where('autorNorm','==',nickNorm).orderBy('utworzono','desc').get();
+    const res=[];
+    snap.forEach(d=>{const v=d.data();v.id=d.id;res.push(v);});
+    return res;
+  },
+  async pobierzRanking(){
+    if(!this.online) return [];
+    const snap = await this.db.collection('sk_gracze').orderBy('punkty','desc').limit(20).get();
+    const res=[];
+    snap.forEach(d=>{const v=d.data();v.id=d.id;res.push(v);});
+    return res;
+  },
+  async zapiszRozwiazanie(skrytkaId, nickNorm, autorNorm){
+    if(!this.online) return;
+    const bat = this.db.batch();
+    const skRef = this.db.collection('sk_skrytki').doc(skrytkaId);
+    bat.update(skRef,{ rozwiazania: firebase.firestore.FieldValue.increment(1) });
+    // +2 pkt autorowi
+    const autRef = this.db.collection('sk_gracze').doc(autorNorm);
+    bat.update(autRef,{ punkty: firebase.firestore.FieldValue.increment(2) });
+    await bat.commit();
+  },
+  _lokGracz(h){ try{return JSON.parse(localStorage.getItem('sk_g_'+h)||'null');}catch(e){return null;} },
+  _saveLokGracz(h,d){ try{localStorage.setItem('sk_g_'+h,JSON.stringify(d));}catch(e){} },
+  _lokSkrytki(){ try{return JSON.parse(localStorage.getItem('sk_skrytki')||'[]');}catch(e){return[];} },
+  _saveLokSkrytki(t){ try{localStorage.setItem('sk_skrytki',JSON.stringify(t));}catch(e){} }
+};
 
-/* ════════ POMOCNICZE ════════ */
-function normImie(s){return (s||'').trim().toLowerCase().replace(/ł/g,'l').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]/g,'');}
-function esc(s){return (s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
-function alive(d){const w=d.wygasa;return !w||w>Date.now();}
-function letterWord(n){return n===1?'list':(n<5?'listy':'listów');}
-function admWord(n){return n===1?'wielbiciela':'wielbicieli';}
-function parseVal(v){if('stringValue'in v)return v.stringValue;if('integerValue'in v)return parseInt(v.integerValue,10);if('doubleValue'in v)return v.doubleValue;if('booleanValue'in v)return v.booleanValue;return null;}
-function toast(t){const e=document.getElementById('toast');e.textContent=t;e.classList.add('show');clearTimeout(e._t);e._t=setTimeout(()=>e.classList.remove('show'),2600);}
+/* ════ POMOCNICZE ════ */
+function normNick(s){ return (s||'').trim().toLowerCase().replace(/ł/g,'l').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9_]/g,''); }
+function normOdp(s){ return (s||'').trim().toLowerCase().replace(/ł/g,'l').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]/g,''); }
+function hashStr(s){ let h=2166136261; for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=(h*16777619)>>>0;} return 'sk_'+h.toString(36); }
+function metrow(la1,lo1,la2,lo2){ const R=6371000,t1=la1*Math.PI/180,t2=la2*Math.PI/180,dt=(la2-la1)*Math.PI/180,dl=(lo2-lo1)*Math.PI/180; const a=Math.sin(dt/2)**2+Math.cos(t1)*Math.cos(t2)*Math.sin(dl/2)**2; return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a)); }
+function toast(txt,kol){ const t=document.getElementById('toast'); t.textContent=txt; t.style.borderColor=kol?kol:'rgba(0,255,136,0.35)'; t.style.color=kol?kol:'var(--tekst-jasny)'; t.classList.add('poka'); clearTimeout(t._tk); t._tk=setTimeout(()=>t.classList.remove('poka'),2800); }
+function esc(s){ return (s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 
-/* ── odległość ── */
-function haversine(la1,lo1,la2,lo2){const R=6371000,t1=la1*Math.PI/180,t2=la2*Math.PI/180,dt=(la2-la1)*Math.PI/180,dl=(lo2-lo1)*Math.PI/180;const a=Math.sin(dt/2)**2+Math.cos(t1)*Math.cos(t2)*Math.sin(dl/2)**2;return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));}
-function fmtDist(m){return m<1000?Math.round(m/5)*5+' m':(m/1000).toFixed(1).replace('.',',')+' km';}
-function senderDist(letters){if(!USERPOS)return null;const v=letters.filter(l=>l.lat!=null&&l.lng!=null);if(!v.length)return null;return Math.min(...v.map(l=>haversine(USERPOS.lat,USERPOS.lng,l.lat,l.lng)));}
-function letterDist(l){if(!USERPOS||l.lat==null)return null;return haversine(USERPOS.lat,USERPOS.lng,l.lat,l.lng);}
+/* ════ RANGI ════ */
+const RANGI = [
+  {min:0,   ikona:'🔎', nazwa:'NOWICJUSZ',  opis:'Dopiero zaczynasz swoją misję'},
+  {min:10,  ikona:'🗺️', nazwa:'TROPICIEL',  opis:'Znasz już smak odkrycia'},
+  {min:30,  ikona:'🕵️', nazwa:'AGENT',       opis:'Działasz w cieniu'},
+  {min:60,  ikona:'🔐', nazwa:'SZPIEG',      opis:'Mistrz ukrytych wiadomości'},
+  {min:100, ikona:'💀', nazwa:'WIDMO',       opis:'Niewidzialny i wszechobecny'},
+  {min:200, ikona:'👁️', nazwa:'ARCHIWISTA',  opis:'Znasz wszystkie tajemnice'}
+];
+function ranga(pkt){ let r=RANGI[0]; for(const x of RANGI){ if(pkt>=x.min) r=x; } return r; }
 
-/* ── mowa ── */
-let voices=[];
-function loadVoices(){try{voices=speechSynthesis.getVoices()||[];}catch(e){}}
-if('speechSynthesis'in window){loadVoices();speechSynthesis.onvoiceschanged=loadVoices;}
-function speak(text,onEnd){if(!('speechSynthesis'in window)||!text){onEnd&&onEnd();return;}try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(text);u.lang='pl-PL';u.rate=0.95;const pl=voices.find(v=>/pl/i.test(v.lang));if(pl)u.voice=pl;u.onend=()=>onEnd&&onEnd();speechSynthesis.speak(u);}catch(e){onEnd&&onEnd();}}
-function stopSpeak(){try{speechSynthesis.cancel();}catch(e){}}
+/* ════ STAN GRACZA ════ */
+let gracz = null; // {nick, nickNorm, hash, punkty, wysylki, znalezione, zostawione}
 
-/* ════════ DANE Z FIREBASE ════════ */
-async function fetchAll(){
-  if(ALL)return ALL;
-  const base=`https://firestore.googleapis.com/v1/projects/${PROJECT}/databases/(default)/documents/${COLL}`;
-  let docs=[],token=null;
-  for(let i=0;i<25;i++){
-    const u=new URL(base);
-    u.searchParams.set('key',KEY);u.searchParams.set('pageSize','300');
-    if(token)u.searchParams.set('pageToken',token);
-    const r=await fetch(u.toString());
-    if(!r.ok)break;
-    const data=await r.json();
-    (data.documents||[]).forEach(d=>{const f={};for(const k in (d.fields||{}))f[k]=parseVal(d.fields[k]);f.id=d.name.split('/').pop();docs.push(f);});
-    token=data.nextPageToken;
-    if(!token)break;
-  }
-  ALL=docs;return docs;
-}
-
-async function fetchCandidates(name){
-  const norm=normImie(name);if(!norm)return [];
-  const all=await fetchAll();
-  return all.filter(d=>normImie(d.imie||'')===norm&&alive(d)&&d.lat!=null&&d.lng!=null);
-}
-
-function buildResult(rawName,matches){
-  let display=rawName.trim();
-  if(matches.length){const c={};matches.forEach(m=>{if(m.imieWyswietl)c[m.imieWyswietl]=(c[m.imieWyswietl]||0)+1;});const top=Object.keys(c).sort((a,b)=>c[b]-c[a])[0];if(top)display=top;}
-  display=display?display[0].toUpperCase()+display.slice(1):display;
-  const groups={};
-  matches.forEach(m=>{const k=m.pseudoNorm||'tajemniczy';if(!groups[k])groups[k]={pseudonim:m.pseudonim||'Tajemniczy wielbiciel',pseudoNorm:k,letters:[]};groups[k].letters.push({id:m.id,message:m.wiadomosc||'',lat:m.lat,lng:m.lng,createdAt:m.utworzono});});
-  const senders=Object.values(groups).map(g=>{g.letters.sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));g.count=g.letters.length;return g;}).sort((a,b)=>b.count-a.count);
-  return {query:rawName,displayName:display||rawName,found:matches.length>0,totalLetters:matches.length,senders};
-}
-
-async function loadMeta(){
-  try{ await fetchAll(); }catch(e){console.warn(e);}
-}
-
-/* ════════ EKRANY ════════ */
-function show(id){
-  document.querySelectorAll('.screen,.reader-screen').forEach(s=>s.classList.remove('active'));
-  document.getElementById(id).classList.add('active');
-  stopSpeak();playing=false;
-  window.scrollTo(0,0);
-}
-function goSearch(){stopLocating();ON_LIST=false;CANDIDATES=[];RESULT=null;SENDER=null;show('screen-search');setTimeout(()=>document.getElementById('nameInput').focus(),60);}
-
-/* ── intro timing ── */
-setTimeout(()=>{document.getElementById('introQ').style.opacity='1';},1500);
-setTimeout(()=>{const q=document.getElementById('introQ');q.style.filter='blur(6px)';const b=document.getElementById('introEnter');b.style.opacity='1';b.style.transform='translateY(0)';},3200);
-
-/* ── search interakcje ── */
-const input=document.getElementById('nameInput'), form=document.getElementById('searchForm');
-input.addEventListener('input',()=>{
-  form.classList.toggle('has-val',!!input.value.trim());
-});
-function pick(name){input.value=name;form.classList.add('has-val');runSearch(name);}
-function onSubmit(e){e.preventDefault();const q=input.value.trim();if(q)runSearch(q);}
-
-async function runSearch(name){
-  const btn=document.getElementById('submitBtn');
-  btn.classList.add('loading');btn.innerHTML='<span class="spin">↻</span> Szukam…';
+function zaladujGracza(){
   try{
-    SEARCH_NAME=name;
-    CANDIDATES=await fetchCandidates(name);
-    RESULT=null;
-    show('screen-senders');
-    ON_LIST=true;
-    startLocating();
-  }catch(err){console.warn(err);toast('Coś poszło nie tak. Spróbuj ponownie.');}
-  finally{btn.classList.remove('loading');btn.innerHTML='Szukaj <span class="arr">→</span>';}
+    const raw = localStorage.getItem('sk_aktywny');
+    if(raw){ gracz=JSON.parse(raw); return true; }
+  }catch(e){}
+  return false;
+}
+function zapiszGraczaLok(){
+  try{ localStorage.setItem('sk_aktywny',JSON.stringify(gracz)); }catch(e){}
+}
+function aktualizujHUD(){
+  if(!gracz) return;
+  document.getElementById('hudNick').textContent = gracz.nick.toUpperCase();
+  document.getElementById('hudPkt').textContent = gracz.punkty;
+  document.getElementById('hudWys').textContent = gracz.wysylki;
 }
 
-/* ── senders ── */
-function renderSenders(){
-  const body=document.getElementById('sendersBody');
-  if(!RESULT||!RESULT.found){
-    renderNearby();
-    return;
-  }
-  document.getElementById('sendersTitle').textContent='Jesteś w zasięgu ✦';
-  const r=RESULT;
-  let html=`<div class="lead">
-      <p class="kicker">listy dla</p>
-      <h2 class="big glow-gold">${esc(r.displayName)}</h2>
-    </div>`;
-  html+=`<div class="cards">`;
-  r.senders.forEach((s,i)=>{
-    html+=`<button class="card" style="animation-delay:${i*0.08}s" onclick="openSender(${i})">
-      <span class="ic">✉</span>
-      <span class="info"><span class="name">${esc(s.pseudonim)}</span>
-        <span class="meta"><span><span class="dot"></span>${s.count} ${letterWord(s.count)}</span></span>
-      </span><span class="chev">›</span></button>`;
+/* ════ NAWIGACJA ════ */
+function pokaz(id){
+  document.querySelectorAll('.ekran').forEach(e=>e.classList.remove('aktywny'));
+  document.getElementById(id).classList.add('aktywny');
+  window.scrollTo(0,0);
+  // nav aktywny
+  ['navMapa','navZostaw','navMoje','navRanking'].forEach(n=>{
+    document.getElementById(n).classList.remove('aktywny');
   });
-  html+=`</div>`;
-  body.innerHTML=html;
+  const mapa = {ekranMapa:'navMapa',ekranZostaw:'navZostaw',ekranMoje:'navMoje',ekranRanking:'navRanking'};
+  if(mapa[id]) document.getElementById(mapa[id]).classList.add('aktywny');
+  // mapa — odśwież
+  if(id==='ekranMapa') setTimeout(()=>{ if(mapa_L) mapa_L.invalidateSize(); },100);
+  // ekranZostaw nie potrzebuje własnej mapy
 }
-function showSenders(){ON_LIST=true;if(USERPOS){updateInRange();}else{renderSenders();}show('screen-senders');}
 
-/* ── zasięg na żywo ── */
-function startLocating(){
-  document.getElementById('sendersTitle').textContent='Szukam w pobliżu…';
-  renderNearby();
-  if(!navigator.geolocation){
-    const body=document.getElementById('sendersBody');
-    body.innerHTML=`<div class="empty"><div class="mark">✦</div>
-      <p>Brak dostępu do lokalizacji.<br>Twoje urządzenie nie udostępnia GPS.</p>
-      <button class="again" onclick="goSearch()">Wróć</button></div>`;
-    return;
+/* ════ INTRO ════ */
+const introOpisTeksty = [
+  'Ukryj zagadkę w prawdziwym miejscu świata',
+  'Ktoś wejdzie w to miejsce i spróbuje ją rozwiązać',
+  'Dostajesz punkty gdy ktoś odgadnie',
+  'Sonar podpowie Ci, że jesteś blisko',
+  'Im więcej znajdziesz — tym więcej możesz ukryć'
+];
+let introOpIdx = 0;
+setInterval(()=>{
+  introOpIdx = (introOpIdx+1) % introOpisTeksty.length;
+  const el = document.getElementById('introOpis');
+  if(el) el.textContent = introOpisTeksty[introOpIdx];
+}, 3000);
+
+function zakonczIntro(){
+  const i = document.getElementById('intro');
+  const a = document.getElementById('app');
+  i.classList.add('znika');
+  a.style.opacity = '1';
+  setTimeout(()=>{ if(i&&i.parentNode) i.parentNode.removeChild(i); }, 700);
+
+  // Zawsze pokaż ekran logowania — użytkownik klika WCHODZĘ sam
+  // (nie pomijamy ekranu nawet jeśli był zalogowany — czytelność)
+  const online = Baza.init();
+  const el = document.getElementById('trybStatus');
+  if(el) el.textContent = online ? '● POŁĄCZONO Z BAZĄ' : '○ TRYB LOKALNY';
+
+  // Jeśli był zalogowany — wypełnij nick dla wygody ale nie loguj automatycznie
+  if(zaladujGracza() && gracz){
+    const nickEl = document.getElementById('loginNick');
+    if(nickEl) nickEl.value = gracz.nick;
+    const pinEl = document.getElementById('loginPin');
+    if(pinEl) setTimeout(()=>pinEl.focus(), 400);
+    if(el) el.textContent = (online?'● ':'○ ') + 'Witaj z powrotem, ' + gracz.nick + '!';
+    gracz = null; // resetuj — niech wejdz() sprawdzi od nowa
+    localStorage.removeItem('sk_aktywny');
   }
-  if(WATCH_ID!==null)navigator.geolocation.clearWatch(WATCH_ID);
-  WATCH_ID=navigator.geolocation.watchPosition(
-    p=>{USERPOS={lat:p.coords.latitude,lng:p.coords.longitude};if(ON_LIST)updateInRange();},
-    e=>{console.warn(e);const body=document.getElementById('sendersBody');
-      body.innerHTML=`<div class="empty"><div class="mark">✦</div>
-        <p>Nie mogę ustalić pozycji.<br>Sprawdź zgodę na lokalizację w przeglądarce.</p>
-        <button class="again" onclick="goSearch()">Wróć</button></div>`;},
-    {enableHighAccuracy:true,maximumAge:3000,timeout:15000}
+  pokaz('ekranLogin');
+}
+
+/* ════ LOGOWANIE / REJESTRACJA — JEDEN PRZYCISK ════ */
+// tymczasowe dane podczas weryfikacji
+let _pendingNick=null, _pendingNickN=null, _pendingHash=null;
+
+async function wejdz(){
+  const nick = document.getElementById('loginNick').value.trim();
+  const pin  = document.getElementById('loginPin').value.trim();
+  if(!nick || nick.length < 2){ toast('Wpisz pseudonim (min. 2 znaki)','var(--akcent2)'); return; }
+  if(!pin  || pin.length  < 4){ toast('Kod dostępu min. 4 znaki','var(--akcent2)'); return; }
+
+  const btn = document.getElementById('btnWejdz');
+  btn.disabled = true;
+  btn.textContent = 'WERYFIKACJA...';
+
+  try {
+    Baza.init();
+    const nickN = normNick(nick);
+    const hash  = hashStr(nickN + '|' + pin);
+    const dane  = await Baza.getGracz(hash);
+
+    if(dane){
+      // === POWRÓT — agent istnieje ===
+      gracz = {
+        nick: dane.nick, nickNorm: dane.nickNorm, hash,
+        punkty: dane.punkty||0, wysylki: dane.wysylki||5,
+        znalezione: dane.znalezione||0, zostawione: dane.zostawione||0
+      };
+      zapiszGraczaLok();
+      toast('Witaj z powrotem, ' + dane.nick + '! 🕵️');
+      pokazGlowny();
+    } else {
+      // === NOWY AGENT — pokaż modal potwierdzenia ===
+      _pendingNick  = nick;
+      _pendingNickN = nickN;
+      _pendingHash  = hash;
+      document.getElementById('modalNick').textContent = '« ' + nick.toUpperCase() + ' »';
+      const modal = document.getElementById('modalNowyAgent');
+      modal.style.display = 'flex';
+    }
+  } catch(e){
+    console.error(e);
+    toast('Błąd połączenia — spróbuj jeszcze raz','var(--akcent2)');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'WCHODZĘ →';
+  }
+}
+
+function anulujNowyProfil(){
+  document.getElementById('modalNowyAgent').style.display = 'none';
+  _pendingNick = _pendingNickN = _pendingHash = null;
+  // Wyczyść pola żeby użytkownik mógł poprawić literówkę
+  document.getElementById('loginPin').value = '';
+  document.getElementById('loginPin').focus();
+}
+
+async function potwierdzNowyProfil(){
+  if(!_pendingNick) return;
+  const btn = document.querySelector('#modalNowyAgent .btn-akcent');
+  btn.disabled = true;
+  btn.textContent = 'TWORZĘ KONTO...';
+  try{
+    const now = Date.now();
+    const nowyAgent = {
+      nick: _pendingNick, nickNorm: _pendingNickN,
+      punkty:0, wysylki:5, znalezione:0, zostawione:0,
+      ranga:'NOWICJUSZ', utworzono: now
+    };
+    await Baza.setGracz(_pendingHash, nowyAgent);
+    gracz = { nick:_pendingNick, nickNorm:_pendingNickN, hash:_pendingHash, punkty:0, wysylki:5, znalezione:0, zostawione:0 };
+    zapiszGraczaLok();
+    document.getElementById('modalNowyAgent').style.display = 'none';
+    toast('Profil aktywowany! Witaj, ' + _pendingNick + '! 📦');
+    _pendingNick = _pendingNickN = _pendingHash = null;
+    pokazGlowny();
+  } catch(e){
+    console.error(e);
+    toast('Błąd tworzenia profilu','var(--akcent2)');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'WCHODZĘ →';
+  }
+}
+
+function loginTab(){}
+async function zaloguj(){ await wejdz(); }
+async function zarejestruj(){ await wejdz(); }
+
+function wyloguj(){
+  gracz=null;
+  try{ localStorage.removeItem('sk_aktywny'); }catch(e){}
+  document.getElementById('nav').classList.remove('widoczny');
+  document.getElementById('hud').style.display='none';
+  pokaz('ekranLogin');
+}
+
+function pokazGlowny(){
+  if(!Baza.online) Baza.init();
+  document.getElementById('nav').classList.add('widoczny');
+  document.getElementById('hud').style.display='flex';
+  aktualizujHUD();
+  pokaz('ekranMapa');
+  setTimeout(initMapa, 200);
+}
+
+/* ════ MAPA + SONAR ════ */
+let mapa_L=null, warsKlasyczna=null, warsSatelita=null;
+let gpsWatch=null, mojaPoz=null;
+let wszystkieSkrytki=[];
+let markerMoj=null, sonarKolo=null;
+let sonarAnimId=null;
+let aktualnaSk=null, probyBlednych=0;
+const rozwiazaneSession = new Set();
+
+function initMapa(){
+  if(mapa_L){ mapa_L.invalidateSize(); startGPS(); return; }
+  mapa_L = L.map('mapaLeaflet',{zoomControl:false}).setView([52.0,19.0],6);
+  warsKlasyczna = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OSM'}).addTo(mapa_L);
+  warsSatelita = L.tileLayer.wms('https://mapy.geoportal.gov.pl/wss/service/PZGIK/ORTO/WMS/StandardResolution',{layers:'Raster',format:'image/jpeg',transparent:false,version:'1.3.0',maxZoom:20});
+  mapa_L.attributionControl.setPrefix('');
+  L.control.zoom({position:'bottomright'}).addTo(mapa_L);
+  ladujSkrytki();
+  startGPS();
+}
+
+async function ladujSkrytki(){
+  wszystkieSkrytki = await Baza.pobierzSkrytki();
+  rysujSkrytki();
+}
+
+let markerySkrytek=[];
+function rysujSkrytki(){
+  markerySkrytek.forEach(m=>mapa_L.removeLayer(m));
+  markerySkrytek=[];
+  wszystkieSkrytki.forEach(sk=>{
+    // Nie pokazuj własnych skrytek na mapie (nie zdradzamy)
+    if(sk.autorNorm===gracz.nickNorm) return;
+    if(rozwiazaneSession.has(sk.id)) return;
+    const ik = L.divIcon({
+      html:`<div style="font-size:20px;opacity:0.4;filter:drop-shadow(0 0 6px rgba(0,255,136,0.5))">📦</div>`,
+      className:'', iconSize:[24,24], iconAnchor:[12,12]
+    });
+    const m = L.marker([sk.lat,sk.lng],{icon:ik}).addTo(mapa_L);
+    markerySkrytek.push(m);
+  });
+}
+
+function startGPS(){
+  if(gpsWatch!==null) return;
+  if(!navigator.geolocation){ toast('Brak GPS w przeglądarce','var(--akcent2)'); return; }
+  gpsWatch = navigator.geolocation.watchPosition(
+    p => {
+      mojaPoz = {lat:p.coords.latitude, lng:p.coords.longitude};
+      aktualizujSonar();
+    },
+    e => { console.warn('GPS:',e); },
+    {enableHighAccuracy:true, maximumAge:3000, timeout:15000}
   );
 }
-function stopLocating(){if(WATCH_ID!==null){navigator.geolocation.clearWatch(WATCH_ID);WATCH_ID=null;}}
-function updateInRange(){
-  if(!USERPOS)return;
-  const inRange=CANDIDATES.filter(c=>haversine(USERPOS.lat,USERPOS.lng,c.lat,c.lng)<=(c.promien||60));
-  RESULT=buildResult(SEARCH_NAME,inRange);
-  renderSenders();
+
+// Sonar marker (pulsujący okrąg na mapie)
+function aktualizujSonar(){
+  if(!mojaPoz||!mapa_L) return;
+  const latlng = [mojaPoz.lat,mojaPoz.lng];
+  // Marker gracza
+  if(!markerMoj){
+    const ik = L.divIcon({
+      html:`<div style="width:16px;height:16px;border-radius:50%;background:var(--akcent);box-shadow:0 0 20px rgba(0,255,136,0.8);border:2px solid #fff"></div>`,
+      className:'', iconSize:[16,16], iconAnchor:[8,8]
+    });
+    markerMoj = L.marker(latlng,{icon:ik,zIndexOffset:1000}).addTo(mapa_L);
+    mapa_L.setView(latlng,15);
+  } else {
+    markerMoj.setLatLng(latlng);
+  }
+  // Sonar okrąg SVG na leaflet
+  if(!sonarKolo){
+    sonarKolo = L.circle(latlng,{
+      radius:100,
+      color:'rgba(0,255,136,0.6)',
+      fillColor:'rgba(0,255,136,0.04)',
+      fillOpacity:1,
+      weight:1.5,
+      dashArray:'4 4',
+      className:'sonar-pulse-circle'
+    }).addTo(mapa_L);
+  } else {
+    sonarKolo.setLatLng(latlng);
+  }
+  // Sprawdź pobliskie skrytki
+  sprawdzPobliskie();
 }
-function renderNearby(){
-  document.getElementById('sendersTitle').textContent='Szukam w pobliżu…';
-  const body=document.getElementById('sendersBody');
-  if(!CANDIDATES.length){
-    body.innerHTML=`<div class="empty"><div class="mark">✦</div>
-      <p>Nikt jeszcze nie ukrył tu listów dla <b>${esc(SEARCH_NAME)}</b>.<br>Ale noc jest długa.</p>
-      <button class="again" onclick="goSearch()">Szukaj dalej</button></div>`;
+
+function sprawdzPobliskie(){
+  if(!mojaPoz||!mapa_L||trybWyboru) return;
+  const chip = document.getElementById('sonarChip');
+  const odlEl = document.getElementById('sonarOdl');
+  let najblizszaDyst = Infinity;
+
+  wszystkieSkrytki.forEach(sk=>{
+    if(sk.autorNorm===gracz.nickNorm) return;
+    if(rozwiazaneSession.has(sk.id)) return;
+    const d = metrow(mojaPoz.lat,mojaPoz.lng,sk.lat,sk.lng);
+    if(d<najblizszaDyst) najblizszaDyst=d;
+
+    const promienDuzy = sk.promien||100;
+    const promienMaly = 20; // strefa odnalezienia — zawsze 20m
+
+    // Duży okrąg → pokaż list nawigacyjny
+    if(d<=promienDuzy){
+      odblokujSkrytke(sk, 1);
+      // Aktualizuj odległość w popupie
+      if(aktualnaSk && aktualnaSk.id===sk.id){
+        const el=document.getElementById('popupOdl');
+        if(el) el.textContent = d<=promienMaly ? '✅ JESTEŚ NA MIEJSCU!' : Math.round(d)+' m';
+      }
+    }
+    // Mały okrąg 20m → skrytka odnaleziona!
+    if(d<=promienMaly && !rozwiazaneSession.has(sk.id)){
+      odblokujSkrytke(sk, 2);
+    }
+  });
+
+  // Sonar chip wg odległości
+  if(!trybWyboru){
+    if(najblizszaDyst<Infinity){
+      odlEl.style.display='block';
+      const dist=Math.round(najblizszaDyst);
+      odlEl.textContent = dist<1000?'📍 '+dist+' m':'📍 '+(dist/1000).toFixed(1)+' km';
+      if(najblizszaDyst<=20){
+        chip.style.color='var(--akcent2)'; chip.textContent='🔴 JESTEŚ NA MIEJSCU!';
+        if(sonarKolo) sonarKolo.setStyle({color:'rgba(255,51,102,0.9)',weight:3});
+      } else if(najblizszaDyst<=100){
+        chip.style.color='var(--złoto)'; chip.textContent='🔵 LIST ODBLOKOWANY';
+        if(sonarKolo) sonarKolo.setStyle({color:'rgba(255,215,0,0.7)',weight:2});
+      } else if(najblizszaDyst<=400){
+        chip.style.color='var(--akcent)'; chip.textContent='📡 SYGNAŁ W POBLIŻU';
+        if(sonarKolo) sonarKolo.setStyle({color:'rgba(0,255,136,0.6)',weight:1.5});
+      } else {
+        chip.style.color='var(--akcent)'; chip.textContent='📡 SONAR AKTYWNY';
+        if(sonarKolo) sonarKolo.setStyle({color:'rgba(0,255,136,0.4)',weight:1.5});
+      }
+    } else {
+      odlEl.style.display='none';
+      chip.style.color='var(--akcent)'; chip.textContent='📡 SONAR AKTYWNY';
+      if(sonarKolo) sonarKolo.setStyle({color:'rgba(0,255,136,0.4)',weight:1.5});
+    }
+  }
+}
+
+let odblokowaneSk = new Set();  // pokazano list (duży okrąg)
+let wMalymOkregu = new Set();   // w strefie 20m
+
+function odblokujSkrytke(sk, faza){
+  if(faza===1){
+    if(odblokowaneSk.has(sk.id)) return;
+    odblokowaneSk.add(sk.id);
+    pokazScan(sk);
+  } else if(faza===2){
+    if(wMalymOkregu.has(sk.id)) return;
+    wMalymOkregu.add(sk.id);
+    // Jeśli popup jest otwarty na tej skrytce — przełącz na fazę 2
+    if(aktualnaSk && aktualnaSk.id===sk.id){
+      pokazFaze2();
+    } else {
+      // Jeśli nie ma otwartego popupu — od razu sukces
+      pokazSkan2(sk);
+    }
+  }
+}
+
+function pokazFaze2(){
+  document.getElementById('popupFaza1').style.display='none';
+  document.getElementById('popupFaza2').style.display='block';
+  // Przyznaj punkty
+  przyznajPunkty();
+}
+
+function pokazSkan2(sk){
+  aktualnaSk=sk;
+  pokazPopupSkrytki(sk, true);
+}
+
+function pokazScan(sk){
+  const ov = document.getElementById('scanOverlay');
+  const tx = document.getElementById('scanTekst');
+  ov.classList.add('poka');
+  tx.textContent = 'SKANOWANIE...';
+  setTimeout(()=>{ tx.textContent = 'SKRYTKA ZNALEZIONA'; },800);
+  setTimeout(()=>{ tx.textContent = 'ODBLOKOWANIE...'; },1600);
+  setTimeout(()=>{
+    ov.classList.remove('poka');
+    pokazPopupSkrytki(sk);
+  },2400);
+}
+
+function pokazPopupSkrytki(sk, bezSkanu){
+  aktualnaSk = sk;
+  document.getElementById('popupZagadka').textContent = sk.list || sk.zagadka || '…';
+  document.getElementById('popupAutoNick').textContent = 'wiadomość od: '+sk.autorNick;
+  document.getElementById('popupFaza1').style.display='block';
+  document.getElementById('popupFaza2').style.display='none';
+  document.getElementById('popupOdl').textContent = 'szukaj...';
+  const popup = document.getElementById('skrytkaPopup');
+  popup.classList.add('aktywny');
+}
+
+function potwierdzOdnalezienie(){
+  // Sprawdź czy w małym okręgu
+  if(!aktualnaSk||!mojaPoz) return;
+  const d = metrow(mojaPoz.lat,mojaPoz.lng,aktualnaSk.lat,aktualnaSk.lng);
+  if(d>20){
+    toast('Jesteś za daleko! Podejdź bliżej — '+Math.round(d)+'m','var(--akcent2)');
     return;
   }
-  let nearestTxt='Chodź po okolicy — listy odsłonią się, gdy staniesz w ich miejscu.';
-  if(USERPOS){
-    let minD=Infinity;
-    CANDIDATES.forEach(c=>{const d=haversine(USERPOS.lat,USERPOS.lng,c.lat,c.lng);if(d<minD)minD=d;});
-    if(minD<Infinity)nearestTxt=`Najbliższy list jest ${fmtDist(minD)} stąd.`;
+  pokazFaze2();
+}
+
+function przyznajPunkty(){
+  if(!aktualnaSk) return;
+  rozwiazaneSession.add(aktualnaSk.id);
+  gracz.punkty += 1;
+  gracz.wysylki += 2;
+  gracz.znalezione += 1;
+  zapiszGraczaLok();
+  aktualizujHUD();
+  Baza.setGracz(gracz.hash,{punkty:gracz.punkty,wysylki:gracz.wysylki,znalezione:gracz.znalezione});
+  if(aktualnaSk.autorNorm!==gracz.nickNorm){
+    Baza.zapiszRozwiazanie(aktualnaSk.id,gracz.nickNorm,aktualnaSk.autorNorm);
   }
-  body.innerHTML=`<div class="empty"><div class="mark">✦</div>
-    <p>Tu jeszcze nic ♥<br>${esc(nearestTxt)}</p>
-    <button class="again" onclick="goSearch()">Szukaj innego imienia</button></div>`;
+  rysujSkrytki();
 }
 
-/* ── letters ── */
-function openSender(i){SENDER=RESULT.senders[i];ON_LIST=false;renderLetters();show('screen-letters');}
-function renderLetters(){
-  document.getElementById('lettersSender').textContent=SENDER.pseudonim;
-  document.getElementById('lettersSub').textContent=`dla ${RESULT.displayName} · wybierz, który otworzysz`;
-  const body=document.getElementById('lettersBody');
-  body.innerHTML=SENDER.letters.map((l,i)=>{
-    const d=letterDist(l);const prev=(l.message||'').trim();const p=prev.length>64?prev.slice(0,64)+'…':prev;
-    return `<button class="card letter" style="animation-delay:${i*0.07}s" onclick="openLetter(${i})">
-      <span class="ic">✦</span>
-      <span class="info"><span class="name lit">List ${i+1}</span>
-        <span class="prev">${esc(p)}</span>
-        ${d!=null?`<span class="meta"><span class="dist">${fmtDist(d)} stąd</span></span>`:''}
-      </span><span class="chev">›</span></button>`;
-  }).join('');
-}
-function showLetters(){renderLetters();show('screen-letters');}
-
-/* ── reader ── */
-function openLetter(i){LETTER=SENDER.letters[i];renderReader();show('screen-reader');}
-function fmtDate(ms){if(!ms)return null;try{return new Date(ms).toLocaleDateString('pl-PL',{day:'numeric',month:'long',year:'numeric'});}catch(e){return null;}}
-function renderReader(){
-  document.getElementById('readerSalu').textContent=`Dla ${RESULT.displayName},`;
-  document.getElementById('readerMsg').textContent=LETTER.message;
-  document.getElementById('readerSign').textContent=SENDER.pseudonim;
-  const dc=document.getElementById('readerDist');const d=letterDist(LETTER);
-  if(d!=null){dc.textContent='📍 '+fmtDist(d)+' stąd';dc.classList.add('show');}else{dc.classList.remove('show');}
-  const date=fmtDate(LETTER.createdAt);const de=document.getElementById('readerDate');
-  if(date){de.textContent='zostawiono · '+date;de.style.display='block';}else{de.style.display='none';}
-  // reset paper animation
-  const p=document.getElementById('readerPaper');p.style.animation='none';void p.offsetWidth;p.style.animation='';
-  setReadBtn(false);
-  document.getElementById('readBar').style.display=('speechSynthesis'in window)?'block':'none';
-}
-function setReadBtn(on){playing=on;const b=document.getElementById('readBtn');b.classList.toggle('playing',on);b.textContent=on?'❚❚ Zatrzymaj':'🔊 Przeczytaj na głos';}
-function toggleRead(){
-  if(playing){stopSpeak();setReadBtn(false);return;}
-  setReadBtn(true);
-  speak(LETTER.message,()=>setReadBtn(false));
+function zamknijPopup(){
+  document.getElementById('skrytkaPopup').classList.remove('aktywny');
+  if(aktualnaSk) odblokowaneSk.delete(aktualnaSk.id);
+  aktualnaSk=null;
 }
 
-/* (lokalizacja jest teraz obsługiwana na bieżąco przez startLocating/updateInRange) */
+// sprawdzOdpowiedz zastąpiona przez potwierdzOdnalezienie()
 
-/* ── gwiazdy ── */
-(function stars(){
-  const box=document.getElementById('stars');let html='';
-  for(let i=0;i<64;i++){
-    const size=(Math.random()*2+0.6).toFixed(2);
-    html+=`<span class="star" style="top:${(Math.random()*100).toFixed(1)}%;left:${(Math.random()*100).toFixed(1)}%;width:${size}px;height:${size}px;opacity:${(0.2+Math.random()*0.6).toFixed(2)};animation:twinkle ${(3+Math.random()*5).toFixed(1)}s ease-in-out ${(Math.random()*6).toFixed(1)}s infinite"></span>`;
+function pokazSukces(sk){
+  const ov = document.getElementById('sukcesOverlay');
+  document.getElementById('sukcesIkona').textContent='🔓';
+  document.getElementById('sukcesPkt').textContent='+1 PKT';
+  document.getElementById('sukcesTekst').textContent='SKRYTKA ODNALEZIONA';
+  document.getElementById('sukcesWys').textContent='+2 WYSYŁKI ODBLOKOWNE';
+  ov.classList.add('poka');
+  setTimeout(()=>ov.classList.remove('poka'),3000);
+}
+
+function przelaczWarstwy(){
+  if(!mapa_L) return;
+  const btn = document.getElementById('btnWarstwy');
+  if(mapa_L.hasLayer(warsKlasyczna)){
+    mapa_L.removeLayer(warsKlasyczna);
+    warsSatelita.addTo(mapa_L);
+    btn.textContent='🗺️';
+  } else {
+    mapa_L.removeLayer(warsSatelita);
+    warsKlasyczna.addTo(mapa_L);
+    btn.textContent='🛰️';
   }
-  box.innerHTML=html;
-})();
-
-/* ════════ UDOSTĘPNIJ ════════ */
-let shareLinkCache='', shareTextCache='';
-function shareApp(){
-  const url=location.href.split('?')[0];
-  const text='Troplist — sprawdź, czy ktoś zostawił dla Ciebie list w pobliżu 💌';
-  shareLinkCache=url;shareTextCache=text;
-  document.getElementById('shareSms').href='sms:?body='+encodeURIComponent(text+' '+url);
-  document.getElementById('shareWa').href='https://wa.me/?text='+encodeURIComponent(text+' '+url);
-  document.getElementById('shareFb').href='https://www.facebook.com/sharer/sharer.php?u='+encodeURIComponent(url);
-  document.getElementById('shareNative').style.display=navigator.share?'flex':'none';
-  document.getElementById('shareSheet').classList.add('show');
-}
-function shareNative(){
-  navigator.share({title:'Troplist',text:shareTextCache,url:shareLinkCache}).catch(()=>{});
-  closeShareSheet();
-}
-function closeShareSheet(){document.getElementById('shareSheet').classList.remove('show');}
-function copyShareLink(){
-  if(navigator.clipboard&&navigator.clipboard.writeText){
-    navigator.clipboard.writeText(shareLinkCache).then(()=>toast('Link skopiowany ✓')).catch(()=>toast('Nie udało się skopiować.'));
-  }else{toast('Skopiuj ręcznie: '+shareLinkCache);}
-  closeShareSheet();
 }
 
-/* ════════ ZAINSTALUJ (PWA) ════════ */
-let deferredInstall=null;
-function isIOS(){return /iphone|ipad|ipod/i.test(navigator.userAgent)&&!window.MSStream;}
-function isStandaloneMode(){return window.matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;}
-window.addEventListener('beforeinstallprompt',e=>{
-  e.preventDefault();deferredInstall=e;
-  const b=document.getElementById('installBtn');if(b)b.style.display='inline-flex';
-});
-window.addEventListener('appinstalled',()=>{
-  deferredInstall=null;const b=document.getElementById('installBtn');if(b)b.style.display='none';
-  toast('Zainstalowano ✓');
-});
-async function handleInstall(){
-  if(deferredInstall){
-    deferredInstall.prompt();
-    try{await deferredInstall.userChoice;}catch(e){}
-    deferredInstall=null;
-    const b=document.getElementById('installBtn');if(b)b.style.display='none';
-    return;
+/* ════ ZOSTAWIANIE ════ */
+let markZost=null, okragZost=null;
+let wybranaPos=null;
+let trybWyboru=false; // czy mapa jest w trybie wyboru miejsca skrytki
+
+const CZAS_OPC = [{d:1,t:'1 dzień'},{d:7,t:'1 tydzień'},{d:30,t:'30 dni'},{d:90,t:'3 miesiące'},{d:365,t:'1 rok'},{d:36500,t:'Na zawsze ∞'}];
+
+function aktualizujCzas(){
+  const i=parseInt(document.getElementById('suwakCzas').value);
+  document.getElementById('czasVal').textContent=CZAS_OPC[i].t;
+}
+
+function aktualizujPromien(){
+  const v=document.getElementById('suwakPromien').value;
+  document.getElementById('promienVal').textContent=v+' m';
+  if(okragZost){ okragZost.setRadius(parseInt(v)); }
+}
+
+let zKrok=1;
+function krokDo(n){
+  if(n===2){
+    if(!wybranaPos){ toast('Wybierz miejsce na mapie','var(--akcent2)'); return; }
   }
-  if(isIOS()){toast('Dotknij Udostępnij ⬆️ w Safari, potem „Dodaj do ekranu początkowego”.');return;}
-  toast('W menu przeglądarki wybierz „Zainstaluj aplikację” albo „Dodaj do ekranu głównego”.');
-}
-(function initInstallBtn(){
-  const b=document.getElementById('installBtn');if(!b)return;
-  if(isStandaloneMode()){b.style.display='none';return;}
-  if(isIOS()){b.style.display='inline-flex';}
-})();
-if('serviceWorker'in navigator){
-  window.addEventListener('load',()=>{navigator.serviceWorker.register('sw.js').catch(e=>console.warn('SW:',e));});
+  if(n===3){
+    const z=document.getElementById('zagadkaInput').value.trim();
+    if(!z){ toast('Napisz list dla znalazcy','var(--akcent2)'); return; }
+    // aktualizuj podgląd
+    document.getElementById('podgladZagadka').textContent=z;
+    document.getElementById('podgladPoz').textContent=wybranaPos?wybranaPos[0].toFixed(4)+', '+wybranaPos[1].toFixed(4):'—';
+    document.getElementById('podgladPromien').textContent=document.getElementById('suwakPromien').value+' m';
+    document.getElementById('podgladWys').textContent=(gracz.wysylki-1)+' pozostanie';
+  }
+  zKrok=n;
+  [1,2,3].forEach(i=>{
+    const el=document.getElementById('zk'+i);
+    el.classList.remove('aktywny','zrobiony');
+    if(i<n) el.classList.add('zrobiony');
+    else if(i===n) el.classList.add('aktywny');
+    const kr=document.getElementById('zKrok'+i);
+    if(kr){ kr.classList.remove('aktywny'); }
+  });
+  const kr=document.getElementById('zKrok'+n);
+  if(kr) kr.classList.add('aktywny');
+  // krok 2 nie potrzebuje mapy
 }
 
-/* ── start: wczytaj imiona/statystyki + obsługa ?name= / ?skip= ── */
-loadMeta();
-(function deepLink(){
-  const p=new URLSearchParams(location.search);
-  const name=p.get('name'),skip=p.get('skip')==='1';
-  if(name){goSearch();runSearch(name);}
-  else if(skip){goSearch();}
-})();/* ════ PWA: zapisz na ekranie głównym ════ */
-if('serviceWorker'in navigator){
-  window.addEventListener('load',()=>{navigator.serviceWorker.register('sw.js').catch(()=>{});});
+function idNaMapeDlaSkrytki(){
+  trybWyboru = true;
+  // Zmień chip
+  const chip = document.getElementById('sonarChip');
+  chip.textContent = '📍 Dotknij mapę — wybierz miejsce';
+  chip.style.color = 'var(--złoto)';
+  // Pokaż widget
+  document.getElementById('wybórWidget').style.display = 'block';
+  document.getElementById('btnDalej').disabled = true;
+  document.getElementById('btnDalej').style.opacity = '0.5';
+  // Przejdź na mapę
+  document.querySelectorAll('.ekran').forEach(e=>e.classList.remove('aktywny'));
+  document.getElementById('ekranMapa').classList.add('aktywny');
+  ['navMapa','navZostaw','navMoje','navRanking'].forEach(n=>document.getElementById(n).classList.remove('aktywny'));
+  setTimeout(()=>{ if(mapa_L) mapa_L.invalidateSize(); },100);
+  // Klik na mapę = ustaw punkt (wielokrotnie, nie once)
+  if(mapa_L) mapa_L.on('click', onMapaKlikWybor);
 }
+
+function onMapaKlikWybor(e){
+  ustawPunktZost(e.latlng.lat, e.latlng.lng);
+}
+
+function anulujWyborMiejsca(){
+  zakończTrybWyboru();
+  // Wróć do ZOSTAW bez zapisywania
+  wybranaPos = null;
+  if(markZost&&mapa_L){mapa_L.removeLayer(markZost);markZost=null;}
+  if(okragZost&&mapa_L){mapa_L.removeLayer(okragZost);okragZost=null;}
+  document.querySelectorAll('.ekran').forEach(e=>e.classList.remove('aktywny'));
+  document.getElementById('ekranZostaw').classList.add('aktywny');
+  document.getElementById('navZostaw').classList.add('aktywny');
+}
+
+function potwierdzMiejsce(){
+  if(!wybranaPos) return;
+  zakończTrybWyboru();
+  // Wróć do ZOSTAW krok 2
+  document.querySelectorAll('.ekran').forEach(e=>e.classList.remove('aktywny'));
+  document.getElementById('ekranZostaw').classList.add('aktywny');
+  document.getElementById('navZostaw').classList.add('aktywny');
+  krokDo(2);
+}
+
+function zakończTrybWyboru(){
+  trybWyboru = false;
+  if(mapa_L) mapa_L.off('click', onMapaKlikWybor);
+  document.getElementById('wybórWidget').style.display = 'none';
+  const chip = document.getElementById('sonarChip');
+  chip.textContent = '📡 SONAR AKTYWNY';
+  chip.style.color = '';
+}
+
+function ustawPunktZost(lat,lng){
+  wybranaPos=[lat,lng];
+  const r=parseInt(document.getElementById('suwakPromien').value);
+  if(markZost) mapa_L.removeLayer(markZost);
+  if(okragZost) mapa_L.removeLayer(okragZost);
+  const ik=L.divIcon({html:'<div style="font-size:28px;transform:translate(-50%,-90%)">📦</div>',className:'',iconSize:[1,1]});
+  markZost=L.marker([lat,lng],{icon:ik}).addTo(mapa_L);
+  okragZost=L.circle([lat,lng],{radius:r,color:'rgba(255,215,0,0.7)',fillColor:'rgba(255,215,0,0.05)',weight:2,dashArray:'6 4'}).addTo(mapa_L);
+  // Odblokuj przycisk DALEJ na mapie
+  const btnD = document.getElementById('btnDalej');
+  if(btnD){ btnD.disabled=false; btnD.style.opacity='1'; btnD.style.background='rgba(0,255,136,0.3)'; btnD.style.color='#ffffff'; btnD.style.borderColor='rgba(0,255,136,0.8)'; }
+  // Aktualizuj info w kroku 1 (jeśli widoczny)
+  const info = document.getElementById('mapaZostInfo');
+  if(info) info.textContent = '📍 '+lat.toFixed(4)+'°N, '+lng.toFixed(4)+'°E';
+  document.getElementById('btnDoKrok2').disabled=false;
+}
+
+async function opublikujSkrytke(){
+  if(!gracz||!wybranaPos) return;
+  if(gracz.wysylki<1){ toast('Brak wysyłek! Znajdź skrytki żeby odblokować.','var(--akcent2)'); return; }
+  const zagadka=document.getElementById('zagadkaInput').value.trim();
+  if(!zagadka){ toast('Napisz podpowiedź dla poszukiwaczy','var(--akcent2)'); return; }
+  const btn=document.getElementById('btnPubl');
+  btn.disabled=true; btn.textContent='UKRYWAM...';
+  const czasIdx=parseInt(document.getElementById('suwakCzas').value);
+  const dni=CZAS_OPC[czasIdx].d;
+  const now=Date.now();
+  const rek={
+    autorNick:gracz.nick, autorNorm:gracz.nickNorm,
+    lat:wybranaPos[0], lng:wybranaPos[1],
+    promien:parseInt(document.getElementById('suwakPromien').value),
+    list: zagadka,
+    aktywna:true,
+    rozwiazania:0,
+    wygasa:now+dni*24*60*60*1000,
+    utworzono:now
+  };
+  try{
+    await Baza.dodajSkrytke(rek);
+    gracz.wysylki--;
+    gracz.zostawione++;
+    zapiszGraczaLok();
+    aktualizujHUD();
+    await Baza.setGracz(gracz.hash,{wysylki:gracz.wysylki,zostawione:gracz.zostawione});
+    // refresh skrytek
+    ladujSkrytki();
+    // sukces
+    [1,2,3].forEach(i=>{ const el=document.getElementById('zKrok'+i); if(el) el.classList.remove('aktywny'); ['zk'+i].forEach(n=>{ const x=document.getElementById(n); if(x) x.classList.remove('aktywny','zrobiony'); }); });
+    document.getElementById('zKrokOK').classList.add('aktywny');
+    [1,2,3].forEach(i=>{ const x=document.getElementById('zk'+i); if(x){x.classList.remove('aktywny'); x.classList.add('zrobiony');} });
+  }catch(e){ console.error(e); toast('Błąd zapisu','var(--akcent2)'); }
+  finally{ btn.disabled=false; btn.textContent='UKRYJ SKRYTKĘ 📦'; }
+}
+
+function resetZostawania(){
+  wybranaPos=null; zKrok=1;
+  if(markZost&&mapa_L){mapa_L.removeLayer(markZost);markZost=null;}
+  if(okragZost&&mapa_L){mapa_L.removeLayer(okragZost);okragZost=null;}
+  document.getElementById('zagadkaInput').value='';
+  document.getElementById('zagadkaLicz').textContent='0';
+  document.getElementById('mapaZostInfo').textContent='Dotknij mapę → postaw skrytkę';
+  document.getElementById('btnDoKrok2').disabled=true;
+  document.getElementById('zKrokOK').classList.remove('aktywny');
+  krokDo(1);
+}
+
+/* ════ MOJE AKTA ════ */
+async function ladujMoje(){
+  if(!gracz) return;
+  // stat
+  document.getElementById('statPkt').textContent=gracz.punkty;
+  document.getElementById('statWys').textContent=gracz.wysylki;
+  document.getElementById('statZostawione').textContent=gracz.zostawione;
+  document.getElementById('statZnalezione').textContent=gracz.znalezione;
+  // ranga
+  const r=ranga(gracz.punkty);
+  document.getElementById('rangaIkona').textContent=r.ikona;
+  document.getElementById('rangaNazwa').textContent=r.nazwa;
+  document.getElementById('rangaOpis').textContent=r.opis;
+  // wysyłki bar
+  const bar=document.getElementById('wysylkiBar');
+  bar.innerHTML='';
+  const maks=Math.max(gracz.wysylki,10);
+  for(let i=0;i<maks;i++){
+    const d=document.createElement('div');
+    d.className='wysylka-pkt'+(i<gracz.wysylki?' aktywna':'');
+    bar.appendChild(d);
+  }
+  const lab=document.createElement('span');
+  lab.className='wysylki-lab';
+  lab.textContent=gracz.wysylki+' dostępnych';
+  bar.appendChild(lab);
+  // Skrytki
+  const box=document.getElementById('mojeSkrytki');
+  box.innerHTML='<div class="ladowanie">ŁADOWANIE...</div>';
+  try{
+    const lista=await Baza.pobierzMojeSkrytki(gracz.nickNorm);
+    if(!lista.length){ box.innerHTML='<div class="pusto"><span class="ikon">📦</span>Nie zostawiłeś jeszcze żadnej skrytki</div>'; return; }
+    const now=Date.now();
+    box.innerHTML='';
+    lista.forEach(sk=>{
+      const aktywna=(!sk.wygasa||sk.wygasa>now)&&sk.aktywna;
+      const d=document.createElement('div');
+      d.className='skrytka-karta';
+      d.innerHTML=`
+        <div class="sk-naglowek">
+          <span class="sk-badge ${aktywna?'sk-badge-akt':'sk-badge-wygasla'}">${aktywna?'● AKTYWNA':'○ WYGASŁA'}</span>
+          <span style="font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--tekst-cichy)">${sk.rozwiazania||0}× rozwiązana</span>
+        </div>
+        <div class="sk-zagadka">"${esc(sk.list||sk.zagadka||'…')}"</div>
+        <div class="sk-meta">
+          <span>📍 ${sk.lat?sk.lat.toFixed(3)+'°N':'-'}</span>
+          <span>⭕ ${sk.promien||60}m</span>
+          <span>${sk.rozwiazania?'🏆 +'+((sk.rozwiazania||0)*2)+' pkt zdobyte':''}</span>
+        </div>`;
+      box.appendChild(d);
+    });
+  }catch(e){ box.innerHTML='<div class="pusto">Błąd ładowania</div>'; }
+}
+
+/* ════ RANKING ════ */
+async function ladujRanking(){
+  const box=document.getElementById('rankingLista');
+  box.innerHTML='<div class="ladowanie">POBIERANIE RANKINGU...</div>';
+  try{
+    const lista=await Baza.pobierzRanking();
+    if(!lista.length){ box.innerHTML='<div class="pusto"><span class="ikon">🏆</span>Ranking pusty — bądź pierwszy!</div>'; return; }
+    box.innerHTML='';
+    lista.forEach((g,i)=>{
+      const jaJa=gracz&&g.nickNorm===gracz.nickNorm;
+      const r=ranga(g.punkty||0);
+      const poz=i+1;
+      let klPoz='rank-poz';
+      if(poz===1) klPoz+=' zloto';
+      else if(poz===2) klPoz+=' srebro';
+      else if(poz===3) klPoz+=' braz';
+      const d=document.createElement('div');
+      d.className='rank-wiersz'+(jaJa?' ja':'');
+      d.innerHTML=`
+        <div class="${klPoz}">${poz===1?'👑':poz===2?'🥈':poz===3?'🥉':poz}</div>
+        <div class="rank-info">
+          <div class="rank-nick">${esc(g.nick||'?')}${jaJa?' ← TY':''}</div>
+          <div class="rank-ranga">${r.ikona} ${r.nazwa} · ${g.znalezione||0} znalezionych · ${g.zostawione||0} zostawionych</div>
+        </div>
+        <div class="rank-pkt">${g.punkty||0}</div>`;
+      box.appendChild(d);
+    });
+    document.getElementById('rankingCzas').textContent=new Date().toLocaleTimeString('pl-PL');
+  }catch(e){ box.innerHTML='<div class="pusto">Błąd pobierania rankingu</div>'; }
+}
+
+/* ════ INIT ════ */
+// Intro textów rotacja już uruchomiona powyżej
+// Jeśli gracz był zalogowany — pokaż od razu po intro
 </script>
 </body>
 </html>
