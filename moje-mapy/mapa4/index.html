@@ -4,14 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Mapa Wspomnień</title>
+<link rel="preconnect" href="https://unpkg.com" crossorigin>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
 <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css"/>
 <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css"/>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,400&family=EB+Garamond:wght@400;500&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
 <style>
 :root{--bg:#0e1530;--bg2:#161e3f;--karta:#1c2750;--obw:rgba(245,210,114,.25);--tekst:#f3eeff;--tekst-mil:#bcb7d8;--tekst-cichy:#8b85a8;--akcent:#f5d272;--akcent2:#e8a0c0;--wino:#bd4a5a;--niebo:#5ab4ff;--cien-l:0 6px 18px rgba(0,0,0,.35);--cien-g:0 18px 44px rgba(0,0,0,.55);--mapa-bg:#0a0f24;--tile-filter:none;}
@@ -157,11 +155,35 @@ body.dzien .btn-sec{background:rgba(0,0,0,.04)}
 </div>
 <div id="toast"></div>
 
-<script>
-/* ════ FIREBASE ════ */
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js" defer></script>
+<script defer>
+/* ════ FIREBASE (ładowany leniwie, dopiero gdy potrzebny) ════ */
 const FIREBASE_CONFIG={apiKey:"AIzaSyDRR3vSfgpEmbpZz_-VldMTnTHoXRfuGKg",authDomain:"ksiega-ramzi.firebaseapp.com",projectId:"ksiega-ramzi",storageBucket:"ksiega-ramzi.firebasestorage.app",messagingSenderId:"400735142662",appId:"1:400735142662:web:0b52a57f4fedf367839487"};
-let db=null,online=false;
-try{firebase.initializeApp(FIREBASE_CONFIG);db=firebase.firestore();online=true;}catch(e){console.warn(e);}
+let db=null,online=false,firebaseGotowyPromise=null;
+
+function wczytajSkrypt(src){
+  return new Promise((res,rej)=>{
+    const s=document.createElement('script');
+    s.src=src;s.onload=res;s.onerror=rej;
+    document.head.appendChild(s);
+  });
+}
+
+function inicjujFirebase(){
+  if(firebaseGotowyPromise)return firebaseGotowyPromise;
+  firebaseGotowyPromise=(async()=>{
+    try{
+      await wczytajSkrypt('https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js');
+      await wczytajSkrypt('https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js');
+      firebase.initializeApp(FIREBASE_CONFIG);
+      db=firebase.firestore();
+      online=true;
+    }catch(e){console.warn('Firebase niedostępny, działam offline (localStorage).',e);online=false;}
+    return online;
+  })();
+  return firebaseGotowyPromise;
+}
 
 /* ════ FILTR ════ */
 const STOP=['kurw','chuj','huj','pizd','jeb','pierdol','spierdal','cipa','kutas','suka','dziwka','debil','fuck','shit','bitch','nigger'];
@@ -281,6 +303,7 @@ async function zapiszWspom(){
   const btn=document.getElementById('btnZapisz');btn.disabled=true;btn.textContent='Zapisuję…';
   const rek={tytul:tytul||'Bez tytułu',tresc,autor,lat:pozWybrana[0],lng:pozWybrana[1],utworzono:Date.now(),lajki:0};
   try{
+    await inicjujFirebase();
     if(online){const r=await db.collection('wspomnienia').add(rek);rek.id=r.id;}
     else{rek.id='lok_'+Date.now();const lok=JSON.parse(localStorage.getItem('mw_lok')||'[]');lok.push(rek);localStorage.setItem('mw_lok',JSON.stringify(lok));}
     if(markerNowy){mapa.removeLayer(markerNowy);markerNowy=null;}
@@ -292,7 +315,11 @@ async function zapiszWspom(){
 /* ════ KROPKI ════ */
 async function zaladujKropki(){
   let lista=[];
-  try{if(online){const snap=await db.collection('wspomnienia').get();snap.forEach(d=>{const v=d.data();v.id=d.id;lista.push(v);});}else{lista=JSON.parse(localStorage.getItem('mw_lok')||'[]');}}catch(e){console.warn(e);}
+  try{
+    await inicjujFirebase();
+    if(online){const snap=await db.collection('wspomnienia').get();snap.forEach(d=>{const v=d.data();v.id=d.id;lista.push(v);});}
+    else{lista=JSON.parse(localStorage.getItem('mw_lok')||'[]');}
+  }catch(e){console.warn(e);lista=JSON.parse(localStorage.getItem('mw_lok')||'[]');}
   wszystkieKropki=lista;lista.forEach(dodajKropkeNaMape);document.getElementById('liczKropek').textContent=lista.length;
 }
 
