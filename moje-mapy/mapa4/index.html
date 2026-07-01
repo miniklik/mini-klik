@@ -352,6 +352,8 @@ function zapiszCzas(klucz){try{localStorage.setItem(klucz,String(Date.now()));}c
 let mapa,warstwaKafelki,grupaMarkerow,markerNowy=null,pozWybrana=null,trybAkt=false,wszystkieKropki=[],markeryWgKropki={},popupOtwarty=false;
 let gpsZywo=false,gpsWatchId=null,markerJa=null,mojaPoz=null;
 let spaceruTryb=false,spaceruPrzeczytane=new Set(),spaceruWatchId=null;
+const MIN_ZOOM_LADOWANIE=8;
+let obszarTimeout=null,zapytaneObszary=[],licznikCalkowity=0;
 
 /* ════ WARSTWY MAPY ════ */
 const WARSTWY=['klasyczna','satelita'];
@@ -381,8 +383,11 @@ function initMapa(){
   grupaMarkerow=L.markerClusterGroup({maxClusterRadius:50,showCoverageOnHover:false});
   mapa.addLayer(grupaMarkerow);
   mapa.on('click',obslKlikMapy);
+  mapa.on('moveend',()=>{clearTimeout(obszarTimeout);obszarTimeout=setTimeout(zaladujKropkiWObszarze,600);});
   if(navigator.geolocation)navigator.geolocation.getCurrentPosition(p=>{if(!trybAkt&&!pozWybrana)mapa.setView([p.coords.latitude,p.coords.longitude],13);},()=>{},{timeout:5000});
-  zaladujKropki().then(otworzZUrl);
+  zaladujLokalneKropki();
+  zaladujLicznikCalkowity();
+  zaladujKropkiWObszarze().then(otworzZUrl);
 }
 
 /* ════ GPS NA ŻYWO ════ */
@@ -555,16 +560,46 @@ async function zapiszWspom(){
     if(online){const r=await db.collection('wspomnienia').add(rek);rek.id=r.id;}
     else{rek.id='lok_'+Date.now();const lok=JSON.parse(localStorage.getItem('mw_lok')||'[]');lok.push(rek);localStorage.setItem('mw_lok',JSON.stringify(lok));}
     if(markerNowy){mapa.removeLayer(markerNowy);markerNowy=null;}
-    dodajKropkeNaMape(rek);toast('✨ Kropka postawiona!');zamknijPanel();zapiszCzas('mw_ostatnia_kropka');
+    dodajKropkeNaMape(rek);toast('✨ Kropka postawiona!');zamknijPanel();zapiszCzas('mw_ostatnia_kropka');ustawLicznikCalkowity(licznikCalkowity+1);
   }catch(e){console.error(e);toast('Błąd zapisu.');}
   finally{btn.disabled=false;btn.textContent='Zostaw kropkę ✨';}
 }
 
-/* ════ KROPKI ════ */
-async function zaladujKropki(){
+/* ════ KROPKI — WCZYTYWANIE OBSZAROWE ════ */
+function ustawLicznikCalkowity(n){licznikCalkowity=n;document.getElementById('liczKropek').textContent=n;}
+
+async function zaladujLicznikCalkowity(){
+  if(!online)return;
+  try{const agg=await db.collection('wspomnienia').count().get();ustawLicznikCalkowity(agg.data().count);}
+  catch(e){console.warn(e);}
+}
+
+async function zaladujLokalneKropki(){
+  if(online)return;
   let lista=[];
-  try{if(online){const snap=await db.collection('wspomnienia').get();snap.forEach(d=>{const v=d.data();v.id=d.id;lista.push(v);});}else{lista=JSON.parse(localStorage.getItem('mw_lok')||'[]');}}catch(e){console.warn(e);}
-  wszystkieKropki=lista;lista.forEach(dodajKropkeNaMape);document.getElementById('liczKropek').textContent=lista.length;
+  try{lista=JSON.parse(localStorage.getItem('mw_lok')||'[]');}catch(e){}
+  lista.forEach(dodajKropkeNaMape);
+  ustawLicznikCalkowity(lista.length);
+}
+
+function obszarPokryty(b){
+  return zapytaneObszary.some(z=>b.getSouth()>=z.s&&b.getNorth()<=z.n&&b.getWest()>=z.w&&b.getEast()<=z.e);
+}
+
+async function zaladujKropkiWObszarze(){
+  if(!online||!mapa)return;
+  if(mapa.getZoom()<MIN_ZOOM_LADOWANIE)return;
+  const b=mapa.getBounds().pad(0.3);
+  if(obszarPokryty(b))return;
+  const minLat=b.getSouth(),maxLat=b.getNorth(),minLng=b.getWest(),maxLng=b.getEast();
+  try{
+    const snap=await db.collection('wspomnienia')
+      .where('lat','>=',minLat).where('lat','<=',maxLat)
+      .where('lng','>=',minLng).where('lng','<=',maxLng)
+      .get();
+    snap.forEach(d=>{const v=d.data();v.id=d.id;dodajKropkeNaMape(v);});
+    zapytaneObszary.push({s:minLat,n:maxLat,w:minLng,e:maxLng});
+  }catch(e){console.warn(e);}
 }
 
 function lajknieteLok(){try{return JSON.parse(localStorage.getItem('mw_lajki')||'[]');}catch(e){return[];}}
@@ -674,6 +709,7 @@ async function odczytajPrywatne(id){
 }
 
 function dodajKropkeNaMape(r){
+  if(markeryWgKropki[r.id])return;
   const ik=L.divIcon({html:'<div class="kropka-css"></div>',className:'',iconSize:[18,18],iconAnchor:[9,9]});
   const m=L.marker([r.lat,r.lng],{icon:ik});
   m.bindPopup(htmlPopup(r),{maxWidth:300,minWidth:240,autoPan:false});
@@ -681,8 +717,7 @@ function dodajKropkeNaMape(r){
   m.on('popupclose',()=>{popupOtwarty=false;});
   grupaMarkerow.addLayer(m);
   markeryWgKropki[r.id]=m;
-  if(wszystkieKropki.indexOf(r)===-1)wszystkieKropki.push(r);
-  document.getElementById('liczKropek').textContent=wszystkieKropki.length;
+  wszystkieKropki.push(r);
 }
 
 /* ════ LAJKI ════ */
@@ -719,7 +754,7 @@ async function zglosKropke(id){
       const m=markeryWgKropki[id];
       if(m){grupaMarkerow.removeLayer(m);delete markeryWgKropki[id];}
       wszystkieKropki=wszystkieKropki.filter(k=>k.id!==id);
-      document.getElementById('liczKropek').textContent=wszystkieKropki.length;
+      ustawLicznikCalkowity(Math.max(0,licznikCalkowity-1));
       mapa.closePopup();
       toast('🗑️ Kropka usunięta po zgłoszeniach.');
     }
@@ -737,11 +772,17 @@ async function udostepnij(id,tytul){
   catch(e){prompt('Skopiuj link:',link);}
 }
 
-function otworzZUrl(){
+async function otworzZUrl(){
   const h=location.hash;
   if(!h.startsWith('#k='))return;
   const id=h.slice(3);
-  const k=wszystkieKropki.find(x=>x.id===id);
+  let k=wszystkieKropki.find(x=>x.id===id);
+  if(!k&&online){
+    try{
+      const doc=await db.collection('wspomnienia').doc(id).get();
+      if(doc.exists){k=doc.data();k.id=doc.id;dodajKropkeNaMape(k);}
+    }catch(e){console.warn(e);}
+  }
   if(!k){toast('Wspomnienie nieznalezione.');return;}
   mapa.setView([k.lat,k.lng],17);
   setTimeout(()=>{const m=markeryWgKropki[id];if(m)m.openPopup();},700);
