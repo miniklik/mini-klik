@@ -4,12 +4,14 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Mapa Wspomnień</title>
-<link rel="preconnect" href="https://unpkg.com" crossorigin>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
 <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css"/>
 <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css"/>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,400&family=EB+Garamond:wght@400;500&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
 <style>
 :root{--bg:#0e1530;--bg2:#161e3f;--karta:#1c2750;--obw:rgba(245,210,114,.25);--tekst:#f3eeff;--tekst-mil:#bcb7d8;--tekst-cichy:#8b85a8;--akcent:#f5d272;--akcent2:#e8a0c0;--wino:#bd4a5a;--niebo:#5ab4ff;--cien-l:0 6px 18px rgba(0,0,0,.35);--cien-g:0 18px 44px rgba(0,0,0,.55);--mapa-bg:#0a0f24;--tile-filter:none;}
@@ -33,6 +35,9 @@ body.dzien .leaflet-control-attribution{background:rgba(255,247,230,.85)!importa
 .btn-ikon{width:38px;height:38px;border-radius:50%;background:var(--karta);border:1px solid var(--obw);color:var(--akcent);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:18px;transition:.2s}
 .btn-ikon:hover{background:var(--bg2);transform:scale(1.06)}
 .btn-ikon.akt{background:linear-gradient(135deg,var(--akcent2),var(--akcent));color:#2a1830;border-color:var(--akcent)}
+.sel-warstwa{font-family:'EB Garamond',serif;font-size:13px;height:38px;border-radius:19px;background:var(--karta);border:1px solid var(--obw);color:var(--akcent);padding:0 12px;cursor:pointer;outline:none}
+.sel-warstwa:hover{background:var(--bg2)}
+body.dzien .sel-warstwa{color:#3d2817}
 .dol{position:fixed;bottom:0;left:0;right:0;z-index:1000;display:flex;justify-content:center;padding:18px;background:linear-gradient(0deg,var(--bg),transparent);pointer-events:none}
 .dol>*{pointer-events:auto}
 .btn-dodaj{display:flex;align-items:center;gap:10px;font-family:'EB Garamond',serif;font-size:17px;font-weight:500;background:linear-gradient(135deg,var(--akcent2),var(--akcent));color:#2a1830;border:none;border-radius:30px;padding:14px 28px;cursor:pointer;box-shadow:0 6px 24px rgba(232,160,192,.45);transition:.25s}
@@ -61,7 +66,7 @@ textarea{min-height:110px;line-height:1.5}
 .btn-sec{background:rgba(255,255,255,.05);color:var(--tekst-mil);border-color:var(--obw)}
 body.dzien .btn-sec{background:rgba(0,0,0,.04)}
 .rzad-btn{display:flex;gap:10px;margin-top:6px}.rzad-btn .btn{flex:1}
-.instr{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:900;background:var(--karta);backdrop-filter:blur(10px);border:1px solid var(--akcent);border-radius:16px;padding:22px 28px;text-align:center;box-shadow:0 0 40px rgba(245,210,114,.3);pointer-events:none;max-width:380px;display:none}
+.instr{position:fixed;left:50%;top:78px;transform:translateX(-50%);z-index:900;background:var(--karta);backdrop-filter:blur(10px);border:1px solid var(--akcent);border-radius:16px;padding:22px 28px;text-align:center;box-shadow:0 0 40px rgba(245,210,114,.3);pointer-events:none;max-width:380px;display:none}
 .instr .ikon{font-size:38px;margin-bottom:8px}
 .instr .nag{font-family:'Cormorant Garamond',serif;font-size:21px;color:var(--akcent);margin-bottom:6px}
 .instr .opis{font-size:15px;color:var(--tekst-mil);line-height:1.5}
@@ -97,16 +102,68 @@ body.dzien .btn-sec{background:rgba(0,0,0,.04)}
 @keyframes slidd{from{opacity:0;transform:translate(-50%,-10px)}to{opacity:1;transform:translateX(-50%)}}
 .spacer-info b{color:var(--akcent2)}
 .spacer-info .kropek-pulse{width:8px;height:8px;border-radius:50%;background:var(--akcent2);animation:pulsja 1.2s ease-in-out infinite}
+.spacer-zasieg{position:fixed;left:50%;bottom:150px;transform:translateX(-50%);z-index:900;background:var(--karta);border:1px solid var(--akcent2);border-radius:20px;padding:12px 20px;box-shadow:var(--cien-l);display:none;flex-direction:column;align-items:center;gap:6px;width:min(320px,86vw)}
+.spacer-zasieg.poka{display:flex;animation:slidd .3s ease}
+.spacer-zasieg .sz-etyk{font-size:13px;color:var(--tekst-mil)}
+.spacer-zasieg .sz-etyk b{color:var(--akcent2)}
+.spacer-zasieg input[type=range]{width:100%;accent-color:var(--akcent2);cursor:pointer}
 @media(max-width:500px){.tytul{font-size:22px}.licznik-gora{font-size:12px}.licznik-gora b{font-size:15px}.panel{padding:20px}.gora{padding:12px 14px}.btn-ikon{width:34px;height:34px;font-size:16px}}
+
+/* ════ INTRO ════ */
+#intro{position:fixed;inset:0;z-index:20000;background:radial-gradient(ellipse at 50% 40%,#1c2750 0%,#0e1530 55%,#070a1a 100%);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:30px;cursor:pointer;overflow:hidden;transition:opacity 1s ease,visibility 1s ease}
+#intro.znika{opacity:0;pointer-events:none}
+#intro .swietliki{position:absolute;inset:0;pointer-events:none}
+#intro .swietlik{position:absolute;bottom:-10px;width:4px;height:4px;border-radius:50%;background:var(--akcent2);box-shadow:0 0 8px 2px rgba(232,160,192,.9);animation:unosSie linear infinite}
+@keyframes unosSie{0%{transform:translateY(0) translateX(0);opacity:0}10%{opacity:1}90%{opacity:.8}100%{transform:translateY(-100vh) translateX(var(--drift,20px));opacity:0}}
+#intro .iskra{width:6px;height:6px;border-radius:50%;background:var(--akcent);box-shadow:0 0 20px 6px rgba(245,210,114,.8);margin-bottom:26px;animation:pulsIskra 2.2s ease-in-out infinite;opacity:0;animation:pojawSie 1.2s ease forwards,pulsIskra 2.2s ease-in-out 1.2s infinite}
+@keyframes pojawSie{to{opacity:1}}
+@keyframes pulsIskra{0%,100%{box-shadow:0 0 20px 6px rgba(245,210,114,.6);transform:scale(1)}50%{box-shadow:0 0 32px 10px rgba(245,210,114,.95);transform:scale(1.3)}}
+#intro .intro-tytul{font-family:'Cormorant Garamond',serif;font-weight:600;font-size:44px;color:var(--akcent);letter-spacing:1px;opacity:0;transform:translateY(14px);animation:wynurzTytul 1.3s ease .4s forwards}
+#intro .intro-tytul em{font-style:italic;color:var(--akcent2);font-weight:500}
+@keyframes wynurzTytul{to{opacity:1;transform:translateY(0)}}
+#intro .intro-haslo{font-family:'Caveat',cursive;font-size:28px;color:var(--tekst-mil);margin-top:18px;max-width:420px;line-height:1.4;opacity:0;transform:translateY(10px);animation:wynurzTytul 1.3s ease 1.5s forwards}
+#intro .intro-haslo b{color:var(--akcent2);font-weight:700}
+#intro .intro-wskaz{position:absolute;bottom:56px;left:50%;transform:translateX(-50%);font-family:'EB Garamond',serif;font-size:14px;letter-spacing:2px;text-transform:uppercase;color:var(--tekst-cichy);opacity:0;animation:wynurzTytul 1s ease 2.8s forwards,pulsWskaz 1.8s ease-in-out 3.8s infinite}
+#intro .intro-etap1{display:flex;flex-direction:column;align-items:center}
+#intro .intro-etap2{display:none;flex-direction:column;align-items:center;gap:20px}
+#intro .iz-linia{font-family:'Cormorant Garamond',serif;font-weight:600;font-size:32px;color:var(--akcent);opacity:0;transform:translateY(12px);animation:wynurzTytul 1s ease forwards}
+#intro .iz-linia.iz-2{color:var(--akcent2)}
+#intro .iz-linia.iz-3{font-style:italic}
+#intro .iz-linia.iz-4{color:var(--akcent2)}
+#intro .intro-obrazek{max-width:480px;width:82vw;opacity:0;transform:translateY(10px);animation:wynurzTytul 1s ease forwards}
+#intro .intro-obrazek img{width:100%;display:block;border-radius:14px;box-shadow:var(--cien-g)}
+@keyframes pulsWskaz{0%,100%{opacity:.4}50%{opacity:.9}}
 </style>
 </head>
 <body>
+<div id="intro" onclick="introKlik()">
+  <div class="swietliki" id="swietliki"></div>
+  <div class="intro-etap1" id="introEtap1">
+    <div class="iskra"></div>
+    <div class="intro-tytul">Mapa <em>Wspomnień</em></div>
+    <div class="intro-haslo">Chcesz podzielić się <b>wspomnieniem</b>?<br>Przekaż je dalej.</div>
+    <div class="intro-wskaz">dotknij, aby wejść</div>
+  </div>
+  <div class="intro-etap2" id="introEtap2">
+    <div class="intro-obrazek" style="animation-delay:.2s">
+      <img src="img/intro.jpg" alt="Mapa Wspomnień">
+    </div>
+    <div class="iz-linia" style="animation-delay:.2s">Nie obrażaj</div>
+    <div class="iz-linia iz-2" style="animation-delay:1.1s">Bądź sobą</div>
+    <div class="iz-linia iz-3" style="animation-delay:2s">Twój ślad zostaje</div>
+    <div class="iz-linia iz-4" style="animation-delay:2.9s">Baw się dobrze</div>
+    <div class="intro-wskaz" id="introWskaz2" style="animation:wynurzTytul 1s ease 3.9s forwards,pulsWskaz 1.8s ease-in-out 4.9s infinite">dotknij, aby wejść</div>
+  </div>
+</div>
 <div id="mapa"></div>
 <div class="gora">
   <div class="tytul">Mapa <em>Wspomnień</em></div>
   <div class="gora-prawo">
     <div class="licznik-gora">kropek: <b id="liczKropek">—</b></div>
-    <button class="btn-ikon" id="btnMotyw" onclick="przelaczMotyw()" title="Tryb dzień/noc">🌙</button>
+    <select class="sel-warstwa" id="selWarstwa" onchange="ustawWarstwe(this.value)" title="Styl mapy">
+      <option value="klasyczna">🗺️ Klasyczna</option>
+      <option value="satelita">🛰️ Satelita (Esri)</option>
+    </select>
   </div>
 </div>
 
@@ -117,7 +174,12 @@ body.dzien .btn-sec{background:rgba(0,0,0,.04)}
 
 <div class="spacer-info" id="spacerInfo">
   <span class="kropek-pulse"></span>
-  <span>Tryb spaceru — <b id="spacerLicz">0</b> kropek w 500 m</span>
+  <span>Tryb spaceru — <b id="spacerLicz">0</b> kropek w <b id="spacerZasiegLicz">50</b> m</span>
+</div>
+
+<div class="spacer-zasieg" id="spacerZasieg">
+  <div class="sz-etyk">Zasięg czytania: <b id="szWartosc">50</b> m</div>
+  <input type="range" id="szSuwak" min="20" max="100" step="5" value="50" oninput="zmienZasieg(this.value)">
 </div>
 
 <div class="dol">
@@ -128,7 +190,7 @@ body.dzien .btn-sec{background:rgba(0,0,0,.04)}
 
 <div class="instr" id="instr">
   <div class="ikon">👆</div>
-  <div class="nag">Dotknij mapy</div>
+  <div class="nag">Dodaj miejsce</div>
   <div class="opis">Wskaż miejsce, o którym chcesz opowiedzieć</div>
 </div>
 
@@ -155,35 +217,11 @@ body.dzien .btn-sec{background:rgba(0,0,0,.04)}
 </div>
 <div id="toast"></div>
 
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>
-<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js" defer></script>
-<script defer>
-/* ════ FIREBASE (ładowany leniwie, dopiero gdy potrzebny) ════ */
+<script>
+/* ════ FIREBASE ════ */
 const FIREBASE_CONFIG={apiKey:"AIzaSyDRR3vSfgpEmbpZz_-VldMTnTHoXRfuGKg",authDomain:"ksiega-ramzi.firebaseapp.com",projectId:"ksiega-ramzi",storageBucket:"ksiega-ramzi.firebasestorage.app",messagingSenderId:"400735142662",appId:"1:400735142662:web:0b52a57f4fedf367839487"};
-let db=null,online=false,firebaseGotowyPromise=null;
-
-function wczytajSkrypt(src){
-  return new Promise((res,rej)=>{
-    const s=document.createElement('script');
-    s.src=src;s.onload=res;s.onerror=rej;
-    document.head.appendChild(s);
-  });
-}
-
-function inicjujFirebase(){
-  if(firebaseGotowyPromise)return firebaseGotowyPromise;
-  firebaseGotowyPromise=(async()=>{
-    try{
-      await wczytajSkrypt('https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js');
-      await wczytajSkrypt('https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js');
-      firebase.initializeApp(FIREBASE_CONFIG);
-      db=firebase.firestore();
-      online=true;
-    }catch(e){console.warn('Firebase niedostępny, działam offline (localStorage).',e);online=false;}
-    return online;
-  })();
-  return firebaseGotowyPromise;
-}
+let db=null,online=false;
+try{firebase.initializeApp(FIREBASE_CONFIG);db=firebase.firestore();online=true;}catch(e){console.warn(e);}
 
 /* ════ FILTR ════ */
 const STOP=['kurw','chuj','huj','pizd','jeb','pierdol','spierdal','cipa','kutas','suka','dziwka','debil','fuck','shit','bitch','nigger'];
@@ -196,25 +234,36 @@ function escHtml(s){return(s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;',
 function fmtData(ms){if(!ms)return'';const d=new Date(ms),roz=Date.now()-ms;if(roz<60000)return'przed chwilą';if(roz<3600000)return Math.floor(roz/60000)+' min temu';if(roz<86400000)return Math.floor(roz/3600000)+' godz. temu';if(roz<604800000)return Math.floor(roz/86400000)+' dni temu';return d.toLocaleDateString('pl-PL',{day:'numeric',month:'long',year:'numeric'});}
 function metrowDo(la1,lo1,la2,lo2){const R=6371000,t1=la1*Math.PI/180,t2=la2*Math.PI/180,dt=(la2-la1)*Math.PI/180,dl=(lo2-lo1)*Math.PI/180;const a=Math.sin(dt/2)**2+Math.cos(t1)*Math.cos(t2)*Math.sin(dl/2)**2;return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));}
 
-/* ════ MOTYW ════ */
-function przelaczMotyw(){
-  const dzien=document.body.classList.toggle('dzien');
-  document.getElementById('btnMotyw').textContent=dzien?'☀️':'🌙';
-  try{localStorage.setItem('mw_motyw',dzien?'dzien':'noc');}catch(e){}
-  if(warstwaKafelki){mapa.removeLayer(warstwaKafelki);}
-  warstwaKafelki=L.tileLayer(dzien?'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png':'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{maxZoom:19,attribution:'© OSM · © CARTO'}).addTo(mapa);
-}
-
 /* ════ MAPA ════ */
 let mapa,warstwaKafelki,grupaMarkerow,markerNowy=null,pozWybrana=null,trybAkt=false,wszystkieKropki=[],markeryWgKropki={};
 let gpsZywo=false,gpsWatchId=null,markerJa=null,mojaPoz=null;
 let spaceruTryb=false,spaceruPrzeczytane=new Set(),spaceruWatchId=null;
 
+/* ════ WARSTWY MAPY ════ */
+const WARSTWY=['klasyczna','satelita'];
+const WARSTWY_NAZWY={klasyczna:'klasyczna',satelita:'satelita (Esri)'};
+let warstwaAkt='klasyczna';
+
+function utworzWarstwe(nazwa){
+  if(nazwa==='satelita'){
+    return L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:19,attribution:'© Esri'});
+  }
+  return L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'});
+}
+function ustawWarstwe(nazwa,zapisz){
+  if(warstwaKafelki)mapa.removeLayer(warstwaKafelki);
+  warstwaAkt=nazwa;
+  warstwaKafelki=utworzWarstwe(nazwa).addTo(mapa);
+  const sel=document.getElementById('selWarstwa');if(sel)sel.value=nazwa;
+  if(zapisz!==false){try{localStorage.setItem('mw_warstwa',nazwa);}catch(e){}toast('Mapa: '+WARSTWY_NAZWY[nazwa]);}
+}
+
 function initMapa(){
-  mapa=L.map('mapa').setView([52.0,19.4],6);
-  const startDzien=localStorage.getItem('mw_motyw')==='dzien';
-  if(startDzien){document.body.classList.add('dzien');document.getElementById('btnMotyw').textContent='☀️';}
-  warstwaKafelki=L.tileLayer(startDzien?'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png':'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{maxZoom:19,attribution:'© OSM · © CARTO'}).addTo(mapa);
+  mapa=L.map('mapa',{zoomControl:false}).setView([52.0,19.4],6);
+  let zapisanaWarstwa=null;
+  try{zapisanaWarstwa=localStorage.getItem('mw_warstwa');}catch(e){}
+  const poczatkowa=WARSTWY.includes(zapisanaWarstwa)?zapisanaWarstwa:'klasyczna';
+  ustawWarstwe(poczatkowa,false);
   grupaMarkerow=L.markerClusterGroup({maxClusterRadius:50,showCoverageOnHover:false});
   mapa.addLayer(grupaMarkerow);
   mapa.on('click',obslKlikMapy);
@@ -246,6 +295,15 @@ function zatrzymajGps(){
 }
 
 /* ════ TRYB SPACERU ════ */
+let PROMIEN_SPACERU=50;
+let spaceruIntervalId=null;
+function zmienZasieg(v){
+  PROMIEN_SPACERU=Number(v);
+  document.getElementById('szWartosc').textContent=PROMIEN_SPACERU;
+  document.getElementById('spacerZasiegLicz').textContent=PROMIEN_SPACERU;
+  spaceruPrzeczytane.clear();
+  sprawdzKropkiWokol();
+}
 function trybSpaceru(){
   if(spaceruTryb){zatrzymajSpacer();return;}
   if(!('speechSynthesis' in window)){toast('Twoja przeglądarka nie obsługuje czytania głosem');return;}
@@ -253,32 +311,46 @@ function trybSpaceru(){
   spaceruPrzeczytane.clear();
   document.getElementById('fabSpacer').classList.add('spacer-akt');
   document.getElementById('spacerInfo').classList.add('poka');
+  document.getElementById('spacerZasieg').classList.add('poka');
   odblokujMowe();
   if(!gpsZywo)trybGpsZywo();
-  toast('🚶 Tryb spaceru: czytam kropki w 500 m');
+  toast('🚶 Tryb spaceru: czytam kropki w '+PROMIEN_SPACERU+' m');
   setTimeout(sprawdzKropkiWokol,1000);
+  if(spaceruIntervalId)clearInterval(spaceruIntervalId);
+  spaceruIntervalId=setInterval(()=>{
+    if(!spaceruTryb)return;
+    if(mojaPoz)mapa.setView([mojaPoz.lat,mojaPoz.lng],mapa.getZoom());
+    sprawdzKropkiWokol();
+  },2000);
 }
 function zatrzymajSpacer(){
   spaceruTryb=false;
   try{speechSynthesis.cancel();}catch(e){}
   document.getElementById('fabSpacer').classList.remove('spacer-akt');
   document.getElementById('spacerInfo').classList.remove('poka');
+  document.getElementById('spacerZasieg').classList.remove('poka');
+  if(spaceruIntervalId){clearInterval(spaceruIntervalId);spaceruIntervalId=null;}
   toast('Tryb spaceru wyłączony');
 }
 function odblokujMowe(){try{const u=new SpeechSynthesisUtterance(' ');u.volume=0;speechSynthesis.speak(u);}catch(e){}}
 function powiedz(t){if(!('speechSynthesis' in window))return;try{const u=new SpeechSynthesisUtterance(t);u.lang='pl-PL';u.rate=0.95;speechSynthesis.speak(u);}catch(e){}}
+function czytajKropke(r){
+  if(!('speechSynthesis' in window))return;
+  try{speechSynthesis.cancel();}catch(e){}
+  const tekst='Tu '+(r.autor||'anonim')+' wspomina: '+(r.tytul||'')+'. '+r.tresc;
+  powiedz(tekst);
+}
 
 function sprawdzKropkiWokol(){
   if(!spaceruTryb||!mojaPoz)return;
-  const wPoblizu=wszystkieKropki.filter(k=>metrowDo(mojaPoz.lat,mojaPoz.lng,k.lat,k.lng)<=500);
+  const wPoblizu=wszystkieKropki.filter(k=>metrowDo(mojaPoz.lat,mojaPoz.lng,k.lat,k.lng)<=PROMIEN_SPACERU);
   document.getElementById('spacerLicz').textContent=wPoblizu.length;
   const doPrzeczytania=wPoblizu.filter(k=>!spaceruPrzeczytane.has(k.id));
   if(doPrzeczytania.length&&!speechSynthesis.speaking){
     const k=doPrzeczytania[0];
     spaceruPrzeczytane.add(k.id);
-    const tekst='Tu '+(k.autor||'anonim')+' wspomina: '+(k.tytul||'')+'. '+k.tresc;
-    powiedz(tekst);
     if(markeryWgKropki[k.id])markeryWgKropki[k.id].openPopup();
+    else czytajKropke(k);
   }
 }
 
@@ -303,7 +375,6 @@ async function zapiszWspom(){
   const btn=document.getElementById('btnZapisz');btn.disabled=true;btn.textContent='Zapisuję…';
   const rek={tytul:tytul||'Bez tytułu',tresc,autor,lat:pozWybrana[0],lng:pozWybrana[1],utworzono:Date.now(),lajki:0};
   try{
-    await inicjujFirebase();
     if(online){const r=await db.collection('wspomnienia').add(rek);rek.id=r.id;}
     else{rek.id='lok_'+Date.now();const lok=JSON.parse(localStorage.getItem('mw_lok')||'[]');lok.push(rek);localStorage.setItem('mw_lok',JSON.stringify(lok));}
     if(markerNowy){mapa.removeLayer(markerNowy);markerNowy=null;}
@@ -315,11 +386,7 @@ async function zapiszWspom(){
 /* ════ KROPKI ════ */
 async function zaladujKropki(){
   let lista=[];
-  try{
-    await inicjujFirebase();
-    if(online){const snap=await db.collection('wspomnienia').get();snap.forEach(d=>{const v=d.data();v.id=d.id;lista.push(v);});}
-    else{lista=JSON.parse(localStorage.getItem('mw_lok')||'[]');}
-  }catch(e){console.warn(e);lista=JSON.parse(localStorage.getItem('mw_lok')||'[]');}
+  try{if(online){const snap=await db.collection('wspomnienia').get();snap.forEach(d=>{const v=d.data();v.id=d.id;lista.push(v);});}else{lista=JSON.parse(localStorage.getItem('mw_lok')||'[]');}}catch(e){console.warn(e);}
   wszystkieKropki=lista;lista.forEach(dodajKropkeNaMape);document.getElementById('liczKropek').textContent=lista.length;
 }
 
@@ -342,7 +409,7 @@ function dodajKropkeNaMape(r){
   const ik=L.divIcon({html:'<div class="kropka-css"></div>',className:'',iconSize:[18,18],iconAnchor:[9,9]});
   const m=L.marker([r.lat,r.lng],{icon:ik});
   m.bindPopup(htmlPopup(r),{maxWidth:300,minWidth:240});
-  m.on('popupopen',()=>{r._marker=m;});
+  m.on('popupopen',()=>{r._marker=m;czytajKropke(r);});
   grupaMarkerow.addLayer(m);
   markeryWgKropki[r.id]=m;
   if(wszystkieKropki.indexOf(r)===-1)wszystkieKropki.push(r);
@@ -383,6 +450,47 @@ function otworzZUrl(){
   mapa.setView([k.lat,k.lng],17);
   setTimeout(()=>{const m=markeryWgKropki[id];if(m)m.openPopup();},700);
 }
+
+/* ════ INTRO ════ */
+function generujSwietliki(){
+  const kontener=document.getElementById('swietliki');
+  const N=22;
+  for(let i=0;i<N;i++){
+    const s=document.createElement('div');
+    s.className='swietlik';
+    const lewo=Math.random()*100;
+    const opoznienie=Math.random()*6;
+    const czas=6+Math.random()*6;
+    const dryf=(Math.random()*60-30)+'px';
+    s.style.left=lewo+'vw';
+    s.style.animationDelay=opoznienie+'s';
+    s.style.animationDuration=czas+'s';
+    s.style.setProperty('--drift',dryf);
+    kontener.appendChild(s);
+  }
+}
+function zamknijIntro(){
+  const el=document.getElementById('intro');
+  if(!el||el.classList.contains('znika'))return;
+  odblokujMowe();
+  el.classList.add('znika');
+  setTimeout(()=>{el.style.display='none';},1000);
+}
+let introEtap=1;
+function introKlik(){
+  odblokujMowe();
+  if(introEtap===1){
+    introEtap=2;
+    document.getElementById('introEtap1').style.display='none';
+    document.getElementById('introEtap2').style.display='flex';
+    clearTimeout(introAutoId);
+    introAutoId=setTimeout(zamknijIntro,7500);
+    return;
+  }
+  zamknijIntro();
+}
+generujSwietliki();
+let introAutoId=setTimeout(()=>{introKlik();},7000);
 
 initMapa();
 </script>
