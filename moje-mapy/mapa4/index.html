@@ -156,6 +156,16 @@ body.dzien .btn-zewn{background:rgba(0,0,0,.04)}
 @keyframes slidd{from{opacity:0;transform:translate(-50%,-10px)}to{opacity:1;transform:translateX(-50%)}}
 .spacer-info b{color:var(--akcent2)}
 .spacer-info .kropek-pulse{width:8px;height:8px;border-radius:50%;background:var(--akcent2);animation:pulsja 1.2s ease-in-out infinite}
+.matrix-tlo{position:fixed;inset:0;z-index:6000;display:none;align-items:center;justify-content:center;background:#000}
+.matrix-tlo.poka{display:flex}
+.matrix-tlo canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+.matrix-karta{position:relative;z-index:2;max-width:380px;width:88%;background:rgba(4,10,6,.72);border:1px solid rgba(63,255,122,.35);border-radius:16px;padding:30px 26px 26px;text-align:center;backdrop-filter:blur(2px)}
+.matrix-karta .kropki-postep{display:flex;gap:6px;justify-content:center;margin-bottom:18px;flex-wrap:wrap}
+.matrix-karta .kropka-postep{width:6px;height:6px;border-radius:50%;background:#1c3d27}
+.matrix-karta .kropka-postep.akt{background:#5dffa0}
+.matrix-tekst{font-family:'Courier New',monospace;color:#7dffb0;font-size:16px;line-height:1.75;white-space:pre-line;text-shadow:0 0 8px rgba(93,255,160,.5);min-height:130px;display:flex;align-items:center;justify-content:center}
+.matrix-karta .btn{width:100%;margin-top:18px;background:#0f2418;color:#7dffb0;border:1px solid #2fff6a80;border-radius:10px;padding:12px 16px;font-family:'Courier New',monospace;letter-spacing:1px;font-size:14px;cursor:pointer;transition:.2s}
+.matrix-karta .btn:hover{background:#173a26;border-color:#5dffa0}
 .cz-badge{position:fixed;left:50%;top:128px;transform:translateX(-50%);z-index:895;background:var(--karta);border:1px solid var(--akcent);border-radius:24px;padding:8px 14px;font-size:13px;color:var(--tekst);box-shadow:var(--cien-l);display:none;align-items:center;gap:8px}
 .cz-badge.poka{display:flex;animation:slidd .3s ease}
 .cz-badge b{color:var(--akcent);letter-spacing:2px}
@@ -223,6 +233,7 @@ body.dzien .btn-zewn{background:rgba(0,0,0,.04)}
 </div>
 
 <div class="fab-grupa">
+  <button class="fab" id="fabInfo" onclick="otworzInfo()" title="Informacje i regulamin">ℹ️</button>
   <button class="fab" id="fabDzwiek" onclick="przelaczDzwiek()" title="Wycisz/włącz czytanie">🔊</button>
   <button class="fab" id="fabGps" onclick="trybGpsZywo()" title="GPS na żywo">📍</button>
   <button class="fab" id="fabSpacer" onclick="trybSpaceru()" title="Tryb spaceru (audio)">🚶</button>
@@ -360,6 +371,16 @@ body.dzien .btn-zewn{background:rgba(0,0,0,.04)}
     </div>
   </div>
 </div>
+<div class="matrix-tlo" id="matrixTlo">
+  <canvas id="matrixCanvas"></canvas>
+  <button class="zamknij" id="matrixZamknij" onclick="zamknijInfo()" style="position:absolute;top:16px;right:16px;z-index:2;background:rgba(0,0,0,.4);border-color:#2fff6a55;color:#5dffa0">✕</button>
+  <div class="matrix-karta">
+    <div class="kropki-postep" id="infoKropki"></div>
+    <div class="matrix-tekst" id="infoTekst"></div>
+    <button class="btn" id="infoBtn" onclick="infoDalej()">Dalej</button>
+  </div>
+</div>
+
 <div id="toast"></div>
 
 <script>
@@ -880,6 +901,70 @@ async function zglosKropke(id){
       toast('🗑️ Kropka usunięta po zgłoszeniach.');
     }
   }catch(e){console.warn(e);toast('Nie udało się zgłosić.');}
+}
+
+/* ════ INFORMACJE / REGULAMIN (ekran Matrix) ════ */
+const INFO_KROKI=[
+"Kochani,\noddajemy w wasze ręce\nmapę wspomnień.",
+"Projekt jest ogólnodostępny\ni liczymy się z tym,\nże znajdzie się ktoś,\nkto będzie chciał zepsuć nam zabawę.",
+"Mapa służy\ndo zabawy\noraz dzielenia się\nciekawostkami.",
+"Możesz zostawiać\nopisy, zdjęcia, nagrania audio,\nlinki z YouTube,\notworzyć trasę z nawigacją.",
+"Bądźmy kreatywni,\ngrzeczni dla innych,\npokazujmy ciekawe miejsca,\noglądajmy ciekawe miejsca.",
+"Włączmy tryb spaceru\ni słuchajmy opisów,\nchodząc po okolicy\nlub jadąc samochodem.",
+"Dbamy o bezpieczeństwo:\nfiltr treści, limity wpisów,\nzgłoszenia niewłaściwych miejsc\n(5 zgłoszeń = kropka znika na zawsze).",
+"Pod maską: Leaflet.js + Firebase Firestore.\nHosting: GitHub Pages.\nBrak logowania — cała logika\ndziała w Twojej przeglądarce."
+];
+let infoKrok=0,matrixAnimId=null,matrixResizeFn=null;
+
+function otworzInfo(){
+  infoKrok=0;
+  document.getElementById('matrixTlo').classList.add('poka');
+  pokazKrokInfo();
+  startMatrix();
+}
+function zamknijInfo(){
+  document.getElementById('matrixTlo').classList.remove('poka');
+  stopMatrix();
+}
+function pokazKrokInfo(){
+  document.getElementById('infoTekst').textContent=INFO_KROKI[infoKrok];
+  document.getElementById('infoBtn').textContent=(infoKrok===INFO_KROKI.length-1)?'Koniec':'Dalej';
+  const kr=document.getElementById('infoKropki');
+  kr.innerHTML=INFO_KROKI.map((_,i)=>'<div class="kropka-postep'+(i<=infoKrok?' akt':'')+'"></div>').join('');
+}
+function infoDalej(){
+  if(infoKrok>=INFO_KROKI.length-1){zamknijInfo();return;}
+  infoKrok++;
+  pokazKrokInfo();
+}
+function startMatrix(){
+  const c=document.getElementById('matrixCanvas');
+  const ctx=c.getContext('2d');
+  function resize(){c.width=window.innerWidth;c.height=window.innerHeight;}
+  resize();
+  matrixResizeFn=resize;
+  window.addEventListener('resize',matrixResizeFn);
+  const znaki='アイウエオカキクケコサシスセソ0123456789';
+  const rozmiar=16;
+  let krople=new Array(Math.floor(c.width/rozmiar)).fill(1);
+  function rysuj(){
+    ctx.fillStyle='rgba(0,0,0,0.06)';
+    ctx.fillRect(0,0,c.width,c.height);
+    ctx.fillStyle='#3fff7a';
+    ctx.font=rozmiar+'px monospace';
+    for(let i=0;i<krople.length;i++){
+      const znak=znaki[Math.floor(Math.random()*znaki.length)];
+      ctx.fillText(znak,i*rozmiar,krople[i]*rozmiar);
+      if(krople[i]*rozmiar>c.height&&Math.random()>0.975)krople[i]=0;
+      krople[i]++;
+    }
+    matrixAnimId=requestAnimationFrame(rysuj);
+  }
+  rysuj();
+}
+function stopMatrix(){
+  if(matrixAnimId){cancelAnimationFrame(matrixAnimId);matrixAnimId=null;}
+  if(matrixResizeFn){window.removeEventListener('resize',matrixResizeFn);matrixResizeFn=null;}
 }
 
 /* ════ NAWIGACJA ════ */
