@@ -242,7 +242,7 @@ body.dzien .btn-zewn{background:rgba(0,0,0,.04)}
 <div class="gora">
   <div class="tytul">Mapa <em>Wspomnień</em></div>
   <div class="gora-prawo">
-    <div class="licznik-gora">kropek: <b id="liczKropek">—</b></div>
+    <div class="licznik-gora">moje kropki: <b id="liczKropek">—</b></div>
     <button class="btn-ikon" id="btnCzest" onclick="otworzPanelCz()" title="Częstotliwość">📻</button>
     <select class="sel-warstwa" id="selWarstwa" onchange="ustawWarstwe(this.value)" title="Styl mapy">
       <option value="klasyczna">🗺️ Klasyczna</option>
@@ -474,7 +474,7 @@ function initMapa(){
   mapa.on('moveend',()=>{clearTimeout(obszarTimeout);obszarTimeout=setTimeout(zaladujKropkiWObszarze,600);});
   if(navigator.geolocation)navigator.geolocation.getCurrentPosition(p=>{if(!trybAkt&&!pozWybrana)mapa.setView([p.coords.latitude,p.coords.longitude],13);},()=>{},{timeout:5000});
   zaladujLokalneKropki();
-  zaladujLicznikCalkowity();
+  ustawLicznikCalkowity(liczbaMoichNaCzestotliwosci());
   zaladujKropkiWObszarze().then(otworzZUrl);
 }
 
@@ -640,7 +640,8 @@ async function zapiszWspom(){
   if(archiwum&&!bezpUrl(archiwum)){toast('Link do audio musi zaczynać się od https://');return;}
   if(zdjecie&&!bezpUrl(zdjecie)){toast('Link do zdjęcia musi zaczynać się od https://');return;}
   const btn=document.getElementById('btnZapisz');btn.disabled=true;btn.textContent='Zapisuję…';
-  const rek={tytul:tytul||'Bez tytułu',tresc,autor,nick,lat:pozWybrana[0],lng:pozWybrana[1],utworzono:Date.now(),lajki:0,zgloszenia:0,czestotliwosc:aktywnaCzestotliwosc};
+  const klucz=losowyKlucz();
+  const rek={tytul:tytul||'Bez tytułu',tresc,autor,nick,lat:pozWybrana[0],lng:pozWybrana[1],utworzono:Date.now(),lajki:0,zgloszenia:0,czestotliwosc:aktywnaCzestotliwosc,wlasciciel_klucz:klucz};
   if(yt)rek.yt=yt;
   if(archiwum)rek.archiwum=archiwum;
   if(zdjecie)rek.zdjecie=zdjecie;
@@ -648,7 +649,9 @@ async function zapiszWspom(){
     if(online){const r=await db.collection('wspomnienia').add(rek);rek.id=r.id;}
     else{rek.id='lok_'+Date.now();const lok=JSON.parse(localStorage.getItem('mw_lok')||'[]');lok.push(rek);localStorage.setItem('mw_lok',JSON.stringify(lok));}
     if(markerNowy){mapa.removeLayer(markerNowy);markerNowy=null;}
-    dodajKropkeNaMape(rek);toast('✨ Kropka postawiona!');zamknijPanel();zapiszCzas('mw_ostatnia_kropka');ustawLicznikCalkowity(licznikCalkowity+1);
+    dodajKropkeNaMape(rek);toast('✨ Kropka postawiona!');zamknijPanel();zapiszCzas('mw_ostatnia_kropka');
+    dodajMojaKropkeLok(rek.id,aktywnaCzestotliwosc,klucz);
+    ustawLicznikCalkowity(liczbaMoichNaCzestotliwosci());
   }catch(e){console.error(e);toast('Błąd zapisu.');}
   finally{btn.disabled=false;btn.textContent='Zostaw kropkę ✨';}
 }
@@ -656,10 +659,40 @@ async function zapiszWspom(){
 /* ════ KROPKI — WCZYTYWANIE OBSZAROWE ════ */
 function ustawLicznikCalkowity(n){licznikCalkowity=n;document.getElementById('liczKropek').textContent=n;}
 
-async function zaladujLicznikCalkowity(){
-  if(!online)return;
-  try{const agg=await db.collection('wspomnienia').where('czestotliwosc','==',aktywnaCzestotliwosc).count().get();ustawLicznikCalkowity(agg.data().count);}
-  catch(e){console.warn(e);}
+/* ════ MOJE KROPKI (własność po urządzeniu) ════ */
+function mojeKropkiLok(){try{return JSON.parse(localStorage.getItem('mw_moje_kropki')||'[]');}catch(e){return[];}}
+function dodajMojaKropkeLok(id,czest,klucz){try{const l=mojeKropkiLok();l.push({id,czestotliwosc:czest||'',klucz:klucz||null});localStorage.setItem('mw_moje_kropki',JSON.stringify(l));}catch(e){}}
+function usunMojaKropkeLok(id){try{localStorage.setItem('mw_moje_kropki',JSON.stringify(mojeKropkiLok().filter(x=>x.id!==id)));}catch(e){}}
+function czyMoja(id){return mojeKropkiLok().some(x=>x.id===id);}
+function mojKlucz(id){const w=mojeKropkiLok().find(x=>x.id===id);return w?w.klucz:null;}
+function liczbaMoichNaCzestotliwosci(){return mojeKropkiLok().filter(x=>(x.czestotliwosc||'')===aktywnaCzestotliwosc).length;}
+function losowyKlucz(){return Math.random().toString(36).slice(2)+Date.now().toString(36);}
+
+async function usunSwojaKropke(id){
+  if(!confirm('Usunąć tę kropkę na zawsze? Tej operacji nie można cofnąć.'))return;
+  if(id.indexOf('lok_')===0){
+    try{
+      let lok=JSON.parse(localStorage.getItem('mw_lok')||'[]');
+      lok=lok.filter(k=>k.id!==id);
+      localStorage.setItem('mw_lok',JSON.stringify(lok));
+    }catch(e){}
+  }else{
+    const klucz=mojKlucz(id);
+    if(!klucz){toast('Nie znaleziono klucza właściciela.');return;}
+    if(!online){toast('Brak połączenia.');return;}
+    try{
+      await db.collection('wspomnienia').doc(id).update({usun_klucz:klucz});
+      await db.collection('wspomnienia').doc(id).delete();
+    }catch(e){console.warn(e);toast('Nie udało się usunąć.');return;}
+  }
+  usunMojaKropkeLok(id);
+  const m=markeryWgKropki[id];
+  if(m){grupaMarkerow.removeLayer(m);delete markeryWgKropki[id];}
+  wszystkieKropki=wszystkieKropki.filter(k=>k.id!==id);
+  mapa.closePopup();
+  zamknijSzczegoly();
+  ustawLicznikCalkowity(liczbaMoichNaCzestotliwosci());
+  toast('🗑️ Kropka usunięta.');
 }
 
 async function zaladujLokalneKropki(){
@@ -668,7 +701,7 @@ async function zaladujLokalneKropki(){
   try{lista=JSON.parse(localStorage.getItem('mw_lok')||'[]');}catch(e){}
   lista=lista.filter(r=>(r.czestotliwosc||'')===aktywnaCzestotliwosc);
   lista.forEach(dodajKropkeNaMape);
-  ustawLicznikCalkowity(lista.length);
+  ustawLicznikCalkowity(liczbaMoichNaCzestotliwosci());
 }
 
 function obszarPokryty(b){
@@ -711,7 +744,7 @@ function aktualizujBadgeCzestotliwosci(){
 function odswiezWidokCzestotliwosci(){
   resetStanKropek();
   zaladujLokalneKropki();
-  zaladujLicznikCalkowity();
+  ustawLicznikCalkowity(liczbaMoichNaCzestotliwosci());
   zaladujKropkiWObszarze();
   aktualizujBadgeCzestotliwosci();
 }
@@ -793,7 +826,7 @@ function htmlPopup(r){
         '<button class="lajk '+(lajkn?'zlajkowane':'')+'" onclick="lajkuj(\''+r.id+'\',this)">❤️ <span>'+(r.lajki||0)+'</span></button>'+
         '<button onclick="udostepnij(\''+r.id+'\',\''+escHtml(r.tytul||'Wspomnienie').replace(/'/g,"\\'")+'\')">📤 Udostępnij</button>'+
       '</div>'+
-      '<div class="pop-zglos"><button onclick="zglosKropke(\''+r.id+'\')">🚩 Zgłoś to miejsce</button></div>'+
+      '<div class="pop-zglos"><button onclick="'+(czyMoja(r.id)?'usunSwojaKropke':'zglosKropke')+'(\''+r.id+'\')">'+(czyMoja(r.id)?'🗑️ Usuń swoją kropkę':'🚩 Zgłoś to miejsce')+'</button></div>'+
     '</div>'+
   '</div>';
 }
@@ -923,7 +956,8 @@ async function zglosKropke(id){
       const m=markeryWgKropki[id];
       if(m){grupaMarkerow.removeLayer(m);delete markeryWgKropki[id];}
       wszystkieKropki=wszystkieKropki.filter(k=>k.id!==id);
-      ustawLicznikCalkowity(Math.max(0,licznikCalkowity-1));
+      usunMojaKropkeLok(id);
+      ustawLicznikCalkowity(liczbaMoichNaCzestotliwosci());
       mapa.closePopup();
       toast('🗑️ Kropka usunięta po zgłoszeniach.');
     }
