@@ -147,6 +147,11 @@ body.dzien .btn-zewn{background:rgba(0,0,0,.04)}
 @keyframes slidd{from{opacity:0;transform:translate(-50%,-10px)}to{opacity:1;transform:translateX(-50%)}}
 .spacer-info b{color:var(--akcent2)}
 .spacer-info .kropek-pulse{width:8px;height:8px;border-radius:50%;background:var(--akcent2);animation:pulsja 1.2s ease-in-out infinite}
+.cz-badge{position:fixed;left:50%;top:128px;transform:translateX(-50%);z-index:895;background:var(--karta);border:1px solid var(--akcent);border-radius:24px;padding:8px 14px;font-size:13px;color:var(--tekst);box-shadow:var(--cien-l);display:none;align-items:center;gap:8px}
+.cz-badge.poka{display:flex;animation:slidd .3s ease}
+.cz-badge b{color:var(--akcent);letter-spacing:2px}
+.cz-badge button{background:none;border:none;color:var(--tekst-cichy);font-size:14px;cursor:pointer;padding:2px 4px;line-height:1}
+.cz-badge button:hover{color:var(--wino)}
 @media(max-width:500px){.tytul{font-size:22px}.licznik-gora{font-size:12px}.licznik-gora b{font-size:15px}.panel{padding:20px}.gora{padding:12px 14px}.btn-ikon{width:34px;height:34px;font-size:16px}}
 
 /* ════ INTRO ════ */
@@ -200,6 +205,7 @@ body.dzien .btn-zewn{background:rgba(0,0,0,.04)}
   <div class="tytul">Mapa <em>Wspomnień</em></div>
   <div class="gora-prawo">
     <div class="licznik-gora">kropek: <b id="liczKropek">—</b></div>
+    <button class="btn-ikon" id="btnCzest" onclick="otworzPanelCz()" title="Częstotliwość">📻</button>
     <select class="sel-warstwa" id="selWarstwa" onchange="ustawWarstwe(this.value)" title="Styl mapy">
       <option value="klasyczna">🗺️ Klasyczna</option>
       <option value="satelita">🛰️ Satelita (Esri)</option>
@@ -216,6 +222,12 @@ body.dzien .btn-zewn{background:rgba(0,0,0,.04)}
 <div class="spacer-info" id="spacerInfo">
   <span class="kropek-pulse"></span>
   <span>Tryb spaceru — <b id="spacerLicz">0</b> kropek w 100 m</span>
+</div>
+
+<div class="cz-badge" id="czBadge">
+  <span class="kropek-pulse"></span>
+  <span>Częstotliwość: <b id="czBadgeKod">—</b></span>
+  <button onclick="wylaczCzestotliwosc()" title="Wyjdź">✕</button>
 </div>
 
 <div class="dol">
@@ -314,6 +326,32 @@ body.dzien .btn-zewn{background:rgba(0,0,0,.04)}
 
   </div>
 </div>
+<div class="panel-tlo" id="panelTloCz" onclick="zamknijTloCz(event)">
+  <div class="panel" style="max-width:340px">
+    <div class="panel-naglo">
+      <h2>Częstotliwość</h2>
+      <button class="zamknij" onclick="zamknijPanelCz()">✕</button>
+    </div>
+
+    <div id="czStanWylaczony">
+      <div class="pytanie-dod">Wejdź na częstotliwość</div>
+      <div class="podpowiedz-dod">Umów się z kimś na kod i miejcie prywatny kanał</div>
+      <div class="pole">
+        <input type="text" id="polCzKod" placeholder="np. 1234" maxlength="20" style="text-align:center;letter-spacing:3px;font-size:18px">
+      </div>
+      <div class="rzad-btn"><button class="btn btn-prim" style="flex:1" onclick="nastawCzestotliwosc()">Nastaw się 📻</button></div>
+    </div>
+
+    <div id="czStanWlaczony" style="display:none">
+      <div class="podglad-karta" style="text-align:center;margin-bottom:14px">
+        <div style="font-size:11px;color:var(--tekst-mil);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Jesteś na częstotliwości</div>
+        <div style="font-family:'Cormorant Garamond',serif;font-weight:600;font-size:24px;color:var(--akcent);letter-spacing:3px" id="czKodWyswietl"></div>
+      </div>
+      <div class="podpowiedz-dod">Widzisz i zostawiasz tylko kropki na tym kanale</div>
+      <div class="rzad-btn"><button class="btn btn-sec" style="flex:1" onclick="wylaczCzestotliwosc()">Wyłącz i wróć do mapy publicznej</button></div>
+    </div>
+  </div>
+</div>
 <div id="toast"></div>
 
 <script>
@@ -354,6 +392,8 @@ let gpsZywo=false,gpsWatchId=null,markerJa=null,mojaPoz=null;
 let spaceruTryb=false,spaceruPrzeczytane=new Set(),spaceruWatchId=null;
 const MIN_ZOOM_LADOWANIE=8;
 let obszarTimeout=null,zapytaneObszary=[],licznikCalkowity=0;
+let aktywnaCzestotliwosc='';
+try{aktywnaCzestotliwosc=localStorage.getItem('mw_czestotliwosc')||'';}catch(e){}
 
 /* ════ WARSTWY MAPY ════ */
 const WARSTWY=['klasyczna','satelita'];
@@ -552,7 +592,7 @@ async function zapiszWspom(){
   if(archiwum&&!bezpUrl(archiwum)){toast('Link do audio musi zaczynać się od https://');return;}
   if(zdjecie&&!bezpUrl(zdjecie)){toast('Link do zdjęcia musi zaczynać się od https://');return;}
   const btn=document.getElementById('btnZapisz');btn.disabled=true;btn.textContent='Zapisuję…';
-  const rek={tytul:tytul||'Bez tytułu',tresc,autor,nick,lat:pozWybrana[0],lng:pozWybrana[1],utworzono:Date.now(),lajki:0,zgloszenia:0};
+  const rek={tytul:tytul||'Bez tytułu',tresc,autor,nick,lat:pozWybrana[0],lng:pozWybrana[1],utworzono:Date.now(),lajki:0,zgloszenia:0,czestotliwosc:aktywnaCzestotliwosc};
   if(yt)rek.yt=yt;
   if(archiwum)rek.archiwum=archiwum;
   if(zdjecie)rek.zdjecie=zdjecie;
@@ -570,7 +610,7 @@ function ustawLicznikCalkowity(n){licznikCalkowity=n;document.getElementById('li
 
 async function zaladujLicznikCalkowity(){
   if(!online)return;
-  try{const agg=await db.collection('wspomnienia').count().get();ustawLicznikCalkowity(agg.data().count);}
+  try{const agg=await db.collection('wspomnienia').where('czestotliwosc','==',aktywnaCzestotliwosc).count().get();ustawLicznikCalkowity(agg.data().count);}
   catch(e){console.warn(e);}
 }
 
@@ -578,6 +618,7 @@ async function zaladujLokalneKropki(){
   if(online)return;
   let lista=[];
   try{lista=JSON.parse(localStorage.getItem('mw_lok')||'[]');}catch(e){}
+  lista=lista.filter(r=>(r.czestotliwosc||'')===aktywnaCzestotliwosc);
   lista.forEach(dodajKropkeNaMape);
   ustawLicznikCalkowity(lista.length);
 }
@@ -594,12 +635,68 @@ async function zaladujKropkiWObszarze(){
   const minLat=b.getSouth(),maxLat=b.getNorth(),minLng=b.getWest(),maxLng=b.getEast();
   try{
     const snap=await db.collection('wspomnienia')
+      .where('czestotliwosc','==',aktywnaCzestotliwosc)
       .where('lat','>=',minLat).where('lat','<=',maxLat)
       .where('lng','>=',minLng).where('lng','<=',maxLng)
       .get();
     snap.forEach(d=>{const v=d.data();v.id=d.id;dodajKropkeNaMape(v);});
     zapytaneObszary.push({s:minLat,n:maxLat,w:minLng,e:maxLng});
   }catch(e){console.warn(e);}
+}
+
+/* ════ CZĘSTOTLIWOŚĆ ════ */
+function resetStanKropek(){
+  if(grupaMarkerow)grupaMarkerow.clearLayers();
+  markeryWgKropki={};
+  wszystkieKropki=[];
+  zapytaneObszary=[];
+}
+function aktualizujBadgeCzestotliwosci(){
+  const badge=document.getElementById('czBadge');
+  if(aktywnaCzestotliwosc){
+    document.getElementById('czBadgeKod').textContent=aktywnaCzestotliwosc;
+    badge.classList.add('poka');
+  }else{
+    badge.classList.remove('poka');
+  }
+}
+function odswiezWidokCzestotliwosci(){
+  resetStanKropek();
+  zaladujLokalneKropki();
+  zaladujLicznikCalkowity();
+  zaladujKropkiWObszarze();
+  aktualizujBadgeCzestotliwosci();
+}
+function otworzPanelCz(){
+  document.getElementById('panelTloCz').classList.add('poka');
+  if(aktywnaCzestotliwosc){
+    document.getElementById('czKodWyswietl').textContent=aktywnaCzestotliwosc;
+    document.getElementById('czStanWylaczony').style.display='none';
+    document.getElementById('czStanWlaczony').style.display='block';
+  }else{
+    document.getElementById('czStanWylaczony').style.display='block';
+    document.getElementById('czStanWlaczony').style.display='none';
+    setTimeout(()=>document.getElementById('polCzKod').focus(),200);
+  }
+}
+function zamknijPanelCz(){document.getElementById('panelTloCz').classList.remove('poka');document.getElementById('polCzKod').value='';}
+function zamknijTloCz(e){if(e.target===document.getElementById('panelTloCz'))zamknijPanelCz();}
+function nastawCzestotliwosc(){
+  const kod=document.getElementById('polCzKod').value.trim();
+  if(!kod){toast('Wpisz kod.');return;}
+  if(maStop(kod)){toast('Brzydkie słowo — popraw.');return;}
+  aktywnaCzestotliwosc=kod;
+  try{localStorage.setItem('mw_czestotliwosc',kod);}catch(e){}
+  zamknijPanelCz();
+  toast('📻 Nastrojono na: '+kod);
+  odswiezWidokCzestotliwosci();
+}
+function wylaczCzestotliwosc(){
+  aktywnaCzestotliwosc='';
+  try{localStorage.removeItem('mw_czestotliwosc');}catch(e){}
+  zamknijPanelCz();
+  toast('📻 Wróciłeś/aś do mapy publicznej');
+  odswiezWidokCzestotliwosci();
 }
 
 function lajknieteLok(){try{return JSON.parse(localStorage.getItem('mw_lajki')||'[]');}catch(e){return[];}}
@@ -830,6 +927,7 @@ generujSwietliki();
 let introAutoId=setTimeout(()=>{introKlik();},7000);
 
 initMapa();
+aktualizujBadgeCzestotliwosci();
 </script>
 </body>
 </html>
