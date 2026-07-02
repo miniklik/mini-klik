@@ -30,9 +30,11 @@ body.dzien .leaflet-control-attribution{background:rgba(255,247,230,.85)!importa
 .tytul{font-family:'Cormorant Garamond',serif;font-weight:600;font-size:26px;color:var(--akcent);letter-spacing:.5px;line-height:1}
 .tytul em{font-style:italic;color:var(--akcent2);font-weight:500}
 .gora-prawo{display:flex;align-items:center;gap:8px}
-.licznik-gora{font-family:'Cormorant Garamond',serif;font-size:14px;color:var(--tekst-mil)}
-.licznik-gora b{color:var(--akcent);font-weight:600;font-size:18px}
+.licznik-gora{font-family:'Cormorant Garamond',serif;font-size:14px;color:var(--tekst-mil);display:flex;align-items:center;gap:7px}
+.licznik-gora b{color:var(--akcent);font-weight:600;font-size:20px}
+.licznik-kropka{width:14px;height:14px;border-radius:50%;background:radial-gradient(circle,var(--akcent2),var(--wino));box-shadow:0 0 8px 1px rgba(232,160,192,.6);flex:0 0 auto}
 .btn-ikon{width:38px;height:38px;border-radius:50%;background:var(--karta);border:1px solid var(--obw);color:var(--akcent);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:18px;transition:.2s}
+.btn-ikon-duzy{width:48px;height:48px;font-size:23px}
 .btn-ikon:hover{background:var(--bg2);transform:scale(1.06)}
 .btn-ikon.akt{background:linear-gradient(135deg,var(--akcent2),var(--akcent));color:#2a1830;border-color:var(--akcent)}
 .sel-warstwa{font-family:'EB Garamond',serif;font-size:13px;height:38px;border-radius:19px;background:var(--karta);border:1px solid var(--obw);color:var(--akcent);padding:0 12px;cursor:pointer;outline:none}
@@ -171,7 +173,7 @@ body.dzien .btn-zewn{background:rgba(0,0,0,.04)}
 .cz-badge b{color:var(--akcent);letter-spacing:2px}
 .cz-badge button{background:none;border:none;color:var(--tekst-cichy);font-size:14px;cursor:pointer;padding:2px 4px;line-height:1}
 .cz-badge button:hover{color:var(--wino)}
-@media(max-width:500px){.tytul{font-size:22px}.licznik-gora{font-size:12px}.licznik-gora b{font-size:15px}.panel{padding:20px}.gora{padding:12px 14px}.btn-ikon{width:34px;height:34px;font-size:16px}}
+@media(max-width:500px){.tytul{font-size:22px}.licznik-gora{font-size:12px}.licznik-gora b{font-size:16px}.licznik-kropka{width:11px;height:11px}.panel{padding:20px}.gora{padding:12px 14px}.btn-ikon{width:34px;height:34px;font-size:16px}.btn-ikon-duzy{width:42px;height:42px;font-size:20px}}
 
 /* ════ PANEL BOCZNY — DUŻY EKRAN ════ */
 .sidebar-szczegoly{display:none;position:fixed;left:0;top:0;bottom:0;width:var(--sidebar-w);z-index:950;background:linear-gradient(180deg,var(--karta),var(--bg2));border-right:1px solid var(--obw);overflow-y:auto;padding:74px 24px 24px;box-shadow:6px 0 30px rgba(0,0,0,.25)}
@@ -242,12 +244,9 @@ body.dzien .btn-zewn{background:rgba(0,0,0,.04)}
 <div class="gora">
   <div class="tytul">Mapa <em>Wspomnień</em></div>
   <div class="gora-prawo">
-    <div class="licznik-gora">moje kropki: <b id="liczKropek">—</b></div>
-    <button class="btn-ikon" id="btnCzest" onclick="otworzPanelCz()" title="Częstotliwość">📻</button>
-    <select class="sel-warstwa" id="selWarstwa" onchange="ustawWarstwe(this.value)" title="Styl mapy">
-      <option value="klasyczna">🗺️ Klasyczna</option>
-      <option value="satelita">🛰️ Satelita (Esri)</option>
-    </select>
+    <div class="licznik-gora"><span class="licznik-kropka"></span><b id="liczKropek">—</b></div>
+    <button class="btn-ikon btn-ikon-duzy" id="btnCzest" onclick="otworzPanelCz()" title="Częstotliwość">📻</button>
+    <button class="btn-ikon" id="btnWarstwa" onclick="przelaczWarstwe()" title="Styl mapy">🗺️</button>
   </div>
 </div>
 
@@ -439,7 +438,7 @@ let mapa,warstwaKafelki,grupaMarkerow,markerNowy=null,pozWybrana=null,trybAkt=fa
 let gpsZywo=false,gpsWatchId=null,markerJa=null,mojaPoz=null;
 let spaceruTryb=false,spaceruPrzeczytane=new Set(),spaceruWatchId=null;
 const MIN_ZOOM_LADOWANIE=8;
-let obszarTimeout=null,zapytaneObszary=[],licznikCalkowity=0;
+let obszarTimeout=null,zapytaneObszary=[],licznikCalkowity=0,aktywneNasluchy=[];
 let aktywnaCzestotliwosc='';
 try{aktywnaCzestotliwosc=localStorage.getItem('mw_czestotliwosc')||'';}catch(e){}
 
@@ -458,8 +457,12 @@ function ustawWarstwe(nazwa,zapisz){
   if(warstwaKafelki)mapa.removeLayer(warstwaKafelki);
   warstwaAkt=nazwa;
   warstwaKafelki=utworzWarstwe(nazwa).addTo(mapa);
-  const sel=document.getElementById('selWarstwa');if(sel)sel.value=nazwa;
+  const btn=document.getElementById('btnWarstwa');if(btn)btn.textContent=(nazwa==='satelita'?'🛰️':'🗺️');
   if(zapisz!==false){try{localStorage.setItem('mw_warstwa',nazwa);}catch(e){}toast('Mapa: '+WARSTWY_NAZWY[nazwa]);}
+}
+function przelaczWarstwe(){
+  const i=WARSTWY.indexOf(warstwaAkt);
+  ustawWarstwe(WARSTWY[(i+1)%WARSTWY.length]);
 }
 
 function initMapa(){
@@ -475,7 +478,8 @@ function initMapa(){
   if(navigator.geolocation)navigator.geolocation.getCurrentPosition(p=>{if(!trybAkt&&!pozWybrana)mapa.setView([p.coords.latitude,p.coords.longitude],13);},()=>{},{timeout:5000});
   zaladujLokalneKropki();
   ustawLicznikCalkowity(liczbaMoichNaCzestotliwosci());
-  zaladujKropkiWObszarze().then(otworzZUrl);
+  zaladujKropkiWObszarze();
+  otworzZUrl();
 }
 
 /* ════ GPS NA ŻYWO ════ */
@@ -715,18 +719,36 @@ async function zaladujKropkiWObszarze(){
   if(obszarPokryty(b))return;
   const minLat=b.getSouth(),maxLat=b.getNorth(),minLng=b.getWest(),maxLng=b.getEast();
   try{
-    const snap=await db.collection('wspomnienia')
+    const unsub=db.collection('wspomnienia')
       .where('czestotliwosc','==',aktywnaCzestotliwosc)
       .where('lat','>=',minLat).where('lat','<=',maxLat)
       .where('lng','>=',minLng).where('lng','<=',maxLng)
-      .get();
-    snap.forEach(d=>{const v=d.data();v.id=d.id;dodajKropkeNaMape(v);});
+      .onSnapshot(snap=>{
+        snap.docChanges().forEach(zm=>{
+          const v=zm.doc.data();v.id=zm.doc.id;
+          if(zm.type==='added'){
+            dodajKropkeNaMape(v);
+          }else if(zm.type==='removed'){
+            const m=markeryWgKropki[v.id];
+            if(m){grupaMarkerow.removeLayer(m);delete markeryWgKropki[v.id];}
+            wszystkieKropki=wszystkieKropki.filter(k=>k.id!==v.id);
+            usunMojaKropkeLok(v.id);
+            ustawLicznikCalkowity(liczbaMoichNaCzestotliwosci());
+          }else if(zm.type==='modified'){
+            const istniejacy=wszystkieKropki.find(k=>k.id===v.id);
+            if(istniejacy)Object.assign(istniejacy,v);
+          }
+        });
+      },e=>console.warn(e));
+    aktywneNasluchy.push(unsub);
     zapytaneObszary.push({s:minLat,n:maxLat,w:minLng,e:maxLng});
   }catch(e){console.warn(e);}
 }
 
 /* ════ CZĘSTOTLIWOŚĆ ════ */
 function resetStanKropek(){
+  aktywneNasluchy.forEach(u=>{try{u();}catch(e){}});
+  aktywneNasluchy=[];
   if(grupaMarkerow)grupaMarkerow.clearLayers();
   markeryWgKropki={};
   wszystkieKropki=[];
