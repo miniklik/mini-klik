@@ -11,6 +11,7 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css"/>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,400&family=EB+Garamond:wght@400;500&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
 <style>
@@ -147,7 +148,18 @@ body.dzien .btn-zewn{background:rgba(0,0,0,.04)}
 .kropka-nowa{width:22px;height:22px;border-radius:50%;background:radial-gradient(circle at 35% 30%,var(--akcent),#d4a017);box-shadow:0 0 0 4px rgba(245,210,114,.25),0 0 22px rgba(245,210,114,.8);border:2px solid #fff;animation:pulsk 1.2s ease-in-out infinite}
 @keyframes pulsk{0%,100%{transform:scale(1)}50%{transform:scale(1.15)}}
 .kropka-ja{width:18px;height:18px;border-radius:50%;background:var(--niebo);border:3px solid #fff;box-shadow:0 0 0 4px rgba(90,180,255,.3),0 0 18px rgba(90,180,255,.9);animation:pulsja 2s ease-in-out infinite;position:relative}
-@keyframes pulsja{0%,100%{box-shadow:0 0 0 4px rgba(90,180,255,.3),0 0 18px rgba(90,180,255,.9)}50%{box-shadow:0 0 0 12px rgba(90,180,255,.1),0 0 30px rgba(90,180,255,1)}}
+#nagrywanieBox{display:flex;align-items:center;gap:10px;background:rgba(255,255,255,.04);border:1px solid var(--obw);border-radius:10px;padding:10px 12px}
+body.dzien #nagrywanieBox{background:rgba(0,0,0,.03)}
+.nagr-btn{flex:0 0 auto;background:var(--karta);border:1px solid var(--akcent);color:var(--akcent);border-radius:20px;padding:8px 16px;font-family:'EB Garamond',serif;font-size:14px;cursor:pointer;display:flex;align-items:center;gap:6px;transition:.2s}
+.nagr-btn:hover{background:var(--bg2)}
+.nagr-btn.stop{border-color:var(--wino);color:#fff;background:var(--wino)}
+.nagr-kropka{width:9px;height:9px;border-radius:50%;background:var(--wino);animation:pulsja2 1.1s ease-in-out infinite;flex:0 0 auto}
+@keyframes pulsja2{0%,100%{box-shadow:0 0 0 3px rgba(189,74,90,.3)}50%{box-shadow:0 0 0 9px rgba(189,74,90,.08)}}
+.nagr-czas{font-family:'Cormorant Garamond',serif;font-size:16px;color:var(--tekst-mil);min-width:34px}
+.nagr-audio{flex:1;min-width:0;height:34px}
+.nagr-usun{flex:0 0 auto;background:none;border:none;color:var(--tekst-cichy);cursor:pointer;font-size:18px;padding:4px}
+.nagr-usun:hover{color:var(--wino)}
+.nagr-pusty{color:var(--tekst-cichy);font-size:13px;font-style:italic}
 .marker-cluster-small div,.marker-cluster-medium div,.marker-cluster-large div{background:linear-gradient(135deg,var(--akcent2),var(--akcent))!important;color:#2a1830!important;font-family:'Cormorant Garamond',serif!important;font-weight:600!important;border:2px solid #fff!important}
 #zdjeciePelnyEkran{position:fixed;inset:0;z-index:99980;background:rgba(6,9,20,.94);display:none;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(4px)}
 #zdjeciePelnyEkran.poka{display:flex}
@@ -361,7 +373,12 @@ body.dzien .btn-zewn{background:rgba(0,0,0,.04)}
         <input type="text" id="polYt" placeholder="https://youtube.com/watch?v=..." maxlength="300">
       </div>
       <div class="pole">
-        <span class="etyk">Dodaj audio z Internet Archive</span>
+        <span class="etyk">Nagraj wiadomość głosową (do 30 s)</span>
+        <div id="nagrywanieBox"></div>
+        <div class="pomoc-dod">Nagranie zapisze się razem ze wspomnieniem — usłyszy je każdy, kto otworzy tę kropkę.</div>
+      </div>
+      <div class="pole">
+        <span class="etyk">…albo dodaj audio z Internet Archive</span>
         <input type="text" id="polArchiwum" placeholder="https://archive.org/details/..." maxlength="300">
       </div>
       <div class="pole">
@@ -463,8 +480,8 @@ body.dzien .btn-zewn{background:rgba(0,0,0,.04)}
 <script>
 /* ════ FIREBASE ════ */
 const FIREBASE_CONFIG={apiKey:"AIzaSyDRR3vSfgpEmbpZz_-VldMTnTHoXRfuGKg",authDomain:"ksiega-ramzi.firebaseapp.com",projectId:"ksiega-ramzi",storageBucket:"ksiega-ramzi.firebasestorage.app",messagingSenderId:"400735142662",appId:"1:400735142662:web:0b52a57f4fedf367839487"};
-let db=null,online=false;
-try{firebase.initializeApp(FIREBASE_CONFIG);db=firebase.firestore();online=true;}catch(e){console.warn(e);}
+let db=null,storage=null,online=false;
+try{firebase.initializeApp(FIREBASE_CONFIG);db=firebase.firestore();storage=firebase.storage();online=true;}catch(e){console.warn(e);}
 
 /* ════ FILTR ════ */
 const STOP=['kurw','chuj','huj','pizd','jeb','pierdol','spierdal','cipa','kutas','suka','dziwka','debil','fuck','shit','bitch','nigger'];
@@ -628,6 +645,7 @@ function trybSpaceru(){
 function zatrzymajSpacer(){
   spaceruTryb=false;
   try{speechSynthesis.cancel();}catch(e){}
+  zatrzymajNagranieSpacer();
   wyczyscPulsujacy();
   document.getElementById('fabSpacer').classList.remove('spacer-akt');
   document.getElementById('spacerInfo').classList.remove('poka');
@@ -640,7 +658,7 @@ let dzwiekWlaczony=true;
 function przelaczDzwiek(){
   dzwiekWlaczony=!dzwiekWlaczony;
   document.getElementById('fabDzwiek').textContent=dzwiekWlaczony?'🔊':'🔇';
-  if(!dzwiekWlaczony){try{speechSynthesis.cancel();}catch(e){}}
+  if(!dzwiekWlaczony){try{speechSynthesis.cancel();}catch(e){}zatrzymajNagranieSpacer();}
   toast(dzwiekWlaczony?'🔊 Czytanie włączone':'🔇 Czytanie wyciszone');
 }
 /* ════ WYCISZENIE EKRANU (kurtyna Matrix + serce) ════ */
@@ -694,11 +712,29 @@ document.getElementById('wyciszOverlay').addEventListener('click',()=>{
   }
 });
 
+let nagranieSpacerAudio=null;
+function zatrzymajNagranieSpacer(){
+  if(nagranieSpacerAudio){try{nagranieSpacerAudio.pause();}catch(e){}nagranieSpacerAudio=null;}
+}
+function odtworzNagranieSpacer(url,onEnd){
+  zatrzymajNagranieSpacer();
+  const a=new Audio(url);
+  nagranieSpacerAudio=a;
+  const koniec=()=>{if(nagranieSpacerAudio===a)nagranieSpacerAudio=null;if(onEnd)onEnd();};
+  a.onended=koniec;
+  a.onerror=koniec;
+  a.play().catch(koniec);
+}
 function czytajKropke(r,onEnd){
-  if(!dzwiekWlaczony||!('speechSynthesis' in window)){if(onEnd)onEnd();return;}
+  if(!dzwiekWlaczony){if(onEnd)onEnd();return;}
   try{speechSynthesis.cancel();}catch(e){}
+  const potemNagranie=()=>{
+    if(bezpUrl(r.nagranie)&&dzwiekWlaczony)odtworzNagranieSpacer(r.nagranie,onEnd);
+    else if(onEnd)onEnd();
+  };
+  if(!('speechSynthesis' in window)){potemNagranie();return;}
   const tekst='Tu '+(r.autor||'anonim')+' wspomina: '+(r.tytul||'')+'. '+r.tresc;
-  powiedz(tekst,onEnd);
+  powiedz(tekst,potemNagranie);
 }
 
 let markerPulsujacy=null;
@@ -754,7 +790,7 @@ function zakonczTryb(){trybAkt=false;document.getElementById('btnDodaj').classLi
 function pokazInstr(){const i=document.getElementById('instr');i.style.display='block';clearTimeout(i._tk);i._tk=setTimeout(ukryjInstr,3500);}
 function ukryjInstr(){document.getElementById('instr').style.display='none';}
 function otworzPanel(){document.getElementById('panelTlo').classList.add('poka');dodIdz(1);setTimeout(()=>document.getElementById('polTresc').focus(),200);}
-function zamknijPanel(){document.getElementById('panelTlo').classList.remove('poka');if(markerNowy){mapa.removeLayer(markerNowy);markerNowy=null;}pozWybrana=null;document.getElementById('polTytul').value='';document.getElementById('polTresc').value='';document.getElementById('polAutor').value='';document.getElementById('polNick').value='';document.getElementById('polYt').value='';document.getElementById('polArchiwum').value='';document.getElementById('polZdjecie').value='';document.getElementById('lzTresc').textContent='0';dodIdz(1);}
+function zamknijPanel(){document.getElementById('panelTlo').classList.remove('poka');if(markerNowy){mapa.removeLayer(markerNowy);markerNowy=null;}pozWybrana=null;document.getElementById('polTytul').value='';document.getElementById('polTresc').value='';document.getElementById('polAutor').value='';document.getElementById('polNick').value='';document.getElementById('polYt').value='';document.getElementById('polArchiwum').value='';document.getElementById('polZdjecie').value='';document.getElementById('lzTresc').textContent='0';resetujNagrywanie();dodIdz(1);}
 function zamknijTlo(e){if(e.target===document.getElementById('panelTlo'))zamknijPanel();}
 document.getElementById('polTresc').addEventListener('input',e=>{document.getElementById('lzTresc').textContent=e.target.value.length;});
 
@@ -762,7 +798,99 @@ function dodIdz(n){
   document.querySelectorAll('.etap-dod').forEach(e=>e.classList.toggle('akt',String(e.dataset.etap)===String(n)));
   const kropkaAkt=(n==='op')?3:n;
   document.querySelectorAll('.kropka-postep').forEach(k=>k.classList.toggle('akt',Number(k.dataset.k)<=Number(kropkaAkt)));
+  if(n==='op')renderNagrywanieBox();
 }
+
+/* ════ NAGRYWANIE GŁOSU ════ */
+const NAGR_MAX_S=30;
+let nagrMediaRecorder=null,nagrStream=null,nagrChunks=[],nagrBlob=null,nagrObjUrl=null;
+let nagrStanCzasId=null,nagrLimitId=null,nagrStartCzas=0;
+
+function nagrMimeType(){
+  const kandydaci=['audio/webm;codecs=opus','audio/webm','audio/mp4'];
+  for(const k of kandydaci){if(window.MediaRecorder&&MediaRecorder.isTypeSupported&&MediaRecorder.isTypeSupported(k))return k;}
+  return '';
+}
+function renderNagrywanieBox(){
+  const box=document.getElementById('nagrywanieBox');
+  if(!box)return;
+  if(!navigator.mediaDevices||!window.MediaRecorder){
+    box.innerHTML='<span class="nagr-pusty">Twoja przeglądarka nie obsługuje nagrywania dźwięku.</span>';
+    return;
+  }
+  if(nagrBlob){
+    box.innerHTML=
+      '<audio class="nagr-audio" controls src="'+nagrObjUrl+'"></audio>'+
+      '<button type="button" class="nagr-usun" onclick="usunNagranie()" title="Usuń nagranie">🗑️</button>';
+    return;
+  }
+  if(nagrMediaRecorder&&nagrMediaRecorder.state==='recording'){
+    box.innerHTML=
+      '<div class="nagr-kropka"></div>'+
+      '<span class="nagr-czas" id="nagrCzasEl">0:00</span>'+
+      '<button type="button" class="nagr-btn stop" onclick="zatrzymajNagrywanie()">⏹ Stop</button>';
+    return;
+  }
+  box.innerHTML='<button type="button" class="nagr-btn" onclick="startNagrywanie()">🎙️ Nagraj</button><span class="nagr-pusty">do '+NAGR_MAX_S+' s</span>';
+}
+async function startNagrywanie(){
+  try{
+    nagrStream=await navigator.mediaDevices.getUserMedia({audio:true});
+  }catch(e){
+    toast('Brak dostępu do mikrofonu.');
+    return;
+  }
+  const mime=nagrMimeType();
+  try{
+    nagrMediaRecorder=mime?new MediaRecorder(nagrStream,{mimeType:mime}):new MediaRecorder(nagrStream);
+  }catch(e){
+    toast('Nie udało się uruchomić nagrywania.');
+    nagrStream.getTracks().forEach(t=>t.stop());
+    return;
+  }
+  nagrChunks=[];
+  nagrMediaRecorder.ondataavailable=e=>{if(e.data&&e.data.size>0)nagrChunks.push(e.data);};
+  nagrMediaRecorder.onstop=()=>{
+    nagrBlob=new Blob(nagrChunks,{type:mime||'audio/webm'});
+    nagrObjUrl=URL.createObjectURL(nagrBlob);
+    if(nagrStream){nagrStream.getTracks().forEach(t=>t.stop());nagrStream=null;}
+    clearInterval(nagrStanCzasId);clearTimeout(nagrLimitId);
+    renderNagrywanieBox();
+  };
+  nagrMediaRecorder.start();
+  nagrStartCzas=Date.now();
+  renderNagrywanieBox();
+  nagrStanCzasId=setInterval(()=>{
+    const el=document.getElementById('nagrCzasEl');
+    if(!el)return;
+    const s=Math.floor((Date.now()-nagrStartCzas)/1000);
+    el.textContent=Math.floor(s/60)+':'+String(s%60).padStart(2,'0');
+  },250);
+  nagrLimitId=setTimeout(zatrzymajNagrywanie,NAGR_MAX_S*1000);
+}
+function zatrzymajNagrywanie(){
+  if(nagrMediaRecorder&&nagrMediaRecorder.state==='recording')nagrMediaRecorder.stop();
+}
+function usunNagranie(){
+  if(nagrObjUrl)URL.revokeObjectURL(nagrObjUrl);
+  nagrBlob=null;nagrObjUrl=null;nagrChunks=[];
+  renderNagrywanieBox();
+}
+function resetujNagrywanie(){
+  if(nagrMediaRecorder&&nagrMediaRecorder.state==='recording'){try{nagrMediaRecorder.stop();}catch(e){}}
+  if(nagrStream){nagrStream.getTracks().forEach(t=>t.stop());nagrStream=null;}
+  clearInterval(nagrStanCzasId);clearTimeout(nagrLimitId);
+  if(nagrObjUrl)URL.revokeObjectURL(nagrObjUrl);
+  nagrBlob=null;nagrObjUrl=null;nagrChunks=[];nagrMediaRecorder=null;
+}
+async function wyslijNagranie(klucz){
+  if(!nagrBlob)return null;
+  if(!online||!storage){toast('Brak połączenia — nie można wysłać nagrania.');return undefined;}
+  const ref=storage.ref().child('nagrania/'+klucz+'.webm');
+  await ref.put(nagrBlob,{contentType:nagrBlob.type||'audio/webm'});
+  return await ref.getDownloadURL();
+}
+
 function dodPodglad(){
   const tytul=document.getElementById('polTytul').value.trim()||'Bez nazwy';
   const autor=document.getElementById('polAutor').value.trim()||'anonim';
@@ -773,7 +901,8 @@ function dodPodglad(){
   const zal=[];
   if(document.getElementById('polZdjecie').value.trim())zal.push('🖼️ zdjęcie');
   if(document.getElementById('polYt').value.trim())zal.push('▶ film YT');
-  if(document.getElementById('polArchiwum').value.trim())zal.push('🎧 audio');
+  if(nagrBlob)zal.push('🎙️ nagranie głosowe');
+  else if(document.getElementById('polArchiwum').value.trim())zal.push('🎧 audio');
   document.getElementById('pgZal').innerHTML=zal.length?zal.map(z=>'<span class="pg-zal-poz">'+z+'</span>').join(''):'';
   dodIdz(4);
 }
@@ -787,7 +916,7 @@ async function zapiszWspom(){
   const archiwum=document.getElementById('polArchiwum').value.trim();
   const zdjecie=document.getElementById('polZdjecie').value.trim();
   if(!pozWybrana){toast('Wskaż miejsce.');return;}
-  if(!tresc&&!yt&&!archiwum&&!zdjecie){toast('Napisz coś albo dodaj link.');return;}
+  if(!tresc&&!yt&&!archiwum&&!zdjecie&&!nagrBlob){toast('Napisz coś albo dodaj link.');return;}
   if(maStop(tytul)||maStop(tresc)||maStop(autor)){toast('Brzydkie słowo — popraw.');return;}
   if(!mozeDodac('mw_ostatnia_kropka',60000))return;
   if(yt&&!bezpUrl(yt)){toast('Link do YT musi zaczynać się od https://');return;}
@@ -800,6 +929,13 @@ async function zapiszWspom(){
   if(archiwum)rek.archiwum=archiwum;
   if(zdjecie)rek.zdjecie=zdjecie;
   try{
+    if(nagrBlob){
+      btn.textContent='Wysyłam nagranie…';
+      const url=await wyslijNagranie(klucz);
+      if(url===undefined){btn.disabled=false;btn.textContent='Zostaw kropkę ✨';return;}
+      if(url)rek.nagranie=url;
+      btn.textContent='Zapisuję…';
+    }
     if(online){const r=await db.collection('wspomnienia').add(rek);rek.id=r.id;}
     else{rek.id='lok_'+Date.now();const lok=JSON.parse(localStorage.getItem('mw_lok')||'[]');lok.push(rek);localStorage.setItem('mw_lok',JSON.stringify(lok));}
     if(markerNowy){mapa.removeLayer(markerNowy);markerNowy=null;}
@@ -1030,6 +1166,7 @@ function htmlPopup(r){
   let zal='';
   if(bezpUrl(r.yt))zal+='<a href="'+escHtml(r.yt)+'" target="_blank" rel="noopener" style="display:block;margin-bottom:8px;color:var(--niebo);font-size:13px">▶ Obejrzyj na YouTube</a>';
   if(bezpUrl(r.zdjecie))zal+='<img src="'+escHtml(r.zdjecie)+'" alt="" loading="lazy" style="width:100%;border-radius:10px;margin-bottom:10px;display:block" onerror="this.style.display=\'none\'" ondblclick="otworzZdjeciePelnyEkran(\''+r.zdjecie.replace(/'/g,"\\'").replace(/"/g,'&quot;')+'\')">';
+  if(bezpUrl(r.nagranie))zal+='<audio controls src="'+escHtml(r.nagranie)+'" style="width:100%;height:34px;margin-bottom:8px;display:block"></audio>';
   if(bezpUrl(r.archiwum))zal+='<a href="'+escHtml(r.archiwum)+'" target="_blank" rel="noopener" style="display:block;margin-bottom:8px;color:var(--niebo);font-size:13px">🎧 Posłuchaj (Internet Archive)</a>';
   return '<div class="pop-scroll">'+
     '<div class="pop-tyt">'+escHtml(r.tytul||'Bez tytułu')+'</div>'+
