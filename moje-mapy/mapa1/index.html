@@ -2,542 +2,1148 @@
 <html lang="pl">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Mapa w budowie · mini-klik.pl</title>
-<meta name="description" content="Ta mapa jest jeszcze w budowie. Wróć za chwilę.">
-
-<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-<meta http-equiv="Pragma" content="no-cache">
-<meta http-equiv="Expires" content="0">
-
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Mapa Wspomnień</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css"/>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
-
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,400&family=EB+Garamond:wght@400;500&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
 <style>
-  *{margin:0;padding:0;box-sizing:border-box}
-  html,body{min-height:100%;overflow-x:hidden}
-  body{
-    font-family:'Space Grotesk',system-ui,sans-serif;
-    background:radial-gradient(ellipse at 20% 0%,#1a0f2e 0%,#0a0a14 50%,#000 100%);
-    color:#e8e8ea;
-    position:relative;
-    min-height:100vh;
-    padding:48px 32px;
-    overflow:hidden;
-  }
+:root{--bg:#0e1530;--bg2:#161e3f;--karta:#1c2750;--obw:rgba(245,210,114,.25);--tekst:#f3eeff;--tekst-mil:#bcb7d8;--tekst-cichy:#8b85a8;--akcent:#f5d272;--akcent2:#e8a0c0;--wino:#bd4a5a;--niebo:#5ab4ff;--cien-l:0 6px 18px rgba(0,0,0,.35);--cien-g:0 18px 44px rgba(0,0,0,.55);--mapa-bg:#0a0f24;--tile-filter:none;--sidebar-w:420px;}
+body.dzien{--bg:#f4ecd8;--bg2:#ebe0c1;--karta:#fff7e6;--obw:rgba(156,43,43,.3);--tekst:#3d2817;--tekst-mil:#6b4a2e;--tekst-cichy:#9c7d57;--akcent:#9c2b2b;--akcent2:#bd4a3a;--wino:#9c2b2b;--niebo:#1976d2;--mapa-bg:#e8e0cc;--tile-filter:none;}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden}
+body{font-family:'EB Garamond',serif;color:var(--tekst);background:var(--bg);transition:background .3s}
+#mapa{position:absolute;inset:0;z-index:1;background:var(--mapa-bg);transition:left .3s ease}
+.leaflet-container{background:var(--mapa-bg)}
+.leaflet-control-attribution{background:rgba(14,21,48,.7)!important;color:var(--tekst-cichy)!important;font-size:10px}
+body.dzien .leaflet-control-attribution{background:rgba(255,247,230,.85)!important;color:#6b4a2e!important}
+.leaflet-control-attribution a{color:var(--akcent)!important}
+.leaflet-bar a{background:var(--karta)!important;color:var(--akcent)!important;border-color:var(--obw)!important}
+.gora{position:fixed;top:0;left:0;right:0;z-index:1000;display:flex;align-items:center;justify-content:space-between;padding:14px 18px;background:linear-gradient(180deg,var(--bg) ,transparent);backdrop-filter:blur(6px);pointer-events:none;gap:10px;transition:left .3s ease}
+.gora>*{pointer-events:auto}
+.tytul{font-family:'Cormorant Garamond',serif;font-weight:600;font-size:26px;color:var(--akcent);letter-spacing:.5px;line-height:1}
+.tytul em{font-style:italic;color:var(--akcent2);font-weight:500}
+.gora-prawo{display:flex;align-items:center;gap:8px}
+.licznik-gora{font-family:'Cormorant Garamond',serif;font-size:14px;color:var(--tekst-mil);display:flex;align-items:center;gap:7px}
+.licznik-gora b{color:var(--akcent);font-weight:600;font-size:20px}
+.licznik-kropka{width:14px;height:14px;border-radius:50%;background:radial-gradient(circle,var(--akcent2),var(--wino));box-shadow:0 0 8px 1px rgba(232,160,192,.6);flex:0 0 auto}
+.btn-ikon{width:38px;height:38px;border-radius:50%;background:var(--karta);border:1px solid var(--obw);color:var(--akcent);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:18px;transition:.2s}
+.btn-ikon-duzy{width:48px;height:48px;font-size:23px}
+.btn-ikon:hover{background:var(--bg2);transform:scale(1.06)}
+.btn-ikon.akt{background:linear-gradient(135deg,var(--akcent2),var(--akcent));color:#2a1830;border-color:var(--akcent)}
+.sel-warstwa{font-family:'EB Garamond',serif;font-size:13px;height:38px;border-radius:19px;background:var(--karta);border:1px solid var(--obw);color:var(--akcent);padding:0 12px;cursor:pointer;outline:none}
+.sel-warstwa:hover{background:var(--bg2)}
+body.dzien .sel-warstwa{color:#3d2817}
+.dol{position:fixed;bottom:0;left:0;right:0;z-index:1000;display:flex;justify-content:center;padding:18px;background:linear-gradient(0deg,var(--bg),transparent);pointer-events:none}
+.dol>*{pointer-events:auto}
+.btn-dodaj{display:flex;align-items:center;gap:10px;font-family:'EB Garamond',serif;font-size:17px;font-weight:500;background:linear-gradient(135deg,var(--akcent2),var(--akcent));color:#2a1830;border:none;border-radius:30px;padding:14px 28px;cursor:pointer;box-shadow:0 6px 24px rgba(232,160,192,.45);transition:.25s}
+.btn-dodaj:hover{transform:translateY(-2px)}
+.btn-dodaj.tryb-aktywny{background:linear-gradient(135deg,var(--wino),#8c2e3e);color:#fff;animation:pulsuj 1.6s ease-in-out infinite}
+@keyframes pulsuj{0%,100%{box-shadow:0 6px 24px rgba(189,74,90,.5)}50%{box-shadow:0 6px 24px rgba(189,74,90,.7),0 0 48px rgba(189,74,90,.5)}}
+.panel-tlo{position:fixed;inset:0;z-index:5000;background:rgba(8,12,28,.7);backdrop-filter:blur(4px);display:none;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto}
+.panel-tlo.poka{display:flex}
+.panel{background:linear-gradient(180deg,var(--karta),var(--bg2));border:1px solid var(--obw);border-radius:18px;padding:24px;max-width:480px;width:100%;box-shadow:var(--cien-g);max-height:90vh;overflow-y:auto;margin-top:50px}
+.panel-naglo{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin-bottom:16px}
+.panel-naglo h2{font-family:'Cormorant Garamond',serif;font-weight:600;font-size:24px;color:var(--akcent)}
+.zamknij{background:rgba(255,255,255,.05);border:1px solid var(--obw);color:var(--tekst-mil);width:34px;height:34px;border-radius:50%;cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center}
+.zamknij:hover{background:var(--wino);color:#fff}
+.etyk{font-family:'Caveat',cursive;font-size:20px;color:var(--akcent2);margin-bottom:6px;display:block}
+input[type=text],textarea{width:100%;font-family:'EB Garamond',serif;font-size:17px;color:var(--tekst);background:rgba(255,255,255,.04);border:1px solid var(--obw);border-radius:10px;padding:12px 14px;resize:none}
+body.dzien input[type=text],body.dzien textarea{background:rgba(255,255,255,.6)}
+input::placeholder,textarea::placeholder{color:var(--tekst-cichy);font-style:italic}
+input:focus,textarea:focus{outline:none;border-color:var(--akcent2);box-shadow:0 0 0 3px rgba(232,160,192,.18)}
+textarea{min-height:110px;line-height:1.5}
+.licznik-zn{text-align:right;font-size:12px;color:var(--tekst-cichy);margin-top:4px}
+.rzad-pol{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px}
+.pole{margin-bottom:14px}
+.btn{font-family:'EB Garamond',serif;font-size:16px;font-weight:500;border-radius:10px;padding:12px 20px;cursor:pointer;border:1px solid transparent}
+.btn-prim{background:#ffffff;color:#241b3a;font-weight:700}
+.btn-prim:disabled{background:#3a3a5a;color:#888;cursor:not-allowed}
+.btn-sec{background:#ffffff;color:#3d3654;font-weight:500;border-color:rgba(255,255,255,.5)}
+.rzad-btn{display:flex;gap:10px;margin-top:6px}.rzad-btn .btn{flex:1}
+.kropki-postep{display:flex;gap:6px;justify-content:center;margin-bottom:18px}
+.kropka-postep{width:7px;height:7px;border-radius:50%;background:var(--obw);transition:.25s}
+.kropka-postep.akt{background:var(--akcent);width:20px;border-radius:4px}
+.etap-dod{display:none}
+.etap-dod.akt{display:block;animation:etapPojaw .35s ease}
+@keyframes etapPojaw{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+.pytanie-dod{font-family:'Cormorant Garamond',serif;font-weight:600;font-size:22px;color:var(--akcent);margin-bottom:4px;text-align:center}
+.podpowiedz-dod{font-family:'Caveat',cursive;font-size:16px;color:var(--tekst-mil);text-align:center;margin-bottom:18px}
+.pomoc-dod{font-size:12px;color:var(--tekst-cichy);margin-top:5px;line-height:1.4}
+.link-rzad{display:flex;gap:8px;align-items:stretch}
+.link-rzad input{flex:1}
+.btn-zewn{flex:0 0 auto;background:rgba(255,255,255,.05);border:1px solid var(--akcent);color:var(--akcent);border-radius:10px;padding:0 14px;font-size:13px;display:flex;align-items:center;white-space:nowrap;text-decoration:none;cursor:pointer}
+.btn-zewn:hover{background:var(--bg2)}
+body.dzien .btn-zewn{background:rgba(0,0,0,.04)}
+.podglad-karta{background:linear-gradient(180deg,var(--karta),var(--bg2));border:1px solid var(--obw);border-radius:14px;padding:16px 18px;margin-bottom:4px}
+.pg-tyt{font-family:'Cormorant Garamond',serif;font-weight:600;font-size:18px;color:var(--akcent);margin-bottom:6px}
+.pg-od{font-family:'Caveat',cursive;font-size:16px;color:var(--akcent2);margin-bottom:8px}
+.pg-tresc{color:var(--tekst);font-size:15px;line-height:1.5;white-space:pre-wrap;word-wrap:break-word}
+.pg-zal{margin-top:10px;padding-top:10px;border-top:1px solid var(--obw);display:flex;flex-direction:column;gap:6px}
+.pg-zal-poz{font-size:12.5px;color:var(--tekst-mil)}
+.instr{position:fixed;left:50%;top:78px;transform:translateX(-50%);z-index:900;background:var(--karta);backdrop-filter:blur(10px);border:1px solid var(--akcent);border-radius:16px;padding:22px 28px;text-align:center;box-shadow:0 0 40px rgba(245,210,114,.3);pointer-events:none;max-width:380px;display:none}
+.instr .ikon{font-size:38px;margin-bottom:8px}
+.instr .nag{font-family:'Cormorant Garamond',serif;font-size:21px;color:var(--akcent);margin-bottom:6px}
+.instr .opis{font-size:15px;color:var(--tekst-mil);line-height:1.5}
+.leaflet-popup-content-wrapper{background:linear-gradient(180deg,var(--karta),var(--bg2))!important;color:var(--tekst)!important;border:1px solid var(--obw)!important;border-radius:14px!important}
+.leaflet-popup-tip{background:var(--karta)!important}
+.leaflet-popup-content{margin:16px 18px!important;font-family:'EB Garamond',serif!important;font-size:15px!important;color:var(--tekst)!important;min-width:230px;max-width:290px}
+.pop-scroll{max-height:min(60vh,440px);overflow-y:auto;padding-right:4px;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
+.pop-scroll::-webkit-scrollbar{width:5px}
+.pop-scroll::-webkit-scrollbar-thumb{background:var(--akcent2);border-radius:3px}
+.leaflet-popup-close-button{color:var(--tekst-mil)!important;font-size:22px!important}
+.pop-tyt{font-family:'Cormorant Garamond',serif;font-weight:600;font-size:18px;color:var(--akcent);margin-bottom:6px}
+.pop-od{font-family:'Caveat',cursive;font-size:17px;color:var(--akcent2);margin-bottom:8px}
+.pop-tresc{color:var(--tekst);font-size:15px;line-height:1.5;white-space:pre-wrap;word-wrap:break-word}
+.pop-data{font-size:12px;color:var(--tekst-cichy);margin-top:10px;font-style:italic;border-top:1px solid var(--obw);padding-top:8px;display:flex;justify-content:space-between;align-items:center}
+.pop-akcje{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px}
+.pop-akcje-glowne{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:9px}
+.pop-akcje-glowne button{background:rgba(255,255,255,.05);border:1px solid var(--obw);color:var(--tekst);padding:8px 8px;border-radius:8px;cursor:pointer;font-family:'EB Garamond',serif;font-size:13px;display:flex;align-items:center;justify-content:center;gap:4px;transition:.2s}
+.pop-akcje-glowne button:hover{background:var(--bg2);border-color:var(--akcent)}
+.pop-rozwin-przelacz{display:flex;align-items:center;justify-content:center;gap:6px;margin-top:10px;padding-top:8px;border-top:1px solid var(--obw);font-size:12px;color:var(--tekst-cichy);cursor:pointer;user-select:none}
+.pop-rozwin-przelacz:hover{color:var(--akcent)}
+.pop-rozwin-strzalka{transition:.25s;display:inline-block}
+.pop-rozwin-strzalka.obr{transform:rotate(180deg)}
+.pop-rozwin{display:none;margin-top:10px}
+.pop-rozwin.rozw{display:block;animation:etapPojaw .3s ease}
+.pop-akcje button{background:rgba(255,255,255,.05);border:1px solid var(--obw);color:var(--tekst);padding:7px 8px;border-radius:8px;cursor:pointer;font-family:'EB Garamond',serif;font-size:12.5px;display:flex;align-items:center;justify-content:center;gap:4px;transition:.2s;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pop-akcje button:hover{background:var(--bg2);border-color:var(--akcent)}
+.pop-akcje .lajk.zlajkowane{background:linear-gradient(135deg,var(--wino),var(--akcent2));border-color:var(--akcent2);color:#fff}
+.pop-odp-toggle{width:100%;margin-top:8px;background:rgba(255,255,255,.05);border:1px solid var(--obw);color:var(--tekst);padding:8px 10px;border-radius:8px;cursor:pointer;font-family:'EB Garamond',serif;font-size:13px;transition:.2s}
+.pop-odp-toggle:hover{background:var(--bg2);border-color:var(--akcent)}
+.pop-odp-form{display:none;gap:6px;margin-top:8px}
+.pop-odp-form.poka{display:flex}
+.pop-odp-form input{flex:1;background:var(--bg2);border:1px solid var(--obw);border-radius:8px;padding:7px 10px;color:var(--tekst);font-family:'EB Garamond',serif;font-size:13px}
+.pop-odp-form button{background:linear-gradient(135deg,var(--akcent2),var(--akcent));border:none;color:#2a1830;border-radius:8px;padding:7px 12px;font-size:13px;cursor:pointer;font-weight:600}
+.pop-odpowiedzi{margin-top:8px;display:flex;flex-direction:column;gap:6px;max-height:140px;overflow-y:auto;align-items:flex-start}
+.pop-odp-item{background:var(--bg2);border:1px solid var(--obw);border-radius:14px 14px 14px 4px;padding:7px 12px;font-size:13px;color:var(--tekst-mil);line-height:1.4;max-width:88%}
+.pop-odp-item.prywatna{background:linear-gradient(135deg,rgba(232,160,192,.16),rgba(245,210,114,.1));border-color:var(--akcent2)}
+.pop-odp-item .odp-data{font-size:10px;color:var(--tekst-cichy);display:block;margin-top:2px}
+.pop-odp-sekcja-etyk{font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--tekst-cichy);margin-top:10px;margin-bottom:2px}
+.pop-nadawca-etyk{font-family:'Caveat',cursive;font-size:16px;color:var(--akcent2);margin-top:10px;margin-bottom:8px;text-align:center;border-top:1px solid var(--obw);padding-top:10px}
+.pop-dol{display:flex;flex-direction:column;gap:8px;margin-top:10px}
+.pop-dol .pop-odp-toggle{margin-top:0;width:100%}
+.pop-czas{font-size:11px;color:var(--tekst-cichy);font-style:italic;white-space:nowrap;text-align:center;border-top:1px dashed var(--obw);padding-top:7px}
+.pop-zglos{margin-top:6px;text-align:center}
+.pop-zglos button{background:none;border:none;color:var(--tekst-cichy);font-size:11px;cursor:pointer;text-decoration:underline;padding:4px}
+.pop-zglos button:hover{color:var(--wino)}
+.kropka-css{width:18px;height:18px;border-radius:50%;background:radial-gradient(circle at 35% 30%,var(--akcent2),var(--wino));box-shadow:0 0 0 3px rgba(232,160,192,.2),0 0 14px rgba(232,160,192,.7);border:2px solid #fff;cursor:pointer}
+.kropka-css.kropka-czytana{position:relative;background:radial-gradient(circle at 35% 30%,#fff59d,#ff2d55)!important;box-shadow:0 0 0 4px rgba(255,45,85,.35),0 0 26px rgba(255,45,85,.95)!important;border-color:#fff;animation:pulsCzytanaSkala 1.1s ease-in-out infinite;z-index:1000}
+.kropka-css.kropka-czytana::before,.kropka-css.kropka-czytana::after{content:'';position:absolute;left:50%;top:50%;width:100%;height:100%;border-radius:50%;border:2px solid #ff2d55;transform:translate(-50%,-50%) scale(1);opacity:.9;animation:falaCzytana 1.6s ease-out infinite;pointer-events:none}
+.kropka-css.kropka-czytana::after{animation-delay:.55s}
+@keyframes falaCzytana{to{transform:translate(-50%,-50%) scale(3.4);opacity:0}}
+@keyframes pulsCzytanaSkala{0%,100%{transform:scale(1)}50%{transform:scale(1.3)}}
+.kropka-css:hover{transform:scale(1.4)}
+.kropka-nowa{width:22px;height:22px;border-radius:50%;background:radial-gradient(circle at 35% 30%,var(--akcent),#d4a017);box-shadow:0 0 0 4px rgba(245,210,114,.25),0 0 22px rgba(245,210,114,.8);border:2px solid #fff;animation:pulsk 1.2s ease-in-out infinite}
+@keyframes pulsk{0%,100%{transform:scale(1)}50%{transform:scale(1.15)}}
+.kropka-ja{width:18px;height:18px;border-radius:50%;background:var(--niebo);border:3px solid #fff;box-shadow:0 0 0 4px rgba(90,180,255,.3),0 0 18px rgba(90,180,255,.9);animation:pulsja 2s ease-in-out infinite;position:relative}
+@keyframes pulsja{0%,100%{box-shadow:0 0 0 4px rgba(90,180,255,.3),0 0 18px rgba(90,180,255,.9)}50%{box-shadow:0 0 0 12px rgba(90,180,255,.1),0 0 30px rgba(90,180,255,1)}}
+.marker-cluster-small div,.marker-cluster-medium div,.marker-cluster-large div{background:linear-gradient(135deg,var(--akcent2),var(--akcent))!important;color:#2a1830!important;font-family:'Cormorant Garamond',serif!important;font-weight:600!important;border:2px solid #fff!important}
+#toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%) translateY(20px);background:var(--karta);color:var(--tekst);padding:13px 22px;border-radius:30px;font-size:15px;opacity:0;pointer-events:none;transition:.3s;z-index:9999;text-align:center;border:1px solid var(--obw);box-shadow:var(--cien-l)}
+#toast.poka{opacity:1;transform:translateX(-50%) translateY(0)}
+.fab-grupa{position:fixed;right:18px;bottom:90px;z-index:900;display:flex;flex-direction:column;gap:10px}
+.fab{width:46px;height:46px;border-radius:50%;background:var(--karta);border:1px solid var(--obw);color:var(--akcent);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:20px;transition:.2s;box-shadow:var(--cien-l)}
+.fab:hover{transform:scale(1.05);border-color:var(--akcent)}
+.fab.akt{background:linear-gradient(135deg,var(--niebo),#1976d2);color:#fff;animation:pulsfab 1.8s ease-in-out infinite}
+.fab.spacer-akt{background:linear-gradient(135deg,var(--akcent2),var(--akcent));color:#2a1830;animation:pulsfab 1.8s ease-in-out infinite}
+@keyframes pulsfab{0%,100%{box-shadow:0 0 0 0 rgba(90,180,255,.5)}50%{box-shadow:0 0 0 10px rgba(90,180,255,0)}}
+.spacer-info{position:fixed;left:50%;top:78px;transform:translateX(-50%);z-index:900;background:var(--karta);border:1px solid var(--akcent2);border-radius:24px;padding:10px 18px;font-size:14px;color:var(--tekst);box-shadow:var(--cien-l);display:none;align-items:center;gap:10px}
+.spacer-info.poka{display:flex;animation:slidd .3s ease}
+@keyframes slidd{from{opacity:0;transform:translate(-50%,-10px)}to{opacity:1;transform:translateX(-50%)}}
+.spacer-info b{color:var(--akcent2)}
+.spacer-info .kropek-pulse{width:8px;height:8px;border-radius:50%;background:var(--akcent2);animation:pulsja 1.2s ease-in-out infinite}
+.matrix-tlo{position:fixed;inset:0;z-index:6000;display:none;align-items:center;justify-content:center;background:#000}
+.matrix-tlo.poka{display:flex}
+.matrix-tlo canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+.matrix-karta{position:relative;z-index:2;max-width:380px;width:88%;background:rgba(4,10,6,.72);border:1px solid rgba(63,255,122,.35);border-radius:16px;padding:30px 26px 26px;text-align:center;backdrop-filter:blur(2px)}
+.matrix-karta .kropki-postep{display:flex;gap:6px;justify-content:center;margin-bottom:18px;flex-wrap:wrap}
+.matrix-karta .kropka-postep{width:6px;height:6px;border-radius:50%;background:#1c3d27}
+.matrix-karta .kropka-postep.akt{background:#5dffa0}
+.matrix-tekst{font-family:'Courier New',monospace;color:#7dffb0;font-size:16px;line-height:1.75;white-space:pre-line;text-shadow:0 0 8px rgba(93,255,160,.5);min-height:130px;display:flex;align-items:center;justify-content:center}
+.matrix-karta .btn{width:100%;margin-top:18px;background:#0f2418;color:#7dffb0;border:1px solid #2fff6a80;border-radius:10px;padding:12px 16px;font-family:'Courier New',monospace;letter-spacing:1px;font-size:14px;cursor:pointer;transition:.2s}
+.matrix-karta .btn:hover{background:#173a26;border-color:#5dffa0}
+.cz-badge{position:fixed;left:50%;top:128px;transform:translateX(-50%);z-index:895;background:var(--karta);border:1px solid var(--akcent);border-radius:24px;padding:8px 14px;font-size:13px;color:var(--tekst);box-shadow:var(--cien-l);display:none;align-items:center;gap:8px}
+.cz-badge.poka{display:flex;animation:slidd .3s ease}
+.cz-badge b{color:var(--akcent);letter-spacing:2px}
+.cz-badge button{background:none;border:none;color:var(--tekst-cichy);font-size:14px;cursor:pointer;padding:2px 4px;line-height:1}
+.cz-badge button:hover{color:var(--wino)}
+@media(max-width:500px){.tytul{font-size:22px}.licznik-gora{font-size:12px}.licznik-gora b{font-size:16px}.licznik-kropka{width:11px;height:11px}.panel{padding:20px}.gora{padding:12px 14px}.btn-ikon{width:34px;height:34px;font-size:16px}.btn-ikon-duzy{width:42px;height:42px;font-size:20px}}
 
-  /* Gwiazdy w tle */
-  body::before{
-    content:'';position:fixed;inset:0;pointer-events:none;
-    background-image:
-      radial-gradient(1px 1px at 23% 14%,#fff,transparent),
-      radial-gradient(1px 1px at 67% 28%,#fff,transparent),
-      radial-gradient(1px 1px at 41% 52%,#fff,transparent),
-      radial-gradient(2px 2px at 89% 71%,#ffd9a3,transparent),
-      radial-gradient(1px 1px at 12% 84%,#fff,transparent),
-      radial-gradient(1px 1px at 76% 91%,#fff,transparent),
-      radial-gradient(1px 1px at 55% 8%,#a3d9ff,transparent),
-      radial-gradient(1px 1px at 33% 39%,#fff,transparent),
-      radial-gradient(2px 2px at 8% 47%,#ff9a3d,transparent),
-      radial-gradient(1px 1px at 92% 35%,#fff,transparent);
-    opacity:0.85;
-    animation:twinkle 4s ease-in-out infinite;
-  }
-  @keyframes twinkle{0%,100%{opacity:0.85}50%{opacity:0.45}}
+/* ════ PANEL BOCZNY — DUŻY EKRAN ════ */
+.sidebar-szczegoly{display:none;position:fixed;left:0;top:0;bottom:0;width:var(--sidebar-w);z-index:950;background:linear-gradient(180deg,var(--karta),var(--bg2));border-right:1px solid var(--obw);overflow-y:auto;padding:74px 24px 24px;box-shadow:6px 0 30px rgba(0,0,0,.25)}
+.sidebar-szczegoly .pop-scroll{max-height:none;overflow:visible;padding-right:0}
+.sidebar-puste{height:70vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;color:var(--tekst-cichy);gap:10px;font-family:'Caveat',cursive;font-size:20px}
+.sidebar-puste-ikon{font-size:44px;opacity:.5}
+.sidebar-zamknij{position:absolute;top:16px;right:16px}
+@media(min-width:900px){
+  body.panel-otwarty .sidebar-szczegoly{display:block}
+  body.panel-otwarty #mapa{left:var(--sidebar-w)}
+  body.panel-otwarty .gora{left:var(--sidebar-w)}
+  body.panel-otwarty .instr,body.panel-otwarty .spacer-info,body.panel-otwarty .cz-badge{left:calc(50% + (var(--sidebar-w) / 2))}
+}
 
-  /* Pomarańczowa poświata */
-  body::after{
-    content:'';position:fixed;top:-200px;left:50%;transform:translateX(-50%);
-    width:800px;height:600px;
-    background:radial-gradient(ellipse,rgba(255,154,61,0.18) 0%,transparent 60%);
-    pointer-events:none;
-    z-index:0;
-  }
-
-  /* === LATAJĄCE PINEZKI W TLE === */
-  .latajaca-pinezka{
-    position:fixed;font-size:32px;
-    opacity:0.15;pointer-events:none;z-index:1;
-    filter:drop-shadow(0 0 12px rgba(255,154,61,0.5));
-  }
-  .latajaca-pinezka:nth-of-type(1){top:18%;left:8%;animation:lecPinezka1 14s ease-in-out infinite}
-  .latajaca-pinezka:nth-of-type(2){top:35%;right:12%;animation:lecPinezka2 18s ease-in-out infinite}
-  .latajaca-pinezka:nth-of-type(3){bottom:25%;left:14%;animation:lecPinezka3 16s ease-in-out infinite}
-  .latajaca-pinezka:nth-of-type(4){bottom:15%;right:18%;animation:lecPinezka4 20s ease-in-out infinite}
-  .latajaca-pinezka:nth-of-type(5){top:55%;left:48%;animation:lecPinezka5 22s ease-in-out infinite}
-
-  @keyframes lecPinezka1{
-    0%,100%{transform:translate(0,0) rotate(-10deg)}
-    33%{transform:translate(40px,-30px) rotate(15deg)}
-    66%{transform:translate(-20px,40px) rotate(-20deg)}
-  }
-  @keyframes lecPinezka2{
-    0%,100%{transform:translate(0,0) rotate(15deg)}
-    50%{transform:translate(-60px,30px) rotate(-15deg)}
-  }
-  @keyframes lecPinezka3{
-    0%,100%{transform:translate(0,0) rotate(-5deg)}
-    50%{transform:translate(50px,-50px) rotate(25deg)}
-  }
-  @keyframes lecPinezka4{
-    0%,100%{transform:translate(0,0) rotate(10deg)}
-    50%{transform:translate(-40px,-40px) rotate(-15deg)}
-  }
-  @keyframes lecPinezka5{
-    0%,100%{transform:translate(0,0) rotate(0deg)}
-    50%{transform:translate(30px,40px) rotate(20deg)}
-  }
-
-  .wrapper{
-    position:relative;z-index:10;
-    max-width:760px;margin:0 auto;
-    text-align:center;
-    padding-top:30px;
-  }
-
-  /* === GIGA PINEZKA === */
-  .pinezka-wrap{
-    position:relative;
-    margin:40px auto 0;
-    width:200px;height:200px;
-    display:flex;align-items:center;justify-content:center;
-  }
-
-  /* Pulsujące kręgi (radar) */
-  .krag{
-    position:absolute;
-    top:50%;left:50%;
-    width:100px;height:100px;
-    margin-top:-50px;margin-left:-50px;
-    border:2px solid #ff9a3d;
-    border-radius:50%;
-    opacity:0;
-    animation:pulsKrag 3s ease-out infinite;
-  }
-  .krag:nth-of-type(2){animation-delay:1s}
-  .krag:nth-of-type(3){animation-delay:2s}
-
-  @keyframes pulsKrag{
-    0%{transform:scale(0.5);opacity:0.8}
-    100%{transform:scale(2.5);opacity:0}
-  }
-
-  /* Sama pinezka - spada, bouncuje, potem buja się */
-  .pinezka{
-    font-size:96px;
-    position:relative;z-index:5;
-    filter:drop-shadow(0 8px 20px rgba(255,154,61,0.7));
-    animation:spadnijPotemBujaj 4s ease-out 0.3s both,
-              bujajZawsze 3s ease-in-out 4.3s infinite;
-    transform-origin:center bottom;
-  }
-
-  @keyframes spadnijPotemBujaj{
-    0%{transform:translateY(-300px) rotate(-180deg);opacity:0}
-    50%{transform:translateY(-300px) rotate(-180deg);opacity:1}
-    70%{transform:translateY(0) rotate(0deg)}
-    80%{transform:translateY(-20px) rotate(0deg)}
-    90%{transform:translateY(0) rotate(0deg)}
-    95%{transform:translateY(-8px) rotate(0deg)}
-    100%{transform:translateY(0) rotate(0deg)}
-  }
-
-  @keyframes bujajZawsze{
-    0%,100%{transform:translateY(0) rotate(0deg)}
-    25%{transform:translateY(-6px) rotate(-3deg)}
-    75%{transform:translateY(-6px) rotate(3deg)}
-  }
-
-  /* === H1 === */
-  h1{
-    font-size:54px;font-weight:700;letter-spacing:-1px;line-height:1.05;
-    background:linear-gradient(180deg,#ff9a3d 0%,#e87a1d 70%,#a04510 100%);
-    -webkit-background-clip:text;background-clip:text;color:transparent;
-    text-shadow:0 0 80px rgba(255,154,61,0.5);
-    margin-top:30px;
-    animation:tytulIn 1s 4s both, neonFlicker 6s 5s infinite;
-  }
-
-  @keyframes tytulIn{
-    from{opacity:0;transform:translateY(20px)}
-    to{opacity:1;transform:translateY(0)}
-  }
-
-  @keyframes neonFlicker{
-    0%,98%,100%{opacity:1}
-    96%{opacity:1}
-    96.5%{opacity:0.3}
-    97%{opacity:1}
-    97.3%{opacity:0.5}
-    97.5%{opacity:1}
-  }
-
-  .line{
-    width:80px;height:3px;
-    background:linear-gradient(90deg,transparent,#ff9a3d,transparent);
-    margin:24px auto;
-    animation:fadeIn 1s 4.4s both;
-  }
-
-  .tagline{
-    font-size:13px;color:#888;letter-spacing:5px;
-    text-transform:uppercase;
-    font-family:'JetBrains Mono',monospace;
-    animation:fadeIn 1s 4.6s both;
-  }
-
-  @keyframes fadeIn{
-    from{opacity:0}
-    to{opacity:1}
-  }
-
-  /* === PASEK POSTĘPU === */
-  .progress-wrap{
-    margin:50px auto 30px;
-    max-width:480px;
-    animation:fadeIn 1s 5s both;
-  }
-
-  .progress-naglowek{
-    display:flex;justify-content:space-between;
-    align-items:center;
-    margin-bottom:10px;
-    font-family:'JetBrains Mono',monospace;
-    font-size:12px;
-    color:#888;
-    letter-spacing:1.5px;
-    text-transform:uppercase;
-  }
-
-  .progress-procent{
-    color:#ff9a3d;font-weight:700;
-    font-size:14px;
-    text-shadow:0 0 12px rgba(255,154,61,0.5);
-    min-width:50px;text-align:right;
-  }
-
-  .progress-bar{
-    height:14px;
-    background:rgba(40,40,55,0.6);
-    border:1px solid rgba(255,154,61,0.25);
-    border-radius:8px;
-    overflow:hidden;
-    position:relative;
-    box-shadow:inset 0 2px 6px rgba(0,0,0,0.4);
-  }
-
-  .progress-fill{
-    height:100%;
-    width:0%;
-    background:linear-gradient(90deg,#ff9a3d 0%,#e87a1d 50%,#ff9a3d 100%);
-    background-size:200% 100%;
-    border-radius:7px;
-    transition:width 0.8s cubic-bezier(0.4,0,0.2,1);
-    box-shadow:0 0 16px rgba(255,154,61,0.6);
-    animation:shimmer 2s linear infinite;
-    position:relative;
-  }
-
-  .progress-fill::after{
-    content:'';position:absolute;
-    top:0;right:0;bottom:0;
-    width:30px;
-    background:linear-gradient(90deg,transparent,rgba(255,255,255,0.4));
-    border-radius:7px;
-  }
-
-  @keyframes shimmer{
-    from{background-position:0% 0}
-    to{background-position:200% 0}
-  }
-
-  /* === STATUS LINE (typewriter) === */
-  .status-wrap{
-    margin:30px auto 0;
-    max-width:520px;
-    min-height:50px;
-    animation:fadeIn 1s 5.4s both;
-  }
-
-  .status-line{
-    font-family:'JetBrains Mono',monospace;
-    font-size:14px;
-    color:#aaa;
-    line-height:1.6;
-  }
-
-  .status-line .prompt{
-    color:#ff9a3d;
-    margin-right:4px;
-  }
-
-  .status-tekst::after{
-    content:'_';
-    color:#ff9a3d;
-    animation:blinkCursor 1s step-end infinite;
-    margin-left:2px;
-  }
-
-  @keyframes blinkCursor{
-    0%,50%{opacity:1}
-    51%,100%{opacity:0}
-  }
-
-  /* === 3 KROPKI LOADING === */
-  .kropki-loading{
-    display:flex;justify-content:center;gap:12px;
-    margin:40px auto 0;
-    animation:fadeIn 1s 5.8s both;
-  }
-
-  .kropka-load{
-    width:14px;height:14px;
-    background:#ff9a3d;
-    border-radius:50%;
-    box-shadow:0 0 16px rgba(255,154,61,0.7);
-    animation:kropkaBounce 1.4s ease-in-out infinite;
-  }
-  .kropka-load:nth-of-type(2){animation-delay:0.2s}
-  .kropka-load:nth-of-type(3){animation-delay:0.4s}
-
-  @keyframes kropkaBounce{
-    0%,80%,100%{transform:scale(0.6);opacity:0.4}
-    40%{transform:scale(1.2);opacity:1}
-  }
-
-  /* === KOMUNIKAT W RAMCE === */
-  .komunikat-box{
-    margin:50px auto 0;
-    max-width:560px;
-    padding:22px 28px;
-    background:linear-gradient(180deg,rgba(40,40,55,0.5) 0%,rgba(20,20,30,0.7) 100%);
-    border:1px solid rgba(255,154,61,0.25);
-    border-left:3px solid #ff9a3d;
-    border-radius:12px;
-    text-align:left;
-    backdrop-filter:blur(10px);
-    animation:fadeIn 1s 6.2s both;
-  }
-
-  .komunikat-box p{
-    font-size:15px;line-height:1.65;color:#bbb;
-  }
-  .komunikat-box p + p{margin-top:10px}
-  .komunikat-box b{color:#ff9a3d;font-weight:600}
-
-  /* === PRZYCISK POWROTU === */
-  .powrot-wrap{
-    margin:40px auto 0;
-    animation:fadeIn 1s 6.6s both;
-  }
-
-  .powrot{
-    display:inline-block;
-    padding:12px 28px;
-    color:#888;
-    font-family:'JetBrains Mono',monospace;
-    font-size:13px;letter-spacing:1.5px;
-    text-decoration:none;
-    border:1px solid rgba(255,255,255,0.15);
-    border-radius:10px;
-    transition:all 0.25s;
-  }
-  .powrot:hover{
-    color:#ff9a3d;
-    border-color:rgba(255,154,61,0.5);
-    background:rgba(255,154,61,0.06);
-    transform:translateY(-2px);
-  }
-
-  footer{
-    text-align:center;margin-top:36px;padding-bottom:16px;
-    color:#555;font-size:11px;
-    font-family:'JetBrains Mono',monospace;letter-spacing:2px;
-    animation:fadeIn 1s 7s both;
-  }
-
-  @media (max-width:520px){
-    body{padding:32px 18px}
-    h1{font-size:38px}
-    .pinezka{font-size:72px}
-    .pinezka-wrap{width:160px;height:160px}
-    .progress-wrap{max-width:100%}
-    .komunikat-box{padding:18px 20px}
-    .latajaca-pinezka{font-size:24px}
-  }
+/* ════ INTRO ════ */
+#intro{position:fixed;inset:0;z-index:20000;background:radial-gradient(ellipse at 50% 40%,#1c2750 0%,#0e1530 55%,#070a1a 100%);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:30px;cursor:pointer;overflow:hidden;transition:opacity 1s ease,visibility 1s ease}
+#intro.znika{opacity:0;pointer-events:none}
+#intro .swietliki{position:absolute;inset:0;pointer-events:none}
+#intro .swietlik{position:absolute;bottom:-10px;width:4px;height:4px;border-radius:50%;background:var(--akcent2);box-shadow:0 0 8px 2px rgba(232,160,192,.9);animation:unosSie linear infinite}
+@keyframes unosSie{0%{transform:translateY(0) translateX(0);opacity:0}10%{opacity:1}90%{opacity:.8}100%{transform:translateY(-100vh) translateX(var(--drift,20px));opacity:0}}
+#intro .iskra{width:6px;height:6px;border-radius:50%;background:var(--akcent);box-shadow:0 0 20px 6px rgba(245,210,114,.8);margin-bottom:26px;animation:pulsIskra 2.2s ease-in-out infinite;opacity:0;animation:pojawSie 1.2s ease forwards,pulsIskra 2.2s ease-in-out 1.2s infinite}
+@keyframes pojawSie{to{opacity:1}}
+@keyframes pulsIskra{0%,100%{box-shadow:0 0 20px 6px rgba(245,210,114,.6);transform:scale(1)}50%{box-shadow:0 0 32px 10px rgba(245,210,114,.95);transform:scale(1.3)}}
+#intro .intro-tytul{font-family:'Cormorant Garamond',serif;font-weight:600;font-size:44px;color:var(--akcent);letter-spacing:1px;opacity:0;transform:translateY(14px);animation:wynurzTytul 1.3s ease .4s forwards}
+#intro .intro-tytul em{font-style:italic;color:var(--akcent2);font-weight:500}
+@keyframes wynurzTytul{to{opacity:1;transform:translateY(0)}}
+#intro .intro-haslo{font-family:'Caveat',cursive;font-size:28px;color:var(--tekst-mil);margin-top:18px;max-width:420px;line-height:1.4;opacity:0;transform:translateY(10px);animation:wynurzTytul 1.3s ease 1.5s forwards}
+#intro .intro-haslo b{color:var(--akcent2);font-weight:700}
+#intro .intro-wskaz{position:absolute;bottom:56px;left:50%;transform:translateX(-50%);font-family:'EB Garamond',serif;font-size:14px;letter-spacing:2px;text-transform:uppercase;color:var(--tekst-cichy);opacity:0;animation:wynurzTytul 1s ease 2.8s forwards,pulsWskaz 1.8s ease-in-out 3.8s infinite}
+#intro .intro-etap1{display:flex;flex-direction:column;align-items:center}
+#intro .intro-etap2{display:none;flex-direction:column;align-items:center;gap:20px}
+#intro .iz-linia{font-family:'Cormorant Garamond',serif;font-weight:600;font-size:32px;color:var(--akcent);opacity:0;transform:translateY(12px);animation:wynurzTytul 1s ease forwards}
+#intro .iz-linia.iz-2{color:var(--akcent2)}
+#intro .iz-linia.iz-3{font-style:italic}
+#intro .iz-linia.iz-4{color:var(--akcent2)}
+#intro .intro-obrazek{max-width:480px;width:82vw;opacity:0;transform:translateY(10px);animation:wynurzTytul 1s ease forwards}
+#intro .intro-obrazek img{width:100%;display:block;border-radius:14px;box-shadow:var(--cien-g)}
+@keyframes pulsWskaz{0%,100%{opacity:.4}50%{opacity:.9}}
 </style>
 </head>
 <body>
-
-<!-- Latające pinezki w tle -->
-<span class="latajaca-pinezka">📍</span>
-<span class="latajaca-pinezka">📍</span>
-<span class="latajaca-pinezka">📍</span>
-<span class="latajaca-pinezka">📍</span>
-<span class="latajaca-pinezka">📍</span>
-
-<div class="wrapper">
-
-  <!-- GIGA PINEZKA z radarem -->
-  <div class="pinezka-wrap">
-    <div class="krag"></div>
-    <div class="krag"></div>
-    <div class="krag"></div>
-    <div class="pinezka">📍</div>
+<div id="intro" onclick="introKlik()">
+  <div class="swietliki" id="swietliki"></div>
+  <div class="intro-etap1" id="introEtap1">
+    <div class="iskra"></div>
+    <div class="intro-tytul">Mapa <em>Wspomnień</em></div>
+    <div class="intro-haslo">Chcesz podzielić się <b>wspomnieniem</b>?<br>Przekaż je dalej.</div>
+    <div class="intro-wskaz">dotknij, aby wejść</div>
   </div>
-
-  <h1>Mapa w budowie</h1>
-  <div class="line"></div>
-  <p class="tagline">// trwają prace nad zawartością</p>
-
-  <!-- PASEK POSTĘPU -->
-  <div class="progress-wrap">
-    <div class="progress-naglowek">
-      <span>// postęp prac</span>
-      <span class="progress-procent" id="procent">0%</span>
+  <div class="intro-etap2" id="introEtap2">
+    <div class="intro-obrazek" style="animation-delay:.2s">
+      <img src="img/intro.jpg" alt="Mapa Wspomnień">
     </div>
-    <div class="progress-bar">
-      <div class="progress-fill" id="fill"></div>
-    </div>
+    <div class="iz-linia" style="animation-delay:.2s">Nie obrażaj</div>
+    <div class="iz-linia iz-2" style="animation-delay:1.1s">Bądź sobą</div>
+    <div class="iz-linia iz-3" style="animation-delay:2s">Twój ślad zostaje</div>
+    <div class="iz-linia iz-4" style="animation-delay:2.9s">Baw się dobrze</div>
+    <div class="intro-wskaz" id="introWskaz2" style="animation:wynurzTytul 1s ease 3.9s forwards,pulsWskaz 1.8s ease-in-out 4.9s infinite">dotknij, aby wejść</div>
   </div>
-
-  <!-- STATUS LINE (zmieniający się komunikat) -->
-  <div class="status-wrap">
-    <p class="status-line">
-      <span class="prompt">$</span>
-      <span class="status-tekst" id="status">inicjalizacja...</span>
-    </p>
+</div>
+<div id="mapa"></div>
+<div class="sidebar-szczegoly" id="sidebarSzczegoly">
+  <div class="sidebar-puste">
+    <div class="sidebar-puste-ikon">📍</div>
+    <div>Kliknij kropkę na mapie,<br>aby zobaczyć wspomnienie</div>
   </div>
-
-  <!-- KROPKI LOADING -->
-  <div class="kropki-loading">
-    <div class="kropka-load"></div>
-    <div class="kropka-load"></div>
-    <div class="kropka-load"></div>
+</div>
+<div class="gora">
+  <div class="tytul">Mapa <em>Wspomnień</em></div>
+  <div class="gora-prawo">
+    <div class="licznik-gora"><span class="licznik-kropka"></span><b id="liczKropek">—</b></div>
+    <button class="btn-ikon btn-ikon-duzy" id="btnCzest" onclick="otworzPanelCz()" title="Częstotliwość">📻</button>
+    <button class="btn-ikon" id="btnWarstwa" onclick="przelaczWarstwe()" title="Styl mapy">🗺️</button>
   </div>
-
-  <!-- KOMUNIKAT W RAMCE -->
-  <div class="komunikat-box">
-    <p>Ta mapa jeszcze nie jest gotowa — <b>autor pracuje</b> nad jej zawartością.</p>
-    <p>Wróć tu za jakiś czas albo zajrzyj do innych map z listy. A jak chcesz zobaczyć jak działa nasz silnik — <b>zrób sobie własną mapę</b> z poziomu strony głównej.</p>
-  </div>
-
-  <!-- POWRÓT -->
-  <div class="powrot-wrap">
-    <a href="../" class="powrot">← powrót do listy</a>
-  </div>
-
-  <footer>// mini-klik.pl · w budowie · 2026</footer>
-
 </div>
 
+<div class="fab-grupa">
+  <button class="fab" id="fabInfo" onclick="otworzInfo()" title="Informacje i regulamin">ℹ️</button>
+  <button class="fab" id="fabDzwiek" onclick="przelaczDzwiek()" title="Wycisz/włącz czytanie">🔊</button>
+  <button class="fab" id="fabGps" onclick="trybGpsZywo()" title="GPS na żywo">📍</button>
+  <button class="fab" id="fabSpacer" onclick="trybSpaceru()" title="Tryb spaceru (audio)">🚶</button>
+</div>
+
+<div class="spacer-info" id="spacerInfo">
+  <span class="kropek-pulse"></span>
+  <span>Tryb spaceru — <b id="spacerLicz">0</b> kropek w 100 m</span>
+</div>
+
+<div class="cz-badge" id="czBadge">
+  <span class="kropek-pulse"></span>
+  <span>Częstotliwość: <b id="czBadgeKod">—</b></span>
+  <button onclick="wylaczCzestotliwosc()" title="Wyjdź">✕</button>
+</div>
+
+<div class="dol">
+  <button class="btn-dodaj" id="btnDodaj" onclick="trybDodawania()">
+    <span id="btnIk">✨</span><span id="btnTxt">Zostaw wspomnienie</span>
+  </button>
+</div>
+
+<div class="instr" id="instr">
+  <div class="ikon">👆</div>
+  <div class="nag">Dodaj miejsce</div>
+</div>
+
+<div class="panel-tlo" id="panelTlo" onclick="zamknijTlo(event)">
+  <div class="panel">
+    <div class="panel-naglo">
+      <h2>Twoje wspomnienie</h2>
+      <button class="zamknij" onclick="zamknijPanel()">✕</button>
+    </div>
+
+    <div class="kropki-postep" id="kropkiPostep">
+      <div class="kropka-postep akt" data-k="1"></div>
+      <div class="kropka-postep" data-k="2"></div>
+      <div class="kropka-postep" data-k="3"></div>
+      <div class="kropka-postep" data-k="4"></div>
+    </div>
+
+    <div class="etap-dod akt" data-etap="1">
+      <div class="pytanie-dod">Co to za miejsce?</div>
+      <div class="podpowiedz-dod">Opowiedz swoimi słowami</div>
+      <div class="pole">
+        <textarea id="polTresc" placeholder="Co się tu wydarzyło? Co czujesz, gdy tu jesteś?" maxlength="500"></textarea>
+        <div class="licznik-zn"><span id="lzTresc">0</span> / 500</div>
+      </div>
+      <div class="rzad-btn"><button class="btn btn-sec" onclick="zamknijPanel()">Anuluj</button><button class="btn btn-prim" onclick="dodIdz(2)">Dalej</button></div>
+    </div>
+
+    <div class="etap-dod" data-etap="2">
+      <div class="pytanie-dod">Nazwij miejsce</div>
+      <div class="podpowiedz-dod">Krótko, żeby inni je rozpoznali</div>
+      <div class="pole">
+        <input type="text" id="polTytul" placeholder="np. Stara ławka" maxlength="50">
+      </div>
+      <div class="rzad-btn"><button class="btn btn-sec" onclick="dodIdz(1)">Wstecz</button><button class="btn btn-prim" onclick="dodIdz(3)">Dalej</button></div>
+    </div>
+
+    <div class="etap-dod" data-etap="3">
+      <div class="pytanie-dod">Twój sekretny kod</div>
+      <div class="podpowiedz-dod">Możesz zostać anonim/ą</div>
+      <div class="pole">
+        <span class="etyk">Twój podpis</span>
+        <input type="text" id="polAutor" placeholder="anonim, ksywa…" maxlength="20">
+      </div>
+      <div class="pole">
+        <span class="etyk">Sekretny kod</span>
+        <input type="text" id="polNick" placeholder="np. x" maxlength="30">
+        <div class="pomoc-dod">Tym kodem otworzysz prywatną wiadomość. Nikt inny go nie zobaczy.</div>
+      </div>
+      <div class="rzad-btn"><button class="btn btn-sec" onclick="dodIdz('op')">Dodatkowe opcje</button><button class="btn btn-prim" onclick="dodPodglad()">Udostępnij</button></div>
+    </div>
+
+    <div class="etap-dod" data-etap="op">
+      <div class="pytanie-dod">Dodatkowe opcje</div>
+      <div class="podpowiedz-dod">Wzbogać wspomnienie</div>
+      <div class="pole">
+        <span class="etyk">Dodaj YT do miejsca</span>
+        <input type="text" id="polYt" placeholder="https://youtube.com/watch?v=..." maxlength="300">
+      </div>
+      <div class="pole">
+        <span class="etyk">Dodaj audio z Internet Archive</span>
+        <input type="text" id="polArchiwum" placeholder="https://archive.org/details/..." maxlength="300">
+      </div>
+      <div class="pole">
+        <span class="etyk">Dodaj zdjęcie (link)</span>
+        <div class="link-rzad">
+          <input type="text" id="polZdjecie" placeholder="https://i.postimg.cc/..." maxlength="300">
+          <a class="btn-zewn" href="https://postimages.org" target="_blank" rel="noopener">postimages.org</a>
+        </div>
+        <div class="pomoc-dod">Wrzuć zdjęcie na postimages.org, skopiuj „Direct link” i wklej tu.</div>
+      </div>
+      <div class="rzad-btn"><button class="btn btn-prim" style="flex:1" onclick="dodPodglad()">Gotowe</button></div>
+    </div>
+
+    <div class="etap-dod" data-etap="4">
+      <div class="pytanie-dod">Tak to zobaczą inni</div>
+      <div class="podpowiedz-dod">Ostatnie spojrzenie przed zostawieniem kropki</div>
+      <div class="podglad-karta">
+        <div class="pg-tyt" id="pgTytul"></div>
+        <div class="pg-od" id="pgAutor"></div>
+        <div class="pg-tresc" id="pgTresc"></div>
+        <div class="pg-zal" id="pgZal"></div>
+      </div>
+      <div class="rzad-btn"><button class="btn btn-sec" onclick="dodIdz(3)">Popraw</button><button class="btn btn-prim" id="btnZapisz" onclick="zapiszWspom()">Zostaw kropkę ✨</button></div>
+    </div>
+
+  </div>
+</div>
+<div class="panel-tlo" id="panelTloCz" onclick="zamknijTloCz(event)">
+  <div class="panel" style="max-width:340px">
+    <div class="panel-naglo">
+      <h2>Częstotliwość</h2>
+      <button class="zamknij" onclick="zamknijPanelCz()">✕</button>
+    </div>
+
+    <div id="czStanWylaczony">
+      <div class="pytanie-dod">Wejdź na częstotliwość</div>
+      <div class="podpowiedz-dod">Umów się z kimś na kod i miejcie prywatny kanał</div>
+      <div class="pole">
+        <input type="text" id="polCzKod" placeholder="np. 1234" maxlength="20" style="text-align:center;letter-spacing:3px;font-size:18px">
+      </div>
+      <div class="rzad-btn"><button class="btn btn-prim" style="flex:1" onclick="nastawCzestotliwosc()">Nastaw się 📻</button></div>
+    </div>
+
+    <div id="czStanWlaczony" style="display:none">
+      <div class="podglad-karta" style="text-align:center;margin-bottom:14px">
+        <div style="font-size:11px;color:var(--tekst-mil);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Jesteś na częstotliwości</div>
+        <div style="font-family:'Cormorant Garamond',serif;font-weight:600;font-size:24px;color:var(--akcent);letter-spacing:3px" id="czKodWyswietl"></div>
+      </div>
+      <div class="podpowiedz-dod">Widzisz i zostawiasz tylko kropki na tym kanale</div>
+      <div class="rzad-btn"><button class="btn btn-sec" style="flex:1" onclick="wylaczCzestotliwosc()">Wyłącz i wróć do mapy publicznej</button></div>
+    </div>
+  </div>
+</div>
+<div class="matrix-tlo" id="matrixTlo">
+  <canvas id="matrixCanvas"></canvas>
+  <button class="zamknij" id="matrixZamknij" onclick="zamknijInfo()" style="position:absolute;top:16px;right:16px;z-index:2;background:rgba(0,0,0,.4);border-color:#2fff6a55;color:#5dffa0">✕</button>
+  <div class="matrix-karta">
+    <div class="kropki-postep" id="infoKropki"></div>
+    <div class="matrix-tekst" id="infoTekst"></div>
+    <button class="btn" id="infoBtn" onclick="infoDalej()">Dalej</button>
+  </div>
+</div>
+
+<div id="toast"></div>
+
 <script>
-  // ===== Pasek postępu z losowymi skokami =====
-  const procent = document.getElementById('procent');
-  const fill = document.getElementById('fill');
-  let aktualny = 0;
-  let cel = 0;
+/* ════ FIREBASE ════ */
+const FIREBASE_CONFIG={apiKey:"AIzaSyDRR3vSfgpEmbpZz_-VldMTnTHoXRfuGKg",authDomain:"ksiega-ramzi.firebaseapp.com",projectId:"ksiega-ramzi",storageBucket:"ksiega-ramzi.firebasestorage.app",messagingSenderId:"400735142662",appId:"1:400735142662:web:0b52a57f4fedf367839487"};
+let db=null,online=false;
+try{firebase.initializeApp(FIREBASE_CONFIG);db=firebase.firestore();online=true;}catch(e){console.warn(e);}
 
-  // Sekwencja "udawanej pracy" - skacze do różnych wartości
-  const sekwencja = [
-    { docel: 23, czas: 1800 },
-    { docel: 47, czas: 2200 },
-    { docel: 51, czas: 1500 },  // zatrzymanie
-    { docel: 49, czas: 2000 },  // cofnięcie!
-    { docel: 68, czas: 2400 },
-    { docel: 71, czas: 1800 },
-    { docel: 73, czas: 2500 },  // długie zatrzymanie
-    { docel: 73, czas: 2000 },
-    { docel: 81, czas: 2200 },
-    { docel: 79, czas: 1500 },  // znów cofnięcie
-    { docel: 88, czas: 2400 },
-    { docel: 91, czas: 2000 },
-    { docel: 87, czas: 1800 },  // i jeszcze raz cofnięcie
-    { docel: 93, czas: 2500 },
-    { docel: 94, czas: 3000 },  // utknęło
-  ];
+/* ════ FILTR ════ */
+const STOP=['kurw','chuj','huj','pizd','jeb','pierdol','spierdal','cipa','kutas','suka','dziwka','debil','fuck','shit','bitch','nigger'];
+function normF(s){return(s||'').toLowerCase().replace(/ł/g,'l').normalize('NFD').replace(/[\u0300-\u036f]/g,'');}
+function maStop(t){const n=normF(t).replace(/[^a-z0-9]/g,'');return STOP.some(s=>n.includes(s));}
 
-  let krok = 0;
+/* ════ POMOC ════ */
+function toast(t){const el=document.getElementById('toast');el.textContent=t;el.classList.add('poka');clearTimeout(el._tk);el._tk=setTimeout(()=>el.classList.remove('poka'),2800);}
+function escHtml(s){return(s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+function fmtData(ms){if(!ms)return'';const d=new Date(ms),roz=Date.now()-ms;if(roz<60000)return'przed chwilą';if(roz<3600000)return Math.floor(roz/60000)+' min temu';if(roz<86400000)return Math.floor(roz/3600000)+' godz. temu';if(roz<604800000)return Math.floor(roz/86400000)+' dni temu';return d.toLocaleDateString('pl-PL',{day:'numeric',month:'long',year:'numeric'});}
+function metrowDo(la1,lo1,la2,lo2){const R=6371000,t1=la1*Math.PI/180,t2=la2*Math.PI/180,dt=(la2-la1)*Math.PI/180,dl=(lo2-lo1)*Math.PI/180;const a=Math.sin(dt/2)**2+Math.cos(t1)*Math.cos(t2)*Math.sin(dl/2)**2;return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));}
+function bezpUrl(u){return!!u&&/^https:\/\//i.test(u.trim());}
 
-  function aktualizujProgress(){
-    if (krok >= sekwencja.length) krok = 0;  // pętla
-    cel = sekwencja[krok].docel;
-    fill.style.width = cel + '%';
-    procent.textContent = cel + '%';
-    setTimeout(aktualizujProgress, sekwencja[krok].czas);
-    krok++;
+/* ════ OGRANICZENIE CZĘSTOTLIWOŚCI (ANTY-SPAM) ════ */
+function mozeDodac(klucz,ms){
+  try{
+    const ostatni=Number(localStorage.getItem(klucz)||0);
+    const teraz=Date.now();
+    if(teraz-ostatni<ms){
+      toast('Poczekaj '+Math.ceil((ms-(teraz-ostatni))/1000)+' s przed kolejnym wpisem.');
+      return false;
+    }
+    return true;
+  }catch(e){return true;}
+}
+function zapiszCzas(klucz){try{localStorage.setItem(klucz,String(Date.now()));}catch(e){}}
+
+/* ════ MAPA ════ */
+let mapa,warstwaKafelki,grupaMarkerow,markerNowy=null,pozWybrana=null,trybAkt=false,wszystkieKropki=[],markeryWgKropki={},popupOtwarty=false;
+let gpsZywo=false,gpsWatchId=null,markerJa=null,mojaPoz=null;
+let spaceruTryb=false,spaceruPrzeczytane=new Set(),spaceruWatchId=null;
+const MIN_ZOOM_LADOWANIE=8;
+let obszarTimeout=null,zapytaneObszary=[],licznikCalkowity=0,aktywneNasluchy=[];
+let aktywnaCzestotliwosc='';
+try{aktywnaCzestotliwosc=localStorage.getItem('mw_czestotliwosc')||'';}catch(e){}
+
+/* ════ WARSTWY MAPY ════ */
+const WARSTWY=['klasyczna','satelita'];
+const WARSTWY_NAZWY={klasyczna:'klasyczna',satelita:'satelita (Esri)'};
+let warstwaAkt='klasyczna';
+
+function utworzWarstwe(nazwa){
+  if(nazwa==='satelita'){
+    return L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:19,attribution:'© Esri'});
   }
+  return L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'});
+}
+function ustawWarstwe(nazwa,zapisz){
+  if(warstwaKafelki)mapa.removeLayer(warstwaKafelki);
+  warstwaAkt=nazwa;
+  warstwaKafelki=utworzWarstwe(nazwa).addTo(mapa);
+  const btn=document.getElementById('btnWarstwa');if(btn)btn.textContent=(nazwa==='satelita'?'🛰️':'🗺️');
+  if(zapisz!==false){try{localStorage.setItem('mw_warstwa',nazwa);}catch(e){}toast('Mapa: '+WARSTWY_NAZWY[nazwa]);}
+}
+function przelaczWarstwe(){
+  const i=WARSTWY.indexOf(warstwaAkt);
+  ustawWarstwe(WARSTWY[(i+1)%WARSTWY.length]);
+}
 
-  setTimeout(aktualizujProgress, 5400);
+function initMapa(){
+  mapa=L.map('mapa',{zoomControl:false}).setView([52.0,19.4],6);
+  let zapisanaWarstwa=null;
+  try{zapisanaWarstwa=localStorage.getItem('mw_warstwa');}catch(e){}
+  const poczatkowa=WARSTWY.includes(zapisanaWarstwa)?zapisanaWarstwa:'klasyczna';
+  ustawWarstwe(poczatkowa,false);
+  grupaMarkerow=L.markerClusterGroup({maxClusterRadius:50,showCoverageOnHover:false});
+  mapa.addLayer(grupaMarkerow);
+  mapa.on('click',obslKlikMapy);
+  mapa.on('moveend',()=>{clearTimeout(obszarTimeout);obszarTimeout=setTimeout(zaladujKropkiWObszarze,600);});
+  if(navigator.geolocation)navigator.geolocation.getCurrentPosition(p=>{if(!trybAkt&&!pozWybrana)mapa.setView([p.coords.latitude,p.coords.longitude],13);},()=>{},{timeout:5000});
+  zaladujLokalneKropki();
+  ustawLicznikCalkowity(liczbaMoichNaCzestotliwosci());
+  zaladujKropkiWObszarze();
+  otworzZUrl();
+}
 
-  // ===== Komunikaty statusu (typewriter, zmieniające się) =====
-  const komunikaty = [
-    'wczytywanie modułu kartograficznego...',
-    'rozkładanie pinezek na mapie...',
-    'kalibracja GPS-a...',
-    'parzenie kawy autora...',
-    'szukanie zaginionej kropki nr 7...',
-    'pies sąsiada zatrzymał prace',
-    'wznawianie pracy...',
-    'autor poszedł na obiad',
-    'optymalizacja struktury katalogowej...',
-    'pisanie opisów miejsc...',
-    'pinezka 14 odmawia współpracy',
-    'negocjacje z pinezką 14...',
-    'pinezka 14 zgodziła się',
-    'dodawanie zdjęć...',
-    'ćwiczenia oddechowe autora...',
-    'medytacja przed kompilacją...',
-    'sprawdzanie czy działa offline...',
-    'tłumaczenie z polskiego na polski...',
-    'ostatnie szlify...',
-    'ostatnie szlify (na pewno)...',
-    'ostatnie szlify (tym razem na serio)...',
-    'autor patrzy w sufit',
-    'autor ma pomysł!',
-    'autor zapomniał pomysłu',
-    'restart procedury...',
-  ];
+/* ════ GPS NA ŻYWO ════ */
+function trybGpsZywo(){
+  if(gpsZywo){zatrzymajGps();return;}
+  if(!navigator.geolocation){toast('Brak GPS');return;}
+  gpsZywo=true;
+  document.getElementById('fabGps').classList.add('akt');
+  toast('📍 Śledzenie pozycji włączone');
+  gpsWatchId=navigator.geolocation.watchPosition(p=>{
+    mojaPoz={lat:p.coords.latitude,lng:p.coords.longitude};
+    if(markerJa){markerJa.setLatLng(mojaPoz);}
+    else{const ik=L.divIcon({html:'<div class="kropka-ja"></div>',className:'',iconSize:[24,24],iconAnchor:[12,12]});markerJa=L.marker([mojaPoz.lat,mojaPoz.lng],{icon:ik,zIndexOffset:1000}).addTo(mapa);mapa.setView([mojaPoz.lat,mojaPoz.lng],15);}
+    if(spaceruTryb)sprawdzKropkiWokol();
+  },err=>{toast('Błąd GPS: '+err.message);zatrzymajGps();},{enableHighAccuracy:true,maximumAge:2000,timeout:10000});
+}
+function zatrzymajGps(){
+  gpsZywo=false;
+  if(gpsWatchId!==null){navigator.geolocation.clearWatch(gpsWatchId);gpsWatchId=null;}
+  if(markerJa){mapa.removeLayer(markerJa);markerJa=null;}
+  document.getElementById('fabGps').classList.remove('akt');
+  if(spaceruTryb)zatrzymajSpacer();
+  toast('Śledzenie wyłączone');
+}
 
-  const statusEl = document.getElementById('status');
-  let komIdx = 0;
-  let znakIdx = 0;
-  let kasowanie = false;
-  let aktualnyTekst = '';
+/* ════ TRYB SPACERU ════ */
+const PROMIEN_SPACERU=100;
+let spaceruIntervalId=null;
+function trybSpaceru(){
+  if(spaceruTryb){zatrzymajSpacer();return;}
+  if(!('speechSynthesis' in window)){toast('Twoja przeglądarka nie obsługuje czytania głosem');return;}
+  spaceruTryb=true;
+  spaceruPrzeczytane.clear();
+  document.getElementById('fabSpacer').classList.add('spacer-akt');
+  document.getElementById('spacerInfo').classList.add('poka');
+  odblokujMowe();
+  if(!gpsZywo)trybGpsZywo();
+  toast('🚶 Tryb spaceru: czytam kropki w '+PROMIEN_SPACERU+' m');
+  setTimeout(sprawdzKropkiWokol,1000);
+  if(spaceruIntervalId)clearInterval(spaceruIntervalId);
+  spaceruIntervalId=setInterval(()=>{
+    if(!spaceruTryb||popupOtwarty)return;
+    if(mojaPoz)mapa.setView([mojaPoz.lat,mojaPoz.lng],mapa.getZoom());
+    sprawdzKropkiWokol();
+  },2000);
+}
+function zatrzymajSpacer(){
+  spaceruTryb=false;
+  try{speechSynthesis.cancel();}catch(e){}
+  wyczyscPulsujacy();
+  document.getElementById('fabSpacer').classList.remove('spacer-akt');
+  document.getElementById('spacerInfo').classList.remove('poka');
+  if(spaceruIntervalId){clearInterval(spaceruIntervalId);spaceruIntervalId=null;}
+  toast('Tryb spaceru wyłączony');
+}
+function odblokujMowe(){try{const u=new SpeechSynthesisUtterance(' ');u.volume=0;speechSynthesis.speak(u);}catch(e){}}
+function powiedz(t,onEnd){if(!('speechSynthesis' in window))return;try{const u=new SpeechSynthesisUtterance(t);u.lang='pl-PL';u.rate=0.95;if(onEnd)u.onend=onEnd;speechSynthesis.speak(u);}catch(e){if(onEnd)onEnd();}}
+let dzwiekWlaczony=true;
+function przelaczDzwiek(){
+  dzwiekWlaczony=!dzwiekWlaczony;
+  document.getElementById('fabDzwiek').textContent=dzwiekWlaczony?'🔊':'🔇';
+  if(!dzwiekWlaczony){try{speechSynthesis.cancel();}catch(e){}}
+  toast(dzwiekWlaczony?'🔊 Czytanie włączone':'🔇 Czytanie wyciszone');
+}
+function czytajKropke(r,onEnd){
+  if(!dzwiekWlaczony||!('speechSynthesis' in window)){if(onEnd)onEnd();return;}
+  try{speechSynthesis.cancel();}catch(e){}
+  const tekst='Tu '+(r.autor||'anonim')+' wspomina: '+(r.tytul||'')+'. '+r.tresc;
+  powiedz(tekst,onEnd);
+}
 
-  function typuj(){
-    if (!kasowanie) {
-      // Pisanie
-      aktualnyTekst = komunikaty[komIdx].substring(0, znakIdx + 1);
-      statusEl.textContent = aktualnyTekst;
-      znakIdx++;
-      if (znakIdx > komunikaty[komIdx].length) {
-        kasowanie = true;
-        setTimeout(typuj, 2500); // czeka przed kasowaniem
-        return;
-      }
-      setTimeout(typuj, 35 + Math.random() * 50);
-    } else {
-      // Kasowanie
-      aktualnyTekst = komunikaty[komIdx].substring(0, znakIdx - 1);
-      statusEl.textContent = aktualnyTekst;
-      znakIdx--;
-      if (znakIdx <= 0) {
-        kasowanie = false;
-        komIdx = (komIdx + 1) % komunikaty.length;
-        setTimeout(typuj, 400);
-        return;
-      }
-      setTimeout(typuj, 15 + Math.random() * 20);
+let markerPulsujacy=null;
+function ustawPulsCzytana(marker,wlacz){
+  if(!marker||!marker.getElement)return;
+  const el=marker.getElement();
+  if(!el)return;
+  const wewn=el.querySelector('.kropka-css');
+  if(wewn)wewn.classList.toggle('kropka-czytana',wlacz);
+}
+function wyczyscPulsujacy(){
+  if(markerPulsujacy){ustawPulsCzytana(markerPulsujacy,false);markerPulsujacy=null;}
+}
+
+function sprawdzKropkiWokol(){
+  if(!spaceruTryb||!mojaPoz||popupOtwarty)return;
+  const wPoblizu=wszystkieKropki.filter(k=>metrowDo(mojaPoz.lat,mojaPoz.lng,k.lat,k.lng)<=PROMIEN_SPACERU);
+  document.getElementById('spacerLicz').textContent=wPoblizu.length;
+  const doPrzeczytania=wPoblizu.filter(k=>!spaceruPrzeczytane.has(k.id));
+  if(doPrzeczytania.length&&!speechSynthesis.speaking){
+    const k=doPrzeczytania[0];
+    spaceruPrzeczytane.add(k.id);
+    const m=markeryWgKropki[k.id];
+    const rozpocznijCzytanie=()=>{
+      wyczyscPulsujacy();
+      if(m){markerPulsujacy=m;ustawPulsCzytana(m,true);}
+      czytajKropke(k,wyczyscPulsujacy);
+    };
+    if(m&&grupaMarkerow.zoomToShowLayer){
+      grupaMarkerow.zoomToShowLayer(m,rozpocznijCzytanie);
+    }else{
+      rozpocznijCzytanie();
     }
   }
+}
 
-  setTimeout(() => {
-    statusEl.textContent = '';
-    typuj();
-  }, 5400);
+/* ════ DODAWANIE ════ */
+function wycentrujPopup(marker){
+  const zoom=mapa.getZoom();
+  const punktMarkera=mapa.project(marker.getLatLng(),zoom);
+  const rozmiar=mapa.getSize();
+  const srodekEkranu=rozmiar.divideBy(2);
+  const docelowyY=rozmiar.y*0.80;
+  const docelowyPunkt=L.point(srodekEkranu.x,docelowyY);
+  const nowySrodekPunkt=punktMarkera.subtract(docelowyPunkt).add(srodekEkranu);
+  const nowySrodek=mapa.unproject(nowySrodekPunkt,zoom);
+  mapa.setView(nowySrodek,zoom,{animate:true});
+}
+
+function obslKlikMapy(e){if(!trybAkt)return;pozWybrana=[e.latlng.lat,e.latlng.lng];if(markerNowy)mapa.removeLayer(markerNowy);const ik=L.divIcon({html:'<div class="kropka-nowa"></div>',className:'',iconSize:[22,22],iconAnchor:[11,11]});markerNowy=L.marker(pozWybrana,{icon:ik}).addTo(mapa);ukryjInstr();zakonczTryb();otworzPanel();}
+function trybDodawania(){if(trybAkt){zakonczTryb();return;}trybAkt=true;document.getElementById('btnDodaj').classList.add('tryb-aktywny');document.getElementById('btnIk').textContent='✕';document.getElementById('btnTxt').textContent='Anuluj';pokazInstr();mapa.getContainer().style.cursor='crosshair';}
+function zakonczTryb(){trybAkt=false;document.getElementById('btnDodaj').classList.remove('tryb-aktywny');document.getElementById('btnIk').textContent='✨';document.getElementById('btnTxt').textContent='Zostaw wspomnienie';ukryjInstr();mapa.getContainer().style.cursor='';}
+function pokazInstr(){const i=document.getElementById('instr');i.style.display='block';clearTimeout(i._tk);i._tk=setTimeout(ukryjInstr,3500);}
+function ukryjInstr(){document.getElementById('instr').style.display='none';}
+function otworzPanel(){document.getElementById('panelTlo').classList.add('poka');dodIdz(1);setTimeout(()=>document.getElementById('polTresc').focus(),200);}
+function zamknijPanel(){document.getElementById('panelTlo').classList.remove('poka');if(markerNowy){mapa.removeLayer(markerNowy);markerNowy=null;}pozWybrana=null;document.getElementById('polTytul').value='';document.getElementById('polTresc').value='';document.getElementById('polAutor').value='';document.getElementById('polNick').value='';document.getElementById('polYt').value='';document.getElementById('polArchiwum').value='';document.getElementById('polZdjecie').value='';document.getElementById('lzTresc').textContent='0';dodIdz(1);}
+function zamknijTlo(e){if(e.target===document.getElementById('panelTlo'))zamknijPanel();}
+document.getElementById('polTresc').addEventListener('input',e=>{document.getElementById('lzTresc').textContent=e.target.value.length;});
+
+function dodIdz(n){
+  document.querySelectorAll('.etap-dod').forEach(e=>e.classList.toggle('akt',String(e.dataset.etap)===String(n)));
+  const kropkaAkt=(n==='op')?3:n;
+  document.querySelectorAll('.kropka-postep').forEach(k=>k.classList.toggle('akt',Number(k.dataset.k)<=Number(kropkaAkt)));
+}
+function dodPodglad(){
+  const tytul=document.getElementById('polTytul').value.trim()||'Bez nazwy';
+  const autor=document.getElementById('polAutor').value.trim()||'anonim';
+  const tresc=document.getElementById('polTresc').value.trim();
+  document.getElementById('pgTytul').textContent=tytul;
+  document.getElementById('pgAutor').textContent='— '+autor;
+  document.getElementById('pgTresc').textContent=tresc;
+  const zal=[];
+  if(document.getElementById('polZdjecie').value.trim())zal.push('🖼️ zdjęcie');
+  if(document.getElementById('polYt').value.trim())zal.push('▶ film YT');
+  if(document.getElementById('polArchiwum').value.trim())zal.push('🎧 audio');
+  document.getElementById('pgZal').innerHTML=zal.length?zal.map(z=>'<span class="pg-zal-poz">'+z+'</span>').join(''):'';
+  dodIdz(4);
+}
+
+async function zapiszWspom(){
+  const tytul=document.getElementById('polTytul').value.trim();
+  const tresc=document.getElementById('polTresc').value.trim();
+  const autor=document.getElementById('polAutor').value.trim()||'Anonim';
+  const nick=document.getElementById('polNick').value.trim();
+  const yt=document.getElementById('polYt').value.trim();
+  const archiwum=document.getElementById('polArchiwum').value.trim();
+  const zdjecie=document.getElementById('polZdjecie').value.trim();
+  if(!pozWybrana){toast('Wskaż miejsce.');return;}
+  if(!tresc&&!yt&&!archiwum&&!zdjecie){toast('Napisz coś albo dodaj link.');return;}
+  if(maStop(tytul)||maStop(tresc)||maStop(autor)){toast('Brzydkie słowo — popraw.');return;}
+  if(!mozeDodac('mw_ostatnia_kropka',60000))return;
+  if(yt&&!bezpUrl(yt)){toast('Link do YT musi zaczynać się od https://');return;}
+  if(archiwum&&!bezpUrl(archiwum)){toast('Link do audio musi zaczynać się od https://');return;}
+  if(zdjecie&&!bezpUrl(zdjecie)){toast('Link do zdjęcia musi zaczynać się od https://');return;}
+  const btn=document.getElementById('btnZapisz');btn.disabled=true;btn.textContent='Zapisuję…';
+  const klucz=losowyKlucz();
+  const rek={tytul:tytul||'Bez tytułu',tresc,autor,nick,lat:pozWybrana[0],lng:pozWybrana[1],utworzono:Date.now(),lajki:0,zgloszenia:0,czestotliwosc:aktywnaCzestotliwosc,wlasciciel_klucz:klucz};
+  if(yt)rek.yt=yt;
+  if(archiwum)rek.archiwum=archiwum;
+  if(zdjecie)rek.zdjecie=zdjecie;
+  try{
+    if(online){const r=await db.collection('wspomnienia').add(rek);rek.id=r.id;}
+    else{rek.id='lok_'+Date.now();const lok=JSON.parse(localStorage.getItem('mw_lok')||'[]');lok.push(rek);localStorage.setItem('mw_lok',JSON.stringify(lok));}
+    if(markerNowy){mapa.removeLayer(markerNowy);markerNowy=null;}
+    dodajKropkeNaMape(rek);toast('✨ Kropka postawiona!');zamknijPanel();zapiszCzas('mw_ostatnia_kropka');
+    dodajMojaKropkeLok(rek.id,aktywnaCzestotliwosc,klucz);
+    ustawLicznikCalkowity(liczbaMoichNaCzestotliwosci());
+  }catch(e){console.error(e);toast('Błąd zapisu.');}
+  finally{btn.disabled=false;btn.textContent='Zostaw kropkę ✨';}
+}
+
+/* ════ KROPKI — WCZYTYWANIE OBSZAROWE ════ */
+function ustawLicznikCalkowity(n){licznikCalkowity=n;document.getElementById('liczKropek').textContent=n;}
+
+/* ════ MOJE KROPKI (własność po urządzeniu) ════ */
+function mojeKropkiLok(){try{return JSON.parse(localStorage.getItem('mw_moje_kropki')||'[]');}catch(e){return[];}}
+function dodajMojaKropkeLok(id,czest,klucz){try{const l=mojeKropkiLok();l.push({id,czestotliwosc:czest||'',klucz:klucz||null});localStorage.setItem('mw_moje_kropki',JSON.stringify(l));}catch(e){}}
+function usunMojaKropkeLok(id){try{localStorage.setItem('mw_moje_kropki',JSON.stringify(mojeKropkiLok().filter(x=>x.id!==id)));}catch(e){}}
+function czyMoja(id){return mojeKropkiLok().some(x=>x.id===id);}
+function mojKlucz(id){const w=mojeKropkiLok().find(x=>x.id===id);return w?w.klucz:null;}
+function liczbaMoichNaCzestotliwosci(){return mojeKropkiLok().filter(x=>(x.czestotliwosc||'')===aktywnaCzestotliwosc).length;}
+function losowyKlucz(){return Math.random().toString(36).slice(2)+Date.now().toString(36);}
+
+async function usunSwojaKropke(id){
+  if(!confirm('Usunąć tę kropkę na zawsze? Tej operacji nie można cofnąć.'))return;
+  if(id.indexOf('lok_')===0){
+    try{
+      let lok=JSON.parse(localStorage.getItem('mw_lok')||'[]');
+      lok=lok.filter(k=>k.id!==id);
+      localStorage.setItem('mw_lok',JSON.stringify(lok));
+    }catch(e){}
+  }else{
+    const klucz=mojKlucz(id);
+    if(!klucz){toast('Nie znaleziono klucza właściciela.');return;}
+    if(!online){toast('Brak połączenia.');return;}
+    try{
+      await db.collection('wspomnienia').doc(id).update({usun_klucz:klucz});
+      await db.collection('wspomnienia').doc(id).delete();
+    }catch(e){console.warn(e);toast('Nie udało się usunąć.');return;}
+  }
+  usunMojaKropkeLok(id);
+  const m=markeryWgKropki[id];
+  if(m){grupaMarkerow.removeLayer(m);delete markeryWgKropki[id];}
+  wszystkieKropki=wszystkieKropki.filter(k=>k.id!==id);
+  mapa.closePopup();
+  zamknijSzczegoly();
+  ustawLicznikCalkowity(liczbaMoichNaCzestotliwosci());
+  toast('🗑️ Kropka usunięta.');
+}
+
+async function zaladujLokalneKropki(){
+  if(online)return;
+  let lista=[];
+  try{lista=JSON.parse(localStorage.getItem('mw_lok')||'[]');}catch(e){}
+  lista=lista.filter(r=>(r.czestotliwosc||'')===aktywnaCzestotliwosc);
+  lista.forEach(dodajKropkeNaMape);
+  ustawLicznikCalkowity(liczbaMoichNaCzestotliwosci());
+}
+
+function obszarPokryty(b){
+  return zapytaneObszary.some(z=>b.getSouth()>=z.s&&b.getNorth()<=z.n&&b.getWest()>=z.w&&b.getEast()<=z.e);
+}
+
+async function zaladujKropkiWObszarze(){
+  if(!online||!mapa)return;
+  if(mapa.getZoom()<MIN_ZOOM_LADOWANIE)return;
+  const b=mapa.getBounds().pad(0.3);
+  if(obszarPokryty(b))return;
+  const minLat=b.getSouth(),maxLat=b.getNorth(),minLng=b.getWest(),maxLng=b.getEast();
+  try{
+    const unsub=db.collection('wspomnienia')
+      .where('czestotliwosc','==',aktywnaCzestotliwosc)
+      .where('lat','>=',minLat).where('lat','<=',maxLat)
+      .where('lng','>=',minLng).where('lng','<=',maxLng)
+      .onSnapshot(snap=>{
+        snap.docChanges().forEach(zm=>{
+          const v=zm.doc.data();v.id=zm.doc.id;
+          if(zm.type==='added'){
+            dodajKropkeNaMape(v);
+          }else if(zm.type==='removed'){
+            const m=markeryWgKropki[v.id];
+            if(m){grupaMarkerow.removeLayer(m);delete markeryWgKropki[v.id];}
+            wszystkieKropki=wszystkieKropki.filter(k=>k.id!==v.id);
+            usunMojaKropkeLok(v.id);
+            ustawLicznikCalkowity(liczbaMoichNaCzestotliwosci());
+          }else if(zm.type==='modified'){
+            const istniejacy=wszystkieKropki.find(k=>k.id===v.id);
+            if(istniejacy)Object.assign(istniejacy,v);
+          }
+        });
+      },e=>console.warn(e));
+    aktywneNasluchy.push(unsub);
+    zapytaneObszary.push({s:minLat,n:maxLat,w:minLng,e:maxLng});
+  }catch(e){console.warn(e);}
+}
+
+/* ════ CZĘSTOTLIWOŚĆ ════ */
+function resetStanKropek(){
+  aktywneNasluchy.forEach(u=>{try{u();}catch(e){}});
+  aktywneNasluchy=[];
+  if(grupaMarkerow)grupaMarkerow.clearLayers();
+  markeryWgKropki={};
+  wszystkieKropki=[];
+  zapytaneObszary=[];
+}
+function aktualizujBadgeCzestotliwosci(){
+  const badge=document.getElementById('czBadge');
+  if(aktywnaCzestotliwosc){
+    document.getElementById('czBadgeKod').textContent=aktywnaCzestotliwosc;
+    badge.classList.add('poka');
+  }else{
+    badge.classList.remove('poka');
+  }
+}
+function odswiezWidokCzestotliwosci(){
+  resetStanKropek();
+  zaladujLokalneKropki();
+  ustawLicznikCalkowity(liczbaMoichNaCzestotliwosci());
+  zaladujKropkiWObszarze();
+  aktualizujBadgeCzestotliwosci();
+}
+function otworzPanelCz(){
+  document.getElementById('panelTloCz').classList.add('poka');
+  if(aktywnaCzestotliwosc){
+    document.getElementById('czKodWyswietl').textContent=aktywnaCzestotliwosc;
+    document.getElementById('czStanWylaczony').style.display='none';
+    document.getElementById('czStanWlaczony').style.display='block';
+  }else{
+    document.getElementById('czStanWylaczony').style.display='block';
+    document.getElementById('czStanWlaczony').style.display='none';
+    setTimeout(()=>document.getElementById('polCzKod').focus(),200);
+  }
+}
+function zamknijPanelCz(){document.getElementById('panelTloCz').classList.remove('poka');document.getElementById('polCzKod').value='';}
+function zamknijTloCz(e){if(e.target===document.getElementById('panelTloCz'))zamknijPanelCz();}
+function nastawCzestotliwosc(){
+  const kod=document.getElementById('polCzKod').value.trim();
+  if(!kod){toast('Wpisz kod.');return;}
+  if(maStop(kod)){toast('Brzydkie słowo — popraw.');return;}
+  aktywnaCzestotliwosc=kod;
+  try{localStorage.setItem('mw_czestotliwosc',kod);}catch(e){}
+  zamknijPanelCz();
+  toast('📻 Nastrojono na: '+kod);
+  odswiezWidokCzestotliwosci();
+}
+function wylaczCzestotliwosc(){
+  aktywnaCzestotliwosc='';
+  try{localStorage.removeItem('mw_czestotliwosc');}catch(e){}
+  zamknijPanelCz();
+  toast('📻 Wróciłeś/aś do mapy publicznej');
+  odswiezWidokCzestotliwosci();
+}
+
+function lajknieteLok(){try{return JSON.parse(localStorage.getItem('mw_lajki')||'[]');}catch(e){return[];}}
+function dodajLajkLok(id){try{const l=lajknieteLok();if(l.indexOf(id)===-1){l.push(id);localStorage.setItem('mw_lajki',JSON.stringify(l));}}catch(e){}}
+
+function htmlPopup(r){
+  const lajkn=lajknieteLok().indexOf(r.id)!==-1;
+  let zal='';
+  if(bezpUrl(r.yt))zal+='<a href="'+escHtml(r.yt)+'" target="_blank" rel="noopener" style="display:block;margin-bottom:8px;color:var(--niebo);font-size:13px">▶ Obejrzyj na YouTube</a>';
+  if(bezpUrl(r.zdjecie))zal+='<img src="'+escHtml(r.zdjecie)+'" alt="" loading="lazy" style="width:100%;border-radius:10px;margin-bottom:10px;display:block" onerror="this.style.display=\'none\'">';
+  if(bezpUrl(r.archiwum))zal+='<a href="'+escHtml(r.archiwum)+'" target="_blank" rel="noopener" style="display:block;margin-bottom:8px;color:var(--niebo);font-size:13px">🎧 Posłuchaj (Internet Archive)</a>';
+  return '<div class="pop-scroll">'+
+    '<div class="pop-tyt">'+escHtml(r.tytul||'Bez tytułu')+'</div>'+
+    '<div class="pop-od">— '+escHtml(r.autor||'Anonim')+'</div>'+
+    '<div class="pop-tresc">'+escHtml(r.tresc||'')+'</div>'+
+    '<div class="pop-nadawca-etyk">Napisz odpowiedź nadawcy</div>'+
+    '<div class="pop-akcje-glowne">'+
+      '<button onclick="pokazFormOdp(\''+r.id+'\',\'publiczna\')">💬 Publicznie</button>'+
+      '<button onclick="pokazFormOdp(\''+r.id+'\',\'prywatna\')">🔒 Prywatnie</button>'+
+    '</div>'+
+    '<button class="pop-odp-toggle" onclick="prowadzDo('+r.lat+','+r.lng+')">🧭 Prowadź do miejsca</button>'+
+    '<div class="pop-odp-form" id="odpForm-'+r.id+'-publiczna">'+
+      '<input type="text" id="odpInput-'+r.id+'-publiczna" maxlength="50" placeholder="Publiczna odpowiedź…">'+
+      '<button onclick="wyslijOdpowiedz(\''+r.id+'\',\'publiczna\')">Wyślij</button>'+
+    '</div>'+
+    '<div class="pop-odp-form" id="odpForm-'+r.id+'-prywatna">'+
+      '<input type="text" id="odpInput-'+r.id+'-prywatna" maxlength="50" placeholder="Prywatna odpowiedź…">'+
+      '<button onclick="wyslijOdpowiedz(\''+r.id+'\',\'prywatna\')">Wyślij</button>'+
+    '</div>'+
+    '<div class="pop-rozwin-przelacz" onclick="przelaczRozwin(\''+r.id+'\')">'+
+      '<span>Więcej</span><span class="pop-rozwin-strzalka" id="popStrzalka-'+r.id+'">▾</span>'+
+    '</div>'+
+    '<div class="pop-rozwin" id="popRozwin-'+r.id+'">'+
+      '<div class="pop-odpowiedzi" id="odpLista-'+r.id+'-publiczna"></div>'+
+      '<div class="pop-dol">'+
+        '<button class="pop-odp-toggle" onclick="pokazFormOdp(\''+r.id+'\',\'odczyt\')">🔒 Odczytaj prywatne</button>'+
+        '<span class="pop-czas">'+fmtData(r.utworzono)+'</span>'+
+      '</div>'+
+      '<div class="pop-odp-form" id="odpForm-'+r.id+'-odczyt">'+
+        '<input type="text" id="nickInput-'+r.id+'" maxlength="30" placeholder="Podaj nick…">'+
+        '<button onclick="odczytajPrywatne(\''+r.id+'\')">Odczytaj</button>'+
+      '</div>'+
+      '<div class="pop-odpowiedzi" id="odpLista-'+r.id+'-prywatna" style="display:none"></div>'+
+      zal+
+      '<div class="pop-akcje">'+
+        '<button class="lajk '+(lajkn?'zlajkowane':'')+'" onclick="lajkuj(\''+r.id+'\',this)">❤️ <span>'+(r.lajki||0)+'</span></button>'+
+        '<button onclick="udostepnij(\''+r.id+'\',\''+escHtml(r.tytul||'Wspomnienie').replace(/'/g,"\\'")+'\')">📤 Udostępnij</button>'+
+      '</div>'+
+      '<div class="pop-zglos"><button onclick="'+(czyMoja(r.id)?'usunSwojaKropke':'zglosKropke')+'(\''+r.id+'\')">'+(czyMoja(r.id)?'🗑️ Usuń swoją kropkę':'🚩 Zgłoś to miejsce')+'</button></div>'+
+    '</div>'+
+  '</div>';
+}
+
+function przelaczRozwin(id){
+  const p=document.getElementById('popRozwin-'+id);
+  const s=document.getElementById('popStrzalka-'+id);
+  if(!p)return;
+  p.classList.toggle('rozw');
+  if(s)s.classList.toggle('obr');
+}
+
+function pokazFormOdp(id,typ){
+  ['publiczna','prywatna','odczyt'].forEach(t=>{
+    const f=document.getElementById('odpForm-'+id+'-'+t);
+    if(!f)return;
+    if(t===typ)f.classList.toggle('poka');
+    else f.classList.remove('poka');
+  });
+  const aktywny=document.getElementById('odpForm-'+id+'-'+typ);
+  if(aktywny&&aktywny.classList.contains('poka')){
+    const inp=aktywny.querySelector('input');
+    if(inp)setTimeout(()=>inp.focus(),50);
+  }
+}
+
+async function wyslijOdpowiedz(id,typ){
+  const inp=document.getElementById('odpInput-'+id+'-'+typ);
+  if(!inp)return;
+  const tekst=inp.value.trim();
+  if(!tekst){toast('Wpisz odpowiedź.');return;}
+  if(maStop(tekst)){toast('Brzydkie słowo — popraw.');return;}
+  if(!online){toast('Brak połączenia — nie można wysłać odpowiedzi.');return;}
+  if(!mozeDodac('mw_ostatnia_odp',15000))return;
+  try{
+    await db.collection('odpowiedzi').add({wspomnienie_id:id,tekst,typ,utworzono:Date.now()});
+    inp.value='';
+    document.getElementById('odpForm-'+id+'-'+typ).classList.remove('poka');
+    toast(typ==='publiczna'?'💬 Odpowiedź wysłana':'🔒 Prywatna odpowiedź wysłana');
+    zapiszCzas('mw_ostatnia_odp');
+    if(typ==='publiczna')zaladujOdpowiedziPubliczne(id);
+  }catch(e){console.warn(e);toast('Nie udało się wysłać odpowiedzi.');}
+}
+
+async function zaladujOdpowiedziPubliczne(id){
+  const kontener=document.getElementById('odpLista-'+id+'-publiczna');
+  if(!kontener||!online)return;
+  try{
+    const snap=await db.collection('odpowiedzi').where('wspomnienie_id','==',id).where('typ','==','publiczna').get();
+    let lista=[];
+    snap.forEach(d=>lista.push(d.data()));
+    lista.sort((a,b)=>(a.utworzono||0)-(b.utworzono||0));
+    kontener.innerHTML=lista.map(o=>'<div class="pop-odp-item">'+escHtml(o.tekst||'')+'<span class="odp-data">'+fmtData(o.utworzono)+'</span></div>').join('');
+  }catch(e){console.warn(e);}
+}
+
+async function odczytajPrywatne(id){
+  const inp=document.getElementById('nickInput-'+id);
+  const kontener=document.getElementById('odpLista-'+id+'-prywatna');
+  if(!inp||!kontener)return;
+  const podany=inp.value.trim();
+  const k=wszystkieKropki.find(x=>x.id===id);
+  if(!k||!k.nick||podany!==k.nick){toast('Zły nick.');return;}
+  if(!online){toast('Brak połączenia.');return;}
+  try{
+    const snap=await db.collection('odpowiedzi').where('wspomnienie_id','==',id).where('typ','==','prywatna').get();
+    let lista=[];
+    snap.forEach(d=>lista.push(d.data()));
+    lista.sort((a,b)=>(a.utworzono||0)-(b.utworzono||0));
+    kontener.innerHTML=lista.length?lista.map(o=>'<div class="pop-odp-item prywatna">'+escHtml(o.tekst||'')+'<span class="odp-data">'+fmtData(o.utworzono)+'</span></div>').join(''):'<div class="pop-odp-item prywatna">Brak prywatnych odpowiedzi.</div>';
+    kontener.style.display='flex';
+    document.getElementById('odpForm-'+id+'-odczyt').classList.remove('poka');
+  }catch(e){console.warn(e);toast('Nie udało się wczytać.');}
+}
+
+function dodajKropkeNaMape(r){
+  if(markeryWgKropki[r.id])return;
+  const ik=L.divIcon({html:'<div class="kropka-css"></div>',className:'',iconSize:[18,18],iconAnchor:[9,9]});
+  const m=L.marker([r.lat,r.lng],{icon:ik});
+  m.bindPopup(htmlPopup(r),{maxWidth:300,minWidth:240,autoPan:false});
+  m.on('popupopen',()=>{
+    r._marker=m;
+    if(czyDesktop()){
+      mapa.closePopup();
+      pokazSzczegoly(r);
+      return;
+    }
+    popupOtwarty=true;wycentrujPopup(m);czytajKropke(r);zaladujOdpowiedziPubliczne(r.id);
+  });
+  m.on('popupclose',()=>{popupOtwarty=false;});
+  grupaMarkerow.addLayer(m);
+  markeryWgKropki[r.id]=m;
+  wszystkieKropki.push(r);
+}
+
+/* ════ LAJKI ════ */
+async function lajkuj(id,btn){
+  if(lajknieteLok().indexOf(id)!==-1){toast('Już polubiłeś tę kropkę ❤️');return;}
+  const k=wszystkieKropki.find(x=>x.id===id);if(!k)return;
+  k.lajki=(k.lajki||0)+1;
+  dodajLajkLok(id);
+  btn.classList.add('zlajkowane');
+  btn.querySelector('span').textContent=k.lajki;
+  try{
+    if(online&&id.indexOf('lok_')!==0){await db.collection('wspomnienia').doc(id).update({lajki:firebase.firestore.FieldValue.increment(1)});}
+    else{const lok=JSON.parse(localStorage.getItem('mw_lok')||'[]');const p=lok.find(x=>x.id===id);if(p){p.lajki=(p.lajki||0)+1;localStorage.setItem('mw_lok',JSON.stringify(lok));}}
+  }catch(e){console.warn(e);}
+}
+
+/* ════ ZGŁOSZENIA ════ */
+const PROG_ZGLOSZEN=5;
+function zglosneLok(){try{return JSON.parse(localStorage.getItem('mw_zgloszone')||'[]');}catch(e){return[];}}
+function dodajZgloszenieLok(id){try{const l=zglosneLok();if(l.indexOf(id)===-1){l.push(id);localStorage.setItem('mw_zgloszone',JSON.stringify(l));}}catch(e){}}
+async function zglosKropke(id){
+  if(id.indexOf('lok_')===0){toast('Nie można zgłaszać wpisów lokalnych.');return;}
+  if(zglosneLok().indexOf(id)!==-1){toast('Już zgłosiłeś/aś to miejsce.');return;}
+  if(!online){toast('Brak połączenia.');return;}
+  if(!confirm('Zgłosić to miejsce jako niewłaściwe? Po '+PROG_ZGLOSZEN+' zgłoszeniach kropka zostanie trwale usunięta.'))return;
+  try{
+    await db.collection('wspomnienia').doc(id).update({zgloszenia:firebase.firestore.FieldValue.increment(1)});
+    dodajZgloszenieLok(id);
+    toast('🚩 Zgłoszono. Dziękujemy.');
+    const swiezy=await db.collection('wspomnienia').doc(id).get();
+    const dane=swiezy.data();
+    if(dane&&(dane.zgloszenia||0)>=PROG_ZGLOSZEN){
+      await db.collection('wspomnienia').doc(id).delete();
+      const m=markeryWgKropki[id];
+      if(m){grupaMarkerow.removeLayer(m);delete markeryWgKropki[id];}
+      wszystkieKropki=wszystkieKropki.filter(k=>k.id!==id);
+      usunMojaKropkeLok(id);
+      ustawLicznikCalkowity(liczbaMoichNaCzestotliwosci());
+      mapa.closePopup();
+      toast('🗑️ Kropka usunięta po zgłoszeniach.');
+    }
+  }catch(e){console.warn(e);toast('Nie udało się zgłosić.');}
+}
+
+/* ════ INFORMACJE / REGULAMIN (ekran Matrix) ════ */
+const INFO_KROKI=[
+"Kochani,\noddajemy w wasze ręce\nmapę wspomnień.",
+"Projekt jest ogólnodostępny\ni liczymy się z tym,\nże znajdzie się ktoś,\nkto będzie chciał zepsuć nam zabawę.",
+"Mapa służy\ndo zabawy\noraz dzielenia się\nciekawostkami.",
+"Możesz zostawiać\nopisy, zdjęcia, nagrania audio,\nlinki z YouTube,\notworzyć trasę z nawigacją.",
+"Bądźmy kreatywni,\ngrzeczni dla innych,\npokazujmy ciekawe miejsca,\noglądajmy ciekawe miejsca.",
+"Włączmy tryb spaceru\ni słuchajmy opisów,\nchodząc po okolicy\nlub jadąc samochodem.",
+"Dbamy o bezpieczeństwo:\nfiltr treści, limity wpisów,\nzgłoszenia niewłaściwych miejsc\n(5 zgłoszeń = kropka znika na zawsze).",
+"Pod maską: Leaflet.js + Firebase Firestore.\nHosting: GitHub Pages.\nBrak logowania — cała logika\ndziała w Twojej przeglądarce."
+];
+let infoKrok=0,matrixAnimId=null,matrixResizeFn=null;
+
+function otworzInfo(){
+  infoKrok=0;
+  document.getElementById('matrixTlo').classList.add('poka');
+  pokazKrokInfo();
+  startMatrix();
+}
+function zamknijInfo(){
+  document.getElementById('matrixTlo').classList.remove('poka');
+  stopMatrix();
+}
+function pokazKrokInfo(){
+  document.getElementById('infoTekst').textContent=INFO_KROKI[infoKrok];
+  document.getElementById('infoBtn').textContent=(infoKrok===INFO_KROKI.length-1)?'Koniec':'Dalej';
+  const kr=document.getElementById('infoKropki');
+  kr.innerHTML=INFO_KROKI.map((_,i)=>'<div class="kropka-postep'+(i<=infoKrok?' akt':'')+'"></div>').join('');
+}
+function infoDalej(){
+  if(infoKrok>=INFO_KROKI.length-1){zamknijInfo();return;}
+  infoKrok++;
+  pokazKrokInfo();
+}
+function startMatrix(){
+  const c=document.getElementById('matrixCanvas');
+  const ctx=c.getContext('2d');
+  function resize(){c.width=window.innerWidth;c.height=window.innerHeight;}
+  resize();
+  matrixResizeFn=resize;
+  window.addEventListener('resize',matrixResizeFn);
+  const znaki='アイウエオカキクケコサシスセソ0123456789';
+  const rozmiar=16;
+  let krople=new Array(Math.floor(c.width/rozmiar)).fill(1);
+  function rysuj(){
+    ctx.fillStyle='rgba(0,0,0,0.06)';
+    ctx.fillRect(0,0,c.width,c.height);
+    ctx.fillStyle='#3fff7a';
+    ctx.font=rozmiar+'px monospace';
+    for(let i=0;i<krople.length;i++){
+      const znak=znaki[Math.floor(Math.random()*znaki.length)];
+      ctx.fillText(znak,i*rozmiar,krople[i]*rozmiar);
+      if(krople[i]*rozmiar>c.height&&Math.random()>0.975)krople[i]=0;
+      krople[i]++;
+    }
+    matrixAnimId=requestAnimationFrame(rysuj);
+  }
+  rysuj();
+}
+function stopMatrix(){
+  if(matrixAnimId){cancelAnimationFrame(matrixAnimId);matrixAnimId=null;}
+  if(matrixResizeFn){window.removeEventListener('resize',matrixResizeFn);matrixResizeFn=null;}
+}
+
+/* ════ NAWIGACJA ════ */
+function prowadzDo(lat,lng){
+  const url='https://www.google.com/maps/dir/?api=1&destination='+lat+','+lng;
+  window.open(url,'_blank');
+}
+
+/* ════ PANEL BOCZNY — DUŻY EKRAN ════ */
+function czyDesktop(){return window.innerWidth>=900;}
+function pokazSzczegoly(r){
+  document.body.classList.add('panel-otwarty');
+  const sb=document.getElementById('sidebarSzczegoly');
+  sb.innerHTML='<button class="zamknij sidebar-zamknij" onclick="zamknijSzczegoly()">✕</button>'+htmlPopup(r);
+  sb.scrollTop=0;
+  czytajKropke(r);
+  zaladujOdpowiedziPubliczne(r.id);
+  setTimeout(()=>mapa.invalidateSize(),320);
+}
+function zamknijSzczegoly(){
+  document.body.classList.remove('panel-otwarty');
+  document.getElementById('sidebarSzczegoly').innerHTML=
+    '<div class="sidebar-puste"><div class="sidebar-puste-ikon">📍</div><div>Kliknij kropkę na mapie,<br>aby zobaczyć wspomnienie</div></div>';
+  setTimeout(()=>mapa.invalidateSize(),320);
+}
+
+/* ════ UDOSTĘPNIANIE ════ */
+async function udostepnij(id,tytul){
+  const link=location.origin+location.pathname+'#k='+id;
+  const tekst='Zobacz wspomnienie „'+tytul+'" na Mapie Wspomnień:\n'+link;
+  if(navigator.share){
+    try{await navigator.share({title:'Mapa Wspomnień',text:tekst,url:link});return;}catch(e){if(e.name==='AbortError')return;}
+  }
+  try{await navigator.clipboard.writeText(link);toast('🔗 Link skopiowany! Wklej w WhatsApp/Messenger.');}
+  catch(e){prompt('Skopiuj link:',link);}
+}
+
+async function otworzZUrl(){
+  const h=location.hash;
+  if(!h.startsWith('#k='))return;
+  const id=h.slice(3);
+  let k=wszystkieKropki.find(x=>x.id===id);
+  if(!k&&online){
+    try{
+      const doc=await db.collection('wspomnienia').doc(id).get();
+      if(doc.exists){k=doc.data();k.id=doc.id;dodajKropkeNaMape(k);}
+    }catch(e){console.warn(e);}
+  }
+  if(!k){toast('Wspomnienie nieznalezione.');return;}
+  mapa.setView([k.lat,k.lng],17);
+  setTimeout(()=>{const m=markeryWgKropki[id];if(m)m.openPopup();},700);
+}
+
+/* ════ INTRO ════ */
+function generujSwietliki(){
+  const kontener=document.getElementById('swietliki');
+  const N=22;
+  for(let i=0;i<N;i++){
+    const s=document.createElement('div');
+    s.className='swietlik';
+    const lewo=Math.random()*100;
+    const opoznienie=Math.random()*6;
+    const czas=6+Math.random()*6;
+    const dryf=(Math.random()*60-30)+'px';
+    s.style.left=lewo+'vw';
+    s.style.animationDelay=opoznienie+'s';
+    s.style.animationDuration=czas+'s';
+    s.style.setProperty('--drift',dryf);
+    kontener.appendChild(s);
+  }
+}
+function zamknijIntro(){
+  const el=document.getElementById('intro');
+  if(!el||el.classList.contains('znika'))return;
+  odblokujMowe();
+  el.classList.add('znika');
+  setTimeout(()=>{el.style.display='none';},1000);
+}
+let introEtap=1;
+function introKlik(){
+  odblokujMowe();
+  if(introEtap===1){
+    introEtap=2;
+    document.getElementById('introEtap1').style.display='none';
+    document.getElementById('introEtap2').style.display='flex';
+    clearTimeout(introAutoId);
+    introAutoId=setTimeout(zamknijIntro,7500);
+    return;
+  }
+  zamknijIntro();
+}
+generujSwietliki();
+let introAutoId=setTimeout(()=>{introKlik();},7000);
+
+initMapa();
+aktualizujBadgeCzestotliwosci();
 </script>
-
 </body>
 </html>
