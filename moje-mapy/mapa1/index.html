@@ -802,7 +802,7 @@ function dodIdz(n){
 }
 
 /* ════ NAGRYWANIE GŁOSU ════ */
-const NAGR_MAX_S=30;
+const NAGR_MAX_S=10;
 let nagrMediaRecorder=null,nagrStream=null,nagrChunks=[],nagrBlob=null,nagrObjUrl=null;
 let nagrStanCzasId=null,nagrLimitId=null,nagrStartCzas=0;
 
@@ -883,12 +883,26 @@ function resetujNagrywanie(){
   if(nagrObjUrl)URL.revokeObjectURL(nagrObjUrl);
   nagrBlob=null;nagrObjUrl=null;nagrChunks=[];nagrMediaRecorder=null;
 }
+const NAGR_WORKER_URL='https://wispy-waterfall-79e2.mini-klik.workers.dev';
 async function wyslijNagranie(klucz){
   if(!nagrBlob)return null;
-  if(!online||!storage){toast('Brak połączenia — nie można wysłać nagrania.');return undefined;}
-  const ref=storage.ref().child('nagrania/'+klucz+'.webm');
-  await ref.put(nagrBlob,{contentType:nagrBlob.type||'audio/webm'});
-  return await ref.getDownloadURL();
+  if(!navigator.onLine){toast('Brak połączenia — nie można wysłać nagrania.');return undefined;}
+  try{
+    const resp=await fetch(NAGR_WORKER_URL,{
+      method:'POST',
+      headers:{'X-Nazwa-Pliku':klucz},
+      body:nagrBlob
+    });
+    const dane=await resp.json().catch(()=>null);
+    if(!resp.ok||!dane||!dane.ok){
+      toast('Nie udało się wysłać nagrania. Spróbuj ponownie.');
+      return undefined;
+    }
+    return dane.link;
+  }catch(e){
+    toast('Nie udało się połączyć z serwerem nagrań.');
+    return undefined;
+  }
 }
 
 function dodPodglad(){
