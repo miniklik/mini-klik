@@ -402,6 +402,7 @@ body.dzien #nagrywanieBox{background:rgba(0,0,0,.03)}
         <div class="pg-zal" id="pgZal"></div>
       </div>
       <div class="rzad-btn"><button class="btn btn-sec" onclick="dodIdz(3)">Popraw</button><button class="btn btn-prim" id="btnZapisz" onclick="zapiszWspom()">Zostaw kropkę ✨</button></div>
+      <div id="zapiszInfo" style="display:none;text-align:center;margin-top:10px;font-size:14px;color:var(--akcent);font-weight:600"></div>
     </div>
 
   </div>
@@ -732,9 +733,8 @@ function czytajKropke(r,onEnd){
     if(bezpUrl(r.nagranie)&&dzwiekWlaczony)odtworzNagranieSpacer(r.nagranie,onEnd);
     else if(onEnd)onEnd();
   };
-  if(!('speechSynthesis' in window)){potemNagranie();return;}
-  const tekst='Tu '+(r.autor||'anonim')+' wspomina: '+(r.tytul||'')+'. '+r.tresc;
-  powiedz(tekst,potemNagranie);
+  if(!('speechSynthesis' in window)||!r.tresc){potemNagranie();return;}
+  powiedz(r.tresc,potemNagranie);
 }
 
 let markerPulsujacy=null;
@@ -790,7 +790,7 @@ function zakonczTryb(){trybAkt=false;document.getElementById('btnDodaj').classLi
 function pokazInstr(){const i=document.getElementById('instr');i.style.display='block';clearTimeout(i._tk);i._tk=setTimeout(ukryjInstr,3500);}
 function ukryjInstr(){document.getElementById('instr').style.display='none';}
 function otworzPanel(){document.getElementById('panelTlo').classList.add('poka');dodIdz(1);setTimeout(()=>document.getElementById('polTresc').focus(),200);}
-function zamknijPanel(){document.getElementById('panelTlo').classList.remove('poka');if(markerNowy){mapa.removeLayer(markerNowy);markerNowy=null;}pozWybrana=null;document.getElementById('polTytul').value='';document.getElementById('polTresc').value='';document.getElementById('polAutor').value='';document.getElementById('polNick').value='';document.getElementById('polYt').value='';document.getElementById('polArchiwum').value='';document.getElementById('polZdjecie').value='';document.getElementById('lzTresc').textContent='0';resetujNagrywanie();dodIdz(1);}
+function zamknijPanel(){document.getElementById('panelTlo').classList.remove('poka');if(markerNowy){mapa.removeLayer(markerNowy);markerNowy=null;}pozWybrana=null;document.getElementById('polTytul').value='';document.getElementById('polTresc').value='';document.getElementById('polAutor').value='';document.getElementById('polNick').value='';document.getElementById('polYt').value='';document.getElementById('polArchiwum').value='';document.getElementById('polZdjecie').value='';document.getElementById('lzTresc').textContent='0';document.getElementById('zapiszInfo').style.display='none';resetujNagrywanie();dodIdz(1);}
 function zamknijTlo(e){if(e.target===document.getElementById('panelTlo'))zamknijPanel();}
 document.getElementById('polTresc').addEventListener('input',e=>{document.getElementById('lzTresc').textContent=e.target.value.length;});
 
@@ -937,6 +937,7 @@ async function zapiszWspom(){
   if(archiwum&&!bezpUrl(archiwum)){toast('Link do audio musi zaczynać się od https://');return;}
   if(zdjecie&&!bezpUrl(zdjecie)){toast('Link do zdjęcia musi zaczynać się od https://');return;}
   const btn=document.getElementById('btnZapisz');btn.disabled=true;btn.textContent='Zapisuję…';
+  const info=document.getElementById('zapiszInfo');
   const klucz=losowyKlucz();
   const rek={tytul:tytul||'Bez tytułu',tresc,autor,nick,lat:pozWybrana[0],lng:pozWybrana[1],utworzono:Date.now(),lajki:0,zgloszenia:0,czestotliwosc:aktywnaCzestotliwosc,wlasciciel_klucz:klucz};
   if(yt)rek.yt=yt;
@@ -945,8 +946,10 @@ async function zapiszWspom(){
   try{
     if(nagrBlob){
       btn.textContent='Wysyłam nagranie…';
+      info.textContent='Zostaw kropkę — zapis audio może chwilę potrwać';
+      info.style.display='block';
       const url=await wyslijNagranie(klucz);
-      if(url===undefined){btn.disabled=false;btn.textContent='Zostaw kropkę ✨';return;}
+      if(url===undefined){btn.disabled=false;btn.textContent='Zostaw kropkę ✨';info.style.display='none';return;}
       if(url)rek.nagranie=url;
       btn.textContent='Zapisuję…';
     }
