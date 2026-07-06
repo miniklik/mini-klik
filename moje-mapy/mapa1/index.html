@@ -172,17 +172,17 @@ body.dzien #nagrywanieBox{background:rgba(0,0,0,.03)}
 #toastPasek{display:none;position:absolute;left:0;bottom:0;height:3px;width:100%;background:linear-gradient(90deg,var(--akcent2),var(--akcent));transform-origin:left center;transform:scaleX(1);border-radius:0 0 30px 30px}
 .fab{width:46px;height:46px;border-radius:50%;background:var(--karta);border:1px solid var(--obw);color:var(--akcent);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:20px;transition:.2s;box-shadow:var(--cien-l)}
 .dol-lewo,.dol-prawo{display:flex;flex-direction:column;gap:10px}
-#wyciszOverlay{position:fixed;inset:0;z-index:99990;background:#000;opacity:0;pointer-events:none;display:flex;align-items:center;justify-content:center;flex-direction:column;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:none}
-#wyciszOverlay.poka{opacity:.97;pointer-events:auto}
-#wyciszSerceOtoczka{position:relative;width:70px;height:70px;display:flex;align-items:center;justify-content:center;pointer-events:none}
-#wyciszSerceOtoczka .fala{position:absolute;width:24px;height:24px;border:1px solid rgba(212,83,110,.55);border-radius:50%;animation:wyciszFala 5s ease-out infinite}
-#wyciszSerceOtoczka .fala:nth-child(2){animation-delay:.25s;border-color:rgba(212,83,110,.4)}
-#wyciszSerce{font-size:20px;color:rgba(232,160,192,.55);animation:wyciszPuls 5s ease-in-out infinite;pointer-events:none}
-@keyframes wyciszPuls{0%{transform:scale(1)}6%{transform:scale(1.4)}14%{transform:scale(1)}100%{transform:scale(1)}}
-@keyframes wyciszFala{0%{transform:scale(.7);opacity:.6}25%{transform:scale(2.8);opacity:0}100%{transform:scale(2.8);opacity:0}}
-#wyciszPodpowiedz{position:absolute;bottom:70px;left:50%;transform:translateX(-50%);font-size:12px;color:rgba(255,255,255,.16);opacity:1;transition:opacity 1.2s;user-select:none;white-space:nowrap;pointer-events:none;text-align:center}
-#wyciszPodpowiedz.znika{opacity:0}
-#wyciszKurtyna{position:fixed;inset:0;z-index:99999;display:none}
+/* ════ WYGASZACZ EKRANU (tryb kieszonkowy) — odblokowanie przytrzymaniem ════ */
+#wygaszaczKurtyna{position:fixed;inset:0;z-index:100000;display:none}
+.wygaszacz{position:fixed;inset:0;z-index:99999;background:#000;display:none;flex-direction:column;align-items:center;justify-content:center;gap:26px;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;cursor:default}
+.wygaszacz.aktywny{display:flex}
+.wygaszacz-zegar{font-family:'Cormorant Garamond',serif;font-size:54px;font-weight:500;letter-spacing:2px;color:#4b5563}
+.wygaszacz-status{max-width:80vw;text-align:center;font-family:'EB Garamond',serif;font-size:15px;color:#6b7280;font-style:italic}
+.wygaszacz-odblokuj{position:relative;overflow:hidden;width:190px;padding:16px 10px;background:#111827;border:1.5px solid #374151;border-radius:30px;color:#9ca3af;font-family:'EB Garamond',serif;font-size:15px;cursor:pointer;touch-action:none;-webkit-tap-highlight-color:transparent}
+.wygaszacz-odblokuj-fill{position:absolute;inset:0;width:0;background:rgba(232,160,192,.45)}
+.wygaszacz-odblokuj.trzymam .wygaszacz-odblokuj-fill{width:100%;transition:width 1s linear}
+.wygaszacz-odblokuj-tekst{position:relative;z-index:1;line-height:1.35}
+.wygaszacz-hint{max-width:82vw;text-align:center;font-size:11.5px;line-height:1.5;color:#374151;font-family:'EB Garamond',serif}
 .fab:hover{transform:scale(1.05);border-color:var(--akcent)}
 .fab.akt{background:linear-gradient(135deg,var(--niebo),#1976d2);color:#fff;animation:pulsfab 1.8s ease-in-out infinite}
 .fab.spacer-akt{background:linear-gradient(135deg,var(--akcent2),var(--akcent));color:#2a1830;animation:pulsfab 1.8s ease-in-out infinite}
@@ -298,7 +298,7 @@ body.dzien #nagrywanieBox{background:rgba(0,0,0,.03)}
 <div class="dol">
   <div class="dol-lewo">
     <button class="fab" id="fabMenuCz" onclick="otworzPanelM()" title="Publiczne częstotliwości" style="font-family:'Cormorant Garamond',serif;font-weight:700;font-size:19px">M</button>
-    <button class="fab" id="fabWycisz" onclick="wlaczWyciszenieEkranu()" title="Wycisz ekran">🌙</button>
+    <button class="fab" id="fabWycisz" onclick="wlaczWygaszacz()" title="Wycisz ekran">🌙</button>
     <button class="fab" id="fabInfo" onclick="otworzInfo()" title="Informacje i regulamin" style="font-family:'Cormorant Garamond',serif;font-weight:700;font-style:italic;font-size:21px">i</button>
   </div>
   <button class="btn-dodaj" id="btnDodaj" onclick="trybDodawania()">
@@ -468,15 +468,21 @@ body.dzien #nagrywanieBox{background:rgba(0,0,0,.03)}
   <img id="zdjeciePelnyImg" src="" alt="">
 </div>
 
-<div id="wyciszOverlay">
-  <div id="wyciszSerceOtoczka">
-    <div class="fala"></div>
-    <div class="fala"></div>
-    <div id="wyciszSerce">❤</div>
-  </div>
-  <div id="wyciszPodpowiedz">dotknij dwukrotnie ekranu, aby wrócić</div>
+<canvas id="wygaszaczKurtyna"></canvas>
+<div id="wygaszaczEkranu" class="wygaszacz" aria-label="Ekran przyciemniony na czas gry">
+  <div class="wygaszacz-zegar" id="wygaszaczZegar">--:--</div>
+  <div class="wygaszacz-status">🌙 Ekran wyciszony — dotyk zablokowany</div>
+  <button class="wygaszacz-odblokuj" id="wygaszaczOdblokuj"
+          aria-label="Przytrzymaj sekundę, aby odblokować ekran"
+          onpointerdown="wygaszaczStartOdblokuj(event)"
+          onpointerup="wygaszaczAnulujOdblokuj()"
+          onpointercancel="wygaszaczAnulujOdblokuj()"
+          onpointerleave="wygaszaczAnulujOdblokuj()">
+    <span class="wygaszacz-odblokuj-fill"></span>
+    <span class="wygaszacz-odblokuj-tekst">🔓 Przytrzymaj,<br>by odblokować</span>
+  </button>
+  <div class="wygaszacz-hint">Muśnięcie w kieszeni nic nie zrobi — trzeba przytrzymać przycisk.</div>
 </div>
-<canvas id="wyciszKurtyna"></canvas>
 
 <script>
 /* ════ FIREBASE ════ */
@@ -662,10 +668,14 @@ function przelaczDzwiek(){
   if(!dzwiekWlaczony){try{speechSynthesis.cancel();}catch(e){}zatrzymajNagranieSpacer();}
   toast(dzwiekWlaczony?'🔊 Czytanie włączone':'🔇 Czytanie wyciszone');
 }
-/* ════ WYCISZENIE EKRANU (kurtyna Matrix + serce) ════ */
-let wyciszOstatniTap=0;
-function wyciszMatrixRain(duration,onDone){
-  const canvas=document.getElementById('wyciszKurtyna');
+/* ════ WYGASZACZ EKRANU (tryb kieszonkowy) — odblokowanie przytrzymaniem ~1s ════ */
+let wygaszaczAktywny=false;
+let _wygaszaczTimerOdblokuj=null;  // setTimeout przytrzymania (1s)
+let _wygaszaczInterval=null;       // odświeżanie zegara co 30s
+
+// Krótka "kurtyna" Matrix (deszcz znaków) - tylko przy WŁĄCZANIU wygaszacza.
+function wygaszaczMatrixKurtyna(duration,onDone){
+  const canvas=document.getElementById('wygaszaczKurtyna');
   const ctx=canvas.getContext('2d');
   canvas.style.display='block';
   const w=canvas.width=window.innerWidth,h=canvas.height=window.innerHeight,fontSize=15;
@@ -688,29 +698,57 @@ function wyciszMatrixRain(duration,onDone){
   }
   klatka();
 }
-function wyciszOdtworzKurtyne(zmienStan){wyciszMatrixRain(1100,null);zmienStan();}
-function wlaczWyciszenieEkranu(){
+
+function wlaczWygaszacz(){
+  const ov=document.getElementById('wygaszaczEkranu');
+  if(!ov)return;
   odblokujMowe();
-  wyciszOdtworzKurtyne(()=>{
-    const overlay=document.getElementById('wyciszOverlay');
-    const podp=document.getElementById('wyciszPodpowiedz');
-    overlay.classList.add('poka');
-    podp.classList.remove('znika');
-    clearTimeout(podp._tk);
-    podp._tk=setTimeout(()=>podp.classList.add('znika'),3000);
-    wyciszOstatniTap=0;
+  wygaszaczMatrixKurtyna(1100,()=>{
+    wygaszaczAktywny=true;
+    ov.classList.add('aktywny');
+    _wygaszaczOdswiez();
+    _wygaszaczInterval=setInterval(_wygaszaczOdswiez,30000);
   });
 }
-document.getElementById('wyciszOverlay').addEventListener('click',()=>{
-  const teraz=Date.now();
-  if(teraz-wyciszOstatniTap<400){
-    wyciszOdtworzKurtyne(()=>{
-      document.getElementById('wyciszOverlay').classList.remove('poka');
-    });
-    wyciszOstatniTap=0;
-  }else{
-    wyciszOstatniTap=teraz;
-  }
+
+function wylaczWygaszacz(){
+  const ov=document.getElementById('wygaszaczEkranu');
+  wygaszaczAktywny=false;
+  if(ov)ov.classList.remove('aktywny');
+  wygaszaczAnulujOdblokuj();
+  if(_wygaszaczInterval){clearInterval(_wygaszaczInterval);_wygaszaczInterval=null;}
+}
+
+// Palec dotknął przycisku: start paska postępu + timer 1s.
+function wygaszaczStartOdblokuj(e){
+  if(e&&e.preventDefault)e.preventDefault();
+  const btn=document.getElementById('wygaszaczOdblokuj');
+  if(btn)btn.classList.add('trzymam');
+  if(_wygaszaczTimerOdblokuj)clearTimeout(_wygaszaczTimerOdblokuj);
+  _wygaszaczTimerOdblokuj=setTimeout(()=>{
+    _wygaszaczTimerOdblokuj=null;
+    wylaczWygaszacz();
+    if(navigator.vibrate){try{navigator.vibrate(30);}catch(err){}}
+  },1000);
+}
+
+// Palec puścił / zjechał z przycisku przed czasem = anuluj.
+function wygaszaczAnulujOdblokuj(){
+  if(_wygaszaczTimerOdblokuj){clearTimeout(_wygaszaczTimerOdblokuj);_wygaszaczTimerOdblokuj=null;}
+  const btn=document.getElementById('wygaszaczOdblokuj');
+  if(btn)btn.classList.remove('trzymam');
+}
+
+function _wygaszaczOdswiez(){
+  const zegar=document.getElementById('wygaszaczZegar');
+  if(!zegar)return;
+  const t=new Date();
+  zegar.textContent=String(t.getHours()).padStart(2,'0')+':'+String(t.getMinutes()).padStart(2,'0');
+}
+
+// Desktop: Escape też odblokowuje (wygodne przy testach).
+document.addEventListener('keydown',(e)=>{
+  if(wygaszaczAktywny&&e.key==='Escape')wylaczWygaszacz();
 });
 
 let nagranieSpacerAudio=null;
