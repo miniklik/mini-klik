@@ -313,7 +313,7 @@
 
 <div class="wrapper">
   <header>
-    <h1 class="logo">mini<span class="dot">·</span>klik<span class="pl">.pl</span></h1>
+    <h1 class="logo">mini<span class="dot">-</span>klik<span class="pl">.pl</span></h1>
     <div class="line"></div>
     <p class="tagline">twórz · graj · odkrywaj</p>
   </header>
@@ -331,12 +331,12 @@
     </a>
     <a href="./edytor-map/" class="tile">
       <span class="icon">🗺️</span>
-      <div class="tile-title">Zrób sobie mapę</div>
+      <div class="tile-title">Mapy główne</div>
       <div class="tile-desc">swojej okolicy,<br>ulubionych miejsc</div>
     </a>
     <a href="./moje-mapy/" class="tile">
       <span class="icon">📍</span>
-      <div class="tile-title">Aplikacje</div>
+      <div class="tile-title">Pozostałe mapy</div>
       <div class="tile-desc">wspomnienia, sekretne listy<br>i miejsca niewyjaśnione</div>
     </a>
   </div>
@@ -355,12 +355,8 @@
       </svg>
       YouTube
     </a>
-    <a href="#" class="footer-link contact" data-email="mini-klik@wp.pl" onclick="copyEmail(event, this)">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#64b4ff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
-        <polyline points="22,6 12,13 2,6"/>
-      </svg>
-      <span class="footer-link-text">Kontakt</span>
+    <a href="#" class="footer-link contact" onclick="udostepnijStrone(event, this)">
+      <span class="footer-link-text">Udostępnij</span>
     </a>
     <a href="https://buycoffee.to/mini-klik" target="_blank" rel="noopener" class="footer-link coffee">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ff9a3d" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -391,21 +387,32 @@
 </div>
 
 <script>
-// === KOPIOWANIE MAILA DO SCHOWKA ===
-async function copyEmail(event, link) {
+// === UDOSTĘPNIJ STRONĘ (natywny udostępniacz / kopiowanie linku) ===
+async function udostepnijStrone(event, link) {
   event.preventDefault();
-  const email = link.dataset.email;
+  const url = window.location.href;
   const textEl = link.querySelector('.footer-link-text');
   if (!textEl) return;
   const original = textEl.textContent;
 
+  // Na telefonie: natywne okno "Udostępnij" (WhatsApp, SMS, Messenger...)
+  if (navigator.share) {
+    try {
+      await navigator.share({ title: document.title, url });
+      return;
+    } catch (err) {
+      // Anulowane przez użytkownika lub brak wsparcia - lecimy dalej do kopiowania
+      if (err && err.name === 'AbortError') return;
+    }
+  }
+
   try {
     // Nowoczesna metoda - schowek
-    await navigator.clipboard.writeText(email);
+    await navigator.clipboard.writeText(url);
   } catch (err) {
     // Fallback dla starszych przeglądarek
     const ta = document.createElement('textarea');
-    ta.value = email;
+    ta.value = url;
     ta.style.position = 'fixed';
     ta.style.opacity = '0';
     document.body.appendChild(ta);
@@ -415,7 +422,7 @@ async function copyEmail(event, link) {
   }
 
   // Wizualne potwierdzenie - przycisk zmienia kolor + tekst
-  textEl.textContent = '✓ ' + email;
+  textEl.textContent = '✓ Skopiowano link';
   link.classList.add('copied');
 
   // Po 2.5 sekundy wraca do normy
