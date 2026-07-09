@@ -2849,6 +2849,19 @@ function zapiszStrone() {
 
 // --- ZAPISZ JSON: pyta o nazwę projektu, zapisuje pod nią w bazie lub jako plik ---
 async function zapiszJSON() {
+  // Firestore NIE obsługuje tablic zagnieżdżonych w tablicach (np. [[lat,lng],[lat,lng]])
+  // - a dokładnie tak zapisane są wierzchołki rysowanych stref tła (m.punkty).
+  // Zamieniamy je na {lat,lng} tylko na czas zapisu do bazy - wewnątrz aplikacji
+  // (rysowanie, sprawdzanie zasięgu, zapis JSON/HTML) wszystko zostaje bez zmian.
+  function punktyDoFirestore(listaMiejsc) {
+    return listaMiejsc.map(m => {
+      if (Array.isArray(m.punkty) && m.punkty.length) {
+        return { ...m, punkty: m.punkty.map(p => ({ lat: p[0], lng: p[1] })) };
+      }
+      return m;
+    });
+  }
+
   // Sanityzacja nazwy projektu -> bezpieczny klucz (małe litery, tylko a-z0-9-)
   function sanityzujNazwe(n) {
     return n.trim().toLowerCase()
@@ -2890,7 +2903,8 @@ async function zapiszJSON() {
   // WARIANT A: baza online (Skarbiec / Firebase)
   if (window.__db_licznik) {
     try {
-      await window.__db_licznik.collection('skarbiec_mapy').doc(nazwaKlucz).set(dane);
+      const daneDoFirestore = { ...dane, miejsca: punktyDoFirestore(dane.miejsca) };
+      await window.__db_licznik.collection('skarbiec_mapy').doc(nazwaKlucz).set(daneDoFirestore);
       alert('✓ Zapisano projekt „' + nazwaKlucz + '" (' + dane.miejsca.length + ' miejsc) w bazie online.\n\nNa innym urządzeniu kliknij "📂 Wczytaj JSON" i podaj tę samą nazwę: ' + nazwaKlucz);
       return;
     } catch(err) {
@@ -3078,7 +3092,18 @@ async function wczytajJSON() {
   try {
     const doc = await window.__db_licznik.collection('skarbiec_mapy').doc(nazwaKlucz).get();
     if (doc.exists) {
-      _zastosujWczytaneDane(doc.data());
+      const dane = doc.data();
+      // Odwrotność konwersji z zapiszJSON: {lat,lng} -> [lat,lng], żeby reszta
+      // aplikacji (rysowanie, sprawdzanie zasięgu stref) dostała znajomy format.
+      if (Array.isArray(dane.miejsca)) {
+        dane.miejsca = dane.miejsca.map(m => {
+          if (Array.isArray(m.punkty) && m.punkty.length && m.punkty[0] && typeof m.punkty[0] === 'object' && !Array.isArray(m.punkty[0])) {
+            return { ...m, punkty: m.punkty.map(p => [p.lat, p.lng]) };
+          }
+          return m;
+        });
+      }
+      _zastosujWczytaneDane(dane);
     } else {
       alert('⚠️ Projekt „' + nazwaKlucz + '" nie istnieje w bazie.\n\nSprawdź nazwę i spróbuj ponownie.');
     }
