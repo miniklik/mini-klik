@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pl"><head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 
 <!-- Anti-cache: zawsze świeża wersja po wgraniu -->
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
@@ -718,7 +718,9 @@ body:not(.tryb-admin) .herb-rog{display:block}
   color:#a04030;background:rgba(255,255,255,0.9);
   border:1.5px dashed #a04030;border-radius:8px;
 }
-body:not(.tryb-admin) .herb-brak{display:block}
+/* "Brak pliku" to techniczna podpowiedź dla admina (żeby wiedział że trzeba
+   wgrać herb.jpg) - gość NIGDY nie ma tego widzieć, wygląda jak błąd strony. */
+body.tryb-admin .herb-brak{display:block}
 body:not(.tryb-admin) .topbar-nazwa{display:flex}
 /* Na telefonie herb zasłania plakietkę z nazwą u góry - chowamy ją tam,
    nazwa pojawia się zamiast tego w nagłówku listy miejsc (patrz JS renderujStrone) */
@@ -1488,8 +1490,8 @@ body:not(.tryb-admin) .info-btn{display:none !important}
 }
 .btn-reset-menu{background:linear-gradient(180deg,#5a2a28,#381a18)!important;border-color:rgba(230,120,110,0.6)!important;color:#f3cdc8!important}
 
-/* PRAWY hamburger - tylko telefon + admin */
-.hamburger-prawy{left:16px;right:auto;top:74px;display:none}
+/* PRAWY hamburger - tylko telefon + admin. Prawa góra, obok głównego (lewa góra) */
+.hamburger-prawy{left:auto;right:16px;top:16px;display:none}
 body.dotyk .hamburger-prawy{display:none}        /* domyślnie ukryty na telefonie */
 body.dotyk.tryb-admin .hamburger-prawy{display:flex}  /* tylko admin */
 body:not(.tryb-admin) .hamburger-prawy{display:none !important}  /* gość - nigdy, żadnych wyjątków */
@@ -3953,6 +3955,7 @@ function resetRadarAudio() {
   kropkiWZasiegu = new Set();
   faleWidoczne = new Set();        // wyłączenie nawigacji = fale-wabiki gasną
   strefyMowaWewnatrz.clear();      // wyzeruj "byłem w strefie głosowej" - przy nawigacji od nowa
+  mowaKolejka = [];
   if (mowaAktywnaKlucz) { try { speechSynthesis.cancel(); } catch (e) {} }
   mowaAktywnaKlucz = null;
   mowaTloScisznieteBylo = false;
@@ -4052,6 +4055,7 @@ let tloWlaczone = false;     // globalny przełącznik 👂 - DOMYŚLNIE WYŁĄC
 let audioTlo = null;         // aktualnie grający obiekt Audio (osobny kanał od "wiersza")
 let audioTloKlucz = null;    // klucz strefy MP3, której dźwięk teraz gra
 let strefyMowaWewnatrz = new Set(); // klucze stref głosowych, w których user AKTUALNIE fizycznie stoi
+let mowaKolejka = []; // klucze stref, które weszły PODCZAS gdy inna już mówiła - czekają w kolejce, nie przerywają
 let mowaAktywnaKlucz = null;  // klucz strefy, której komunikat jest W TOKU (czytany LUB spauzowany) - null gdy skończony/nic nie gra
 let mowaTloScisznieteBylo = false; // czy tło mp3 było ściszone dla aktywnego/spauzowanego komunikatu (do wznowienia)
 
@@ -4066,6 +4070,7 @@ function sprawdzStrefyTla() {
     if (mowaAktywnaKlucz) { try { speechSynthesis.cancel(); } catch (e) {} }
     mowaAktywnaKlucz = null;
     mowaTloScisznieteBylo = false;
+    mowaKolejka = [];
     strefyMowaWewnatrz.clear();
     return;
   }
@@ -4102,11 +4107,19 @@ function sprawdzStrefyTla() {
 
     if (wSrodku && !bylWSrodku) {
       strefyMowaWewnatrz.add(m.klucz);
-      if (m.klucz === mowaAktywnaKlucz) wznowMowe();
-      else rozpocznijMowe(m);
+      if (m.klucz === mowaAktywnaKlucz) {
+        wznowMowe();
+      } else if (!mowaAktywnaKlucz) {
+        rozpocznijMowe(m);
+      } else if (!mowaKolejka.includes(m.klucz)) {
+        // Coś innego właśnie mówi (strefy na siebie nachodzą) - NIE przerywamy,
+        // czeka w kolejce, odezwie się automatycznie zaraz po zakończeniu.
+        mowaKolejka.push(m.klucz);
+      }
     } else if (!wSrodku && bylWSrodku) {
       strefyMowaWewnatrz.delete(m.klucz);
       if (m.klucz === mowaAktywnaKlucz) zapauzujMowe();
+      else mowaKolejka = mowaKolejka.filter(k => k !== m.klucz);   // wyszedł zanim doszła jego kolej
     }
   }
 
@@ -4140,6 +4153,17 @@ function jestWStrefie(pozUser, m) {
   return dystansMetry(pozUser.lat, pozUser.lng, m.pozycja[0], m.pozycja[1]) <= promien;
 }
 
+// Ktoś czeka w kolejce (wszedł do strefy, gdy inna właśnie mówiła) -> jego kolej,
+// o ile nadal tam fizycznie stoi (mógł też w międzyczasie wyjść).
+function nastepnaZKolejkiMowy() {
+  while (mowaKolejka.length) {
+    const nastKlucz = mowaKolejka.shift();
+    if (!strefyMowaWewnatrz.has(nastKlucz)) continue;   // już go tam nie ma - pomiń
+    const nastM = miejsca.find(x => x.klucz === nastKlucz);
+    if (nastM) { rozpocznijMowe(nastM); return; }
+  }
+}
+
 // Zacznij czytać komunikat OD NOWA (nowa strefa, albo ta sama już wcześniej dokończona)
 function rozpocznijMowe(m) {
   if (!('speechSynthesis' in window) || !m.tekstMowa) return;
@@ -4159,6 +4183,7 @@ function rozpocznijMowe(m) {
         mowaAktywnaKlucz = null;
         if (mowaTloScisznieteBylo && audioTlo) { try { audioTlo.play().catch(() => {}); } catch (e) {} }
         mowaTloScisznieteBylo = false;
+        nastepnaZKolejkiMowy();
       };
       mowaAktywnaKlucz = m.klucz;
       speechSynthesis.speak(u);
@@ -4166,6 +4191,7 @@ function rozpocznijMowe(m) {
       mowaAktywnaKlucz = null;
       if (mowaTloScisznieteBylo && audioTlo) { try { audioTlo.play().catch(() => {}); } catch (e) {} }
       mowaTloScisznieteBylo = false;
+      nastepnaZKolejkiMowy();
     }
   };
 
