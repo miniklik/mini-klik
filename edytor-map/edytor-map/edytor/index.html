@@ -1,6 +1,5 @@
 <!DOCTYPE html>
-<html lang="pl">
-<head>
+<html lang="pl"><head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
@@ -9,20 +8,20 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 
-<title>Skarbiec · mapa miejsc</title>
+<title>Miasto - Siedliszcze</title>
 
 <!-- Leaflet (mapa) -->
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <!-- Pannellum - viewer zdjęć 360° sferycznych (equirectangular) -->
-<link rel="stylesheet" href="https://cdn.pannellum.org/2.5/pannellum.css"/>
+<link rel="stylesheet" href="https://cdn.pannellum.org/2.5/pannellum.css">
 <script src="https://cdn.pannellum.org/2.5/pannellum.js"></script>
 
 <!-- Fonty -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=EB+Garamond:wght@400;500;600&family=Cinzel:wght@400;600&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&amp;family=EB+Garamond:wght@400;500;600&amp;family=Cinzel:wght@400;600&amp;display=swap" rel="stylesheet">
 
 <style>
 /* ============================================================
@@ -69,7 +68,8 @@ body::before{
 /* Na telefonie wrapper nie może tworzyć pułapki stackingu, bo wtedy
    wysuwany sidebar (z-index:1150) zostaje UWIĘZIONY pod backdropem.
    Zerujemy kontekst, żeby sidebar i hamburger były naprawdę na wierzchu. */
-body.dotyk .wrapper{z-index:auto}
+body.dotyk .wrapper,
+body:not(.tryb-admin) .wrapper{z-index:auto}
 
 /* ============================================================
    NAGŁÓWEK
@@ -96,10 +96,12 @@ h1{
    ============================================================ */
 .layout{
   display:grid;
-  grid-template-columns:minmax(0,1fr) 340px;
+  grid-template-columns:340px minmax(0,1fr);
   gap:22px;
   margin-top:8px;
 }
+.layout #mapa{order:2}
+.layout .sidebar{order:1}
 
 /* MAPA */
 #mapa{
@@ -146,10 +148,11 @@ h1{
 }
 
 /* Scrollbar w stylu skarbca */
-.sidebar::-webkit-scrollbar{width:8px}
+.sidebar::-webkit-scrollbar{width:10px}
 .sidebar::-webkit-scrollbar-track{background:rgba(0,0,0,0.25)}
-.sidebar::-webkit-scrollbar-thumb{background:rgba(224,169,85,0.4);border-radius:4px}
-.sidebar::-webkit-scrollbar-thumb:hover{background:var(--zloto)}
+.sidebar::-webkit-scrollbar-thumb{background:#d81f1f;border-radius:5px;border:1.5px solid rgba(0,0,0,0.3)}
+.sidebar::-webkit-scrollbar-thumb:hover{background:#ff2b2b}
+.sidebar{scrollbar-color:#d81f1f rgba(0,0,0,0.25);scrollbar-width:thin}
 
 /* KARTA MIEJSCA (na liście) - styl gotowy na przyszłe funkcje */
 .miejsce-card{
@@ -187,6 +190,109 @@ h1{
   text-align:center;color:var(--tekst-2);font-style:italic;
   padding:30px 10px;font-size:15px;opacity:0.8;line-height:1.6;
 }
+
+/* ============================================================
+   ROZWIJANA KARTA "MIEJSCE" - miniaturka + Rozwiń w nagłówku,
+   pełny podgląd (foto/panorama/YT/audio/opis) po rozwinięciu.
+   ============================================================ */
+.karta-nazwa-tekst{flex:1;min-width:0;overflow-wrap:break-word;word-break:break-word}
+.karta-miniaturka{
+  width:34px;height:34px;border-radius:6px;object-fit:cover;flex-shrink:0;
+  border:1px solid rgba(120,90,46,0.35);background:rgba(0,0,0,0.2);
+}
+.karta-miniaturka-brak{
+  width:34px;height:34px;border-radius:6px;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;font-size:16px;
+  border:1px solid rgba(120,90,46,0.3);background:rgba(0,0,0,0.15);opacity:0.7;
+}
+.karta-glowka{display:flex;align-items:center;gap:8px;cursor:pointer}
+.karta-podglad-wrap{cursor:pointer;overflow:hidden}
+.karta-podglad-wrap .karta-glowka{margin-bottom:2px}
+.karta-podglad-opis{
+  font-size:13.5px;line-height:1.5;color:var(--tekst-2);
+}
+.karta-podglad-miniaturka{
+  float:left;width:72px;height:72px;border-radius:10px;object-fit:cover;
+  margin:0 12px 6px 0;border:1px solid rgba(120,90,46,0.35);background:rgba(0,0,0,0.2);
+}
+body:not(.tryb-admin) .karta-podglad-miniaturka{border-color:rgba(122,90,46,0.3);background:rgba(122,90,46,0.08)}
+.karta-szczegoly{margin-top:12px;padding-top:12px;border-top:1px solid rgba(120,90,46,0.22);position:relative}
+.karta-zamknij{
+  position:absolute;top:8px;right:0;width:28px;height:28px;border-radius:50%;
+  border:1.5px solid rgba(120,90,46,0.35);background:rgba(0,0,0,0.2);color:var(--tekst);
+  font-size:16px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;
+}
+.karta-zamknij:hover{background:rgba(0,0,0,0.35)}
+.karta-foto{
+  width:100%;border:1.5px solid var(--obrys);border-radius:8px;overflow:hidden;
+  margin-bottom:10px;background:#0a0a0a;
+}
+.karta-foto img{width:100%;height:auto;display:block;max-height:280px;object-fit:contain}
+.karta-foto-klik{cursor:zoom-in}
+
+/* LIGHTBOX - podgląd zdjęcia w pełnej rozdzielczości, na tej samej stronie */
+.lightbox-foto{
+  display:none;position:fixed;inset:0;z-index:3000;
+  background:rgba(10,6,3,0.92);
+  align-items:center;justify-content:center;
+  padding:30px;cursor:zoom-out;
+}
+.lightbox-foto.visible{display:flex}
+.lightbox-foto img{
+  max-width:92vw;max-height:88vh;border-radius:10px;cursor:default;
+  box-shadow:0 14px 60px rgba(0,0,0,0.7), 0 0 0 4px rgba(224,169,85,0.15);
+  animation:lightbox-wejscie 0.4s cubic-bezier(.2,.85,.25,1);
+}
+@keyframes lightbox-wejscie{
+  from{opacity:0;transform:scale(0.6) rotate(-6deg);}
+  to{opacity:1;transform:scale(1) rotate(0deg);}
+}
+.lightbox-zamknij{
+  position:fixed;top:18px;right:20px;z-index:3001;
+  width:46px;height:46px;border-radius:50%;
+  background:rgba(255,255,255,0.1);border:1.5px solid rgba(255,255,255,0.45);
+  color:#fff;font-size:24px;line-height:1;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  transition:all 0.15s;
+}
+.lightbox-zamknij:hover{background:var(--zloto);border-color:var(--zloto);color:#2b1c0e;transform:rotate(90deg)}
+.karta-sfera{
+  width:100%;height:220px;border:1.5px solid var(--obrys);border-radius:8px;
+  background:#0a0a0a;overflow:hidden;margin-bottom:10px;
+}
+.karta-yt-link{
+  display:inline-block;text-decoration:none;margin-bottom:10px;margin-right:8px;
+  background:linear-gradient(180deg,#ff0000,#c00);color:#fff;
+  font-weight:700;font-size:13.5px;padding:9px 16px;border-radius:8px;
+  border:none;cursor:pointer;font-family:'EB Garamond',serif;
+}
+.karta-yt-link:hover{filter:brightness(1.1)}
+/* Odtwarzacz YT osadzony w karcie (po kliknięciu "Obejrzyj na YouTube") */
+.karta-yt-embed{
+  position:relative;width:100%;padding-top:56.25%;margin-bottom:10px;
+  border-radius:8px;overflow:hidden;border:1.5px solid var(--obrys);background:#000;
+}
+.karta-yt-embed iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+.karta-audio-btn{
+  display:inline-flex;align-items:center;gap:6px;margin-bottom:10px;
+  background:linear-gradient(180deg,#8e44c9,#6322a0);color:#fff;border:none;
+  font-weight:700;font-size:13.5px;padding:9px 16px;border-radius:8px;cursor:pointer;
+  font-family:'EB Garamond',serif;
+}
+.karta-audio-btn:hover{filter:brightness(1.1)}
+.karta-brak{font-size:13px;color:var(--tekst-2);font-style:italic;padding:2px 0}
+.karta-zwin-dol{
+  display:flex;flex-direction:column;align-items:center;gap:1px;
+  width:100%;margin-top:14px;padding-top:10px;cursor:pointer;
+  border:none;border-top:1px dashed rgba(224,169,85,0.3);background:none;
+  color:var(--tekst-2);font-family:'EB Garamond',serif;font-size:11px;
+  letter-spacing:1px;line-height:1;transition:color 0.15s;
+}
+.karta-zwin-dol .strzalki{font-size:9px;letter-spacing:2px;color:var(--zloto);line-height:1}
+.karta-zwin-dol:hover{color:var(--zloto-2)}
+.karta-zwin-dol:hover .strzalki{color:var(--zloto-2)}
+body:not(.tryb-admin) .karta-zwin-dol{border-top-color:rgba(122,90,46,0.25);color:#6b5636}
+body:not(.tryb-admin) .karta-zwin-dol:hover{color:#3d2c18}
 
 /* ============================================================
    GPS - nawigacja (śledzenie na żywo) + środkowanie
@@ -344,15 +450,17 @@ footer{
   display:none;                /* domyślnie ukryty - pokazany przez JS na dotyku */
   position:fixed;top:16px;left:16px;z-index:1200;
   width:48px;height:48px;
-  background:rgba(46,32,23,0.62);backdrop-filter:blur(3px);
-  border:2px solid var(--obrys);
+  background:rgba(255,255,255,0.75);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+  border:none;
   border-radius:10px;
   cursor:pointer;
   align-items:center;justify-content:center;
-  box-shadow:0 4px 14px rgba(0,0,0,0.5);
+  box-shadow:0 3px 14px rgba(30,20,10,0.22);
+  transition:left 0.32s cubic-bezier(.4,0,.2,1);
 }
+.hamburger:hover{background:rgba(255,255,255,0.9)}
 .hamburger span{
-  display:block;width:22px;height:2px;background:var(--zloto-2);
+  display:block;width:22px;height:2px;background:#2b2118;
   margin:3px 0;border-radius:2px;transition:all 0.3s;
 }
 /* animacja w X gdy otwarty */
@@ -396,11 +504,13 @@ footer{
    Małe okno na komputerze: panel pod mapą (jak dotąd).
    ============================================================ */
 @media (max-width:900px){
-  body:not(.dotyk){padding:18px 12px}
-  body:not(.dotyk) h1{font-size:44px}
-  body:not(.dotyk) .ornament{font-size:16px;letter-spacing:8px}
-  body:not(.dotyk) .layout{grid-template-columns:1fr;gap:16px}
-  body:not(.dotyk) .sidebar{height:auto;max-height:50vh}
+  /* Ta reguła dotyczy już TYLKO admina (edytor) na wąskim oknie komputera -
+     gość na każdej szerokości ma teraz własną, pełnoekranową regułę niżej. */
+  body:not(.dotyk).tryb-admin{padding:18px 12px}
+  body:not(.dotyk).tryb-admin h1{font-size:44px}
+  body:not(.dotyk).tryb-admin .ornament{font-size:16px;letter-spacing:8px}
+  body:not(.dotyk).tryb-admin .layout{grid-template-columns:1fr;gap:16px}
+  body:not(.dotyk).tryb-admin .sidebar{height:auto;max-height:50vh}
 }
 
 /* ============================================================
@@ -447,6 +557,205 @@ body.dotyk .sidebar::after{display:none}
 /* --- POZIOM na dotyku: blokada "obróć" --- */
 @media (orientation:landscape){
   body.dotyk .obroc-overlay{display:flex}
+}
+
+/* ============================================================
+   TRYB GOŚCIA (wędrowiec, nie-admin) - mapa ZAWSZE na cały ekran,
+   bez brązowej ramki - niezależnie od urządzenia (telefon LUB
+   zwykły komputer). Dotąd taki pełny ekran miał tylko dotyk
+   (@media wyżej); teraz to samo dostaje każdy gość na desktopie.
+   Panel z listą miejsc chowany tak samo jak na telefonie -
+   wysuwany hamburgerem ☰ z lewej. Admin (?admin=1) bez zmian -
+   nadal pracuje w starym, oprawionym w ramkę layoucie na komputerze.
+   ============================================================ */
+body:not(.tryb-admin){
+  padding:0;
+  height:100vh;height:100dvh;overflow:hidden;
+}
+body:not(.tryb-admin) .wrapper{max-width:none;margin:0;height:100%}
+body:not(.tryb-admin) header{display:none}      /* tytuł chowamy - mapa na cały ekran */
+body:not(.tryb-admin) footer{display:none}
+
+body:not(.tryb-admin) .layout{
+  display:block;margin:0;height:100%;
+}
+body:not(.tryb-admin) #mapa{
+  height:100vh;height:100dvh;
+  border:none;border-radius:0;
+  box-shadow:none;
+}
+body:not(.tryb-admin) #mapa::before,
+body:not(.tryb-admin) #mapa::after{display:none}  /* bez złotych rogów na full-screen */
+
+/* hamburger widoczny dla każdego gościa (nie tylko na dotyku) */
+body:not(.tryb-admin) .hamburger{display:flex}
+
+/* panel boczny jako wysuwana szuflada z LEWEJ - jak na telefonie */
+body:not(.tryb-admin) .sidebar{
+  position:fixed;top:0;left:0;z-index:1150;
+  width:min(82vw,360px);height:100vh;height:100dvh;
+  max-height:none;border-radius:0;
+  border:none;border-right:2px solid var(--obrys);
+  transform:translateX(-100%);
+  transition:transform 0.32s cubic-bezier(.4,0,.2,1);
+  padding-top:20px;
+}
+body:not(.tryb-admin) .sidebar.open{transform:translateX(0)}
+body:not(.tryb-admin) .sidebar::before,
+body:not(.tryb-admin) .sidebar::after{display:none}
+/* Hamburger przyklejony do krawędzi panelu - wysuwa się razem z nim i
+   cofa, więc panel nie musi rezerwować miejsca u góry na hamburger. */
+body:not(.tryb-admin) .hamburger.open{
+  left:calc(min(82vw,360px) - 24px);
+}
+
+/* Panel gościa - jasny/biały (zamiast brązowo-złotego "Skarbca"), spójny
+   z bielą hamburgera i plakietki. Ustawiam też jasne kolory tekstu/kart,
+   żeby nic nie zostało złote-na-złotym / niewidoczne. */
+body:not(.tryb-admin) .sidebar{
+  background:linear-gradient(180deg,#ede0c4 0%,#e3d3ab 100%);
+  border-right:none;
+  box-shadow:2px 0 20px rgba(30,20,10,0.18);
+}
+body:not(.tryb-admin) .sidebar-tytul{
+  color:#7a5a2e;border-bottom-color:rgba(122,90,46,0.25);
+}
+body:not(.tryb-admin) .sidebar::-webkit-scrollbar-track{background:rgba(0,0,0,0.05)}
+body:not(.tryb-admin) .sidebar::-webkit-scrollbar-thumb{background:#d81f1f;border-color:rgba(0,0,0,0.15)}
+body:not(.tryb-admin) .sidebar::-webkit-scrollbar-thumb:hover{background:#ff2b2b}
+body:not(.tryb-admin) .sidebar{scrollbar-color:#d81f1f rgba(0,0,0,0.05)}
+
+body:not(.tryb-admin) .miejsce-card{
+  background:#ffffff;
+  border:1px solid rgba(122,90,46,0.18);
+  border-left:3px solid #c98b3a;
+  box-shadow:0 2px 8px rgba(30,20,10,0.06);
+}
+body:not(.tryb-admin) .miejsce-card:hover{
+  border-left-color:#a97c3f;
+  box-shadow:0 5px 16px rgba(30,20,10,0.12);
+}
+body:not(.tryb-admin) .miejsce-card .nazwa{color:#3d2c18}
+body:not(.tryb-admin) .miejsce-card .opis{color:#6b5a45}
+body:not(.tryb-admin) .pusto{color:#8a7660}
+body:not(.tryb-admin) .karta-podglad-opis{color:#6b5a45}
+body:not(.tryb-admin) .karta-brak{color:#8a7660}
+body:not(.tryb-admin) .karta-miniaturka{border-color:rgba(122,90,46,0.3);background:rgba(122,90,46,0.08)}
+body:not(.tryb-admin) .karta-miniaturka-brak{border-color:rgba(122,90,46,0.3);background:rgba(122,90,46,0.1)}
+body:not(.tryb-admin) .karta-szczegoly{border-top-color:rgba(122,90,46,0.2)}
+body:not(.tryb-admin) .karta-zamknij{border-color:rgba(122,90,46,0.3);background:rgba(122,90,46,0.08);color:#3d2c18}
+body:not(.tryb-admin) .karta-zamknij:hover{background:rgba(122,90,46,0.18)}
+body:not(.tryb-admin) .karta-szczegoly .detail-opis{color:#1a1208}
+
+body:not(.tryb-admin) .filtr-tytul{color:#8a7660}
+body:not(.tryb-admin) .filtr-btn{
+  background:rgba(122,90,46,0.08);color:#6b5a45;
+  border-color:rgba(122,90,46,0.25);
+}
+body:not(.tryb-admin) .filtr-btn.aktywny{
+  background:linear-gradient(180deg,#e0a955,#b8821f);color:#fff;
+  border-color:#c98b3a;
+}
+
+/* Kategorie (nieaktywne/wyłączone) - neonowe litery, żeby dobrze
+   było widać na piaskowym tle nawet gdy przycisk jest "wyłączony". */
+body:not(.tryb-admin) .kat-kw{
+  background:#241a10;border-color:rgba(201,139,58,.55);
+  color:#ffe9a8;opacity:1;
+  text-shadow:0 0 4px #ffd966,0 0 10px #f3b13c,0 0 18px rgba(201,139,58,.85);
+}
+body:not(.tryb-admin) .kat-kw.aktywny{
+  color:#3a2a12;text-shadow:none;
+  background:linear-gradient(180deg,#ffd966,#c98b3a);
+  border-color:#8a5a1e;
+}
+
+/* Biały styl hamburgera jest teraz bazowy (patrz .hamburger wyżej) -
+   obowiązuje jednakowo dla gościa i admina, więc osobny override tutaj
+   nie jest już potrzebny. */
+
+/* U gościa panel z listą to wysuwana szuflada WĄSKA (max 360px) - reszta
+   mapy ma zostać w pełni czytelna i klikalna. Bez ciemnego/rozmytego
+   tła na całym ekranie (to miało sens tylko na telefonie w trybie
+   pełnoekranowego modala). Kliknięcie w mapę nadal zamyka szufladę -
+   warstwa zostaje, tylko niewidoczna. */
+body:not(.tryb-admin) .panel-backdrop{
+  background:transparent !important;
+  backdrop-filter:none !important;
+  -webkit-backdrop-filter:none !important;
+  pointer-events:none !important;   /* nie blokuj przeciągania/klikania mapy pod spodem */
+}
+
+/* Nazwa mapy - na środku góry strony, bez tła (nad mapą).
+   Widoczna TYLKO u gościa (dla admina zbędna - ma swój nagłówek). */
+.topbar-nazwa{
+  display:none;
+  position:fixed;top:16px;left:50%;transform:translateX(-50%);z-index:1200;
+  max-width:calc(100vw - 150px);
+  padding:0 8px;height:48px;
+  align-items:center;
+  background:none;
+}
+.topbar-nazwa span{
+  font-family:'Cormorant Garamond',serif;font-weight:600;font-size:44px;
+  color:#2b2118;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  text-shadow:0 1px 3px rgba(255,255,255,0.85),0 0 10px rgba(255,255,255,0.6);
+}
+/* Herb - osobno, w prawym górnym rogu mapy, duży i półprzezroczysty */
+.herb-rog{
+  display:none;
+  position:fixed;top:16px;right:16px;z-index:1150;
+  height:100px;width:100px;object-fit:contain;
+  opacity:0.65;pointer-events:none;
+  filter:drop-shadow(0 2px 8px rgba(0,0,0,0.35));
+}
+body:not(.tryb-admin) .herb-rog{display:block}
+.herb-brak{
+  display:none;
+  position:fixed;top:16px;right:16px;z-index:1150;
+  width:100px;padding:8px;text-align:center;
+  font-family:'EB Garamond',serif;font-size:11px;line-height:1.4;
+  color:#a04030;background:rgba(255,255,255,0.9);
+  border:1.5px dashed #a04030;border-radius:8px;
+}
+body:not(.tryb-admin) .herb-brak{display:block}
+body:not(.tryb-admin) .topbar-nazwa{display:flex}
+/* Na telefonie herb zasłania plakietkę z nazwą u góry - chowamy ją tam,
+   nazwa pojawia się zamiast tego w nagłówku listy miejsc (patrz JS renderujStrone) */
+body.dotyk .topbar-nazwa{display:none}
+
+/* U turysty: przyciski nawigacji (🧭 🛰️ ⊙) na samym dole ekranu,
+   w rzędzie od lewej strony (żeby nie zasłaniały mapy pod herbem). */
+body:not(.tryb-admin) .gps-btn,
+body:not(.tryb-admin) .mapa-btn,
+body:not(.tryb-admin) .center-btn{
+  position:fixed;
+  top:auto;bottom:16px;
+  z-index:1140;
+}
+body:not(.tryb-admin) .gps-btn{ left:16px; }
+body:not(.tryb-admin) .mapa-btn{ left:76px; }
+body:not(.tryb-admin) .center-btn{ left:136px; }
+body:not(.tryb-admin) .gps-btn.tlo-btn{ left:196px; }
+#tloBtn{ position:fixed !important; top:auto !important; bottom:16px !important; }
+.gps-btn.tlo-btn.active{
+  background:linear-gradient(180deg,#4f9a3c,#2c5a20);
+  color:#eafbe0;border-color:#6bbf52;
+  animation:ucho-puls 1.6s ease-in-out infinite;
+}
+@keyframes ucho-puls{
+  0%,100%{box-shadow:0 4px 14px rgba(0,0,0,0.5), 0 0 0 0 rgba(107,191,82,0.55)}
+  50%{box-shadow:0 4px 14px rgba(0,0,0,0.5), 0 0 0 9px rgba(107,191,82,0)}
+}
+.gps-btn.tlo-btn:not(.active){
+  background:linear-gradient(180deg,var(--panel-2),var(--panel));
+  color:var(--tekst-2);opacity:0.55;
+}
+/* Wyłączone = przekreślone (ukośna czerwona kreska przez ikonę ucha) */
+.gps-btn.tlo-btn:not(.active)::after{
+  content:'';position:absolute;left:8%;top:50%;width:84%;height:2.5px;
+  background:#e04b3c;transform:translateY(-50%) rotate(-45deg);
+  border-radius:2px;pointer-events:none;
 }
 
 /* ============================================================
@@ -567,6 +876,33 @@ body.dotyk .tryb-info.znika{opacity:0}
 
 /* Przyciski akcji panelu */
 .panel-akcje{display:flex;gap:10px;margin-top:22px}
+
+/* ===== RYSOWANIE STREFY TŁA - wierzchołki na mapie + pływający pasek ===== */
+.tryb-rysowania{cursor:crosshair !important}
+.strefa-punkt-marker{background:transparent!important;border:none!important}
+.strefa-punkt{
+  width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  background:#16a34a;color:#fff;font-size:11px;font-weight:700;
+  border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.4);
+}
+.strefa-punkt.pierwszy{background:#0d7a30;box-shadow:0 0 0 3px rgba(22,163,74,0.35),0 2px 6px rgba(0,0,0,0.4)}
+.strefa-rysowanie-pasek{
+  display:none;position:fixed;left:50%;bottom:24px;transform:translateX(-50%);
+  z-index:5000;background:linear-gradient(180deg,var(--panel-2),var(--panel));
+  border:1.5px solid #16a34a;border-radius:12px;padding:12px 16px;
+  box-shadow:0 10px 30px rgba(0,0,0,0.5);max-width:92vw;
+  font-family:'EB Garamond',serif;
+}
+.strefa-rysowanie-pasek.visible{display:flex;flex-direction:column;gap:10px;align-items:center}
+.strefa-rysowanie-info{color:var(--zloto-2);font-size:14px;text-align:center}
+.strefa-rysowanie-akcje{display:flex;gap:8px}
+.strefa-rysowanie-akcje button{
+  padding:8px 16px;border-radius:8px;cursor:pointer;font-family:'EB Garamond',serif;
+  font-size:13.5px;font-weight:600;border:1.5px solid var(--obrys);
+  background:var(--tlo-2);color:var(--tekst);transition:all 0.15s;
+}
+.strefa-rysowanie-akcje button:hover{filter:brightness(1.15)}
+.strefa-rysowanie-akcje button:last-child{border-color:#a04030;color:#f3cdc8}
 
 /* ===== TELEFON: większe, czytelniejsze PANELIKI (bez ruszania hamburgerów) =====
    Kluczowe: inputy min. 16px, bo poniżej iOS sam powiększa stronę przy kliknięciu pola. */
@@ -747,8 +1083,21 @@ body:not(.tryb-admin) .pin-audio-inner.pin-audio-fala:hover{
   0%{width:100%;height:100%;opacity:0.7}
   100%{width:320%;height:320%;opacity:0}
 }
+/* Fale wokół pinezki na mapie - pokazują się, gdy karta miejsca jest
+   rozwinięta w panelu bocznym (ten sam efekt co przy audio "Fala"). */
+.fala-marker-wrap{background:transparent;border:none}
+.fala-marker{position:relative;width:34px;height:34px}
+.fala-marker::before,.fala-marker::after{
+  content:'';position:absolute;top:50%;left:50%;
+  width:100%;height:100%;border-radius:50%;
+  border:2px solid rgba(224,169,85,0.65);
+  transform:translate(-50%,-50%);
+  animation:audioFala 2.6s ease-out infinite;
+}
+.fala-marker::after{animation-delay:1.3s}
 .karta-badge.saudio{background:linear-gradient(180deg,#8e44c9,#6322a0);border-radius:50%;padding:2px 6px}
 .karta-badge.smiejsce{background:linear-gradient(180deg,#3a5a9c,#243a6c);border-radius:50%;padding:2px 6px}
+.karta-badge.stlo{background:linear-gradient(180deg,#4f9a3c,#2c5a20);border-radius:50%;padding:2px 6px}
 .pin-miejsce{background:transparent!important;border:none!important}
 .pin-miejsce-inner{
   display:flex;align-items:flex-start;justify-content:center;
@@ -756,6 +1105,29 @@ body:not(.tryb-admin) .pin-audio-inner.pin-audio-fala:hover{
   filter:drop-shadow(0 3px 5px rgba(0,0,0,0.6));
 }
 .pin-miejsce-inner:hover{transform:scale(1.12)}
+
+/* Znacznik "Drobne" - mała niebieska kropka, dla miejsc mniej ważnych */
+.znacznik-kropka{
+  width:18px;height:18px;border-radius:50%;cursor:pointer;
+  background:radial-gradient(circle at 35% 30%,#5b93e6,#2f6fd1);
+  border:2.5px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.5);
+  transition:transform 0.15s;
+}
+.znacznik-kropka:hover{transform:scale(1.2)}
+
+/* Znacznik "Zaznaczone" - sam złoty krzyżyk, bez kółka (styl "X marks the spot") */
+.znacznik-x{
+  width:24px;height:24px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  filter:drop-shadow(0 2px 3px rgba(0,0,0,0.7));
+  animation:znacznik-x-puls 1.7s ease-in-out infinite;
+  transition:transform 0.15s;
+}
+.znacznik-x:hover{transform:scale(1.2)}
+@keyframes znacznik-x-puls{
+  0%,100%{opacity:1;transform:scale(1)}
+  50%{opacity:0.6;transform:scale(1.18)}
+}
 
 /* Przyciski edycji/usuwania na karcie listy (admin) */
 .miejsce-card{position:relative}
@@ -1085,9 +1457,10 @@ body:not(.tryb-admin) .napis-wedrowca{display:inline}
   font-size:32px;cursor:pointer;
   filter:drop-shadow(0 2px 4px rgba(0,0,0,0.7));
 }
-body.dotyk .info-btn{display:flex}
+body.dotyk .info-btn,
+body:not(.tryb-admin) .info-btn{display:flex}
 body.dotyk.tryb-admin .info-btn{right:16px;top:72px}
-body.dotyk:not(.tryb-admin) .info-btn{right:16px;top:72px}
+body:not(.tryb-admin) .info-btn{display:none !important}
 
 /* Modal opisu strony (telefon) */
 .opis-strony-modal{
@@ -1116,9 +1489,10 @@ body.dotyk:not(.tryb-admin) .info-btn{right:16px;top:72px}
 .btn-reset-menu{background:linear-gradient(180deg,#5a2a28,#381a18)!important;border-color:rgba(230,120,110,0.6)!important;color:#f3cdc8!important}
 
 /* PRAWY hamburger - tylko telefon + admin */
-.hamburger-prawy{left:auto;right:16px;display:none}
+.hamburger-prawy{left:16px;right:auto;top:74px;display:none}
 body.dotyk .hamburger-prawy{display:none}        /* domyślnie ukryty na telefonie */
 body.dotyk.tryb-admin .hamburger-prawy{display:flex}  /* tylko admin */
+body:not(.tryb-admin) .hamburger-prawy{display:none !important}  /* gość - nigdy, żadnych wyjątków */
 .hamburger-prawy .ikona-zapis{font-size:22px;line-height:1}
 
 /* PRAWY sidebar (menu zapisu) - wysuwa z prawej */
@@ -1290,51 +1664,46 @@ body.intro-otwarte{overflow:hidden}
    Admin: pędzel pod paskiem maluje nowe punkty + panel zarządzania.
    Gość: rządek ikon pod filtrami typów - włącza/wyłącza warstwy.
    ============================================================ */
-.kat-kw{width:38px;height:38px;border-radius:9px;cursor:pointer;
+.kat-kw{display:block;width:100%;padding:13px 16px;border-radius:6px;cursor:pointer;
   border:1.5px solid rgba(243,205,130,.45);background:rgba(0,0,0,.25);
-  font-size:19px;line-height:1;display:flex;align-items:center;justify-content:center;
-  opacity:.5;transition:all .15s;-webkit-tap-highlight-color:transparent}
-.kat-kw.aktywny{opacity:1;border-color:var(--zloto-2);
+  font-family:'EB Garamond',serif;font-weight:600;font-size:16px;color:var(--tekst-2);
+  text-align:center;opacity:.7;transition:all .15s;-webkit-tap-highlight-color:transparent}
+.kat-kw:active{transform:translateY(1px) scale(.99)}
+.kat-kw.aktywny{opacity:1;border-color:var(--zloto-2);color:var(--tlo);
   background:linear-gradient(180deg,var(--zloto),#b8821f);
-  box-shadow:0 0 0 2px rgba(224,169,85,.25)}
+  box-shadow:0 0 0 2px rgba(224,169,85,.25) inset,0 1px 3px rgba(0,0,0,.3) inset;
+  transform:translateY(1px)}
 /* Pędzel admina (pod paskiem edytora) */
-.kat-pedzle{display:none;flex-wrap:wrap;gap:8px;padding:8px 12px 2px}
+.kat-pedzle{display:none;flex-direction:column;gap:8px;padding:8px 12px 2px}
 .kat-pedzle.ma{display:flex}
-.kat-kw-wrap{position:relative;display:inline-flex}
-.kat-x{position:absolute;top:-7px;right:-7px;width:18px;height:18px;
-  border-radius:50%;border:1.5px solid #1a120b;cursor:pointer;
-  background:#8a2222;color:#fff;font-size:11px;line-height:1;font-weight:700;
-  display:flex;align-items:center;justify-content:center;padding:0;
-  opacity:.92;-webkit-tap-highlight-color:transparent}
-.kat-x:hover{opacity:1;background:#a52a2a}
+body:not(.tryb-admin) #katPedzle{display:none !important}
 /* Warstwy gościa (pod rzędem YT/Foto/Audio/Mix) */
-.filtry-kat{display:none;flex-wrap:wrap;gap:8px;margin-top:8px}
+.filtry-kat{display:none;flex-direction:column;gap:8px;margin-top:8px}
 .filtry-kat.ma{display:flex}
-.filtry-kat .kat-kw{width:40px;height:40px;font-size:20px}
+
+/* KARTA "OPIS MIEJSCOWOŚCI" - stały wpis nad listą miejsc, bez punktu na mapie */
+.karta-opis-miasta{margin-bottom:12px}
+.btn-opis-miasta{
+  display:block;width:100%;padding:13px 16px;border-radius:6px;cursor:pointer;
+  border:1.5px solid rgba(120,200,110,.55);background:linear-gradient(180deg,#4f9a3c,#2c5a20);
+  font-family:'EB Garamond',serif;font-weight:600;font-size:16px;color:#eafbe0;
+  text-align:center;transition:all .15s;-webkit-tap-highlight-color:transparent;
+}
+.btn-opis-miasta:hover{filter:brightness(1.08)}
+.btn-opis-miasta:active{transform:translateY(1px) scale(.99)}
+body:not(.tryb-admin) .btn-opis-miasta{color:#fff;text-shadow:0 1px 2px rgba(0,0,0,0.25)}
 /* Panel zarządzania kategoriami */
 .kat-wiersz{display:flex;align-items:center;gap:10px;padding:8px 10px;
   border:1px solid rgba(243,205,130,.25);border-radius:10px;
   margin-bottom:8px;background:rgba(0,0,0,.18)}
-.kat-wiersz .kw-iko{font-size:20px;width:28px;text-align:center}
 .kat-wiersz .kw-naz{flex:1;font-size:15px;color:var(--tekst)}
-.kat-usun{background:none;border:none;cursor:pointer;font-size:16px;opacity:.65;padding:4px}
-.kat-usun:hover{opacity:1}
+.kat-usun{
+  background:rgba(224,90,74,.14);border:1.5px solid rgba(224,90,74,.4);
+  border-radius:7px;cursor:pointer;font-size:16px;padding:5px 9px;
+  color:#e05a4a;opacity:1;transition:all .15s;flex-shrink:0;
+}
+.kat-usun:hover{background:rgba(224,90,74,.28);border-color:#e05a4a}
 .kat-pusto{font-size:13.5px;color:var(--tekst-2);font-style:italic;padding:2px 2px 10px}
-.kat-dwa{display:flex;gap:10px}
-.kat-dwa > div:first-child{flex:1}
-.kat-dwa > div:last-child{width:88px}
-/* Rozwinięcie ikon - klikalna siatka zamiast klawiatury emoji */
-.kat-ikony{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;
-  padding:10px;border:1px solid rgba(243,205,130,.25);border-radius:10px;
-  background:rgba(0,0,0,.15);max-height:148px;overflow-y:auto}
-.kat-iko-btn{width:36px;height:36px;border-radius:8px;cursor:pointer;
-  border:1.5px solid transparent;background:rgba(255,255,255,.05);
-  font-size:19px;line-height:1;display:flex;align-items:center;justify-content:center;
-  transition:all .12s;-webkit-tap-highlight-color:transparent}
-.kat-iko-btn:hover{background:rgba(243,205,130,.15)}
-.kat-iko-btn.aktywny{border-color:var(--zloto-2);
-  background:linear-gradient(180deg,var(--zloto),#b8821f);
-  box-shadow:0 0 0 2px rgba(224,169,85,.25)}
 
 /* Licznik widoczny TYLKO w trybie admin (?admin=1) - w trybie wędrowca i w wygenerowanej mapie ukryty */
 body:not(.tryb-admin) .licznik-pobran{display:none !important}
@@ -1422,19 +1791,41 @@ document.addEventListener('DOMContentLoaded', odswiezLicznikPobran);
 </script>
 
 </head>
-<body>
+<body class="">
 
 <!-- LICZNIK POBRAŃ (prawy górny róg) -->
 <div class="licznik-pobran" title="Łączna liczba pobranych map">
   <span class="lp-ikona">📥</span>
   <span class="lp-label">Pobrań</span>
-  <span class="lp-liczba" id="lp-liczba">—</span>
+  <span class="lp-liczba" id="lp-liczba">64</span>
 </div>
 
 <!-- Hamburger (dotyk, pion) -->
 <div class="hamburger" id="hamburger" onclick="przelacznikPanelu()" aria-label="Menu">
   <span></span><span></span><span></span>
 </div>
+
+<!-- Plakietka z nazwą mapy (tylko widok gościa - biało, rozmyte szkło) -->
+<div class="topbar-nazwa" id="topbarNazwa">
+  <span id="topbarNazwaTekst">Miasto - Siedliszcze</span>
+</div>
+<div class="herb-brak" id="topbarHerb">brak pliku<br>img/herb.jpg<br>(.png / .webp)</div>
+<img class="herb-rog" id="topbarHerbImg" alt="Herb" style="display:none">
+<script>
+(function wczytajHerb(){
+  const img = document.getElementById('topbarHerbImg');
+  const brak = document.getElementById('topbarHerb');
+  const proby = ['img/herb.jpg', 'img/herb.png', 'img/herb.webp'];
+  let i = 0;
+  function sprobuj(){
+    if (i >= proby.length) { return; } // zostaw "brak pliku"
+    img.onload = function(){ img.style.display = ''; if (brak) brak.style.display = 'none'; };
+    img.onerror = function(){ i++; sprobuj(); };
+    img.src = proby[i];
+  }
+  sprobuj();
+})();
+</script>
 
 <!-- Tło pod wysuniętym panelem -->
 <div class="panel-backdrop" id="panelBackdrop" onclick="zamknijPanel()"></div>
@@ -1444,10 +1835,17 @@ document.addEventListener('DOMContentLoaded', odswiezLicznikPobran);
 <div class="opis-strony-modal" id="opisStronyModal">
   <div class="opis-strony-box">
     <button class="opis-strony-zamknij" onclick="zamknijOpisStrony()" aria-label="Zamknij">×</button>
-    <h2 id="opisStronyModalTytul">O tej mapie</h2>
-    <div id="opisStronyModalTresc"></div>
+    <h2 id="opisStronyModalTytul">Miasto - Siedliszcze</h2>
+    <div id="opisStronyModalTresc"><div class="detail-opis"><p>zapomniane źródła</p></div></div>
   </div>
 </div>
+
+<!-- LIGHTBOX - podgląd zdjęcia w pełnej rozdzielczości (bez opuszczania strony) -->
+<div class="lightbox-foto" id="lightboxFoto" onclick="zamknijLightbox()">
+  <button class="lightbox-zamknij" onclick="event.stopPropagation();zamknijLightbox()" aria-label="Zamknij">×</button>
+  <img id="lightboxFotoImg" src="" alt="" onclick="event.stopPropagation()">
+</div>
+
 
 
 <!-- PRAWY hamburger - menu zapisu (dotyk + tryb admin) -->
@@ -1638,6 +2036,88 @@ document.addEventListener('DOMContentLoaded', odswiezLicznikPobran);
   </div>
 </div>
 
+<!-- ============================================================
+     PANEL "STREFA TŁA" - osobny od kropek audio. Zapętlony dźwięk
+     (mp3) ALBO komunikat czytany głosem przeglądarki, uruchamiany
+     automatycznie gdy gość wejdzie w obręb koła/wielokąta.
+     ============================================================ -->
+<div class="panel-backdrop2" id="panelBackdropStrefa" onclick="zamknijPanelStrefa()"></div>
+<div class="panel-modal" id="panelStrefa">
+  <h2 id="panelStrefaTytul">🌳 Dodaj strefę tła</h2>
+
+  <label class="panel-label">Nazwa <span class="opcj">(tylko dla Ciebie, do rozpoznania na liście)</span></label>
+  <input type="text" id="strefaNazwa" maxlength="80" placeholder="np. Park miejski / ul. Kościuszki">
+
+  <label class="panel-label">Kształt strefy</label>
+  <div class="rozmiar-wybor" id="strefaKsztaltWybor">
+    <div class="rozmiar-opcja wybrany" data-ksztalt="kolo" onclick="ustawKsztaltStrefa('kolo')">
+      <span class="ikona">⭕</span>Okrąg — punkt + promień
+    </div>
+    <div class="rozmiar-opcja" data-ksztalt="wielokat" onclick="ustawKsztaltStrefa('wielokat')">
+      <span class="ikona">✏️</span>Rysuj kształt — dowolny obrys
+    </div>
+  </div>
+
+  <div id="strefaKoloBlok">
+    <label class="panel-label">Promień strefy: <span id="strefaZasiegLabel" class="akcent-zasieg">100 m</span></label>
+    <input type="range" id="strefaZasieg" min="20" max="2000" step="10" value="100" class="suwak-zasieg" oninput="aktualizujStrefaZasiegLabel()">
+  </div>
+
+  <div id="strefaWielokatBlok" style="display:none">
+    <div class="intro-hint" id="strefaWielokatInfo" style="margin-bottom:10px">Kliknij „✏️ Rysuj strefę na mapie", potem klikaj punkty po obrysie terenu (min. 3).</div>
+    <button type="button" class="btn-pozycja" style="width:100%;margin-bottom:12px" onclick="rozpocznijRysowanieStrefy()">✏️ Rysuj strefę na mapie</button>
+  </div>
+
+  <label class="panel-label">Co ma się odtworzyć?</label>
+  <div class="rozmiar-wybor" id="strefaZrodloWybor">
+    <div class="rozmiar-opcja wybrany" data-zrodlo="plik" onclick="ustawZrodloStrefa('plik')">
+      <span class="ikona">📻</span>Plik mp3 — pętla klimatu
+    </div>
+    <div class="rozmiar-opcja" data-zrodlo="mowa" onclick="ustawZrodloStrefa('mowa')">
+      <span class="ikona">🗣️</span>Komunikat głosowy
+    </div>
+  </div>
+
+  <!-- ŹRÓDŁO: PLIK MP3 -->
+  <div id="strefaPlikBlok">
+    <label class="panel-label">Nazwa pliku audio</label>
+    <input type="text" id="strefaPlik" maxlength="80" placeholder="np. tlo1">
+    <div class="instrukcja-360" id="instrStrefa">
+      <div class="instr-tytul" onclick="document.getElementById('instrStrefa').classList.toggle('otwarta')">
+        <span>🎧 Jak dodać nagranie?</span>
+        <span class="strzalka">▼</span>
+      </div>
+      <div class="instr-tresc">
+        <ol>
+          <li>Nagraj lub znajdź dźwięk otoczenia w formacie <b>MP3</b> (np. śpiew ptaków, gwar).</li>
+          <li>Zmień nazwę pliku na: <code id="strefaPrzyklad">tlo1.mp3</code></li>
+          <li>Wgraj plik do folderu <code>audio/</code> na serwerze (obok <code>index.html</code>).</li>
+        </ol>
+        <p class="instr-uwaga">W polu wpisz samą nazwę (bez <code>.mp3</code>). Dobra konwencja: <code>tlo1</code>, <code>tlo2</code>, <code>tlo3</code>...</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ŹRÓDŁO: KOMUNIKAT GŁOSOWY -->
+  <div id="strefaMowaBlok" style="display:none">
+    <label class="panel-label">Tekst do przeczytania <span class="opcj">(głosem przeglądarki, po polsku)</span></label>
+    <textarea id="strefaTekst" maxlength="500" placeholder="np. Jesteś na ulicy Kościuszki. Po lewej zobaczysz dawny ratusz z XVIII wieku."></textarea>
+    <div class="intro-hint">Odtwarza się raz, gdy gość wejdzie w strefę (nie w pętli — to komunikat, nie muzyka).</div>
+    <button type="button" class="btn-pozycja" style="margin-top:8px" onclick="testujMowe()">🔊 Odsłuchaj próbkę</button>
+  </div>
+
+  <label class="panel-label">Lokalizacja</label>
+  <div class="pozycja-wiersz">
+    <div class="pozycja-tekst" id="strefaPozycjaTekst">Kliknij miejsce na mapie lub użyj GPS</div>
+    <button class="btn-pozycja" onclick="uzyjMojejPozycji('strefa')">📍 Moja pozycja</button>
+  </div>
+
+  <div class="panel-akcje">
+    <button class="btn-zatwierdz" id="btnZatwierdzStrefa" onclick="zatwierdzStrefa()">✓ Zatwierdź</button>
+    <button class="btn-anuluj" onclick="zamknijPanelStrefa()">✕ Anuluj</button>
+  </div>
+</div>
+
 <!-- Panel BOGATEGO MIEJSCA (modal) - wszystko naraz, bez instrukcji -->
 <div class="panel-backdrop2" id="panelBackdropMiejsce" onclick="zamknijPanelMiejsce()"></div>
 <div class="panel-modal" id="panelMiejsce">
@@ -1678,6 +2158,20 @@ document.addEventListener('DOMContentLoaded', odswiezLicznikPobran);
   <label class="panel-label">Opis</label>
   <textarea id="mscOpis" style="min-height:56px;max-height:90px" placeholder="Opis miejsca — kościół, pałac, kapliczka... Akapity oddziel pustą linią."></textarea>
 
+  <label class="panel-label">Wygląd pinezki na mapie <span class="opcj">(ważność miejsca)</span></label>
+  <div class="rozmiar-wybor" id="mscZnacznikWybor">
+    <div class="rozmiar-opcja wybrany" data-znacznik="pin" onclick="ustawZnacznikMiejsce('pin')">
+      <span class="ikona">📍</span>Ważne
+    </div>
+    <div class="rozmiar-opcja" data-znacznik="kropka" onclick="ustawZnacznikMiejsce('kropka')">
+      <span class="ikona">🔵</span>Drobne
+    </div>
+    <div class="rozmiar-opcja" data-znacznik="x" onclick="ustawZnacznikMiejsce('x')">
+      <span class="ikona">✕</span>Zaznaczone
+    </div>
+  </div>
+  <p class="tryb-opis" id="mscZnacznikOpis">Duża, wyraźna pinezka — kościoły, pałace, główne zabytki.</p>
+
   <label class="panel-label">Zasięg odtwarzania audio: <span id="mscZasiegLabel" class="akcent-zasieg">50 m</span></label>
   <input type="range" id="mscZasieg" min="10" max="200" step="10" value="50" class="suwak-zasieg" oninput="aktualizujZasiegMiejsce()">
 
@@ -1703,52 +2197,10 @@ document.addEventListener('DOMContentLoaded', odswiezLicznikPobran);
 
   <div id="katLista"></div>
 
-  <div class="kat-dwa">
-    <div>
-      <label class="panel-label">Nazwa kategorii</label>
-      <input type="text" id="katNazwa" maxlength="24" placeholder="np. Zabytki">
-    </div>
-    <div>
-      <label class="panel-label">Ikonka</label>
-      <input type="text" id="katIkona" maxlength="4" placeholder="🏰" style="text-align:center;font-size:18px" oninput="zaznaczIkone(this.value.trim())">
-    </div>
-  </div>
-  <div class="kat-ikony" id="katIkonyGrid">
-    <button type="button" class="kat-iko-btn" onclick="wybierzIkone('🏰')">🏰</button>
-    <button type="button" class="kat-iko-btn" onclick="wybierzIkone('⛪')">⛪</button>
-    <button type="button" class="kat-iko-btn" onclick="wybierzIkone('🏛️')">🏛️</button>
-    <button type="button" class="kat-iko-btn" onclick="wybierzIkone('🗿')">🗿</button>
-    <button type="button" class="kat-iko-btn" onclick="wybierzIkone('⛲')">⛲</button>
-    <button type="button" class="kat-iko-btn" onclick="wybierzIkone('🕯️')">🕯️</button>
-    <button type="button" class="kat-iko-btn" onclick="wybierzIkone('✝️')">✝️</button>
-    <button type="button" class="kat-iko-btn" onclick="wybierzIkone('⚔️')">⚔️</button>
-    <button type="button" class="kat-iko-btn" onclick="wybierzIkone('👻')">👻</button>
-    <button type="button" class="kat-iko-btn" onclick="wybierzIkone('📜')">📜</button>
-    <button type="button" class="kat-iko-btn" onclick="wybierzIkone('🌲')">🌲</button>
-    <button type="button" class="kat-iko-btn" onclick="wybierzIkone('🌳')">🌳</button>
-    <button type="button" class="kat-iko-btn" onclick="wybierzIkone('🌸')">🌸</button>
-    <button type="button" class="kat-iko-btn" onclick="wybierzIkone('🍄')">🍄</button>
-    <button type="button" class="kat-iko-btn" onclick="wybierzIkone('🦌')">🦌</button>
-    <button type="button" class="kat-iko-btn" onclick="wybierzIkone('🦅')">🦅</button>
-    <button type="button" class="kat-iko-btn" onclick="wybierzIkone('🐝')">🐝</button>
-    <button type="button" class="kat-iko-btn" onclick="wybierzIkone('💧')">💧</button>
-    <button type="button" class="kat-iko-btn" onclick="wybierzIkone('🌊')">🌊</button>
-    <button type="button" class="kat-iko-btn" onclick="wybierzIkone('⛰️')">⛰️</button>
-    <button type="button" class="kat-iko-btn" onclick="wybierzIkone('🕳️')">🕳️</button>
-    <button type="button" class="kat-iko-btn" onclick="wybierzIkone('⭐')">⭐</button>
-    <button type="button" class="kat-iko-btn" onclick="wybierzIkone('🌅')">🌅</button>
-    <button type="button" class="kat-iko-btn" onclick="wybierzIkone('🍽️')">🍽️</button>
-    <button type="button" class="kat-iko-btn" onclick="wybierzIkone('☕')">☕</button>
-    <button type="button" class="kat-iko-btn" onclick="wybierzIkone('🍺')">🍺</button>
-    <button type="button" class="kat-iko-btn" onclick="wybierzIkone('🧺')">🧺</button>
-    <button type="button" class="kat-iko-btn" onclick="wybierzIkone('🛏️')">🛏️</button>
-    <button type="button" class="kat-iko-btn" onclick="wybierzIkone('🅿️')">🅿️</button>
-    <button type="button" class="kat-iko-btn" onclick="wybierzIkone('📸')">📸</button>
-    <button type="button" class="kat-iko-btn" onclick="wybierzIkone('🎣')">🎣</button>
-    <button type="button" class="kat-iko-btn" onclick="wybierzIkone('👣')">👣</button>
-  </div>
-  <div class="intro-hint">Kliknij ikonkę z listy (albo wpisz własne emoji w pole).
-    Maks. 8 kategorii — rządek u gościa ma się mieścić na telefonie.</div>
+  <label class="panel-label">Nazwa kategorii</label>
+  <input type="text" id="katNazwa" maxlength="24" placeholder="np. Zabytki">
+
+  <div class="intro-hint">Maks. 8 kategorii — rządek u gościa ma się mieścić na telefonie.</div>
 
   <div class="panel-akcje">
     <button class="btn-zatwierdz" onclick="dodajKategorie()">➕ Dodaj kategorię</button>
@@ -1766,8 +2218,19 @@ document.addEventListener('DOMContentLoaded', odswiezLicznikPobran);
   <label class="panel-label">Autor <span class="opcj">(pokaże się tylko na ekranie intro, pod tytułem)</span></label>
   <input type="text" id="autorInput" maxlength="60" placeholder="np. Piotr · mini-klik.pl">
 
-  <label class="panel-label">Opis strony <span class="opcj">(akapity oddziel pustą linią)</span></label>
-  <textarea id="opisStronyInput" style="min-height:120px" placeholder="Tu napisz o czym jest ta mapa..."></textarea>
+  <label class="panel-label">Opis miejscowości <span class="opcj">(osobna karta nad listą miejsc + w ℹ️ na telefonie)</span></label>
+  <textarea id="opisMiejscowosciInput" maxlength="4000" placeholder="np. Krótka historia miejscowości, ciekawostki, co warto zobaczyć..."></textarea>
+
+  <label class="panel-label">Zdjęcie do opisu <span class="opcj">(opcjonalnie)</span></label>
+  <div class="intro-hint">Dodaj plik <code>img/opis-miejscowosci.jpg</code> na serwer obok index.html
+    (.png / .webp też działa) — pojawi się nad opisem, po rozwinięciu zielonej karty.</div>
+
+  <label class="panel-label">Film YouTube do opisu <span class="opcj">(opcjonalnie)</span></label>
+  <input type="url" id="opisYTInput" maxlength="300" placeholder="https://youtube.com/watch?v=...">
+
+  <label class="panel-label">Herb / logo <span class="opcj">(miniaturka obok nazwy, przy hamburgerze)</span></label>
+  <div class="intro-hint">Dodaj plik <code>img/herb.jpg</code> na serwer obok index.html — herb miasta, wioski,
+    logo strony, cokolwiek. Po wgraniu miniaturka pojawi się sama, obok nazwy mapy, tuż przy hamburgerze.</div>
 
   <label class="panel-label">Ekran intro <span class="opcj">(powitanie przed mapą)</span></label>
   <button type="button" class="intro-toggle" id="introToggle" onclick="przelaczIntro()">🎬 Intro na start: <b id="introToggleStan">WYŁĄCZONE</b></button>
@@ -1799,7 +2262,7 @@ document.addEventListener('DOMContentLoaded', odswiezLicznikPobran);
 
   <header>
     <div class="ornament">✦ ✦ ✦</div>
-    <h1>Nazwa strony</h1>
+    <h1>Miasto - Siedliszcze</h1>
     <div class="podtytul">mapa miejsc</div>
   </header>
 
@@ -1809,11 +2272,9 @@ document.addEventListener('DOMContentLoaded', odswiezLicznikPobran);
     <div class="pasek-rzad">
       <button class="ed-btn ed-btn-tytul" id="btnTytul" onclick="otworzPanelTytul()">✏️ Tytuł i opis</button>
       <span class="pasek-separator"></span>
-      <button class="ed-btn" id="btnYT" onclick="wlaczTrybDodawaniaYT()">🎬 YT</button>
-      <button class="ed-btn" id="btn360" onclick="wlaczTrybDodawania360()">📷 Zdjęcie</button>
-      <button class="ed-btn" id="btnAudio" onclick="wlaczTrybDodawaniaAudio()">🎧 Audio</button>
       <button class="ed-btn" id="btnRysuj" onclick="toggleRysowanie()">🎨 Rysuj</button>
       <button class="ed-btn ed-btn-miejsce" id="btnMiejsce" onclick="wlaczTrybDodawaniaMiejsce()">🏛️ Miejsce</button>
+      <button class="ed-btn" id="btnStrefa" onclick="wlaczTrybDodawaniaStrefy()">🌳 Strefa tła</button>
       <button class="ed-btn" id="btnKategorie" onclick="otworzPanelKategorie()">🏷️ Kategorie</button>
       <span class="pasek-separator"></span>
       <button class="ed-btn ed-btn-wczytaj" onclick="wczytajJSON()">📂 Wczytaj JSON</button>
@@ -1821,10 +2282,6 @@ document.addEventListener('DOMContentLoaded', odswiezLicznikPobran);
       <button class="ed-btn ed-btn-html" onclick="zapiszHTML()">📄 Zapisz HTML</button>
       <button class="ed-btn ed-btn-reset" onclick="wyczyscWszystko()">🗑️ Wyczyść wszystko</button>
     </div>
-    <!-- PĘDZEL KATEGORII - zaznacz ikonkę, a każdy nowo dodany punkt
-         (YT/Zdjęcie/Audio/Miejsce) dostanie tę kategorię. Klik na 🏷
-         przy karcie miejsca przemalowuje je aktywnym pędzlem. -->
-    <div class="kat-pedzle" id="katPedzle"></div>
   </div>
 
   <!-- PANEL NARZĘDZI RYSOWANIA (pokazuje się po kliknięciu 🎨 Rysuj) -->
@@ -1842,11 +2299,12 @@ document.addEventListener('DOMContentLoaded', odswiezLicznikPobran);
   </div>
 
   <div class="layout">
-    <div id="mapa">
+    <div id="mapa" class="" tabindex="0">
       <!-- GPS: nawigacja (śledzenie) + środkowanie + status -->
       <div class="gps-btn" id="gpsBtn" onclick="togglePozycja()" title="Włącz nawigację">🧭</div>
       <div class="mapa-btn" id="mapaBtn" onclick="przelaczMape()" title="Przełącz na widok satelitarny">🛰️</div>
-      <div class="center-btn" id="centerBtn" onclick="wysrodkujNaMnie()" title="Wyśrodkuj na mojej pozycji">⊙</div>
+      <div class="center-btn" id="centerBtn" onclick="wysrodkujNaMnie()" title="Wyśrodkuj na mojej pozycji" style="display: none;">⊙</div>
+      <div class="gps-btn tlo-btn" id="tloBtn" onclick="przelaczTloAudio()" title="Dźwięk stref: wyłączony (kliknij, aby włączyć)" style="display:none">👂</div>
       <div class="gps-status" id="gpsStatus"></div>
     </div>
 
@@ -1861,34 +2319,61 @@ document.addEventListener('DOMContentLoaded', odswiezLicznikPobran);
         </div>
         <div class="menu-kreska"></div>
         <div class="menu-stack">
-          <button onclick="menuDodaj('yt')" data-tryb="yt">🎬 Dodaj film YouTube</button>
-          <button onclick="menuDodaj('360')" data-tryb="360">📷 Dodaj zdjęcie</button>
-          <button onclick="menuDodaj('audio')" data-tryb="audio">🎧 Dodaj kropkę audio</button>
+          <button onclick="menuDodaj('miejsce')" data-tryb="miejsce">🏛️ Miejsce</button>
+          <button onclick="menuDodaj('strefa')" data-tryb="strefa">🌳 Strefa tła</button>
           <button onclick="menuDodaj('rysuj')" data-tryb="rysuj">🎨 Rysuj na mapie</button>
-          <button onclick="menuDodaj('miejsce')" data-tryb="miejsce">🏛️ Miejsce (wszystko naraz)</button>
         </div>
         <!-- Pędzel kategorii w wersji mobilnej - renderowany razem z desktopowym -->
-        <div class="kat-pedzle" id="katPedzleMobile"></div>
+        <div class="kat-pedzle ma" id="katPedzleMobile">
+    <button class="kat-kw" title="zabytek" onclick="wybierzPedzel('k1783358052016')">zabytek</button>
+    <button class="kat-kw" title="dupa" onclick="wybierzPedzel('k1783358645120')">dupa</button>
+    <button class="kat-kw" title="lisć" onclick="wybierzPedzel('k1783358670120')">lisć</button></div>
       </div>
 
-      <div class="sidebar-tytul">❦ Miejsca ❦</div>
+      <div class="sidebar-tytul" id="sidebarTytulMiejsca">❦ Miejsca ❦</div>
+
+      <!-- OPIS MIEJSCOWOŚCI - osobna karta, ZAWSZE pierwsza na liście, bez punktu na mapie -->
+      <div id="opisMiejscowosciKarta"></div>
+
+      <!-- PĘDZEL KATEGORII (admin, komputer) - zaznacz nazwę, a każdy nowo
+           dodany punkt dostanie tę kategorię. Klik na 🏷 przy karcie
+           miejsca przemalowuje je aktywnym pędzlem. Tylko admin - gość
+           ma swój własny rządek niżej (filtryKat, do filtrowania). -->
+      <div class="kat-pedzle ma" id="katPedzle">
+    <button class="kat-kw" title="zabytek" onclick="wybierzPedzel('k1783358052016')">zabytek</button>
+    <button class="kat-kw" title="dupa" onclick="wybierzPedzel('k1783358645120')">dupa</button>
+    <button class="kat-kw" title="lisć" onclick="wybierzPedzel('k1783358670120')">lisć</button></div>
 
       <!-- FILTRY KATEGORII - tylko tryb wędrowca (gość). Pokazywane przez JS. -->
       <div id="filtryKategorii" style="display:none">
-        <div class="filtr-tytul">Pokaż na mapie:</div>
-        <div class="filtry-rzad">
-          <button class="filtr-btn aktywny" data-kat="yt" onclick="przelaczFiltr('yt')">YT</button>
-          <button class="filtr-btn aktywny" data-kat="foto" onclick="przelaczFiltr('foto')">Foto</button>
-          <button class="filtr-btn aktywny" data-kat="audio" onclick="przelaczFiltr('audio')">Audio</button>
-          <button class="filtr-btn aktywny" data-kat="miejsce" onclick="przelaczFiltr('miejsce')"><span class="napis-admin">🏛️ Miejsce</span><span class="napis-wedrowca">Mix</span></button>
-        </div>
         <!-- WARSTWY KATEGORII (pojawiają się tylko, gdy mapa ma kategorie) -->
-        <div class="filtry-kat" id="filtryKat"></div>
+        <div class="filtry-kat ma" id="filtryKat">
+    <button class="kat-kw aktywny" title="zabytek" onclick="przelaczFiltrKat('k1783358052016')">zabytek</button>
+    <button class="kat-kw aktywny" title="dupa" onclick="przelaczFiltrKat('k1783358645120')">dupa</button>
+    <button class="kat-kw aktywny" title="lisć" onclick="przelaczFiltrKat('k1783358670120')">lisć</button></div>
       </div>
 
-      <div id="lista-miejsc">
-        <div class="pusto">Tu pojawi się lista miejsc.<br>Funkcje dodamy po kolei.</div>
-      </div>
+      <div id="lista-miejsc"><div class="miejsce-card" id="karta-msc-1783359154632">
+        <div class="nazwa karta-glowka" onclick="event.stopPropagation();toggleRozwinMiejsce('msc-1783359154632')">
+          <span class="karta-badge smiejsce">📍</span>
+          <span class="karta-nazwa-tekst">Krynica</span>
+          <span class="karta-miniaturka-brak">🖼️</span>
+        </div>
+        <div class="karta-podglad-opis" onclick="event.stopPropagation();toggleRozwinMiejsce('msc-1783359154632')">Kościół i klasztor franciszkanów zostały ufundowane w 1448 r. przez ostatniego księcia opawsko-głubczyckiego z rodu Przemyślidów – Jana Pobożnego. Istniejący obecnie kompleks powstał w latach 1753–70 wg projektu Jana Innocentego Töppera z Prudnika. Obejmuje on budynek klasztoru w formie czworoboku z wirydarzem pośrodku oraz barokowy kościół pw. św św. Idziego i Bernardyna. Nad portalem kościoła dostrzec można płaskorzeźbione godło zakonu franciszkanów: skrzyżowane ramiona Chrystusa i św. Franciszka z Asyżu. Wystrój jednonawowej świątyni utrzymany jest w stylu barokowo-rokokowym. Do klasztoru przylega budynek wzniesiony w 1752 r., w którym niegdyś mieściło się gimnazjum.</div>
+        <div class="karta-akcje">
+    <button class="karta-akcja-btn" title="Kategoria: pomaluj aktywnym pędzlem" onclick="event.stopPropagation();przemalujMiejsce('msc-1783359154632')">🏷</button>
+    <button class="karta-akcja-btn" title="Edytuj" onclick="event.stopPropagation();edytujZListy('msc-1783359154632')">🛠</button>
+    <button class="karta-akcja-btn karta-akcja-usun" title="Usuń" onclick="event.stopPropagation();usunZListy('msc-1783359154632')">🗑</button></div></div><div class="miejsce-card" id="karta-msc-1783379723883">
+        <div class="nazwa karta-glowka" onclick="event.stopPropagation();toggleRozwinMiejsce('msc-1783379723883')">
+          <span class="karta-badge smiejsce">📍</span>
+          <span class="karta-nazwa-tekst">bagno</span>
+          <span class="karta-miniaturka-brak">🖼️</span>
+        </div>
+        <div class="karta-podglad-opis" onclick="event.stopPropagation();toggleRozwinMiejsce('msc-1783379723883')">Brak opisu.</div>
+        <div class="karta-akcje">
+    <button class="karta-akcja-btn" title="Kategoria: pomaluj aktywnym pędzlem" onclick="event.stopPropagation();przemalujMiejsce('msc-1783379723883')">🏷</button>
+    <button class="karta-akcja-btn" title="Edytuj" onclick="event.stopPropagation();edytujZListy('msc-1783379723883')">🛠</button>
+    <button class="karta-akcja-btn karta-akcja-usun" title="Usuń" onclick="event.stopPropagation();usunZListy('msc-1783379723883')">🗑</button></div></div></div>
     </aside>
   </div>
 
@@ -1903,7 +2388,7 @@ document.addEventListener('DOMContentLoaded', odswiezLicznikPobran);
   </div>
 
   <!-- OPIS STRONY pod mapą (komputer). Na telefonie ukryty - jest w prawym hamburgerze. -->
-  <div id="opisStronyPodMapa"></div>
+  <div id="opisStronyPodMapa"><div class="detail-opis"><p>zapomniane źródła</p></div></div>
 
   <footer>Skarbiec · fundament wyglądu</footer>
 </div>
@@ -1927,8 +2412,8 @@ document.addEventListener('DOMContentLoaded', odswiezLicznikPobran);
 
 
 <!-- Osadzone miejsca (wypełniane przy "Zapisz HTML"). Pusta tablica = brak. -->
-<script id="daneMiejsc" type="application/json">[]</script>
-<script id="daneStrony" type="application/json">{}</script>
+<script id="daneMiejsc" type="application/json">[{"typ":"miejsce","kat":"k1783358052016","nazwa":"Krynica","plik":"2","link":"https://www.youtube.com/watch?v=EkKK4IQakP0","fotoTyp":"zwykle","maMp3":true,"opis":"Kościół i klasztor franciszkanów zostały ufundowane w 1448 r. przez ostatniego księcia opawsko-głubczyckiego z rodu Przemyślidów – Jana Pobożnego. Istniejący obecnie kompleks powstał w latach 1753–70 wg projektu Jana Innocentego Töppera z Prudnika. Obejmuje on budynek klasztoru w formie czworoboku z wirydarzem pośrodku oraz barokowy kościół pw. św św. Idziego i Bernardyna. Nad portalem kościoła dostrzec można płaskorzeźbione godło zakonu franciszkanów: skrzyżowane ramiona Chrystusa i św. Franciszka z Asyżu. Wystrój jednonawowej świątyni utrzymany jest w stylu barokowo-rokokowym. Do klasztoru przylega budynek wzniesiony w 1752 r., w którym niegdyś mieściło się gimnazjum.","zasieg":50,"klucz":"msc-1783359154632","pozycja":[53.11665267739275,15.789550915360453]},{"typ":"miejsce","kat":"k1783358670120","nazwa":"bagno","plik":"3","link":"https://www.youtube.com/watch?v=EkKK4IQakP0","fotoTyp":"zwykle","maMp3":true,"opis":"","zasieg":50,"klucz":"msc-1783379723883","pozycja":[53.12078133340499,15.923171999165792]}]</script>
+<script id="daneStrony" type="application/json">{"tytul":"Miasto - Siedliszcze","opis":"zapomniane źródła","autor":"mini - klik.pl","intro":true,"kategorie":[{"id":"k1783358052016","nazwa":"zabytek"},{"id":"k1783358645120","nazwa":"dupa"},{"id":"k1783358670120","nazwa":"lisć"}]}</script>
 
 <script>
 // ============================================================
@@ -2031,11 +2516,26 @@ function przelacznikPanelu(){
   h.classList.toggle('open', otwarty);
   b.classList.toggle('open', otwarty);
 }
+function otworzPanel(){
+  document.getElementById('sidebarLewy').classList.add('open');
+  document.getElementById('hamburger').classList.add('open');
+  document.getElementById('panelBackdrop').classList.add('open');
+}
 function zamknijPanel(){
   document.getElementById('sidebarLewy').classList.remove('open');
   document.getElementById('hamburger').classList.remove('open');
   document.getElementById('panelBackdrop').classList.remove('open');
+  // Centrowanie NIE wznawia się samo po zamknięciu panelu - user sam
+  // decyduje kiedy wrócić, przyciskiem ⊙. Inaczej nie dało się spokojnie
+  // obejrzeć miejsca na mapie, bo zaraz "odskakiwało" z powrotem.
 }
+// U gościa backdrop pod szufladą ma pointer-events:none (żeby dało się
+// przeciągać mapę pod otwartym panelem), więc klik w mapę już nie zamyka
+// szuflady sam z siebie - dopinamy to bezpośrednio na mapie.
+mapa.on('click', () => {
+  const s = document.getElementById('sidebarLewy');
+  if (s && s.classList.contains('open')) zamknijPanel();
+});
 
 // ============================================================
 // GPS - nawigacja na żywo + środkowanie (wierne z oryginału)
@@ -2052,6 +2552,19 @@ let watchId = null;
 let autoCenterAktywny = false;
 // flaga "mapa sama się przesuwa" - by drag programowy nie wyłączał auto-center.
 let mapaProgramowoPrzesuwana = false;
+
+// Wspólna funkcja: zatrzymuje auto-center i płynnie dolatuje mapą do punktu.
+// Używane przy kliku pinezki i przy rozwijaniu karty miejsca w panelu bocznym.
+// Centrowanie zostaje wyłączone NA STAŁE, dopóki user sam nie wciśnie ⊙ -
+// dzięki temu może spokojnie obejrzeć miejsce, mapa mu nie "odskoczy".
+function centrujNaMiejscu(m) {
+  if (!m || !Array.isArray(m.pozycja)) return;
+  autoCenterAktywny = false;
+  aktualizujPrzyciskCenter();
+  mapaProgramowoPrzesuwana = true;
+  mapa.flyTo(m.pozycja, 16, { duration: 1.0 });
+  setTimeout(() => { mapaProgramowoPrzesuwana = false; }, 1100);
+}
 
 const gpsBtn = document.getElementById('gpsBtn');
 const gpsStatus = document.getElementById('gpsStatus');
@@ -2110,7 +2623,8 @@ function pokazPozycje(pos) {
 
   aktualizujListeMiejsc();
   aktualizujWidocznoscWysrodkowania();
-  sprawdzKropkiAudio();   // radar: sprawdź wejście w zasięg kropek audio
+  try { sprawdzKropkiAudio(); } catch (e) { console.error('sprawdzKropkiAudio:', e); }   // radar: sprawdź wejście w zasięg kropek audio
+  try { sprawdzStrefyTla(); } catch (e) { console.error('sprawdzStrefyTla:', e); }       // tło audio: sprawdź czy jestem w obrębie strefy zapętlonej
   // Fale-wabiki: jeśli zmienił się zestaw widocznych fal, przerysuj kropki
   if (sprawdzFale() && typeof renderujMiejsca === 'function') renderujMiejsca();
 }
@@ -2159,6 +2673,7 @@ function togglePozycja() {
     document.querySelectorAll('.miejsce-card .dystans').forEach(d => d.remove());
     aktualizujWidocznoscWysrodkowania();
     resetRadarAudio();   // wyłączenie nawigacji zeruje radar audio
+    zatrzymajAudioTlo(); // bez GPS nie da się sprawdzać stref tła
     return;
   }
 
@@ -2207,8 +2722,11 @@ function wysrodkujNaMnie() {
 // Wygląd przycisku ⊙ - pulsuje gdy auto-center aktywny
 function aktualizujPrzyciskCenter() {
   const btn = document.getElementById('centerBtn');
-  if (!btn) return;
-  btn.classList.toggle('sledzi', autoCenterAktywny);
+  if (btn) btn.classList.toggle('sledzi', autoCenterAktywny);
+  // Wyśrodkowanie to trzeci warunek stref tła (obok zasięgu i ucha) -
+  // każda jego zmiana (klik pinezki gdzie indziej, przeciągnięcie mapy,
+  // powrót przez ⊙) natychmiast przelicza, czy strefa ma grać.
+  if (typeof sprawdzStrefyTla === 'function') sprawdzStrefyTla();
 }
 
 // Pokaż ⊙ tylko gdy mamy pozycję
@@ -2252,17 +2770,16 @@ function ukryjInfo() {
 // Z menu mobilnego (hamburger) - wybór co dodać
 function menuDodaj(typ) {
   if (typeof zamknijPanel === 'function') zamknijPanel(); // zamknij wysuwane menu
-  if (typ === 'yt') wlaczTrybDodawaniaYT();
-  else if (typ === '360') wlaczTrybDodawania360();
-  else if (typ === 'audio') wlaczTrybDodawaniaAudio();
-  else if (typ === 'rysuj') toggleRysowanie();
+  if (typ === 'rysuj') toggleRysowanie();
   else if (typ === 'miejsce') wlaczTrybDodawaniaMiejsce();
+  else if (typ === 'strefa') wlaczTrybDodawaniaStrefy();
   else if (typ === 'tytul') otworzPanelTytul();
   else if (typ === 'kategorie') otworzPanelKategorie();
 }
 
 // ============================================================
-// TRYB ADMIN (?admin=1) - pokazuje pasek edytora
+// TRYB ADMIN (?admin=1) - pokazuje pasek edytora. Działa na komputerze
+// I na telefonie/tablecie - do montowania miejsc bezpośrednio w terenie.
 // ============================================================
 const isAdmin = new URLSearchParams(window.location.search).get('admin') === '1';
 if (isAdmin) document.body.classList.add('tryb-admin');
@@ -2278,6 +2795,7 @@ let miejsca = [];
 let markery = [];
 let tytulStrony = '';
 let opisStrony = '';
+let opisYT = '';       // opcjonalny link YouTube przy opisie miejscowości
 let autorStrony = '';  // autor mapy - widoczny TYLKO na ekranie intro, pod tytułem
 let introStrony = false; // ekran intro przed mapą (przełącznik w "Tytuł i opis")
 let kategorieMapy = [];   // kategorie miejsc: [{id, nazwa, ikona}]
@@ -2306,12 +2824,12 @@ function wczytajStrone() {
   // UWAGA: localStorage tylko dla admina - wędrowiec zawsze z osadzonych danych
   try {
     const raw = isAdmin ? localStorage.getItem(KEY_STRONA) : null;
-    if (raw) { const s = JSON.parse(raw); tytulStrony = s.tytul||''; opisStrony = s.opis||''; autorStrony = s.autor||''; introStrony = s.intro === true; kategorieMapy = Array.isArray(s.kategorie) ? s.kategorie : []; }
+    if (raw) { const s = JSON.parse(raw); tytulStrony = s.tytul||''; opisStrony = s.opis||''; opisYT = s.opisYT||''; autorStrony = s.autor||''; introStrony = s.intro === true; kategorieMapy = Array.isArray(s.kategorie) ? s.kategorie : []; }
     else {
       const el = document.getElementById('daneStrony');
       if (el && el.textContent.trim()) {
         const s = JSON.parse(el.textContent);
-        tytulStrony = s.tytul||''; opisStrony = s.opis||''; autorStrony = s.autor||''; introStrony = s.intro === true;
+        tytulStrony = s.tytul||''; opisStrony = s.opis||''; opisYT = s.opisYT||''; autorStrony = s.autor||''; introStrony = s.intro === true;
         kategorieMapy = Array.isArray(s.kategorie) ? s.kategorie : [];
       }
     }
@@ -2321,7 +2839,7 @@ function zapiszMiejsca() {
   try { localStorage.setItem(KEY_MIEJSCA, JSON.stringify(miejsca)); } catch(e) {}
 }
 function zapiszStrone() {
-  try { localStorage.setItem(KEY_STRONA, JSON.stringify({tytul:tytulStrony, opis:opisStrony, autor:autorStrony, intro:introStrony === true, kategorie:kategorieMapy})); } catch(e) {}
+  try { localStorage.setItem(KEY_STRONA, JSON.stringify({tytul:tytulStrony, opis:opisStrony, opisYT:opisYT, autor:autorStrony, intro:introStrony === true, kategorie:kategorieMapy})); } catch(e) {}
 }
 
 // ============================================================
@@ -2365,6 +2883,7 @@ async function zapiszJSON() {
     autorStrony: autorStrony || '',
     kategorieMapy: kategorieMapy,
     opisStrony: opisStrony || '',
+    opisYT: opisYT || '',
     miejsca: Array.isArray(miejsca) ? miejsca : []
   };
 
@@ -2413,8 +2932,8 @@ function _zastosujWczytaneDane(dane) {
   // Jeśli mapa jest pusta - po prostu wczytaj (bez pytania o łączenie)
   if (miejsca.length === 0) {
     localStorage.setItem(KEY_MIEJSCA, JSON.stringify(wczMiejsca));
-    if (dane.tytulStrony || dane.opisStrony || dane.autorStrony || dane.introStrony || (Array.isArray(dane.kategorieMapy) && dane.kategorieMapy.length)) {
-      localStorage.setItem(KEY_STRONA, JSON.stringify({tytul:dane.tytulStrony||'', opis:dane.opisStrony||'', autor:dane.autorStrony||'', intro:dane.introStrony === true, kategorie:Array.isArray(dane.kategorieMapy) ? dane.kategorieMapy : []}));
+    if (dane.tytulStrony || dane.opisStrony || dane.opisYT || dane.autorStrony || dane.introStrony || (Array.isArray(dane.kategorieMapy) && dane.kategorieMapy.length)) {
+      localStorage.setItem(KEY_STRONA, JSON.stringify({tytul:dane.tytulStrony||'', opis:dane.opisStrony||'', opisYT:dane.opisYT||'', autor:dane.autorStrony||'', intro:dane.introStrony === true, kategorie:Array.isArray(dane.kategorieMapy) ? dane.kategorieMapy : []}));
     }
     alert('✓ Wczytano ' + wczMiejsca.length + ' miejsc.\n\nStrona za chwilę się odświeży.');
     location.reload();
@@ -2459,10 +2978,10 @@ function _zastosujWczytaneDane(dane) {
 
   localStorage.setItem(KEY_MIEJSCA, JSON.stringify(wynik));
   // Nowa mapa: bierz tytuł/opis z wczytanych danych. Połącz: ustaw tylko jeśli obecny pusty.
-  if (!polacz && (dane.tytulStrony || dane.opisStrony || dane.autorStrony || dane.introStrony || (Array.isArray(dane.kategorieMapy) && dane.kategorieMapy.length))) {
-    localStorage.setItem(KEY_STRONA, JSON.stringify({tytul:dane.tytulStrony||'', opis:dane.opisStrony||'', autor:dane.autorStrony||'', intro:dane.introStrony === true, kategorie:Array.isArray(dane.kategorieMapy) ? dane.kategorieMapy : []}));
-  } else if (polacz && !tytulStrony && !opisStrony && (dane.tytulStrony || dane.opisStrony || dane.autorStrony || dane.introStrony || (Array.isArray(dane.kategorieMapy) && dane.kategorieMapy.length))) {
-    localStorage.setItem(KEY_STRONA, JSON.stringify({tytul:dane.tytulStrony||'', opis:dane.opisStrony||'', autor:dane.autorStrony||'', intro:dane.introStrony === true, kategorie:Array.isArray(dane.kategorieMapy) ? dane.kategorieMapy : []}));
+  if (!polacz && (dane.tytulStrony || dane.opisStrony || dane.opisYT || dane.autorStrony || dane.introStrony || (Array.isArray(dane.kategorieMapy) && dane.kategorieMapy.length))) {
+    localStorage.setItem(KEY_STRONA, JSON.stringify({tytul:dane.tytulStrony||'', opis:dane.opisStrony||'', opisYT:dane.opisYT||'', autor:dane.autorStrony||'', intro:dane.introStrony === true, kategorie:Array.isArray(dane.kategorieMapy) ? dane.kategorieMapy : []}));
+  } else if (polacz && !tytulStrony && !opisStrony && (dane.tytulStrony || dane.opisStrony || dane.opisYT || dane.autorStrony || dane.introStrony || (Array.isArray(dane.kategorieMapy) && dane.kategorieMapy.length))) {
+    localStorage.setItem(KEY_STRONA, JSON.stringify({tytul:dane.tytulStrony||'', opis:dane.opisStrony||'', opisYT:dane.opisYT||'', autor:dane.autorStrony||'', intro:dane.introStrony === true, kategorie:Array.isArray(dane.kategorieMapy) ? dane.kategorieMapy : []}));
   }
   alert(komunikat + '\n\nStrona za chwilę się odświeży.');
   location.reload();
@@ -2617,7 +3136,7 @@ function zapiszHTML() {
       html = html.replace(/<script id="daneMiejsc"[^>]*>[\s\S]*?<\/script>/, () => blokDanych);
     }
     // Ten sam pancerz co wyżej - tytuł/opis strony też mogą mieć "<" i "$".
-    const jsonStrony = JSON.stringify({tytul:tytulStrony||'', opis:opisStrony||'', autor:autorStrony||'', intro:introStrony === true, kategorie:kategorieMapy}).replace(/</g, '\\u003c');
+    const jsonStrony = JSON.stringify({tytul:tytulStrony||'', opis:opisStrony||'', opisYT:opisYT||'', autor:autorStrony||'', intro:introStrony === true, kategorie:kategorieMapy}).replace(/</g, '\\u003c');
     const blokStrony = `<script id="daneStrony" type="application/json">${jsonStrony}<\/script>`;
     if (/<script id="daneStrony"[^>]*>[\s\S]*?<\/script>/.test(html)) {
       html = html.replace(/<script id="daneStrony"[^>]*>[\s\S]*?<\/script>/, () => blokStrony);
@@ -2739,6 +3258,8 @@ function wylaczWszystkieTryby() {
   trybDodawania360 = false;
   trybDodawaniaAudio = false;
   trybDodawaniaMiejsce = false;
+  trybDodawaniaStrefy = false;
+  document.getElementById('btnStrefa')?.classList.remove('aktywny');
   // rysowanie: jeśli było włączone, schowaj panel poprawnie
   if (typeof trybRysowaniaWlaczony !== 'undefined' && trybRysowaniaWlaczony) {
     trybRysowaniaWlaczony = false;
@@ -2758,10 +3279,11 @@ function syncPrzyciski() {
     '360': !!trybDodawania360,
     audio: !!trybDodawaniaAudio,
     rysuj: !!(typeof trybRysowaniaWlaczony !== 'undefined' && trybRysowaniaWlaczony),
-    miejsce: !!trybDodawaniaMiejsce
+    miejsce: !!trybDodawaniaMiejsce,
+    strefa: !!trybDodawaniaStrefy
   };
   // pasek (przyciski po ID)
-  const mapaBtn = { yt:'btnYT', '360':'btn360', audio:'btnAudio', rysuj:'btnRysuj', miejsce:'btnMiejsce' };
+  const mapaBtn = { yt:'btnYT', '360':'btn360', audio:'btnAudio', rysuj:'btnRysuj', miejsce:'btnMiejsce', strefa:'btnStrefa' };
   Object.keys(mapaBtn).forEach(k => {
     const b = document.getElementById(mapaBtn[k]);
     if (b) b.classList.toggle('aktywny', stan[k]);
@@ -2908,7 +3430,7 @@ function zatwierdzYT() {
   zamknijPanelYT();
   // wyłącz tryb dodawania po dodaniu
   trybDodawaniaYT = false;
-  document.getElementById('btnYT').classList.remove('aktywny');
+  document.getElementById('btnYT')?.classList.remove('aktywny');
   ukryjInfo();
 }
 
@@ -3256,7 +3778,7 @@ function zatwierdz360() {
 
   zamknijPanel360();
   trybDodawania360 = false;
-  document.getElementById('btn360').classList.remove('aktywny');
+  document.getElementById('btn360')?.classList.remove('aktywny');
   ukryjInfo();
 }
 
@@ -3405,6 +3927,10 @@ function resetRadarAudio() {
   kropkiOdwiedzone = new Set();
   kropkiWZasiegu = new Set();
   faleWidoczne = new Set();        // wyłączenie nawigacji = fale-wabiki gasną
+  strefyMowaWewnatrz.clear();      // wyzeruj "byłem w strefie głosowej" - przy nawigacji od nowa
+  if (mowaAktywnaKlucz) { try { speechSynthesis.cancel(); } catch (e) {} }
+  mowaAktywnaKlucz = null;
+  mowaTloScisznieteBylo = false;
   zamknijSzufladkeWykryto();
   if (typeof renderujMiejsca === 'function') renderujMiejsca();   // kropki wracają do fioletu
 }
@@ -3442,7 +3968,9 @@ function sprawdzFale() {
 // Wywoływane przy każdej aktualizacji pozycji GPS (z pokazPozycje).
 function sprawdzKropkiAudio() {
   if (!userPozycja) return;
-  const kropki = miejsca.filter(m => m.typ === 'audio' && Array.isArray(m.pozycja));
+  // WAŻNE: tylko "wiersz" - strefy "tło" mają zupełnie osobny system (sprawdzStrefyTla),
+  // inaczej kropka tła zostałaby złapana też tutaj i zagrałaby podwójnie/w złym trybie.
+  const kropki = miejsca.filter(m => m.typ === 'audio' && m.podtyp !== 'tlo' && Array.isArray(m.pozycja));
   if (!kropki.length) return;
 
   const teraz = new Set();
@@ -3478,6 +4006,9 @@ function sprawdzKropkiAudio() {
     // Auto włączony -> graj tę kropkę raz (pomiń kropki bez pliku - bez alertu w terenie)
     if (autoAudioWlaczony && !kropkiOdsluchane.has(klucz)) {
       kropkiOdsluchane.add(klucz);
+      // Kropki (wiersze) i strefy tła (ucho) to dwie CAŁKOWICIE niezależne
+      // funkcje - jeśli się zejdą, grają razem. Turysta sam decyduje, czy
+      // chce słuchać obu naraz, czy wyciszy ucho.
       if (k && k.plik) odtworzAudio(k);
     }
   }
@@ -3485,6 +4016,226 @@ function sprawdzKropkiAudio() {
   if (trzebaPrzerysowac && typeof renderujMiejsca === 'function') renderujMiejsca();
   kropkiWZasiegu = teraz;
 }
+
+// =====================================================================
+// === TŁO AUDIO - odtwarzanie w pętli, gdy gość jest w strefie ========
+// =====================================================================
+let tloWlaczone = false;     // globalny przełącznik 👂 - DOMYŚLNIE WYŁĄCZONY.
+// Strefa NIGDY nie odpala się sama - musi być spełniony i fizyczny zasięg,
+// I świadome kliknięcie gościa w to ucho. Bez kliknięcia = całkowita cisza,
+// nawet stojąc w środku strefy.
+let audioTlo = null;         // aktualnie grający obiekt Audio (osobny kanał od "wiersza")
+let audioTloKlucz = null;    // klucz strefy MP3, której dźwięk teraz gra
+let strefyMowaWewnatrz = new Set(); // klucze stref głosowych, w których user AKTUALNIE fizycznie stoi
+let mowaAktywnaKlucz = null;  // klucz strefy, której komunikat jest W TOKU (czytany LUB spauzowany) - null gdy skończony/nic nie gra
+let mowaTloScisznieteBylo = false; // czy tło mp3 było ściszone dla aktywnego/spauzowanego komunikatu (do wznowienia)
+
+// Wywoływane przy każdej aktualizacji pozycji GPS - sprawdza czy user jest
+// w obrębie którejś strefy tła (koło ALBO rysowany wielokąt) i odtwarza/
+// zatrzymuje zapętlony dźwięk (mp3) albo czyta komunikat (mowa) odpowiednio.
+function sprawdzStrefyTla() {
+  if (!tloWlaczone) {
+    // Ucho fizycznie wyłączone -> PEŁNY STOP. Po ponownym włączeniu zacznie
+    // od zera z aktualnej strefy (nie wznawia starej wypowiedzi).
+    zatrzymajAudioTlo();
+    if (mowaAktywnaKlucz) { try { speechSynthesis.cancel(); } catch (e) {} }
+    mowaAktywnaKlucz = null;
+    mowaTloScisznieteBylo = false;
+    strefyMowaWewnatrz.clear();
+    return;
+  }
+
+  if (!userPozycja || !autoCenterAktywny) {
+    // GPS jeszcze nie widzi pozycji ALBO user ogląda inną pinezkę na mapie
+    // (kliknął kartę/marker gdzieś indziej -> wyśrodkowanie samo się wyłącza,
+    // patrz card.onclick). To NIE jest fizyczne opuszczenie strefy - user
+    // może dalej tam stać - więc tylko MIĘKKA PAUZA, ucho dalej nasłuchuje
+    // i wszystko wznowi się samo, jak tylko wróci wyśrodkowanie (⊙).
+    if (audioTlo && !audioTlo.paused) { try { audioTlo.pause(); } catch (e) {} }
+    if (mowaAktywnaKlucz) { try { speechSynthesis.pause(); } catch (e) {} }
+    return;
+  }
+
+  const strefy = miejsca.filter(m => m.typ === 'audio' && m.podtyp === 'tlo' && (m.plik || m.tekstMowa));
+
+  // --- KOMUNIKATY GŁOSOWE ---
+  // Wejście do strefy, w której komunikat był w toku (spauzowany bo wcześniej
+  // stąd wyszedłem) -> WZNÓW dokładnie tam, gdzie się urwał.
+  // Wejście do INNEJ strefy (albo tej samej, ale już wcześniej całkiem
+  // dokończonej) -> zacznij czytać ją OD NOWA.
+  // Wyjście ze strefy, która właśnie mówi -> PAUZA (nie stop) - można wrócić.
+  // Wciąż fizycznie w tej samej strefie, ale mowa spauzowana z innego powodu
+  // (wyśrodkowanie było chwilowo wyłączone, np. oglądałem inną pinezkę)
+  // -> WZNÓW, bo żadna transakcja wejścia/wyjścia się tu nie wydarzyła.
+  if (mowaAktywnaKlucz && speechSynthesis.paused && strefyMowaWewnatrz.has(mowaAktywnaKlucz)) {
+    wznowMowe();
+  }
+  for (const m of strefy) {
+    if (m.zrodloTla !== 'mowa' || !m.tekstMowa) continue;
+    const wSrodku = jestWStrefie(userPozycja, m);
+    const bylWSrodku = strefyMowaWewnatrz.has(m.klucz);
+
+    if (wSrodku && !bylWSrodku) {
+      strefyMowaWewnatrz.add(m.klucz);
+      if (m.klucz === mowaAktywnaKlucz) wznowMowe();
+      else rozpocznijMowe(m);
+    } else if (!wSrodku && bylWSrodku) {
+      strefyMowaWewnatrz.delete(m.klucz);
+      if (m.klucz === mowaAktywnaKlucz) zapauzujMowe();
+    }
+  }
+
+  // --- PĘTLA MP3 ---
+  const strefyMp3 = strefy.filter(m => m.zrodloTla !== 'mowa');
+
+  // Czy user jest nadal w strefie, która już gra? (unikamy przełączania na granicy)
+  if (audioTloKlucz) {
+    const aktualna = strefyMp3.find(m => m.klucz === audioTloKlucz);
+    if (aktualna && jestWStrefie(userPozycja, aktualna)) {
+      // Nadal ta sama strefa - jeśli była spauzowana (np. po powrocie z
+      // "oglądania innej pinezki"), wznów odtwarzanie.
+      if (audioTlo && audioTlo.paused && !mowaAktywnaKlucz) { try { audioTlo.play().catch(() => {}); } catch (e) {} }
+      return;
+    }
+  }
+
+  const trafienie = strefyMp3.find(m => jestWStrefie(userPozycja, m));
+  if (!trafienie) { zatrzymajAudioTlo(); return; }
+  if (trafienie.klucz === audioTloKlucz) return;   // już gra
+  odtworzAudioTlo(trafienie);
+}
+
+// Czy punkt (userPozycja) jest w obrębie strefy m (koło albo wielokąt)?
+function jestWStrefie(pozUser, m) {
+  if (m.ksztalt === 'wielokat' && Array.isArray(m.punkty) && m.punkty.length >= 3) {
+    return punktWWielokacie(pozUser.lat, pozUser.lng, m.punkty);
+  }
+  if (!Array.isArray(m.pozycja)) return false;
+  const promien = m.zasieg || 100;
+  return dystansMetry(pozUser.lat, pozUser.lng, m.pozycja[0], m.pozycja[1]) <= promien;
+}
+
+// Zacznij czytać komunikat OD NOWA (nowa strefa, albo ta sama już wcześniej dokończona)
+function rozpocznijMowe(m) {
+  if (!('speechSynthesis' in window) || !m.tekstMowa) return;
+  try { speechSynthesis.cancel(); } catch (e) {}   // przerwij cokolwiek innego, co mogło mówić
+
+  mowaTloScisznieteBylo = !!(audioTlo && !audioTlo.paused);
+  if (mowaTloScisznieteBylo) { try { audioTlo.pause(); } catch (e) {} }
+
+  const mow = () => {
+    try {
+      const u = new SpeechSynthesisUtterance(m.tekstMowa);
+      u.lang = 'pl-PL';
+      u.rate = 0.95;
+      u.onend = u.onerror = () => {
+        // Naturalnie dokończony - jeśli user nadal tu stoi, następne wejście
+        // (np. po wyjściu i powrocie) przeczyta go znów od początku.
+        mowaAktywnaKlucz = null;
+        if (mowaTloScisznieteBylo && audioTlo) { try { audioTlo.play().catch(() => {}); } catch (e) {} }
+        mowaTloScisznieteBylo = false;
+      };
+      mowaAktywnaKlucz = m.klucz;
+      speechSynthesis.speak(u);
+    } catch (e) {
+      mowaAktywnaKlucz = null;
+      if (mowaTloScisznieteBylo && audioTlo) { try { audioTlo.play().catch(() => {}); } catch (e) {} }
+      mowaTloScisznieteBylo = false;
+    }
+  };
+
+  // Lista głosów czasem ładuje się z opóźnieniem (zwłaszcza za pierwszym razem
+  // po otwarciu strony) - jeśli jeszcze pusta, poczekaj na nią max. 1s.
+  if (speechSynthesis.getVoices().length === 0) {
+    let juzMowil = false;
+    const naGlosy = () => { if (juzMowil) return; juzMowil = true; mow(); };
+    speechSynthesis.addEventListener('voiceschanged', naGlosy, { once: true });
+    setTimeout(naGlosy, 1000);
+  } else {
+    mow();
+  }
+}
+
+// User wyszedł ze strefy, której komunikat właśnie mówił -> pauza (nie stop).
+// Wznawiamy tło mp3 BEZPOŚREDNIO (bez ponownego wywoływania sprawdzStrefyTla,
+// żeby uniknąć rekurencji) - sekcja MP3 tuż niżej i tak zaraz doprecyzuje stan.
+function zapauzujMowe() {
+  try { speechSynthesis.pause(); } catch (e) {}
+  if (mowaTloScisznieteBylo && audioTlo) { try { audioTlo.play().catch(() => {}); } catch (e) {} }
+  mowaTloScisznieteBylo = false;
+}
+
+// User wrócił do strefy, której komunikat był spauzowany -> wznów dokładnie stamtąd
+function wznowMowe() {
+  mowaTloScisznieteBylo = !!(audioTlo && !audioTlo.paused);
+  if (mowaTloScisznieteBylo) { try { audioTlo.pause(); } catch (e) {} }
+  try { speechSynthesis.resume(); } catch (e) {}
+}
+
+// Test w panelu admina ("🔊 Odsłuchaj próbkę") - proste odczytanie bez
+// mechaniki stref (nie ma tu żadnej fizycznej strefy do pauzowania/wznawiania).
+function przeczytajTekst(tekst) {
+  if (!('speechSynthesis' in window) || !tekst) return;
+  try {
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(tekst);
+    u.lang = 'pl-PL';
+    u.rate = 0.95;
+    speechSynthesis.speak(u);
+  } catch (e) {}
+}
+
+function odtworzAudioTlo(m) {
+  // Czyszczenie "na cicho" (bez wyzwalania odłożonego wiersza - to tylko
+  // przełączenie z jednej strefy na drugą, nie prawdziwe zatrzymanie).
+  if (audioTlo) { try { audioTlo.pause(); } catch (e) {} audioTlo = null; }
+  try {
+    audioTlo = new Audio(`audio/${m.plik}.mp3`);
+    audioTlo.loop = true;
+    audioTlo.volume = 0.55;
+    audioTlo.play().catch(() => {});
+    audioTloKlucz = m.klucz;
+  } catch (e) {}
+}
+
+function zatrzymajAudioTlo() {
+  if (audioTlo) {
+    try { audioTlo.pause(); } catch (e) {}
+    audioTlo = null;
+  }
+  audioTloKlucz = null;
+}
+
+// Wywoływane po zakończeniu/zamknięciu/pauzie "wiersza" LUB komunikatu głosowego
+// - oddaje głos tłu mp3. Sprawdza aktualną pozycję na nowo (mogłem wyjść ze strefy).
+// Przycisk 👂 (widoczny u gościa tylko gdy mapa ma choć jedną strefę tła)
+function przelaczTloAudio() {
+  tloWlaczone = !tloWlaczone;
+  const btn = document.getElementById('tloBtn');
+  if (btn) {
+    btn.classList.toggle('active', tloWlaczone);
+    btn.title = tloWlaczone
+      ? 'Dźwięk stref: włączony (kliknij, aby wyłączyć)'
+      : 'Dźwięk stref: wyłączony — słychać tylko kropki (kliknij, aby włączyć)';
+  }
+  if (tloWlaczone) {
+    // Rozgrzej silniki audio/mowy (gest usera) - żeby przeglądarka pozwoliła
+    // grać dźwięk automatycznie, gdy user wejdzie w strefę.
+    try { const t = new Audio(); t.volume = 0.01; t.play().catch(() => {}); } catch (e) {}
+  }
+  // sprawdzStrefyTla() sama rozróżnia: ucho OFF = pełny stop (mp3 + mowa,
+  // od zera przy następnym włączeniu); ucho ON = start od aktualnej strefy.
+  sprawdzStrefyTla();
+}
+
+// Pokaż przycisk 🌳 tylko gdy na mapie jest choć jedna strefa tła
+function aktualizujWidocznoscTla() {
+  const btn = document.getElementById('tloBtn');
+  if (!btn) return;
+  const maStrefy = miejsca.some(m => m.typ === 'audio' && m.podtyp === 'tlo');
+  btn.style.display = maStrefy ? '' : 'none';
+}
+
 
 // Szufladka "Wykryto audio" - pokaż / ukryj
 function pokazSzufladkeWykryto() {
@@ -3523,6 +4274,329 @@ function decyzjaSzuflady(wybor) {
 }
 
 
+// =====================================================================
+// === STREFA TŁA - osobny panel/przycisk. Kształt "kolo"/"wielokat",  ==
+// === źródło dźwięku "plik" (mp3 w pętli) / "mowa" (komunikat głosem) ==
+// =====================================================================
+// Bez pinezki dla gościa - gra automatycznie gdy gość jest w obrębie
+// strefy (koło ALBO rysowany wielokąt) i ma włączony przełącznik "📻".
+let wybranyKsztaltStrefa = 'kolo';     // 'kolo' | 'wielokat'
+let wybranyZrodloStrefa = 'plik';      // 'plik' | 'mowa'
+let trybDodawaniaStrefy = false;       // czeka na pierwszy klik (środek/punkt referencyjny)
+let kliknietaPozycjaStrefa = null;
+let rysowanieStrefyAktywne = false;
+let strefaPunkty = [];                // [[lat,lng], ...] klikniętych wierzchołków
+let strefaWarstwaPodglad = null;
+let strefaMarkeryPunkty = [];
+
+function wlaczTrybDodawaniaStrefy() {
+  const bylWlaczony = trybDodawaniaStrefy;
+  wylaczWszystkieTryby();
+  trybDodawaniaStrefy = !bylWlaczony;
+  document.getElementById('btnStrefa')?.classList.toggle('aktywny', trybDodawaniaStrefy);
+  syncPrzyciski();
+  if (trybDodawaniaStrefy) pokazInfo('🌳 Kliknij na mapie, gdzie ma być środek/początek strefy tła.');
+  else ukryjInfo();
+}
+
+mapa.on('click', (e) => {
+  if (!trybDodawaniaStrefy || rysowanieStrefyAktywne) return;
+  kliknietaPozycjaStrefa = [e.latlng.lat, e.latlng.lng];
+  otworzPanelStrefa();
+});
+
+// Klik na mapę podczas rysowania strefy (wielokąt) -> dodaj wierzchołek
+mapa.on('click', (e) => {
+  if (!rysowanieStrefyAktywne) return;
+  strefaPunkty.push([e.latlng.lat, e.latlng.lng]);
+  przerysujPodgladStrefy();
+  aktualizujStrefaInfo();
+});
+
+function ustawKsztaltStrefa(k) {
+  if (k !== 'kolo' && k !== 'wielokat') k = 'kolo';
+  wybranyKsztaltStrefa = k;
+  document.querySelectorAll('#strefaKsztaltWybor .rozmiar-opcja').forEach(o => {
+    o.classList.toggle('wybrany', o.dataset.ksztalt === k);
+  });
+  const blokKolo = document.getElementById('strefaKoloBlok');
+  const blokWielokat = document.getElementById('strefaWielokatBlok');
+  if (blokKolo) blokKolo.style.display = (k === 'kolo') ? '' : 'none';
+  if (blokWielokat) blokWielokat.style.display = (k === 'wielokat') ? '' : 'none';
+  if (k === 'kolo' && rysowanieStrefyAktywne) anulujRysowanieStrefy();
+  aktualizujStrefaInfo();
+}
+
+function ustawZrodloStrefa(z) {
+  if (z !== 'plik' && z !== 'mowa') z = 'plik';
+  wybranyZrodloStrefa = z;
+  document.querySelectorAll('#strefaZrodloWybor .rozmiar-opcja').forEach(o => {
+    o.classList.toggle('wybrany', o.dataset.zrodlo === z);
+  });
+  document.getElementById('strefaPlikBlok').style.display = (z === 'plik') ? '' : 'none';
+  document.getElementById('strefaMowaBlok').style.display = (z === 'mowa') ? '' : 'none';
+}
+
+function aktualizujStrefaZasiegLabel() {
+  const v = document.getElementById('strefaZasieg').value;
+  document.getElementById('strefaZasiegLabel').textContent = formatDystans(+v);
+}
+
+function aktualizujStrefaInfo() {
+  const info = document.getElementById('strefaWielokatInfo');
+  if (!info) return;
+  const n = strefaPunkty.length;
+  if (n === 0) info.textContent = 'Kliknij „✏️ Rysuj strefę na mapie", potem klikaj punkty po obrysie terenu (min. 3).';
+  else if (n < 3) info.textContent = `Postawiono ${n} pkt. — kliknij jeszcze ${3 - n}, żeby zamknąć obszar.`;
+  else info.textContent = `Strefa ma ${n} punktów. Możesz dodać więcej, cofnąć ostatni, albo zakończyć.`;
+}
+
+// Odczytaj próbkę komunikatu głosem przeglądarki (test w panelu, bez zapisu)
+function testujMowe() {
+  const tekst = document.getElementById('strefaTekst').value.trim();
+  if (!tekst) { alert('Wpisz najpierw tekst do przeczytania.'); return; }
+  przeczytajTekst(tekst);
+}
+
+// Wyczyść podgląd rysowanej strefy z mapy (wielokąt + markery wierzchołków)
+function wyczyscPodgladStrefy() {
+  if (strefaWarstwaPodglad) { mapa.removeLayer(strefaWarstwaPodglad); strefaWarstwaPodglad = null; }
+  strefaMarkeryPunkty.forEach(m => mapa.removeLayer(m));
+  strefaMarkeryPunkty = [];
+}
+
+function przerysujPodgladStrefy() {
+  wyczyscPodgladStrefy();
+  if (strefaPunkty.length === 0) return;
+  if (strefaPunkty.length >= 3) {
+    strefaWarstwaPodglad = L.polygon(strefaPunkty, {
+      color: '#16a34a', weight: 3, opacity: 0.85,
+      fillColor: '#4ade80', fillOpacity: 0.2, dashArray: '6, 6'
+    }).addTo(mapa);
+  } else if (strefaPunkty.length === 2) {
+    strefaWarstwaPodglad = L.polyline(strefaPunkty, {
+      color: '#16a34a', weight: 3, opacity: 0.85, dashArray: '6, 6'
+    }).addTo(mapa);
+  }
+  strefaPunkty.forEach((p, i) => {
+    const m = L.marker(p, {
+      icon: L.divIcon({
+        className: 'strefa-punkt-marker',
+        html: `<div class="strefa-punkt${i === 0 ? ' pierwszy' : ''}">${i + 1}</div>`,
+        iconSize: [22, 22], iconAnchor: [11, 11]
+      }),
+      interactive: false
+    }).addTo(mapa);
+    strefaMarkeryPunkty.push(m);
+  });
+}
+
+// START rysowania - chowa panel, mapa łapie kolejne kliki jako wierzchołki
+function rozpocznijRysowanieStrefy() {
+  if (rysowanieStrefyAktywne) return;
+  rysowanieStrefyAktywne = true;
+  document.getElementById('panelBackdropStrefa').classList.remove('visible');
+  document.getElementById('panelStrefa').classList.remove('visible');
+  if (mapa.dragging) mapa.dragging.disable();
+  if (mapa.doubleClickZoom) mapa.doubleClickZoom.disable();
+  document.querySelector('#mapa .leaflet-container')?.classList.add('tryb-rysowania');
+  pokazPasekRysowaniaStrefy();
+}
+
+// Anuluj BEZ zapisu - kasuje punkty, panel wraca
+function anulujRysowanieStrefy() {
+  rysowanieStrefyAktywne = false;
+  strefaPunkty = [];
+  wyczyscPodgladStrefy();
+  zakonczTrybRysowaniaStrefyMapa();
+  ukryjPasekRysowaniaStrefy();
+  document.getElementById('panelBackdropStrefa').classList.add('visible');
+  document.getElementById('panelStrefa').classList.add('visible');
+  aktualizujStrefaInfo();
+}
+
+// Zakończ Z ZAPISEM punktów - panel wraca, admin wpisuje nazwę/plik i Zatwierdza
+function zakonczRysowanieStrefy() {
+  if (strefaPunkty.length < 3) {
+    alert('Strefa musi mieć co najmniej 3 punkty.\nKliknij jeszcze ' + (3 - strefaPunkty.length) + ' raz/y na mapie.');
+    return;
+  }
+  rysowanieStrefyAktywne = false;
+  zakonczTrybRysowaniaStrefyMapa();
+  ukryjPasekRysowaniaStrefy();
+  przerysujPodgladStrefy();
+  document.getElementById('panelBackdropStrefa').classList.add('visible');
+  document.getElementById('panelStrefa').classList.add('visible');
+  aktualizujStrefaInfo();
+}
+
+function zakonczTrybRysowaniaStrefyMapa() {
+  if (mapa.dragging) mapa.dragging.enable();
+  if (mapa.doubleClickZoom) mapa.doubleClickZoom.enable();
+  document.querySelector('#mapa .leaflet-container')?.classList.remove('tryb-rysowania');
+}
+
+function cofnijPunktStrefy() {
+  if (strefaPunkty.length > 0) { strefaPunkty.pop(); przerysujPodgladStrefy(); aktualizujStrefaInfo(); }
+}
+
+// Pływający pasek "Rysowanie strefy..." z przyciskami - tworzony raz, chowany/pokazywany
+function pokazPasekRysowaniaStrefy() {
+  let pasek = document.getElementById('paskStrefy');
+  if (!pasek) {
+    pasek = document.createElement('div');
+    pasek.id = 'paskStrefy';
+    pasek.className = 'strefa-rysowanie-pasek';
+    pasek.innerHTML = `
+      <div class="strefa-rysowanie-info">✏️ Klikaj punkty po obrysie terenu (min. 3)</div>
+      <div class="strefa-rysowanie-akcje">
+        <button type="button" onclick="cofnijPunktStrefy()">↩ Cofnij</button>
+        <button type="button" onclick="zakonczRysowanieStrefy()">✓ Zakończ</button>
+        <button type="button" onclick="anulujRysowanieStrefy()">✕ Anuluj</button>
+      </div>`;
+    document.body.appendChild(pasek);
+  }
+  pasek.classList.add('visible');
+}
+function ukryjPasekRysowaniaStrefy() {
+  const pasek = document.getElementById('paskStrefy');
+  if (pasek) pasek.classList.remove('visible');
+}
+
+// Punkt w wielokącie (ray casting) - używane do sprawdzania czy gość jest w strefie tła
+function punktWWielokacie(lat, lng, wielokat) {
+  if (!wielokat || wielokat.length < 3) return false;
+  let wSrodku = false;
+  for (let i = 0, j = wielokat.length - 1; i < wielokat.length; j = i++) {
+    const yi = wielokat[i][0], xi = wielokat[i][1];
+    const yj = wielokat[j][0], xj = wielokat[j][1];
+    const przecina = ((yi > lat) !== (yj > lat)) && (lng < (xj - xi) * (lat - yi) / (yj - yi) + xi);
+    if (przecina) wSrodku = !wSrodku;
+  }
+  return wSrodku;
+}
+// Środek wielokąta (średnia wierzchołków) - do markera admina i centrowania
+function srodekWielokata(wielokat) {
+  if (!wielokat || wielokat.length === 0) return null;
+  let sumLat = 0, sumLng = 0;
+  for (const p of wielokat) { sumLat += p[0]; sumLng += p[1]; }
+  return [sumLat / wielokat.length, sumLng / wielokat.length];
+}
+
+function otworzPanelStrefa() {
+  document.getElementById('strefaNazwa').value = '';
+  document.getElementById('strefaPlik').value = '';
+  document.getElementById('strefaTekst').value = '';
+  document.getElementById('strefaPrzyklad').textContent = 'tlo1.mp3';
+  document.getElementById('strefaZasieg').value = 100;
+  aktualizujStrefaZasiegLabel();
+  strefaPunkty = [];
+  wyczyscPodgladStrefy();
+  ustawKsztaltStrefa('kolo');
+  ustawZrodloStrefa('plik');
+  const el = document.getElementById('strefaPozycjaTekst');
+  if (el && kliknietaPozycjaStrefa) el.innerHTML = `📌 <b>${kliknietaPozycjaStrefa[0].toFixed(5)}, ${kliknietaPozycjaStrefa[1].toFixed(5)}</b>`;
+  document.getElementById('panelStrefaTytul').textContent = '🌳 Dodaj strefę tła';
+  document.getElementById('panelBackdropStrefa').classList.add('visible');
+  document.getElementById('panelStrefa').classList.add('visible');
+}
+
+function zamknijPanelStrefa() {
+  document.getElementById('panelBackdropStrefa').classList.remove('visible');
+  document.getElementById('panelStrefa').classList.remove('visible');
+  edytowanyKlucz = null;
+  trybDodawaniaStrefy = false;
+  document.getElementById('btnStrefa')?.classList.remove('aktywny');
+  if (!rysowanieStrefyAktywne) { strefaPunkty = []; wyczyscPodgladStrefy(); }
+  ukryjInfo();
+}
+
+function zatwierdzStrefa() {
+  const nazwa = document.getElementById('strefaNazwa').value.trim();
+  const ksztalt = wybranyKsztaltStrefa;
+  const zrodlo = wybranyZrodloStrefa;
+  const plik = document.getElementById('strefaPlik').value.trim();
+  const tekstMowa = document.getElementById('strefaTekst').value.trim();
+  const zasieg = +document.getElementById('strefaZasieg').value;
+
+  if (!nazwa) { alert('Wpisz przynajmniej Nazwę (tylko dla Ciebie, do rozpoznania na liście).'); return; }
+  if (ksztalt === 'wielokat' && strefaPunkty.length < 3) {
+    alert('Strefa musi mieć narysowany kształt (min. 3 punkty).\n\nKliknij „✏️ Rysuj strefę na mapie".');
+    return;
+  }
+  if (ksztalt === 'kolo' && !kliknietaPozycjaStrefa && !edytowanyKlucz) {
+    alert('Brak lokalizacji — kliknij najpierw miejsce na mapie.');
+    return;
+  }
+  if (zrodlo === 'plik') {
+    if (!plik) { alert('Wpisz nazwę pliku mp3 (np. tlo1).'); return; }
+    if (!/^[a-zA-Z0-9_-]+$/.test(plik)) { alert('Nazwa pliku może zawierać tylko litery a-z, cyfry, myślnik i podkreślenie.'); return; }
+    if (nazwaPlikuZajeta(plik, edytowanyKlucz)) {
+      alert('⚠️ Nazwa pliku „' + plik + '" jest już użyta przez inne miejsce. Zmień nazwę.');
+      return;
+    }
+  } else {
+    if (!tekstMowa) { alert('Wpisz tekst, który ma zostać przeczytany.'); return; }
+  }
+
+  const pozycjaDoZapisu = (ksztalt === 'wielokat') ? srodekWielokata(strefaPunkty) : kliknietaPozycjaStrefa;
+  const punktyDoZapisu = (ksztalt === 'wielokat') ? strefaPunkty.slice() : null;
+
+  if (edytowanyKlucz) {
+    const m = miejsca.find(x => x.klucz === edytowanyKlucz);
+    if (m) {
+      m.nazwa = nazwa; m.ksztalt = ksztalt; m.zasieg = zasieg;
+      m.zrodloTla = zrodlo;
+      m.plik = (zrodlo === 'plik') ? plik : null;
+      m.tekstMowa = (zrodlo === 'mowa') ? tekstMowa : null;
+      m.punkty = punktyDoZapisu;
+      if (pozycjaDoZapisu) m.pozycja = pozycjaDoZapisu;
+    }
+    edytowanyKlucz = null;
+  } else {
+    miejsca.push({
+      klucz: 'strefa-' + Date.now(),
+      typ: 'audio', podtyp: 'tlo',
+      ksztalt: ksztalt, zasieg: zasieg,
+      nazwa: nazwa,
+      zrodloTla: zrodlo,
+      plik: (zrodlo === 'plik') ? plik : null,
+      tekstMowa: (zrodlo === 'mowa') ? tekstMowa : null,
+      punkty: punktyDoZapisu,
+      pozycja: pozycjaDoZapisu
+    });
+  }
+  strefaPunkty = [];
+  wyczyscPodgladStrefy();
+  zapiszMiejsca();
+  renderujMiejsca();
+  zamknijPanelStrefa();
+}
+
+function edytujStrefa(klucz) {
+  const m = miejsca.find(x => x.klucz === klucz);
+  if (!m) return;
+  edytowanyKlucz = klucz;
+  kliknietaPozycjaStrefa = null;
+  document.getElementById('strefaNazwa').value = m.nazwa || '';
+  document.getElementById('strefaPlik').value = m.plik || '';
+  document.getElementById('strefaTekst').value = m.tekstMowa || '';
+  document.getElementById('strefaPrzyklad').textContent = (m.plik || 'tlo1') + '.mp3';
+  document.getElementById('strefaZasieg').value = m.zasieg || 100;
+  aktualizujStrefaZasiegLabel();
+  ustawKsztaltStrefa(m.ksztalt === 'wielokat' ? 'wielokat' : 'kolo');
+  ustawZrodloStrefa(m.zrodloTla === 'mowa' ? 'mowa' : 'plik');
+  strefaPunkty = Array.isArray(m.punkty) ? m.punkty.map(p => [p[0], p[1]]) : [];
+  wyczyscPodgladStrefy();
+  if (strefaPunkty.length) przerysujPodgladStrefy();
+  aktualizujStrefaInfo();
+  const el = document.getElementById('strefaPozycjaTekst');
+  if (el && m.pozycja) el.innerHTML = `📌 <b>${m.pozycja[0].toFixed(5)}, ${m.pozycja[1].toFixed(5)}</b>`;
+  document.getElementById('panelStrefaTytul').textContent = '🌳 Edytuj strefę tła';
+  document.getElementById('panelBackdropStrefa').classList.add('visible');
+  document.getElementById('panelStrefa').classList.add('visible');
+}
+
 function wlaczTrybDodawaniaAudio() {
   const bylWlaczony = trybDodawaniaAudio;
   wylaczWszystkieTryby();
@@ -3533,7 +4607,7 @@ function wlaczTrybDodawaniaAudio() {
 }
 
 mapa.on('click', (e) => {
-  if (!trybDodawaniaAudio) return;
+  if (!trybDodawaniaAudio || rysowanieStrefyAktywne) return;
   kliknietaPozycja = [e.latlng.lat, e.latlng.lng];
   otworzPanelAudio();
 });
@@ -3627,6 +4701,10 @@ function zatwierdzAudio() {
   if (!plik && !edytowanyKlucz) {
     if (!confirm('Dodajesz kropkę BEZ pliku audio.\n\nNagranie dodasz później — edytuj (🛠) i wpisz nazwę pliku.\n\nDodać teraz?')) return;
   }
+  if (!kliknietaPozycja && !edytowanyKlucz) {
+    alert('Brak lokalizacji — kliknij najpierw miejsce na mapie.');
+    return;
+  }
 
   if (edytowanyKlucz) {
     const m = miejsca.find(x => x.klucz === edytowanyKlucz);
@@ -3639,7 +4717,6 @@ function zatwierdzAudio() {
     }
     edytowanyKlucz = null;
   } else {
-    if (!kliknietaPozycja) { alert('Brak lokalizacji — kliknij najpierw miejsce na mapie.'); return; }
     miejsca.push({
       klucz: 'audio-' + Date.now(),
       typ: 'audio',
@@ -3655,7 +4732,7 @@ function zatwierdzAudio() {
   renderujMiejsca();
   zamknijPanelAudio();
   trybDodawaniaAudio = false;
-  document.getElementById('btnAudio').classList.remove('aktywny');
+  document.getElementById('btnAudio')?.classList.remove('aktywny');
   ukryjInfo();
 }
 
@@ -3694,6 +4771,20 @@ function ikonaAudio(m) {
     iconAnchor: [px/2, px/2]
   });
 }
+// Ikona strefy TŁA - widoczna TYLKO dla admina (edycja). Gość nigdy jej nie widzi.
+function ikonaTloAudio(m) {
+  const klucz = m.klucz;
+  const px = 30;
+  return L.divIcon({
+    className: 'pin-audio',
+    html: `<div style="position:relative;width:${px}px;height:${px}px">
+        <div class="pin-audio-inner" style="width:${px}px;height:${px}px;background:linear-gradient(180deg,#4f9a3c,#2c5a20);border-color:#6bbf52"
+             onclick="event.stopPropagation();edytujAudio('${klucz}')">🌳</div>
+      </div>`,
+    iconSize: [px, px],
+    iconAnchor: [px/2, px/2]
+  });
+}
 // Pomocnik: odtwórz audio po kluczu (dla onclick w ikonie)
 function odtworzAudioKlucz(klucz) {
   const m = miejsca.find(x => x.klucz === klucz);
@@ -3701,6 +4792,9 @@ function odtworzAudioKlucz(klucz) {
 }
 
 // Odtwórz nagranie kropki (płatek 🎧 Posłuchaj)
+// Odtwórz nagranie kropki (płatek 🎧 Posłuchaj). Całkowicie niezależne od
+// stref tła (👂) - jeśli obie grają naraz, po prostu słychać obie na raz;
+// turysta sam decyduje, czy to lubi, czy wyciszy ucho.
 function odtworzAudio(m) {
   if (aktualneAudio) { try { aktualneAudio.pause(); } catch(e){} aktualneAudio = null; }
   if (!m.plik) {
@@ -3733,10 +4827,11 @@ function zamknijAudio() {
   document.getElementById('audioPlayer').classList.remove('visible');
 }
 
-// Edycja kropki audio
+// Edycja kropki audio (routing: strefa tła ma osobny panel)
 function edytujAudio(klucz) {
   const m = miejsca.find(x => x.klucz === klucz);
   if (!m) return;
+  if (m.podtyp === 'tlo') { edytujStrefa(klucz); return; }
   edytowanyKlucz = klucz;
   kliknietaPozycja = null;
   document.getElementById('audNazwa').value = m.nazwa || '';
@@ -4108,6 +5203,7 @@ var trybDodawaniaMiejsce = false;
 let mscFotoTyp = 'brak';      // 'brak' | 'zwykle' | 'panorama'
 let mscMaMp3 = 'nie';         // 'nie' | 'tak'
 let mscZasiegVal = 50;
+let mscZnacznik = 'pin';      // 'pin' | 'kropka' | 'x' - wygląd pinezki na mapie
 
 // ===== Podgląd kółka zasięgu NA ŻYWO (admin) =====
 // Pokazuje strefę zasięgu na mapie, gdy edytujesz/dodajesz kropkę i ruszasz suwakiem.
@@ -4165,6 +5261,7 @@ function otworzPanelMiejsce() {
   document.getElementById('mscZasieg').value = 50;
   ustawFotoMiejsce('brak');
   ustawMp3Miejsce('nie');
+  ustawZnacznikMiejsce('pin');
   aktualizujZasiegMiejsce();
   pokazPozycjeWPanelu('miejsce');
   document.getElementById('panelMiejsceTytul').textContent = '🏛️ Miejsce na mapie';
@@ -4185,6 +5282,17 @@ function ustawFotoMiejsce(t) {
 function ustawMp3Miejsce(t) {
   mscMaMp3 = t;
   document.querySelectorAll('#mscMp3Wybor .rozmiar-opcja').forEach(o => o.classList.toggle('wybrany', o.dataset.mp3 === t));
+}
+const OPISY_ZNACZNIKA = {
+  pin: 'Duża, wyraźna pinezka — kościoły, pałace, główne zabytki.',
+  kropka: 'Mała niebieska kropka — drobne, mniej ważne miejsca (źródełko, kapliczka).',
+  x: 'Pulsujący krzyżyk — punkt do zaznaczenia, ciekawostka na trasie.'
+};
+function ustawZnacznikMiejsce(z) {
+  mscZnacznik = z;
+  document.querySelectorAll('#mscZnacznikWybor .rozmiar-opcja').forEach(o => o.classList.toggle('wybrany', o.dataset.znacznik === z));
+  const opis = document.getElementById('mscZnacznikOpis');
+  if (opis) opis.textContent = OPISY_ZNACZNIKA[z] || '';
 }
 function aktualizujZasiegMiejsce() {
   mscZasiegVal = parseInt(document.getElementById('mscZasieg').value) || 50;
@@ -4225,7 +5333,8 @@ function zatwierdzMiejsce() {
     fotoTyp: mscFotoTyp,        // 'brak'|'zwykle'|'panorama'
     maMp3: (mscMaMp3 === 'tak'),
     opis,
-    zasieg: mscZasiegVal
+    zasieg: mscZasiegVal,
+    znacznik: mscZnacznik       // 'pin'|'kropka'|'x' - wygląd pinezki na mapie
   };
 
   // Mapa z kategoriami: miejsce nie może zostać zapisane "bez folderu"
@@ -4250,10 +5359,56 @@ function zatwierdzMiejsce() {
   ukryjInfo();
 }
 
-// Ikona bogatego miejsca - pinezka z płatkami (tylko wypełnione media)
+// Klik gościa w pinezkę "miejsce" - dolatuje do punktu i rozwija pełny
+// opis w panelu bocznym (bez płatków - to tylko dla admina, do edycji).
+function pokazMiejscePubliczne(klucz) {
+  const m = miejsca.find(x => x.klucz === klucz);
+  if (!m) return;
+  centrujNaMiejscu(m);
+  // Zawsze dokładnie JEDNO miejsce rozwinięte na raz.
+  rozwinieteMiejsca.forEach(k => usunFaleMapa(k));
+  rozwinieteMiejsca.clear();
+  rozwinieteMiejsca.add(klucz);
+  dodajFaleMapa(m);
+  renderujMiejsca();
+  if (typeof otworzPanel === 'function') otworzPanel();
+  setTimeout(() => {
+    const karta = document.getElementById('karta-' + klucz);
+    if (karta) karta.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, 150);
+}
+
+// Ikona bogatego miejsca - pinezka z płatkami (tylko admin, do edycji).
+// Gość klika i od razu dostaje pełny podgląd w panelu bocznym.
 function ikonaMiejsce(m) {
   const klucz = m.klucz;
-  const px = 34;
+  const znacznik = m.znacznik || 'pin';
+
+  // Rozmiar/kotwica/HTML środka zależnie od wybranego wyglądu pinezki
+  function srodekZnacznika(onclickJS) {
+    if (znacznik === 'kropka') {
+      return { px: 18, ax: 9, ay: 9, html: `<div class="znacznik-kropka" onclick="${onclickJS}"></div>` };
+    }
+    if (znacznik === 'x') {
+      return { px: 24, ax: 12, ay: 12, html: `<div class="znacznik-x" onclick="${onclickJS}">
+          <svg width="22" height="22" viewBox="0 0 24 24">
+            <line x1="4" y1="4" x2="20" y2="20" stroke="#e0a955" stroke-width="4" stroke-linecap="round"/>
+            <line x1="20" y1="4" x2="4" y2="20" stroke="#e0a955" stroke-width="4" stroke-linecap="round"/>
+          </svg>
+        </div>` };
+    }
+    const px = 34;
+    return { px, ax: px/2, ay: px, html: `<div class="pin-miejsce-inner" style="width:${px}px;height:${px}px" onclick="${onclickJS}">📍</div>` };
+  }
+
+  if (!isAdmin) {
+    const s = srodekZnacznika(`event.stopPropagation();pokazMiejscePubliczne('${klucz}')`);
+    return L.divIcon({
+      className: 'pin-miejsce',
+      html: `<div style="position:relative;width:${s.px}px;height:${s.px}px">${s.html}</div>`,
+      iconSize: [s.px, s.px], iconAnchor: [s.ax, s.ay]
+    });
+  }
 
   // Zbierz dostępne płatki
   const platki = [];
@@ -4281,14 +5436,14 @@ function ikonaMiejsce(m) {
     </div>`;
   }).join('');
 
+  const s = srodekZnacznika(`event.stopPropagation();togglePlatki('${klucz}')`);
   return L.divIcon({
     className: 'pin-miejsce',
-    html: `<div style="position:relative;width:${px}px;height:${px}px">
-        <div class="pin-miejsce-inner" style="width:${px}px;height:${px}px"
-             onclick="event.stopPropagation();togglePlatki('${klucz}')">📍</div>
+    html: `<div style="position:relative;width:${s.px}px;height:${s.px}px">
+        ${s.html}
         <div class="platki-wrapper" id="platki-${klucz}">${platkiHTML}</div>
       </div>`,
-    iconSize: [px, px], iconAnchor: [px/2, px]
+    iconSize: [s.px, s.px], iconAnchor: [s.ax, s.ay]
   });
 }
 
@@ -4333,6 +5488,7 @@ function edytujMiejsce(klucz) {
   wypelnijMscKat(m.kat || '');
   ustawFotoMiejsce(m.fotoTyp || 'brak');
   ustawMp3Miejsce(m.maMp3 ? 'tak' : 'nie');
+  ustawZnacznikMiejsce(m.znacznik || 'pin');
   aktualizujZasiegMiejsce();
   const el = document.getElementById('mscPozycjaTekst');
   if (el && m.pozycja) el.innerHTML = `📌 <b>${m.pozycja[0].toFixed(5)}, ${m.pozycja[1].toFixed(5)}</b>`;
@@ -4445,8 +5601,9 @@ var _introWybor = false; // robocza wartość przełącznika (Anuluj = bez zmian
 function otworzPanelTytul() {
   if (typeof zamknijPanel === 'function') zamknijPanel();
   document.getElementById('tytulInput').value = tytulStrony || '';
-  document.getElementById('opisStronyInput').value = opisStrony || '';
   document.getElementById('autorInput').value = autorStrony || '';
+  document.getElementById('opisMiejscowosciInput').value = opisStrony || '';
+  document.getElementById('opisYTInput').value = opisYT || '';
   _introWybor = introStrony === true;
   ustawIntroToggleUI();
   document.getElementById('panelBackdropTytul').classList.add('visible');
@@ -4458,8 +5615,9 @@ function zamknijPanelTytul() {
 }
 function zatwierdzTytul() {
   tytulStrony = document.getElementById('tytulInput').value.trim();
-  opisStrony = document.getElementById('opisStronyInput').value.trim();
   autorStrony = document.getElementById('autorInput').value.trim();
+  opisStrony = document.getElementById('opisMiejscowosciInput').value.trim();
+  opisYT = document.getElementById('opisYTInput').value.trim();
   introStrony = _introWybor === true; // przełącznik liczy się dopiero po Zatwierdź
   zapiszStrone();
   renderujStrone();
@@ -4471,6 +5629,21 @@ function renderujStrone() {
   // Tytuł w nagłówku (H1)
   const h1 = document.querySelector('header h1');
   if (h1 && tytulStrony) h1.textContent = tytulStrony;
+
+  // Plakietka z nazwą mapy (widok gościa, obok hamburgera) - na komputerze
+  const topbarTxt = document.getElementById('topbarNazwaTekst');
+  const topbar = document.getElementById('topbarNazwa');
+  if (topbarTxt) topbarTxt.textContent = tytulStrony || '';
+  if (topbar) topbar.style.display = tytulStrony ? '' : 'none';
+
+  // Na telefonie plakietkę u góry zasłania herb - zamiast niej nazwa
+  // miejscowości pojawia się w nagłówku listy miejsc w bocznym panelu.
+  const sidebarTytul = document.getElementById('sidebarTytulMiejsca');
+  if (sidebarTytul) {
+    sidebarTytul.textContent = (document.body.classList.contains('dotyk') && tytulStrony)
+      ? `❦ ${tytulStrony} ❦`
+      : '❦ Miejsca ❦';
+  }
 
   // Opis pod mapą (komputer)
   const pod = document.getElementById('opisStronyPodMapa');
@@ -4488,12 +5661,77 @@ function renderujStrone() {
 
   // Tytuł w <title> karty
   if (tytulStrony) document.title = tytulStrony;
+
+  // Zielona karta "Opis miejscowości" nad listą miejsc
+  renderujOpisMiejscowosciKarte();
 }
 function pokazOpisStrony() {
   document.getElementById('opisStronyModal').classList.add('visible');
 }
 function zamknijOpisStrony() {
   document.getElementById('opisStronyModal').classList.remove('visible');
+}
+
+// LIGHTBOX - podgląd zdjęcia w pełnej rozdzielczości, bez opuszczania strony
+function otworzLightbox(src, alt) {
+  const box = document.getElementById('lightboxFoto');
+  const img = document.getElementById('lightboxFotoImg');
+  if (!box || !img) return;
+  img.src = src;
+  img.alt = alt || '';
+  box.classList.add('visible');
+}
+function zamknijLightbox() {
+  const box = document.getElementById('lightboxFoto');
+  if (box) box.classList.remove('visible');
+}
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') zamknijLightbox();
+});
+
+// Osadzony odtwarzacz YT - klik na przycisk odtwarza film w miejscu (bez wychodzenia
+// na youtube.com). Do prawdziwego YT przechodzi się dopiero klikając w sam film
+// (natywna ikonka YouTube w rogu odtwarzacza).
+function odtworzYTwKarcie(btn, ytId) {
+  const wrap = document.createElement('div');
+  wrap.className = 'karta-yt-embed';
+  wrap.innerHTML = `<iframe src="https://www.youtube-nocookie.com/embed/${ytId}?autoplay=1&rel=0"
+      title="YouTube" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+      allowfullscreen></iframe>`;
+  btn.replaceWith(wrap);
+}
+
+// Zielona karta "Opis miejscowości" nad listą miejsc (bez punktu na mapie)
+let opisMiejscowosciRozwiniety = false;
+function toggleOpisMiejscowosci() {
+  opisMiejscowosciRozwiniety = !opisMiejscowosciRozwiniety;
+  renderujOpisMiejscowosciKarte();
+}
+function renderujOpisMiejscowosciKarte() {
+  const el = document.getElementById('opisMiejscowosciKarta');
+  if (!el) return;
+  if (!opisStrony || !opisStrony.trim()) { el.innerHTML = ''; return; }
+  let szczegoly = '';
+  if (opisMiejscowosciRozwiniety) {
+    szczegoly += `<div class="karta-foto" id="karta-foto-opis-miasta">
+        <img src="img/opis-miejscowosci.jpg" class="karta-foto-klik"
+          onclick="event.stopPropagation();otworzLightbox(this.src, this.alt)"
+          onerror="this.onerror=null;this.src='img/opis-miejscowosci.png';this.onerror=function(){this.onerror=null;this.src='img/opis-miejscowosci.webp';this.onerror=function(){this.parentElement.style.display='none';};};"
+          alt="${escapeHTML(tytulStrony || 'Miejscowość')}">
+      </div>`;
+    szczegoly += opisAkapity(opisStrony);
+    const ytId = opisYT ? youtubeId(opisYT) : null;
+    if (ytId) {
+      szczegoly += `<button type="button" class="karta-yt-link" onclick="event.stopPropagation();odtworzYTwKarcie(this, '${ytId}')">🎬 Obejrzyj na YouTube</button>`;
+    }
+    szczegoly = `<div class="karta-szczegoly">${szczegoly}
+        <button class="karta-zwin-dol" onclick="toggleOpisMiejscowosci()"><span class="strzalki">⌃ ⌃ ⌃</span>Zwiń</button>
+      </div>`;
+  }
+  el.innerHTML = `<div class="miejsce-card karta-opis-miasta">
+      <button class="btn-opis-miasta" onclick="toggleOpisMiejscowosci()">🏘️ Opis miejscowości</button>
+      ${szczegoly}
+    </div>`;
 }
 
 // =====================================================================
@@ -4567,8 +5805,6 @@ function otworzPanelKategorie() {
   if (typeof zamknijPanel === 'function') zamknijPanel();
   renderujKatListe();
   document.getElementById('katNazwa').value = '';
-  document.getElementById('katIkona').value = '';
-  zaznaczIkone('');
   document.getElementById('panelBackdropKategorie').classList.add('visible');
   document.getElementById('panelKategorie').classList.add('visible');
 }
@@ -4586,7 +5822,6 @@ function renderujKatListe() {
   }
   el.innerHTML = kategorieMapy.map(k => `
     <div class="kat-wiersz">
-      <span class="kw-iko">${escapeHTML(k.ikona)}</span>
       <span class="kw-naz">${escapeHTML(k.nazwa)}</span>
       <button class="kat-usun" title="Usuń kategorię" onclick="usunKategorie('${k.id}')">🗑</button>
     </div>`).join('');
@@ -4604,23 +5839,11 @@ function kategoriaOk(kat) {
   return false;
 }
 
-// Rozwinięcie ikon: klik w siatce wpisuje emoji do pola i podświetla wybór
-function wybierzIkone(e) {
-  const inp = document.getElementById('katIkona');
-  if (inp) inp.value = e;
-  zaznaczIkone(e);
-}
-function zaznaczIkone(e) {
-  document.querySelectorAll('#katIkonyGrid .kat-iko-btn').forEach(b => {
-    b.classList.toggle('aktywny', b.textContent === e);
-  });
-}
+// (usunięto wybór ikony emoji - kategorie mają teraz tylko nazwę)
 
 function dodajKategorie() {
   const nazwa = document.getElementById('katNazwa').value.trim();
-  const ikona = document.getElementById('katIkona').value.trim();
   if (!nazwa) { alert('Wpisz nazwę kategorii.'); return; }
-  if (!ikona) { alert('Wpisz ikonkę (emoji z klawiatury, np. 🏰).'); return; }
   if (kategorieMapy.length >= 8) {
     alert('Maksymalnie 8 kategorii — rządek u gościa musi zmieścić się na telefonie.');
     return;
@@ -4629,14 +5852,12 @@ function dodajKategorie() {
     alert('Kategoria o tej nazwie już istnieje.');
     return;
   }
-  kategorieMapy.push({ id: 'k' + Date.now(), nazwa, ikona });
+  kategorieMapy.push({ id: 'k' + Date.now(), nazwa });
   zapiszStrone();
   renderujKatListe();
   renderujKatPedzle();
   renderujFiltryKat();
   document.getElementById('katNazwa').value = '';
-  document.getElementById('katIkona').value = '';
-  zaznaczIkone('');
 }
 
 function usunKategorie(id) {
@@ -4658,13 +5879,9 @@ function renderujKatPedzle() {
   // Dwa kontenery: desktopowy pasek + menu telefonu (pasek na dotyku
   // jest ukryty, admin pracuje z hamburgera) - malujemy oba naraz.
   const tresc = !kategorieMapy.length ? '' : kategorieMapy.map(k => `
-    <span class="kat-kw-wrap">
-      <button class="kat-kw${aktywnaKategoria === k.id ? ' aktywny' : ''}"
-              title="${escapeHTML(k.nazwa)}"
-              onclick="wybierzPedzel('${k.id}')">${escapeHTML(k.ikona)}</button>
-      <button class="kat-x" title="Usuń kategorię „${escapeHTML(k.nazwa)}”"
-              onclick="event.stopPropagation();usunKategorie('${k.id}')">×</button>
-    </span>`).join('');
+    <button class="kat-kw${aktywnaKategoria === k.id ? ' aktywny' : ''}"
+            title="${escapeHTML(k.nazwa)}"
+            onclick="wybierzPedzel('${k.id}')">${escapeHTML(k.nazwa)}</button>`).join('');
   ['katPedzle', 'katPedzleMobile'].forEach(id => {
     const el = document.getElementById(id);
     if (!el) return;
@@ -4703,7 +5920,7 @@ function renderujFiltryKat() {
   el.innerHTML = kategorieMapy.map(k => `
     <button class="kat-kw${filtryKat[k.id] === false ? '' : ' aktywny'}"
             title="${escapeHTML(k.nazwa)}"
-            onclick="przelaczFiltrKat('${k.id}')">${escapeHTML(k.ikona)}</button>`).join('');
+            onclick="przelaczFiltrKat('${k.id}')">${escapeHTML(k.nazwa)}</button>`).join('');
 }
 function przelaczFiltrKat(id) {
   filtryKat[id] = (filtryKat[id] === false); // odwróć (brak wpisu = włączona)
@@ -4718,7 +5935,7 @@ function wypelnijKatSelect(elId, wartosc) {
   const sel = document.getElementById(elId);
   if (!sel) return;
   sel.innerHTML = '<option value="">— bez kategorii —</option>'
-    + kategorieMapy.map(k => `<option value="${k.id}">${escapeHTML(k.ikona)} ${escapeHTML(k.nazwa)}</option>`).join('');
+    + kategorieMapy.map(k => `<option value="${k.id}">${escapeHTML(k.nazwa)}</option>`).join('');
   sel.value = (wartosc && kategorieMapy.some(k => k.id === wartosc)) ? wartosc : '';
 }
 function wypelnijMscKat(wartosc) { wypelnijKatSelect('mscKat', wartosc); }
@@ -4789,20 +6006,105 @@ function usunZListy(klucz) {
   renderujMiejsca();
 }
 
+// ============================================================
+// ROZWIJANA KARTA "MIEJSCE" w panelu bocznym - domyślnie tylko
+// nazwa + miniaturka + "Rozwiń". Po kliknięciu pokazuje na całą
+// szerokość panelu: zdjęcie/panoramę, przycisk YT, start/stop audio
+// i opis pod spodem. Ten sam widok u admina i u gościa.
+// ============================================================
+let rozwinieteMiejsca = new Set(); // klucze aktualnie rozwiniętych kart
+let faleMarkery = {};              // klucz -> L.marker (fale wokół rozwiniętego miejsca)
+
+function dodajFaleMapa(m) {
+  if (!m || faleMarkery[m.klucz]) return;
+  const icon = L.divIcon({
+    className: 'fala-marker-wrap',
+    html: `<div class="fala-marker"></div>`,
+    iconSize: [34, 34], iconAnchor: [17, 17]
+  });
+  faleMarkery[m.klucz] = L.marker(m.pozycja, { icon, interactive: false, zIndexOffset: -100 }).addTo(mapa);
+}
+function usunFaleMapa(klucz) {
+  if (faleMarkery[klucz]) { mapa.removeLayer(faleMarkery[klucz]); delete faleMarkery[klucz]; }
+}
+
+function toggleRozwinMiejsce(klucz) {
+  if (rozwinieteMiejsca.has(klucz)) {
+    rozwinieteMiejsca.delete(klucz);
+    usunFaleMapa(klucz);
+  } else {
+    // Zawsze dokładnie JEDNO miejsce rozwinięte na raz - zamknij poprzednie,
+    // żeby panel nigdy nie pokazywał dwóch naraz.
+    rozwinieteMiejsca.forEach(k => usunFaleMapa(k));
+    rozwinieteMiejsca.clear();
+    const m = miejsca.find(x => x.klucz === klucz);
+    rozwinieteMiejsca.add(klucz);
+    dodajFaleMapa(m);
+    centrujNaMiejscu(m);
+  }
+  renderujMiejsca();
+}
+
+function trescMiejsceSzczegoly(m) {
+  let html = '';
+  if (m.fotoTyp === 'zwykle') {
+    html += `<div class="karta-foto" id="karta-foto-${m.klucz}">
+        <img src="img/${m.plik}.jpg" class="karta-foto-klik"
+          onclick="event.stopPropagation();otworzLightbox(this.src, this.alt)"
+          onerror="this.onerror=null;this.src='img/${m.plik}.png';this.onerror=function(){this.onerror=null;this.src='img/${m.plik}.webp';this.onerror=function(){this.parentElement.innerHTML='<p class=&quot;karta-brak&quot;>Zdjęcie nie zostało jeszcze wgrane.</p>';};};"
+          alt="${escapeHTML(m.nazwa)}">
+      </div>`;
+  } else if (m.fotoTyp === 'panorama') {
+    html += `<div class="karta-sfera" id="karta-sfera-${m.klucz}"></div>`;
+  }
+  if (m.opis && m.opis.trim()) {
+    html += opisAkapity(m.opis);
+  } else {
+    html += `<p class="karta-brak">Opis tego miejsca nie został jeszcze dodany.</p>`;
+  }
+  if (m.maMp3) {
+    html += `<button class="karta-audio-btn" onclick="event.stopPropagation();odtworzAudioKlucz('${m.klucz}')">▶ Odtwórz audio</button>`;
+  }
+  const ytId = m.link ? youtubeId(m.link) : null;
+  if (ytId) {
+    html += `<button type="button" class="karta-yt-link" onclick="event.stopPropagation();odtworzYTwKarcie(this, '${ytId}')">🎬 Obejrzyj na YouTube</button>`;
+  }
+  if (m.pozycja) {
+    html += `<button class="route-btn route-btn-mapy" style="display:block;width:100%;margin-top:4px" onclick="event.stopPropagation();otworzWMapach('${m.klucz}')">🧭 Prowadź do miejsca</button>`;
+  }
+  html += `<button class="karta-zwin-dol" onclick="event.stopPropagation();toggleRozwinMiejsce('${m.klucz}')" title="Zwiń opis">
+      <span class="strzalki">⌃ ⌃ ⌃</span>Zwiń
+    </button>`;
+  return html;
+}
+
 function renderujMiejsca() {
   // usuń stare markery
   markery.forEach(mk => { try { mapa.removeLayer(mk); } catch(e){} });
   markery = [];
 
+  aktualizujWidocznoscTla();
+
   const lista = document.getElementById('lista-miejsc');
   lista.innerHTML = '';
 
-  // Filtry kategorii - tylko gość, i tylko gdy są jakieś punkty z kategorią
+  // IZOLACJA: gdy jakieś miejsce jest rozwinięte (klik pinezki / karty),
+  // panel ma pokazywać WYŁĄCZNIE nie, żeby nie wyglądało jakby inne miejsca
+  // "dochodziły" pod spodem. Po zwinięciu wraca pełna, filtrowana lista.
+  const izolacja = rozwinieteMiejsca.size > 0;
+  function dodajDoListy(card, klucz) {
+    if (izolacja && !rozwinieteMiejsca.has(klucz)) return;
+    lista.appendChild(card);
+  }
+
+  // Filtry kategorii - tylko gość, i tylko gdy admin dodał jakieś kategorie
+  // (chowają się też podczas izolacji - panel ma być czysto jednym miejscem)
   const filtry = document.getElementById('filtryKategorii');
   if (filtry) {
-    const maKategorie = miejsca.some(m => kategoriaPunktu(m));
-    filtry.style.display = (!isAdmin && maKategorie) ? '' : 'none';
+    filtry.style.display = (!izolacja && !isAdmin && kategorieMapy.length > 0) ? '' : 'none';
   }
+  const opisKarta = document.getElementById('opisMiejscowosciKarta');
+  if (opisKarta) opisKarta.style.display = izolacja ? 'none' : '';
 
   if (miejsca.length === 0) {
     lista.innerHTML = '<div class="pusto">Brak miejsc.<br>' +
@@ -4839,7 +6141,7 @@ function renderujMiejsca() {
         if (typeof zamknijPanel === 'function') zamknijPanel();
       };
       dodajAkcjeAdmina(card, m);
-      lista.appendChild(card);
+      dodajDoListy(card, m.klucz);
     }
 
     else if (m.typ === '360') {
@@ -4862,7 +6164,50 @@ function renderujMiejsca() {
         if (typeof zamknijPanel === 'function') zamknijPanel();
       };
       dodajAkcjeAdmina(card, m);
-      lista.appendChild(card);
+      dodajDoListy(card, m.klucz);
+    }
+
+    else if (m.typ === 'audio' && m.podtyp === 'tlo') {
+      // TŁO AUDIO: czysto ambientowe - gość NIE widzi żadnego markera ani karty,
+      // dźwięk sam się włącza w strefie (patrz sprawdzStrefyTla). Admin widzi
+      // marker 🌳 + zarys strefy (koło/wielokąt), żeby móc edytować.
+      if (isAdmin) {
+        const jestWielokatem = (m.ksztalt === 'wielokat' && Array.isArray(m.punkty) && m.punkty.length >= 3);
+        const pozycjaMarkera = jestWielokatem ? srodekWielokata(m.punkty) : m.pozycja;
+
+        if (pozycjaMarkera) {
+          const marker = L.marker(pozycjaMarkera, { icon: ikonaTloAudio(m) }).addTo(mapa);
+          marker.miejsce = m;
+          markery.push(marker);
+        }
+        if (jestWielokatem) {
+          const wielokat = L.polygon(m.punkty, { color:'#16a34a', weight:1.5, opacity:0.5, fillColor:'#4ade80', fillOpacity:0.12 }).addTo(mapa);
+          markery.push(wielokat);
+        } else if (m.zasieg && m.pozycja) {
+          const kolo = L.circle(m.pozycja, { radius: m.zasieg, color:'#16a34a', weight:1, opacity:0.5, fillColor:'#4ade80', fillOpacity:0.1 }).addTo(mapa);
+          markery.push(kolo);
+        }
+
+        const card = document.createElement('div');
+        card.className = 'miejsce-card';
+        const opisKsztaltu = jestWielokatem ? `strefa (${m.punkty.length} pkt.)` : `okrąg, zasięg ${formatDystans(m.zasieg || 100)}`;
+        const opisZrodla = (m.zrodloTla === 'mowa') ? '🗣️ Komunikat głosowy' : '📻 Pętla mp3';
+        card.innerHTML = `<div class="nazwa"><span class="karta-badge stlo">🌳</span>${escapeHTML(m.nazwa)}</div>
+          <div class="opis">${opisZrodla} · ${opisKsztaltu}</div>`;
+        card.onclick = () => {
+          if (pozycjaMarkera) {
+            autoCenterAktywny = false;
+            aktualizujPrzyciskCenter();
+            mapaProgramowoPrzesuwana = true;
+            mapa.flyTo(pozycjaMarkera, 16, { duration: 1.0 });
+            setTimeout(() => { mapaProgramowoPrzesuwana = false; }, 1100);
+          }
+          if (typeof zamknijPanel === 'function') zamknijPanel();
+        };
+        dodajAkcjeAdmina(card, m);
+        dodajDoListy(card, m.klucz);
+      }
+      // Gość: celowo nic nie renderujemy - żadnego markera, żadnej karty.
     }
 
     else if (m.typ === 'audio') {
@@ -4890,7 +6235,7 @@ function renderujMiejsca() {
         if (typeof zamknijPanel === 'function') zamknijPanel();
       };
       dodajAkcjeAdmina(card, m);
-      lista.appendChild(card);
+      dodajDoListy(card, m.klucz);
     }
 
     else if (m.typ === 'miejsce') {
@@ -4905,13 +6250,39 @@ function renderujMiejsca() {
 
       const card = document.createElement('div');
       card.className = 'miejsce-card';
-      // policz co ma
-      const ma = [];
-      if (m.link && youtubeId(m.link)) ma.push('🎬');
-      if (m.fotoTyp && m.fotoTyp !== 'brak') ma.push(m.fotoTyp==='panorama'?'🌐':'🖼️');
-      if (m.maMp3) ma.push('🎧');
-      card.innerHTML = `<div class="nazwa"><span class="karta-badge smiejsce">📍</span>${escapeHTML(m.nazwa)}</div>
-        <div class="opis">${escapeHTML((m.opis || '').slice(0,60)) || 'Miejsce na mapie'} ${ma.length?'· '+ma.join(' '):''}</div>`;
+      card.id = 'karta-' + m.klucz;
+
+      const maZdjecie = m.fotoTyp && m.fotoTyp !== 'brak';
+      const miniaturkaFloatHTML = maZdjecie
+        ? `<img class="karta-podglad-miniaturka" alt="" src="img/${m.plik}.jpg"
+             onerror="this.onerror=null;this.src='img/${m.plik}.png';this.onerror=function(){this.onerror=null;this.src='img/${m.plik}.webp';this.onerror=function(){this.style.display='none';};};">`
+        : '';
+      const rozwiniete = rozwinieteMiejsca.has(m.klucz);
+      const opisPelny = (m.opis && m.opis.trim()) ? m.opis.trim() : 'Brak opisu.';
+      const opisSkrot = escapeHTML(opisPelny.length > 130 ? opisPelny.slice(0, 130).trim() + '…' : opisPelny);
+
+      if (!rozwiniete) {
+        // ZWINIĘTA: zdjęcie po lewej (float), tytuł + opis opływają je razem
+        card.innerHTML = `
+          <div class="karta-podglad-wrap" onclick="event.stopPropagation();toggleRozwinMiejsce('${m.klucz}')">
+            ${miniaturkaFloatHTML}
+            <div class="nazwa karta-glowka">
+              <span class="karta-badge smiejsce">📍</span>
+              <span class="karta-nazwa-tekst">${escapeHTML(m.nazwa)}</span>
+            </div>
+            <div class="karta-podglad-opis">${opisSkrot}</div>
+          </div>`;
+      } else {
+        // ROZWINIĘTA: zwykły nagłówek + pełne szczegóły (zdjęcie w pełnym rozmiarze niżej)
+        card.innerHTML = `
+          <div class="nazwa karta-glowka" onclick="event.stopPropagation();toggleRozwinMiejsce('${m.klucz}')">
+            <span class="karta-badge smiejsce">📍</span>
+            <span class="karta-nazwa-tekst">${escapeHTML(m.nazwa)}</span>
+          </div>
+          <div class="karta-szczegoly">
+            ${trescMiejsceSzczegoly(m)}
+          </div>`;
+      }
       card.onclick = () => {
         autoCenterAktywny = false;
         aktualizujPrzyciskCenter();
@@ -4921,7 +6292,10 @@ function renderujMiejsca() {
         if (typeof zamknijPanel === 'function') zamknijPanel();
       };
       dodajAkcjeAdmina(card, m);
-      lista.appendChild(card);
+      dodajDoListy(card, m.klucz);
+      if (rozwiniete && m.fotoTyp === 'panorama') {
+        setTimeout(() => uruchomSfere('karta-sfera-' + m.klucz, m.plik, m.nazwa), 60);
+      }
     }
   });
 }
@@ -4937,5 +6311,6 @@ warstwaRysunkow.addTo(mapa);
 przerysujRysunki();
 </script>
 
-</body>
-</html>
+
+
+</body></html>
