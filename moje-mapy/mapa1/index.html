@@ -357,23 +357,22 @@ body.dzien #nagrywanieBox{background:rgba(0,0,0,.03)}
     </div>
 
     <div class="etap-dod" data-etap="3">
-      <div class="pytanie-dod">Twój sekretny kod</div>
-      <div class="podpowiedz-dod">Możesz zostać anonim/ą</div>
+      <div class="pytanie-dod">Zostaw nick</div>
       <div class="pole">
         <span class="etyk">Twój podpis</span>
         <input type="text" id="polAutor" placeholder="anonim, ksywa…" maxlength="20">
       </div>
-      <div class="pole">
-        <span class="etyk">Sekretny kod</span>
-        <input type="text" id="polNick" placeholder="np. x" maxlength="30">
-        <div class="pomoc-dod">Tym kodem otworzysz prywatną wiadomość. Nikt inny go nie zobaczy.</div>
-      </div>
-      <div class="rzad-btn"><button class="btn btn-sec" onclick="dodIdz(1)">Wstecz</button><button class="btn btn-prim" onclick="dodIdz('op')">Dodatkowe opcje</button><button class="btn btn-prim" onclick="dodPodglad()">Udostępnij</button></div>
+      <div class="rzad-btn"><button class="btn btn-sec" onclick="dodIdz(1)">Wstecz</button><button class="btn btn-prim" onclick="dodIdz('op')">Dodatkowe opcje</button><button class="btn btn-prim" onclick="zapiszWspom(this)">Udostępnij</button></div>
     </div>
 
     <div class="etap-dod" data-etap="op">
       <div class="pytanie-dod">Dodatkowe opcje</div>
       <div class="podpowiedz-dod">Wzbogać wspomnienie</div>
+      <div class="pole">
+        <span class="etyk">Sekretny kod</span>
+        <input type="text" id="polNick" placeholder="np. x" maxlength="30">
+        <div class="pomoc-dod">Tym kodem otworzysz prywatną wiadomość. Nikt inny go nie zobaczy.</div>
+      </div>
       <div class="pole">
         <span class="etyk">Dodaj YT do miejsca</span>
         <input type="text" id="polYt" placeholder="https://youtube.com/watch?v=..." maxlength="300">
@@ -395,21 +394,10 @@ body.dzien #nagrywanieBox{background:rgba(0,0,0,.03)}
         </div>
         <div class="pomoc-dod">Wrzuć zdjęcie na postimages.org, skopiuj „Direct link” i wklej tu.</div>
       </div>
-      <div class="rzad-btn"><button class="btn btn-prim" style="flex:1" onclick="dodPodglad()">Gotowe</button></div>
+      <div class="rzad-btn"><button class="btn btn-prim" style="flex:1" onclick="zapiszWspom(this)">Gotowe</button></div>
     </div>
 
-    <div class="etap-dod" data-etap="4">
-      <div class="pytanie-dod">Tak to zobaczą inni</div>
-      <div class="podpowiedz-dod">Ostatnie spojrzenie przed zostawieniem kropki</div>
-      <div class="podglad-karta">
-        <div class="pg-tyt" id="pgTytul"></div>
-        <div class="pg-od" id="pgAutor"></div>
-        <div class="pg-tresc" id="pgTresc"></div>
-        <div class="pg-zal" id="pgZal"></div>
-      </div>
-      <div class="rzad-btn"><button class="btn btn-sec" onclick="dodIdz(3)">Popraw</button><button class="btn btn-prim" id="btnZapisz" onclick="zapiszWspom()">Zostaw kropkę ✨</button></div>
-      <div id="zapiszInfo" style="display:none;text-align:center;margin-top:10px;font-size:14px;color:var(--akcent);font-weight:600"></div>
-    </div>
+    <div id="zapiszInfo" style="display:none;text-align:center;margin-top:10px;font-size:14px;color:var(--akcent);font-weight:600"></div>
 
   </div>
 </div>
@@ -857,7 +845,7 @@ document.getElementById('polTresc').addEventListener('input',e=>{document.getEle
 
 function dodIdz(n){
   document.querySelectorAll('.etap-dod').forEach(e=>e.classList.toggle('akt',String(e.dataset.etap)===String(n)));
-  const mapaKropek={1:1,3:2,op:2,4:3};
+  const mapaKropek={1:1,3:2,op:3};
   const kropkaAkt=mapaKropek[n]||1;
   document.querySelectorAll('.kropka-postep').forEach(k=>k.classList.toggle('akt',Number(k.dataset.k)<=kropkaAkt));
   if(n==='op')renderNagrywanieBox();
@@ -967,23 +955,7 @@ async function wyslijNagranie(klucz){
   }
 }
 
-function dodPodglad(){
-  const tytul=document.getElementById('polTytul').value.trim()||'Bez nazwy';
-  const autor=document.getElementById('polAutor').value.trim()||'anonim';
-  const tresc=document.getElementById('polTresc').value.trim();
-  document.getElementById('pgTytul').textContent=tytul;
-  document.getElementById('pgAutor').textContent='— '+autor;
-  document.getElementById('pgTresc').textContent=tresc;
-  const zal=[];
-  if(document.getElementById('polZdjecie').value.trim())zal.push('🖼️ zdjęcie');
-  if(document.getElementById('polYt').value.trim())zal.push('▶ film YT');
-  if(nagrBlob)zal.push('🎙️ nagranie głosowe');
-  else if(document.getElementById('polArchiwum').value.trim())zal.push('🎧 audio');
-  document.getElementById('pgZal').innerHTML=zal.length?zal.map(z=>'<span class="pg-zal-poz">'+z+'</span>').join(''):'';
-  dodIdz(4);
-}
-
-async function zapiszWspom(){
+async function zapiszWspom(btn){
   const tytul=document.getElementById('polTytul').value.trim();
   const tresc=document.getElementById('polTresc').value.trim();
   const autor=document.getElementById('polAutor').value.trim()||'Anonim';
@@ -998,7 +970,8 @@ async function zapiszWspom(){
   if(yt&&!bezpUrl(yt)){toast('Link do YT musi zaczynać się od https://');return;}
   if(archiwum&&!bezpUrl(archiwum)){toast('Link do audio musi zaczynać się od https://');return;}
   if(zdjecie&&!bezpUrl(zdjecie)){toast('Link do zdjęcia musi zaczynać się od https://');return;}
-  const btn=document.getElementById('btnZapisz');btn.disabled=true;btn.textContent='Zapisuję…';
+  const oryginalnyTekst=btn?btn.textContent:'';
+  if(btn){btn.disabled=true;btn.textContent='Zapisuję…';}
   const info=document.getElementById('zapiszInfo');
   const klucz=losowyKlucz();
   const rek={tytul:tytul||'Bez tytułu',tresc,autor,nick,lat:pozWybrana[0],lng:pozWybrana[1],utworzono:Date.now(),lajki:0,zgloszenia:0,czestotliwosc:aktywnaCzestotliwosc,wlasciciel_klucz:klucz};
@@ -1007,13 +980,13 @@ async function zapiszWspom(){
   if(zdjecie)rek.zdjecie=zdjecie;
   try{
     if(nagrBlob){
-      btn.textContent='Wysyłam nagranie…';
+      if(btn)btn.textContent='Wysyłam nagranie…';
       info.textContent='Zostaw kropkę — zapis audio może chwilę potrwać';
       info.style.display='block';
       const url=await wyslijNagranie(klucz);
-      if(url===undefined){btn.disabled=false;btn.textContent='Zostaw kropkę ✨';info.style.display='none';return;}
+      if(url===undefined){if(btn){btn.disabled=false;btn.textContent=oryginalnyTekst;}info.style.display='none';return;}
       if(url)rek.nagranie=url;
-      btn.textContent='Zapisuję…';
+      if(btn)btn.textContent='Zapisuję…';
     }
     if(online){const r=await db.collection('wspomnienia').add(rek);rek.id=r.id;}
     else{rek.id='lok_'+Date.now();const lok=JSON.parse(localStorage.getItem('mw_lok')||'[]');lok.push(rek);localStorage.setItem('mw_lok',JSON.stringify(lok));}
@@ -1022,7 +995,7 @@ async function zapiszWspom(){
     dodajKropkeNaMape(rek);toast('✨ Kropka postawiona!');zamknijPanel();zapiszCzas('mw_ostatnia_kropka');
     ustawLicznikCalkowity(liczbaMoichNaCzestotliwosci());
   }catch(e){console.error(e);toast('Błąd zapisu.');}
-  finally{btn.disabled=false;btn.textContent='Zostaw kropkę ✨';}
+  finally{if(btn){btn.disabled=false;btn.textContent=oryginalnyTekst;}}
 }
 
 /* ════ KROPKI — WCZYTYWANIE OBSZAROWE ════ */
