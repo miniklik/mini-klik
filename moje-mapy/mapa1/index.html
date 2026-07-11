@@ -240,6 +240,15 @@ body.dzien #nagrywanieBox{background:rgba(0,0,0,.03)}
 .matrix-karta .kropka-postep{width:6px;height:6px;border-radius:50%;background:#1c3d27}
 .matrix-karta .kropka-postep.akt{background:#5dffa0}
 .matrix-tekst{font-family:'Courier New',monospace;color:#7dffb0;font-size:19px;line-height:1.8;white-space:pre-line;text-shadow:0 0 8px rgba(93,255,160,.5);min-height:130px;display:flex;align-items:center;justify-content:center}
+.matrix-ikony{font-size:32px;text-align:center;margin-top:10px;letter-spacing:10px;min-height:40px;opacity:0}
+.matrix-ikony.poj{animation:infoIkonaPoj .6s ease both}
+@keyframes infoIkonaPoj{0%{opacity:0;transform:scale(.4) translateY(8px)}70%{opacity:1;transform:scale(1.08) translateY(0)}100%{opacity:1;transform:scale(1) translateY(0)}}
+.info-demo{display:flex;flex-direction:column;align-items:center;gap:4px}
+.info-demo-btn{font-family:'EB Garamond',serif;font-size:15px;font-weight:500;background:linear-gradient(135deg,var(--akcent2),var(--akcent));color:#2a1830;border-radius:30px;padding:10px 22px;box-shadow:0 6px 20px rgba(232,160,192,.45)}
+.info-demo-tap{font-size:22px;animation:infoTapBounce 1s ease-in-out infinite}
+@keyframes infoTapBounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+.info-img{width:100%;max-width:260px;border-radius:14px;display:block;margin:0 auto;filter:brightness(0);opacity:0;transition:filter .7s ease,opacity .7s ease;box-shadow:0 8px 30px rgba(0,0,0,.5)}
+.info-img.jasno{filter:brightness(1);opacity:1}
 .matrix-karta .btn{width:100%;margin-top:18px;background:#0f2418;color:#7dffb0;border:1px solid #2fff6a80;border-radius:10px;padding:12px 16px;font-family:'Courier New',monospace;letter-spacing:1px;font-size:14px;cursor:pointer;transition:.2s}
 .matrix-karta .btn:hover{background:#173a26;border-color:#5dffa0}
 .cz-badge{position:fixed;left:50%;top:128px;transform:translateX(-50%);z-index:895;background:var(--karta);border:1px solid var(--akcent);border-radius:24px;padding:8px 14px;font-size:13px;color:var(--tekst);box-shadow:var(--cien-l);display:none;align-items:center;gap:8px}
@@ -484,10 +493,12 @@ body.dzien #nagrywanieBox{background:rgba(0,0,0,.03)}
 </div>
 <div class="matrix-tlo" id="matrixTlo">
   <canvas id="matrixCanvas"></canvas>
+  <button class="zamknij" id="infoDzwiek" onclick="przelaczDzwiekInfo()" style="position:absolute;top:16px;right:60px;z-index:2;background:rgba(0,0,0,.4);border-color:#2fff6a55;color:#5dffa0">🔊</button>
   <button class="zamknij" id="matrixZamknij" onclick="zamknijInfo()" style="position:absolute;top:16px;right:16px;z-index:2;background:rgba(0,0,0,.4);border-color:#2fff6a55;color:#5dffa0">✕</button>
   <div class="matrix-karta">
     <div class="kropki-postep" id="infoKropki"></div>
     <div class="matrix-tekst" id="infoTekst"></div>
+    <div class="matrix-ikony" id="infoIkony"></div>
     <button class="btn" id="infoBtn" onclick="infoDalej()">Dalej</button>
   </div>
 </div>
@@ -1481,26 +1492,37 @@ async function zglosKropke(id){
 /* ════ INFORMACJE / REGULAMIN (ekran Matrix) ════ */
 const INFO_KROKI=[
 "Kochani,\noddajemy w wasze ręce\nmapę wspomnień.",
-"Projekt jest ogólnodostępny\ni liczymy się z tym,\nże znajdzie się ktoś,\nkto będzie chciał zepsuć nam zabawę.",
-"Mapa służy\ndo zabawy\noraz dzielenia się\nciekawostkami.",
-"Możesz zostawiać\nopisy, zdjęcia, nagrania audio,\nlinki z YouTube,\notworzyć trasę z nawigacją.",
+"Projekt jest ogólnodostępny\ni mamy nadzieję,\nże każdy będzie korzystał z niej\nw sposób cywilizowany.",
+"Po prostu kliknij\n„Zostaw wspomnienie”\ni wybierz dowolny punkt\nna mapie.",
+"Nastrój się\nna prywatną częstotliwość\nlub dołącz do publicznej —\nwłasna mapa dla siebie lub grona znajomych.",
+"Przy każdym miejscu\nmasz naprawdę szeroką gamę możliwości:\nopis, zdjęcie, nagranie głosowe,\nlink z YouTube, audio z archiwum\nlub nawigację prosto do celu.",
 "Bądźmy kreatywni,\ngrzeczni dla innych,\npokazujmy ciekawe miejsca,\noglądajmy ciekawe miejsca.",
-"Włączmy tryb spaceru\ni słuchajmy opisów,\nchodząc po okolicy\nlub jadąc samochodem.",
+"Włącz tryb spaceru\ni słuchaj opisów w okolicy —\nsuwakiem ustawisz zasięg:\nod 10 m na rowerze, do 100 m na spacer.",
 "Dbamy o bezpieczeństwo:\nfiltr treści, limity wpisów,\nzgłoszenia niewłaściwych miejsc\n(5 zgłoszeń = kropka znika na zawsze).",
 "Pod maską: Leaflet.js + Firebase Firestore.\nHosting: GitHub Pages.\nBrak logowania — cała logika\ndziała w Twojej przeglądarce.",
 "Ten projekt jest w 100% darmowy —\nmapa, baza danych, hosting.\nDarmowy znaczy też: może zniknąć\nz dnia na dzień, bez ostrzeżenia.\nNie trzymaj tu jedynej kopii\nczegoś, na czym Ci zależy.",
+"Mapa służy\ndo zabawy\noraz dzielenia się\nciekawostkami.",
 "Chcesz zrobić swoją własną mapę?\nUżyj Skarbca na mini-klik.pl —\nmnóstwo funkcji,\nna własnych zasadach."
 ];
+const INFO_IKONY=[
+"🗺️","🤝","","📻 ⌄","📝 🖼️ 🎙️ ▶","✨","🚶 ‹","🚩","⚙️","💛","🎉","🔗"
+];
+const INFO_WIDGET={
+0:'<img class="info-img" id="infoObrazek" src="img/intro.jpg" alt="Mapa Wspomnień">',
+2:'<div class="info-demo"><div class="info-demo-btn">Zostaw wspomnienie</div><div class="info-demo-tap">👆</div></div>'
+};
 let infoKrok=0,matrixAnimId=null,matrixResizeFn=null;
 
 function otworzInfo(){
   infoKrok=0;
   document.getElementById('matrixTlo').classList.add('poka');
+  document.getElementById('infoDzwiek').textContent=dzwiekWlaczony?'🔊':'🔇';
   pokazKrokInfo();
   startMatrix();
 }
 function zamknijInfo(){
   document.getElementById('matrixTlo').classList.remove('poka');
+  try{speechSynthesis.cancel();}catch(e){}
   stopMatrix();
 }
 function pokazKrokInfo(){
@@ -1508,8 +1530,37 @@ function pokazKrokInfo(){
   document.getElementById('infoBtn').textContent=(infoKrok===INFO_KROKI.length-1)?'Koniec':'Dalej';
   const kr=document.getElementById('infoKropki');
   kr.innerHTML=INFO_KROKI.map((_,i)=>'<div class="kropka-postep'+(i<=infoKrok?' akt':'')+'"></div>').join('');
+  const ik=document.getElementById('infoIkony');
+  ik.innerHTML=INFO_WIDGET[infoKrok]||('<span class="ikony-emoji">'+(INFO_IKONY[infoKrok]||'')+'</span>');
+  ik.classList.remove('poj');
+  void ik.offsetWidth;
+  ik.classList.add('poj');
+  if(infoKrok===0){
+    const img=document.getElementById('infoObrazek');
+    if(img)requestAnimationFrame(()=>requestAnimationFrame(()=>img.classList.add('jasno')));
+  }
+  czytajAktualnyKrokInfo();
+}
+function czytajAktualnyKrokInfo(){
+  try{speechSynthesis.cancel();}catch(e){}
+  if(dzwiekWlaczony)powiedz(INFO_KROKI[infoKrok].replace(/\n/g,' '));
+}
+function przelaczDzwiekInfo(){
+  przelaczDzwiek();
+  document.getElementById('infoDzwiek').textContent=dzwiekWlaczony?'🔊':'🔇';
+  if(dzwiekWlaczony)czytajAktualnyKrokInfo();
 }
 function infoDalej(){
+  const img=infoKrok===0?document.getElementById('infoObrazek'):null;
+  if(img&&img.classList.contains('jasno')){
+    img.classList.remove('jasno');
+    setTimeout(()=>{
+      if(infoKrok>=INFO_KROKI.length-1){zamknijInfo();return;}
+      infoKrok++;
+      pokazKrokInfo();
+    },700);
+    return;
+  }
   if(infoKrok>=INFO_KROKI.length-1){zamknijInfo();return;}
   infoKrok++;
   pokazKrokInfo();
