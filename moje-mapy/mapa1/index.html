@@ -57,6 +57,16 @@ body.dzien .sel-warstwa{color:#3d2817}
 @keyframes odlPuls{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}
 .panel-tlo{position:fixed;inset:0;z-index:5000;background:rgba(8,12,28,.7);backdrop-filter:blur(4px);display:none;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto}
 .panel-tlo.poka{display:flex}
+@keyframes orbitWjazd{
+  0%{opacity:0;transform:scale(.35) rotate(-360deg)}
+  100%{opacity:1;transform:scale(1) rotate(0deg)}
+}
+@keyframes orbitWyjazd{
+  0%{opacity:1;transform:scale(1) rotate(0deg)}
+  100%{opacity:0;transform:scale(.35) rotate(360deg)}
+}
+#panelTloCz .panel,#panelTloM .panel{animation:orbitWjazd .9s ease both}
+#panelTloCz.wyjazd .panel,#panelTloM.wyjazd .panel{animation:orbitWyjazd .8s ease-in both}
 .panel{background:linear-gradient(180deg,var(--karta),var(--bg2));border:1px solid var(--obw);border-radius:18px;padding:24px;max-width:480px;width:100%;box-shadow:var(--cien-g);max-height:90vh;overflow-y:auto;margin-top:50px}
 #panelTlo .panel{background:#fdfaf3;color:#1f1a14;border-color:rgba(0,0,0,.12)}
 #panelTlo .panel .pytanie-dod{color:#1f1a14}
@@ -192,6 +202,16 @@ body.dzien #nagrywanieBox{background:rgba(0,0,0,.03)}
 #toastPasek{display:none;position:absolute;left:0;bottom:0;height:3px;width:100%;background:linear-gradient(90deg,var(--akcent2),var(--akcent));transform-origin:left center;transform:scaleX(1);border-radius:0 0 30px 30px}
 .fab{width:46px;height:46px;border-radius:50%;background:var(--karta);border:1px solid var(--obw);color:var(--akcent);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:20px;transition:.2s;box-shadow:var(--cien-l)}
 .dol-lewo,.dol-prawo{display:flex;flex-direction:column;gap:10px}
+.spacer-wrap{position:relative}
+.fab-strzalka{position:absolute;left:-30px;top:50%;transform:translateY(-50%);width:22px;height:22px;border-radius:50%;background:var(--karta);border:1px solid var(--obw);color:var(--akcent);font-size:12px;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0;box-shadow:var(--cien-l);transition:transform .25s ease}
+.fab-strzalka.roz{transform:translateY(-50%) rotate(180deg)}
+.radyjko-wrap{position:relative}
+.fab-strzalka-dol{position:absolute;left:50%;top:auto;bottom:-26px;transform:translateX(-50%);z-index:5}
+.suwak-zasiegu{position:absolute;right:calc(100% + 34px);top:50%;transform-origin:right center;transform:translateY(-50%) rotate(-40deg) scale(.5);background:var(--karta);border:1px solid var(--obw);border-radius:26px;padding:10px 16px;display:flex;align-items:center;gap:10px;box-shadow:var(--cien-l);white-space:nowrap;opacity:0;pointer-events:none;transition:all .5s ease}
+.suwak-zasiegu.roz{opacity:1;pointer-events:auto;transform:translateY(-50%) rotate(0deg) scale(1)}
+.suwak-zasiegu .suwak-etyk{font-size:13px;color:var(--tekst-mil)}
+.suwak-zasiegu input[type=range]{width:110px;accent-color:var(--akcent)}
+.suwak-zasiegu span#suwakZasiegLiczba{font-family:'Cormorant Garamond',serif;font-weight:600;color:var(--akcent);min-width:42px;text-align:right}
 /* ════ WYGASZACZ EKRANU (tryb kieszonkowy) — odblokowanie przytrzymaniem ════ */
 #wygaszaczKurtyna{position:fixed;inset:0;z-index:100000;display:none}
 .wygaszacz{position:fixed;inset:0;z-index:99999;background:#000;display:none;flex-direction:column;align-items:center;justify-content:center;gap:26px;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;cursor:default}
@@ -299,14 +319,17 @@ body.dzien #nagrywanieBox{background:rgba(0,0,0,.03)}
   <div class="tytul">Mapa <em>Wspomnień</em></div>
   <div class="gora-prawo">
     <button class="licznik-gora" id="btnMojeKropki" onclick="idzDoNajblizszej()" title="Idź do najbliższej mojej kropki"><span class="licznik-kropka"></span><b id="liczKropek">—</b></button>
-    <button class="btn-ikon btn-ikon-duzy" id="btnCzest" onclick="otworzPanelCz()" title="Częstotliwość">📻</button>
+    <div class="radyjko-wrap">
+      <button class="btn-ikon btn-ikon-duzy" id="btnCzest" onclick="otworzPanelCz()" title="Częstotliwość">📻</button>
+      <button class="fab-strzalka fab-strzalka-dol" id="btnPubliczneStrzalka" onclick="otworzPanelM()" title="Publiczne częstotliwości">⌄</button>
+    </div>
     <button class="btn-ikon" id="btnWarstwa" onclick="przelaczWarstwe()" title="Styl mapy">🗺️</button>
   </div>
 </div>
 
 <div class="spacer-info" id="spacerInfo">
   <span class="kropek-pulse"></span>
-  <span>Tryb spaceru — <b id="spacerLicz">0</b> kropek w 100 m</span>
+  <span>Tryb spaceru — <b id="spacerLicz">0</b> kropek w <b id="spacerZasiegTekst">100</b> m</span>
 </div>
 
 <div class="cz-badge" id="czBadge">
@@ -317,7 +340,6 @@ body.dzien #nagrywanieBox{background:rgba(0,0,0,.03)}
 
 <div class="dol">
   <div class="dol-lewo">
-    <button class="fab" id="fabMenuCz" onclick="otworzPanelM()" title="Publiczne częstotliwości" style="font-family:'Cormorant Garamond',serif;font-weight:700;font-size:19px">M</button>
     <button class="fab" id="fabWycisz" onclick="wlaczWygaszacz()" title="Wycisz ekran">🌙</button>
     <button class="fab" id="fabInfo" onclick="otworzInfo()" title="Informacje i regulamin" style="font-family:'Cormorant Garamond',serif;font-weight:700;font-style:italic;font-size:21px">i</button>
   </div>
@@ -326,7 +348,15 @@ body.dzien #nagrywanieBox{background:rgba(0,0,0,.03)}
   </button>
   <div class="dol-prawo">
     <button class="fab" id="fabGps" onclick="trybGpsZywo()" title="GPS na żywo">📍</button>
-    <button class="fab" id="fabSpacer" onclick="trybSpaceru()" title="Tryb spaceru (audio)">🚶</button>
+    <div class="spacer-wrap" id="spacerWrap">
+      <button class="fab" id="fabSpacer" onclick="trybSpaceru()" title="Tryb spaceru (audio)">🚶</button>
+      <button class="fab-strzalka" id="btnZasiegStrzalka" onclick="przelaczSuwakZasiegu(event)" title="Zasięg trybu spaceru">‹</button>
+      <div class="suwak-zasiegu" id="suwakZasiegu" onclick="event.stopPropagation()">
+        <span class="suwak-etyk">Zasięg</span>
+        <input type="range" min="10" max="100" step="10" value="100" id="suwakZasiegWartosc" oninput="zmienZasiegSpaceru(this.value)">
+        <span id="suwakZasiegLiczba">100 m</span>
+      </div>
+    </div>
     <button class="fab" id="fabDzwiek" onclick="przelaczDzwiek()" title="Wycisz/włącz czytanie">🔊</button>
   </div>
 </div>
@@ -642,8 +672,27 @@ function zatrzymajGps(){
 }
 
 /* ════ TRYB SPACERU ════ */
-const PROMIEN_SPACERU=100;
+let PROMIEN_SPACERU=Number(localStorage.getItem('mw_promien_spaceru'))||100;
 let spaceruIntervalId=null;
+function przelaczSuwakZasiegu(e){
+  if(e)e.stopPropagation();
+  const box=document.getElementById('suwakZasiegu'),strz=document.getElementById('btnZasiegStrzalka');
+  const otwarty=box.classList.toggle('roz');
+  strz.classList.toggle('roz',otwarty);
+}
+function zmienZasiegSpaceru(v){
+  PROMIEN_SPACERU=Number(v);
+  document.getElementById('suwakZasiegLiczba').textContent=PROMIEN_SPACERU+' m';
+  document.getElementById('spacerZasiegTekst').textContent=PROMIEN_SPACERU;
+  try{localStorage.setItem('mw_promien_spaceru',String(PROMIEN_SPACERU));}catch(e){}
+}
+document.addEventListener('click',(e)=>{
+  const wrap=document.getElementById('spacerWrap');
+  if(wrap&&!wrap.contains(e.target)){
+    document.getElementById('suwakZasiegu').classList.remove('roz');
+    document.getElementById('btnZasiegStrzalka').classList.remove('roz');
+  }
+});
 function trybSpaceru(){
   if(spaceruTryb){zatrzymajSpacer();return;}
   if(!('speechSynthesis' in window)){toast('Twoja przeglądarka nie obsługuje czytania głosem');return;}
@@ -1135,8 +1184,12 @@ function odswiezWidokCzestotliwosci(){
   zaladujKropkiWObszarze();
   aktualizujBadgeCzestotliwosci();
 }
+let _czZamkTimeout=null;
 function otworzPanelCz(){
-  document.getElementById('panelTloCz').classList.add('poka');
+  const tlo=document.getElementById('panelTloCz');
+  if(_czZamkTimeout){clearTimeout(_czZamkTimeout);_czZamkTimeout=null;}
+  tlo.classList.remove('wyjazd');
+  tlo.classList.add('poka');
   if(aktywnaCzestotliwosc){
     document.getElementById('czKodWyswietl').textContent=aktywnaCzestotliwosc;
     document.getElementById('czStanWylaczony').style.display='none';
@@ -1154,7 +1207,16 @@ function ustawWidocznoscCz(w){
   document.getElementById('czBtnPrywatna').className='btn '+(w==='prywatna'?'btn-prim':'btn-sec');
   document.getElementById('czBtnPubliczna').className='btn '+(w==='publiczna'?'btn-prim':'btn-sec');
 }
-function zamknijPanelCz(){document.getElementById('panelTloCz').classList.remove('poka');document.getElementById('polCzKod').value='';}
+function zamknijPanelCz(){
+  const tlo=document.getElementById('panelTloCz');
+  tlo.classList.add('wyjazd');
+  _czZamkTimeout=setTimeout(()=>{
+    tlo.classList.remove('poka');
+    tlo.classList.remove('wyjazd');
+    document.getElementById('polCzKod').value='';
+    _czZamkTimeout=null;
+  },820);
+}
 function zamknijTloCz(e){if(e.target===document.getElementById('panelTloCz'))zamknijPanelCz();}
 function nastawCzestotliwosc(){
   const kod=document.getElementById('polCzKod').value.trim();
@@ -1178,11 +1240,23 @@ function wylaczCzestotliwosc(){
 }
 
 /* ════ MENU PUBLICZNYCH CZĘSTOTLIWOŚCI ════ */
+let _mZamkTimeout=null;
 function otworzPanelM(){
-  document.getElementById('panelTloM').classList.add('poka');
+  const tlo=document.getElementById('panelTloM');
+  if(_mZamkTimeout){clearTimeout(_mZamkTimeout);_mZamkTimeout=null;}
+  tlo.classList.remove('wyjazd');
+  tlo.classList.add('poka');
   wczytajPubliczneCzestotliwosci();
 }
-function zamknijPanelM(){document.getElementById('panelTloM').classList.remove('poka');}
+function zamknijPanelM(){
+  const tlo=document.getElementById('panelTloM');
+  tlo.classList.add('wyjazd');
+  _mZamkTimeout=setTimeout(()=>{
+    tlo.classList.remove('poka');
+    tlo.classList.remove('wyjazd');
+    _mZamkTimeout=null;
+  },820);
+}
 function zamknijTloM(e){if(e.target===document.getElementById('panelTloM'))zamknijPanelM();}
 async function wczytajPubliczneCzestotliwosci(){
   const lista=document.getElementById('mLista'),pusta=document.getElementById('mListaPusta');
@@ -1567,6 +1641,9 @@ let introAutoId=setTimeout(()=>{introKlik();},7000);
 
 initMapa();
 aktualizujBadgeCzestotliwosci();
+document.getElementById('suwakZasiegWartosc').value=PROMIEN_SPACERU;
+document.getElementById('suwakZasiegLiczba').textContent=PROMIEN_SPACERU+' m';
+document.getElementById('spacerZasiegTekst').textContent=PROMIEN_SPACERU;
 </script>
 </body>
 </html>
