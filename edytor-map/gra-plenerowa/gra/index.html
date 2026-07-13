@@ -1450,6 +1450,21 @@ footer{
   text-align: center;
 }
 .gra-postep-info.visible { display: block; }
+
+/* W pełnoekranowym widoku mapy (gracz, nie admin) panel "Twoja przygoda"
+   pływa nad mapą w lewym górnym rogu - bo cały pasek .controls, w którym
+   normalnie mieszkał, jest teraz zawsze ukryty (mapa jest pełnoekranowa). */
+html.tryb-mapa-pelna:not(.tryb-admin) .gra-postep-info.visible{
+  display: block;
+  position: fixed;
+  top: 14px;
+  left: 14px;
+  z-index: 600;
+  width: 220px;
+  max-width: calc(100vw - 28px);
+  margin: 0;
+  box-shadow: 0 3px 12px rgba(60,40,20,0.35);
+}
 .gra-postep-info .gra-postep-label {
   font-family: 'Cinzel', serif;
   font-weight: 700;
@@ -2090,6 +2105,8 @@ footer{
   z-index:10000;
   max-width:380px;
   width:calc(100% - 40px);
+  max-height:85vh;
+  overflow-y:auto;
   font-family:'EB Garamond',serif;
   text-align:center;
   opacity:0;
@@ -2197,6 +2214,8 @@ footer{
   z-index:10000;
   max-width:460px;
   width:calc(100% - 40px);
+  max-height:85vh;
+  overflow-y:auto;
   font-family:'EB Garamond',serif;
   opacity:0;
   pointer-events:none;
@@ -2363,6 +2382,47 @@ footer{
   overflow-y:auto;
   max-height:60vh;
 }
+
+/* Panel "Specjalne" (YouTube / nagranie głosowe / zdjęcie) - ten sam
+   mechanizm pełnoekranowy co edytor opisu, niezależny stan. */
+.admin-helper.edytuje-specjalne > *:not(.miejsce-specjalne){
+  display:none !important;
+}
+.admin-helper.edytuje-specjalne{
+  max-height:90vh;
+  overflow:hidden;
+  padding:14px;
+}
+.admin-helper.edytuje-specjalne .miejsce-specjalne{
+  display:flex !important;
+  flex-direction:column;
+  max-height:calc(90vh - 30px);
+  overflow-y:auto;
+  margin:0;
+}
+
+/* Wygląd ramki "Specjalne" - ta sama stylistyka co edytor opisu,
+   ale WŁASNA klasa (nie .opis-edytor!). Współdzielenie klasy z opis-edytor
+   powodowało, że obie ramki pokazywały się naraz - reguła "ukryj wszystko
+   oprócz .opis-edytor" nie chowała Specjalnego, bo on też miał tę klasę. */
+.miejsce-specjalne{
+  display:none;
+  margin:12px 0;
+  background:linear-gradient(180deg,#fffaee,var(--paper-2));
+  border:1.5px solid var(--gold);
+  border-radius:8px;
+  padding:14px 16px 12px;
+  position:relative;
+  box-shadow:inset 0 0 30px rgba(160,69,16,0.05),0 4px 12px rgba(60,40,20,0.1);
+}
+.miejsce-specjalne.visible{display:block}
+.miejsce-specjalne::before,.miejsce-specjalne::after{
+  content:'';position:absolute;width:14px;height:14px;
+  border:1.5px solid var(--gold);
+  pointer-events:none;
+}
+.miejsce-specjalne::before{top:5px;left:5px;border-right:none;border-bottom:none}
+.miejsce-specjalne::after{bottom:5px;right:5px;border-left:none;border-top:none}
 
 /* Zwinięty stan: ładny przycisk "Dodaj opis" w stylu pergaminu */
 .opis-zwiniety{margin:14px 0 8px}
@@ -2860,37 +2920,51 @@ footer{
   color:var(--gold);
 }
 .nazwa-edytor-akcje{
-  display:flex;gap:6px;
+  display:flex;gap:10px;
+  margin-top:18px;
 }
-/* Specyfika podniesiona — nadpisuje globalne .admin-list button (fioletowe) */
-.admin-list .nazwa-edytor button.nazwa-zapisz,
-.admin-list .nazwa-edytor button.nazwa-anuluj{
-  flex:1;margin-top:0;
-  font-family:'Cinzel',serif;font-size:10px;
-  letter-spacing:1px;font-weight:600;
-  padding:7px 6px;border-radius:3px;
-  cursor:pointer;text-transform:uppercase;
-  transition:all 0.2s;
+/* Wcześniej te przyciski były stylowane tylko pod ".admin-list .nazwa-edytor"
+   - ale #nazwaEdytor od dawna NIE jest już wewnątrz .admin-list (to osobny,
+   wyśrodkowany modal), więc styl w ogóle się nie podpinał i przyciski
+   wyglądały jak gołe, domyślne przyciski przeglądarki. Poprawione: */
+.nazwa-edytor button.nazwa-zapisz,
+.nazwa-edytor button.nazwa-anuluj{
+  flex:1;
+  font-family:'Cinzel',serif;
+  font-size:12px;
+  letter-spacing:1.5px;
+  font-weight:600;
+  padding:12px 10px;
+  border-radius:24px;
+  cursor:pointer;
+  text-transform:uppercase;
+  transition:all 0.2s ease;
 }
-.admin-list .nazwa-edytor button.nazwa-zapisz{
+.nazwa-edytor button.nazwa-zapisz{
   background:linear-gradient(180deg,var(--gold),#8a3a0e);
   color:var(--paper-2);
-  border:1px solid #6e2d0a;
+  border:1.5px solid #6e2d0a;
+  box-shadow:0 3px 10px rgba(60,40,20,0.3);
 }
-.admin-list .nazwa-edytor button.nazwa-zapisz:hover{
+.nazwa-edytor button.nazwa-zapisz:hover{
   background:linear-gradient(180deg,#b54e15,#9a3f10);
+  transform:translateY(-1px);
+  box-shadow:0 5px 14px rgba(60,40,20,0.4);
 }
-.admin-list .nazwa-edytor button.nazwa-zapisz.zapisany{
+.nazwa-edytor button.nazwa-zapisz:active{transform:translateY(0)}
+.nazwa-edytor button.nazwa-zapisz.zapisany{
   background:linear-gradient(180deg,#22c55e,#16a34a)!important;
   border-color:#15803d!important;
 }
-.admin-list .nazwa-edytor button.nazwa-anuluj{
-  background:transparent;
-  color:var(--ink-soft);
-  border:1px solid var(--ink-soft);
+.nazwa-edytor button.nazwa-anuluj{
+  background:var(--paper-2);
+  color:var(--ink-muted);
+  border:1.5px solid rgba(160,69,16,0.35);
 }
-.admin-list .nazwa-edytor button.nazwa-anuluj:hover{
-  background:var(--ink-soft);color:var(--paper-2);
+.nazwa-edytor button.nazwa-anuluj:hover{
+  background:var(--paper-3);
+  color:var(--ink);
+  border-color:var(--ink-muted);
 }
 .nazwa-edytor-info{
   margin:8px 0 0;
@@ -2900,6 +2974,99 @@ footer{
   text-align:center;
   line-height:1.3;
 }
+/* Ramka do wklejenia linku (zdjęcie intro / podkład mp3 intro) -
+   ten sam pomysł co "Dodaj zdjęcie (link)" w Mapie Wspomnień: podpisana
+   ramka z polem na wklejony adres URL. */
+.link-ramka{
+  border:1px solid rgba(160,69,16,0.35);
+  border-radius:8px;
+  padding:10px 12px;
+  background:var(--paper-2);
+  margin-top:6px;
+  transition:border-color 0.2s ease;
+}
+.link-ramka:focus-within{
+  border-color:var(--gold);
+  box-shadow:0 0 0 2px var(--gold-pale);
+}
+.link-ramka input{
+  width:100%;
+  border:none;
+  background:transparent;
+  font-family:'EB Garamond',serif;
+  font-size:14px;
+  color:var(--ink);
+  outline:none;
+}
+.link-ramka input::placeholder{color:var(--ink-muted);font-style:italic}
+
+/* Wariant z przyciskiem obok pola (np. link do postimages.org) -
+   dokładnie jak w Mapie Wspomnień: pole + osobny przycisk-skrót do strony. */
+.link-ramka-z-btn{
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+.link-ramka-z-btn input{flex:1;min-width:0}
+.link-ramka-btn{
+  flex-shrink:0;
+  background:var(--paper-3);
+  color:var(--gold);
+  border:1px solid var(--gold);
+  border-radius:6px;
+  padding:7px 12px;
+  font-family:'EB Garamond',serif;
+  font-size:12.5px;
+  font-weight:600;
+  text-decoration:none;
+  white-space:nowrap;
+  transition:all 0.2s ease;
+}
+.link-ramka-btn:hover{
+  background:var(--gold);
+  color:var(--paper-2);
+}
+
+/* ====================================================================
+   === NAGRYWANIE GŁOSU - przeniesione z Mapy Wspomnień, ta sama logika ==
+   ==================================================================== */
+#miejsceNagrywanieBox{
+  display:flex;align-items:center;gap:10px;
+  background:var(--paper-3);
+  border:1px solid rgba(160,69,16,0.3);
+  border-radius:10px;
+  padding:10px 12px;
+}
+.nagr-btn{
+  flex:0 0 auto;
+  background:var(--paper-2);
+  border:1px solid var(--gold);
+  color:var(--gold);
+  border-radius:20px;
+  padding:8px 16px;
+  font-family:'EB Garamond',serif;
+  font-size:14px;
+  cursor:pointer;
+  display:flex;align-items:center;gap:6px;
+  transition:0.2s;
+}
+.nagr-btn:hover{background:var(--gold);color:var(--paper-2)}
+.nagr-btn.stop{border-color:var(--crimson);color:#fff;background:var(--crimson)}
+.nagr-kropka{
+  width:9px;height:9px;border-radius:50%;
+  background:var(--crimson);
+  animation:nagrPulsuj 1.1s ease-in-out infinite;
+  flex:0 0 auto;
+}
+@keyframes nagrPulsuj{
+  0%,100%{box-shadow:0 0 0 3px rgba(160,30,30,0.3)}
+  50%{box-shadow:0 0 0 9px rgba(160,30,30,0.08)}
+}
+.nagr-czas{font-family:'Cormorant Garamond',serif;font-size:16px;color:var(--ink-muted);min-width:34px}
+.nagr-audio{flex:1;min-width:0;height:34px}
+.nagr-usun{flex:0 0 auto;background:none;border:none;color:var(--ink-muted);cursor:pointer;font-size:18px;padding:4px}
+.nagr-usun:hover{color:var(--crimson)}
+.nagr-pusty{color:var(--ink-muted);font-size:13px;font-style:italic}
 /* === PANEL ODTWARZANIA AUDIO === */
 /* === RADAR PANEL "📡 W zasięgu" (Krok B) === */
 .radar-panel{
@@ -4503,19 +4670,11 @@ html.tryb-noc .sw-off {
   }
 }
 
-/* === BLOKADA ADMINA NA TELEFONIE ========================== */
-/* Admin (budowanie mapy) działa na komputerze i tablecie.        */
-/* Telefon = wąski ekran (<900px) - admin zablokowany w KAŻDEJ    */
-/* orientacji, bo na telefonie jest za mało miejsca na edytor.    */
-/* Komunikat #obrocAdmin pokazuje też JS (inline) - patrz skrypt. */
-@media (max-width: 899px) {
-  html.tryb-admin #obrocAdmin{
-    display:flex !important;
-  }
-  html.tryb-admin body{
-    overflow:hidden !important;
-  }
-}
+/* === ADMIN NA TELEFONIE - ODBLOKOWANY ======================= */
+/* Wcześniej tu była blokada (#obrocAdmin nakładka + overflow:hidden)
+   dla ekranów < 900px. Usunięta - admin działa też na telefonie,
+   układ dopasowuje się responsywnie (patrz reguły niżej, sekcja
+   "PRZEBUDOWA WYGLĄDU EDYTORA"). */
 
 /* === GRACZ W PIONIE - mapa pełnoekranowa === */
 /* Nagłówek strony ("Nazwa przygody") chowamy tylko w PIONIE na dotykowym
@@ -4872,12 +5031,15 @@ html.tryb-noc .sw-off {
    reguły html.tryb-admin niżej. */
 #editorPasek { display: none !important; }
 .editor-tytul-ramka { display: none !important; }
-/* W trybie admina pasek MA być widoczny - przywracamy go. */
-html.tryb-admin #editorPasek { display: block !important; }
+/* Górny pasek edytora - USUNIĘTY na życzenie. Wszystkie jego funkcje
+   (Nazwa przygody, Opis gry, Wyczyść wszystko, Pobierz, Wersja
+   publiczna) są już dostępne przez rozwijane strzałki w lewym górnym
+   rogu mapy. Pasek zostaje ukryty na stałe, niezależnie od trybu. */
 
-/* Skarbiec edytora - dla TABLETU i LAPTOPA (szeroki ekran >=900px).
-   Telefon (<900px) ma admina zablokowanego, więc skarbca tam nie ma. */
-@media (min-width: 900px) {
+/* Skarbiec edytora - teraz działa na KAŻDYM urządzeniu (komputer,
+   tablet, telefon). Blok @media(min-width:900px) usunięty - reguły
+   niżej są aktywne zawsze. Dostosowanie do wąskich ekranów jest w
+   osobnym @media(max-width:899px) na końcu tej sekcji. */
 
   /* Tło edytora - lekko bajkowe, ciepłe, z delikatnym ruchem */
   html.tryb-admin body {
@@ -4888,118 +5050,160 @@ html.tryb-admin #editorPasek { display: block !important; }
       var(--paper);
   }
 
-  /* Jedna stała, wygodna szerokość - dobra i na laptopie, i na monitorze */
-  html.tryb-admin .wrapper { max-width: 1280px; }
+  /* ================================================================
+     MAPA NA CAŁY EKRAN - bez ramek, bez obwódki, bez wcięć.
+     Pasek z przyciskami i lista miejsc pływają NAD mapą (position:fixed),
+     tak jak w "mapie wspomnień" - mapa zawsze widoczna w całości. */
+  html.tryb-admin body,
+  html.tryb-mapa-pelna body {
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow: hidden !important;
+    height: 100vh;
+    height: 100dvh;
+  }
 
-  /* Nagłówek z <h1> chowamy - tytuł przygody pokazujemy w ramce edytora */
+  html.tryb-admin .wrapper,
+  html.tryb-mapa-pelna .wrapper {
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    height: 100vh;
+    height: 100dvh;
+    position: relative;
+  }
+
+  /* Nagłówek z <h1> chowamy - tytuł przygody pokazujemy w pasku edytora */
   html.tryb-admin > body header,
-  html.tryb-admin header { display: none !important; }
+  html.tryb-admin header,
+  html.tryb-mapa-pelna > body header,
+  html.tryb-mapa-pelna header { display: none !important; }
 
-  /* Pasek kontrolek (widok mapy / rozmiar) - chowamy.
-     Rozmiar mapy jest stały, widok mapy przełączamy w panelu bocznym niżej. */
-  html.tryb-admin .controls { display: none !important; }
+  /* Pasek kontrolek (widok mapy / rozmiar) - chowamy, mapa jest pełnoekranowa */
+  html.tryb-admin .controls,
+  html.tryb-mapa-pelna .controls { display: none !important; }
 
   /* Stary panel admina (nakładka na mapie) - całkowicie ukryty.
      Jego zawartość przenosi JS do nowego paska #editorPasek. */
   html.tryb-admin #adminList { display: none !important; }
 
-  /* Stara ramka tytułu (poprzednia próba) - ukryta, używamy nowej. */
   html.tryb-admin .editor-tytul-ramka { display: none !important; }
-  /* Stara ramka tytułu (relikt poprzedniej przebudowy) - ukryta wszędzie.
-     U gracza tytuł jest w nagłówku <h1>, w edytorze w pasku edytora. */
   .editor-tytul-ramka { display: none !important; }
 
-  /* Pergamin "Twoja przygoda" - zbędny na komputerze (tu nie gramy w teren) */
+  /* Pergamin "Twoja przygoda" - zbędny w edytorze */
   html.tryb-admin .gra-postep-info,
   html.tryb-admin #graPostepPanel { display: none !important; }
 
-  /* ================= GÓRNY PASEK EDYTORA ================= */
-  /* display sterowane globalnie wyżej (#editorPasek display:none,
-     html.tryb-admin #editorPasek display:block !important).
-     Tu tylko pozycjonowanie paska w trybie admina. */
-  html.tryb-admin #editorPasek {
-    margin: 0 0 22px 0;
-    position: relative;
+  /* Layout - zerujemy grid, mapa zajmuje cały ekran, sidebar pływa nad nią */
+  html.tryb-admin .layout,
+  html.tryb-mapa-pelna .layout {
+    display: block !important;
+    margin: 0 !important;
+    gap: 0 !important;
+    height: 100vh;
+    height: 100dvh;
   }
 
-  /* --- RAMKA TYTUŁU "Nazwa przygody" (centralny element) --- */
+  /* ================= MAPA PEŁNOEKRANOWA - bez ramek ================= */
+  html.tryb-admin #mapa,
+  html.tryb-mapa-pelna #mapa {
+    position: fixed !important;
+    inset: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    height: 100dvh !important;
+    margin: 0 !important;
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    z-index: 1;
+  }
+  /* Złote ornamenty w rogach mapy - zbędne bez ramki, zlewałyby się z brzegiem ekranu */
+  html.tryb-admin #mapa::before,
+  html.tryb-admin #mapa::after,
+  html.tryb-mapa-pelna #mapa::before,
+  html.tryb-mapa-pelna #mapa::after {
+    display: none !important;
+  }
+
+  /* ================= PASEK EDYTORA - pływa NAD mapą, na górze ================= */
+  html.tryb-admin #editorPasek {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    margin: 0;
+    padding: 12px 16px;
+    z-index: 700;
+    background: rgba(250, 244, 230, 0.94);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    box-shadow: 0 4px 18px rgba(60,40,20,0.18);
+  }
+
+  /* --- Ramka tytułu "Nazwa przygody" - teraz kompaktowa, mieści się w pasku --- */
   .ed-tytul-blok {
     position: relative;
     text-align: center;
-    background:
-      radial-gradient(ellipse 60% 80% at 50% 0%, rgba(217,122,48,0.12), transparent 70%),
-      linear-gradient(180deg, var(--paper-2) 0%, var(--paper-3) 100%);
-    border: 2px solid var(--gold);
-    border-radius: 16px;
-    padding: 26px 32px 24px;
-    box-shadow: var(--shadow-deep), inset 0 0 0 4px var(--paper-2);
-    overflow: hidden;
+    background: none;
+    border: none;
+    border-radius: 0;
+    padding: 0 0 8px;
+    box-shadow: none;
+    overflow: visible;
   }
-  /* Pulsujące rogi ramki tytułu */
   .ed-tytul-blok::before,
-  .ed-tytul-blok::after {
-    content: ''; position: absolute; width: 26px; height: 26px;
-    border: 2px solid var(--gold); pointer-events: none;
-    animation: ed-rog-puls 3s ease-in-out infinite;
-  }
-  .ed-tytul-blok::before { top: 9px; left: 9px; border-right: none; border-bottom: none; }
-  .ed-tytul-blok::after  { bottom: 9px; right: 9px; border-left: none; border-top: none; }
-  @keyframes ed-rog-puls {
-    0%,100% { opacity: 0.45; }
-    50%     { opacity: 1; }
-  }
+  .ed-tytul-blok::after { display: none; }
 
   .ed-tytul-nazwa {
     font-family: 'Cormorant Garamond', serif;
-    font-size: 46px;
+    font-size: 22px;
     font-weight: 600;
     color: var(--ink);
-    line-height: 1.05;
-    letter-spacing: 0.5px;
+    line-height: 1.1;
+    letter-spacing: 0.3px;
     margin: 0;
   }
   .ed-tytul-podpis {
-    margin-top: 8px;
+    margin-top: 2px;
     font-family: 'EB Garamond', serif;
     font-style: italic;
     color: var(--ink-soft);
-    font-size: 15px;
+    font-size: 12px;
   }
   .ed-tytul-podpis::before { content: '— '; color: var(--gold); }
   .ed-tytul-podpis::after  { content: ' —'; color: var(--gold); }
 
-  /* --- RZĄD PRZYCISKÓW AKCJI (pod tytułem) --- */
+  /* --- Rząd przycisków akcji - kompaktowy pasek narzędzi --- */
   .ed-przyciski {
     display: flex;
     justify-content: center;
     flex-wrap: wrap;
-    gap: 12px;
-    margin-top: 20px;
+    gap: 8px;
+    margin-top: 8px;
   }
   .ed-przyciski .ed-btn {
     display: inline-flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
     font-family: 'EB Garamond', serif;
-    font-size: 14px;
+    font-size: 12.5px;
     font-weight: 600;
-    letter-spacing: 0.3px;
-    padding: 12px 20px;
-    border-radius: 10px;
+    letter-spacing: 0.2px;
+    padding: 8px 14px;
+    border-radius: 8px;
     border: 1.5px solid transparent;
     cursor: pointer;
     color: #fff;
-    box-shadow: 0 3px 10px rgba(60,40,20,0.18);
+    box-shadow: 0 2px 8px rgba(60,40,20,0.18);
     transition: transform 0.16s ease, box-shadow 0.16s ease, filter 0.16s ease;
     white-space: nowrap;
   }
-  .ed-przyciski .ed-btn .ed-btn-ikona { font-size: 17px; line-height: 1; }
+  .ed-przyciski .ed-btn .ed-btn-ikona { font-size: 15px; line-height: 1; }
   .ed-przyciski .ed-btn:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 8px 18px rgba(60,40,20,0.3);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 14px rgba(60,40,20,0.28);
     filter: brightness(1.06);
   }
-  .ed-przyciski .ed-btn:active { transform: translateY(-1px); }
+  .ed-przyciski .ed-btn:active { transform: translateY(0); }
   /* Kolory przycisków wg roli */
   .ed-btn-pobierz  { background: linear-gradient(180deg,#34d058,#1f9d3f); }
   .ed-btn-nazwa    { background: linear-gradient(180deg,#d97a30,#a04510); }
@@ -5008,17 +5212,74 @@ html.tryb-admin #editorPasek { display: block !important; }
   .ed-btn-rysuj    { background: linear-gradient(180deg,#4f9e68,#2f6b46); }
   .ed-btn-wyczysc  { background: linear-gradient(180deg,#ef5350,#c0392b); }
 
-  /* --- MAPA: kwadratowa, stała wysokość, panel boczny obok --- */
-  html.tryb-admin .layout {
-    grid-template-columns: minmax(0,1fr) 340px;
-    gap: 22px;
+  /* ================= LISTA MIEJSC - pływa NAD mapą, po prawej ================= */
+  html.tryb-admin .sidebar,
+  html.tryb-mapa-pelna .sidebar {
+    position: fixed;
+    top: 96px;
+    right: 14px;
+    width: 300px;
+    max-width: calc(100vw - 28px);
+    height: auto !important;
+    max-height: calc(100vh - 116px);
+    max-height: calc(100dvh - 116px);
+    z-index: 500;
+    overflow-y: auto;
+    /* Bez tła, bez ramki, bez cienia - nic, karty leżą bezpośrednio na mapie */
+    background: none !important;
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    padding: 0 !important;
   }
-  html.tryb-admin #mapa   { height: 600px !important; }
-  html.tryb-admin .sidebar { height: 600px !important; }
+  /* Złote ornamenty w rogach - zbędne bez ramki */
+  html.tryb-admin .sidebar::before,
+  html.tryb-admin .sidebar::after,
+  html.tryb-mapa-pelna .sidebar::before,
+  html.tryb-mapa-pelna .sidebar::after {
+    display: none !important;
+  }
+  /* Karty miejsc na liście - delikatna półprzezroczysta "mgiełka" pod
+     tekstem, żeby litery były czytelne na tle mapy (zamiast całkiem
+     przezroczystego tła jak wcześniej). */
+  html.tryb-admin .sidebar .miejsce-card,
+  html.tryb-mapa-pelna .sidebar .miejsce-card {
+    background: rgba(255,255,255,0.38) !important;
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(3px);
+    border: none !important;
+    border-left: none !important;
+    border-radius: 8px !important;
+    box-shadow: 0 2px 10px rgba(60,40,20,0.12) !important;
+    padding: 8px 10px !important;
+  }
+  html.tryb-admin .sidebar .miejsce-card:hover,
+  html.tryb-mapa-pelna .sidebar .miejsce-card:hover {
+    background: rgba(255,255,255,0.55) !important;
+    box-shadow: 0 3px 12px rgba(60,40,20,0.18) !important;
+    transform: none !important;
+  }
+  html.tryb-admin .sidebar .miejsce-card .nazwa,
+  html.tryb-admin .sidebar .miejsce-card .opis,
+  html.tryb-mapa-pelna .sidebar .miejsce-card .nazwa,
+  html.tryb-mapa-pelna .sidebar .miejsce-card .opis {
+    text-shadow: 0 1px 3px rgba(255,255,255,0.95), 0 0 8px rgba(255,255,255,0.9);
+  }
+  html.tryb-admin .sidebar .miejsce-card .dystans,
+  html.tryb-mapa-pelna .sidebar .miejsce-card .dystans {
+    background: rgba(255,255,255,0.7) !important;
+    border: none !important;
+  }
 
-  /* Akordeon "Opis gry" zostaje widoczny pod mapą - tam edytujemy opis gry.
-     (Wcześniej był chowany - teraz to docelowe miejsce na opis.) */
-  html.tryb-admin #info-accordion { margin-top: 22px; }
+  /* Ramka "Opis gry" nie pływa już nad mapą w lewym dolnym rogu -
+     zostaje w normalnym miejscu pod mapą, tak jak u zwykłego gracza. */
+
+  /* Przycisk muzyki w tle (prawy górny róg) - sama ikonka, bez tła i ramki */
+  html.tryb-admin #btnPodklad {
+    background: none !important;
+    border: none !important;
+    box-shadow: none !important;
+  }
 
   /* Rozwijane edytory (nazwa / opis / audio) zostają sterowane starym JS,
      ale wizualnie unosimy je na środek ekranu jako modalne okienko. */
@@ -5029,6 +5290,8 @@ html.tryb-admin #editorPasek { display: block !important; }
     top: 50%; left: 50%;
     transform: translate(-50%,-50%);
     width: min(92vw, 460px);
+    max-height: 88vh;
+    overflow-y: auto;
     z-index: 100000;
     margin: 0;
     padding: 22px 24px;
@@ -5046,416 +5309,207 @@ html.tryb-admin #editorPasek { display: block !important; }
   html.tryb-admin #editorModalBackdrop.visible { display: block; }
 
   /* ====================================================================
-     === CIEMNY MOTYW "SKARBIEC" - edytor desktop ======================
+     === CIEMNY MOTYW "SKARBIEC" - USUNIĘTY na życzenie ===================
      ====================================================================
-     Umiarkowany ciemny styl: ciepłe brązy, złote fazowane ramki,
-     delikatny blask. Nadpisuje jasny pergamin TYLKO w edytorze desktop.
-     Mobile i widok zwykłego użytkownika zostają jasne.
+     Cały ciemny brązowy motyw edytora (tło, ramki, przyciski, panele,
+     modale) został wyłączony. Edytor używa teraz zwykłego jasnego
+     wyglądu (tego samego pergaminu co w mapie), a przyciski akcji
+     (Pobierz / Nazwa / Opis / Audio / Rysuj / Wyczyść) zostają widoczne
+     w górnym pasku nad mapą. */
 
-     Paleta skarbca (lokalne zmienne nadpisujące jasne):
-       --skarb-tlo      głębokie ciemne brązowe tło
-       --skarb-panel    tło ramek/paneli (ciemny brąz)
-       --skarb-panel-2  jaśniejszy brąz (gradient ramek)
-       --skarb-zloto    złoty akcent obrysów i tekstu
-       --skarb-tekst    jasny ciepły tekst
-     ==================================================================== */
-  html.tryb-admin {
-    --skarb-tlo:      #1c1410;
-    --skarb-tlo-2:    #251a13;
-    --skarb-panel:    #2e2017;
-    --skarb-panel-2:  #3a2a1d;
-    --skarb-obrys:    #c98b3a;
-    --skarb-zloto:    #e0a955;
-    --skarb-zloto-2:  #f3cd82;
-    --skarb-tekst:    #f0e2c8;
-    --skarb-tekst-2:  #c4a878;
-  }
+/* ====================================================================
+   === EDYTOR NA TELEFONIE (wąski ekran <900px) =======================
+   ====================================================================
+   Mapa jest już pełnoekranowa na każdym urządzeniu (patrz sekcja wyżej).
+   Tu tylko dociągamy pasek i pływającą listę miejsc do wąskiego ekranu -
+   pasek na całą szerokość, lista miejsc węższa i niżej. */
+@media (max-width: 899px) {
 
-  /* --- Tło całego edytora --- */
-  html.tryb-admin body {
-    background:
-      radial-gradient(circle at 15% 12%, rgba(201,139,58,0.10) 0%, transparent 42%),
-      radial-gradient(circle at 85% 85%, rgba(201,139,58,0.07) 0%, transparent 45%),
-      linear-gradient(180deg, var(--skarb-tlo-2) 0%, var(--skarb-tlo) 100%) !important;
-    color: var(--skarb-tekst);
-  }
-
-  /* --- GÓRNY PASEK: ramka tytułu --- */
-  html.tryb-admin .ed-tytul-blok {
-    background:
-      radial-gradient(ellipse 65% 90% at 50% 0%, rgba(224,169,85,0.14), transparent 70%),
-      linear-gradient(180deg, var(--skarb-panel-2) 0%, var(--skarb-panel) 100%);
-    border: 2px solid var(--skarb-obrys);
-    box-shadow:
-      0 10px 32px rgba(0,0,0,0.5),
-      inset 0 0 0 1px rgba(243,205,130,0.18),
-      inset 0 2px 14px rgba(0,0,0,0.4);
-  }
-  html.tryb-admin .ed-tytul-blok::before,
-  html.tryb-admin .ed-tytul-blok::after {
-    border-color: var(--skarb-zloto-2);
-  }
-  html.tryb-admin .ed-tytul-nazwa {
-    color: var(--skarb-zloto-2);
-    text-shadow: 0 2px 8px rgba(0,0,0,0.6), 0 0 18px rgba(224,169,85,0.25);
-  }
-  html.tryb-admin .ed-tytul-podpis {
-    color: var(--skarb-tekst-2);
-  }
-  html.tryb-admin .ed-tytul-podpis::before,
-  html.tryb-admin .ed-tytul-podpis::after {
-    color: var(--skarb-zloto);
-  }
-
-  /* --- PRZYCISKI: fazowany, "wytłaczany" wygląd --- */
+  /* Pasek edytora - mniejsze odstępy, tytuł nieco mniejszy */
+  html.tryb-admin #editorPasek { padding: 8px 10px; }
+  html.tryb-admin .ed-tytul-nazwa { font-size: 18px; }
+  html.tryb-admin .ed-tytul-podpis { font-size: 11px; }
+  html.tryb-admin .ed-przyciski { gap: 6px; margin-top: 6px; }
   html.tryb-admin .ed-przyciski .ed-btn {
-    border: 1.5px solid rgba(243,205,130,0.55);
-    color: var(--skarb-zloto-2);
-    text-shadow: 0 1px 2px rgba(0,0,0,0.6);
-    box-shadow:
-      0 4px 12px rgba(0,0,0,0.45),
-      inset 0 1px 0 rgba(255,255,255,0.12),
-      inset 0 -2px 6px rgba(0,0,0,0.35);
-  }
-  html.tryb-admin .ed-przyciski .ed-btn:hover {
-    box-shadow:
-      0 8px 20px rgba(0,0,0,0.55),
-      inset 0 1px 0 rgba(255,255,255,0.18),
-      0 0 16px rgba(224,169,85,0.3);
-    filter: brightness(1.12);
-  }
-  /* Każdy przycisk - ciemny brąz z akcentem roli na obrysie i ikonie */
-  html.tryb-admin .ed-btn-pobierz,
-  html.tryb-admin .ed-btn-nazwa,
-  html.tryb-admin .ed-btn-opis,
-  html.tryb-admin .ed-btn-audio,
-  html.tryb-admin .ed-btn-rysuj,
-  html.tryb-admin .ed-btn-wyczysc {
-    background: linear-gradient(180deg, #3a2a1d 0%, #2e2017 100%);
-  }
-  html.tryb-admin .ed-btn-pobierz {
-    background: linear-gradient(180deg, #3d5a32 0%, #243a1f 100%);
-    border-color: rgba(120,200,110,0.6);
-  }
-  html.tryb-admin .ed-btn-nazwa,
-  html.tryb-admin .ed-btn-opis {
-    background: linear-gradient(180deg, #5a3a1f 0%, #382414 100%);
-    border-color: rgba(243,205,130,0.6);
-  }
-  html.tryb-admin .ed-btn-audio {
-    background: linear-gradient(180deg, #443060 0%, #2a1c3c 100%);
-    border-color: rgba(170,140,230,0.6);
-  }
-  html.tryb-admin .ed-btn-rysuj {
-    background: linear-gradient(180deg, #2f4a3a 0%, #1e3025 100%);
-    border-color: rgba(110,190,150,0.6);
-  }
-  html.tryb-admin .ed-btn-wyczysc {
-    background: linear-gradient(180deg, #5a2a28 0%, #381a18 100%);
-    border-color: rgba(230,120,110,0.6);
+    font-size: 11.5px;
+    padding: 7px 10px;
   }
 
-  /* --- MAPA: ciemna złota ramka --- */
-  html.tryb-admin #mapa {
-    border: 2px solid var(--skarb-obrys) !important;
-    box-shadow:
-      0 10px 32px rgba(0,0,0,0.55),
-      inset 0 0 0 4px var(--skarb-panel) !important;
-  }
-  html.tryb-admin #mapa::before,
-  html.tryb-admin #mapa::after {
-    border-color: var(--skarb-zloto-2) !important;
-  }
-
-  /* --- PANEL BOCZNY: ciemny skarbiec --- */
+  /* Lista miejsc - węższa, niżej pod paskiem, żeby nie zasłaniać mapy */
   html.tryb-admin .sidebar {
-    background: linear-gradient(180deg, var(--skarb-panel-2) 0%, var(--skarb-panel) 100%);
-    border: 1px solid rgba(243,205,130,0.3);
-    box-shadow:
-      0 8px 24px rgba(0,0,0,0.45),
-      inset 0 0 30px rgba(0,0,0,0.3);
-  }
-  html.tryb-admin .sidebar::before,
-  html.tryb-admin .sidebar::after {
-    border-color: var(--skarb-zloto-2);
-  }
-  html.tryb-admin .sidebar::-webkit-scrollbar-track {
-    background: rgba(0,0,0,0.25);
-  }
-  html.tryb-admin .sidebar::-webkit-scrollbar-thumb {
-    background: rgba(224,169,85,0.4);
-  }
-  html.tryb-admin .sidebar::-webkit-scrollbar-thumb:hover {
-    background: var(--skarb-zloto);
+    top: 128px;
+    right: 8px;
+    width: 240px;
+    max-height: calc(100vh - 150px);
+    max-height: calc(100dvh - 150px);
   }
 
-  /* Karty miejsc w panelu bocznym - ciemne kafelki */
-  html.tryb-admin .sidebar .miejsce-card {
-    background: linear-gradient(180deg, var(--skarb-panel-2), var(--skarb-panel));
-    border: 1px solid rgba(243,205,130,0.22);
-    border-left: 3px solid var(--skarb-obrys);
-    box-shadow: 0 3px 10px rgba(0,0,0,0.35);
-  }
-  html.tryb-admin .sidebar .miejsce-card:hover {
-    background: linear-gradient(180deg, #463424, var(--skarb-panel-2));
-    border-left-color: var(--skarb-zloto-2);
-    box-shadow: 0 5px 16px rgba(0,0,0,0.5), 0 0 14px rgba(224,169,85,0.2);
-  }
-  html.tryb-admin .sidebar .miejsce-card .nazwa { color: var(--skarb-zloto-2); }
-  html.tryb-admin .sidebar .miejsce-card .opis  { color: var(--skarb-tekst-2); }
-  html.tryb-admin .sidebar .miejsce-card.gra-zablokowana {
-    filter: grayscale(0.6) brightness(0.7);
-  }
-  html.tryb-admin .sidebar .miejsce-card.gra-odkryta {
-    background: linear-gradient(180deg, #2f3f2a, var(--skarb-panel));
-    border-left-color: #6ec88a;
-  }
-  html.tryb-admin .sidebar .miejsce-card.gra-odkryta .nazwa { color: #8fd9a3; }
-
-  /* --- AKORDEON "Opis gry" pod mapą --- */
-  html.tryb-admin #info-accordion {
-    background: linear-gradient(180deg, var(--skarb-panel-2) 0%, var(--skarb-panel) 100%);
-    border: 1px solid rgba(243,205,130,0.3);
-    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
-  }
-  html.tryb-admin #info-accordion::before,
-  html.tryb-admin #info-accordion::after {
-    border-color: var(--skarb-zloto-2);
-  }
-  html.tryb-admin #info-accordion .accordion-header:hover {
-    background: rgba(224,169,85,0.08);
-  }
-  html.tryb-admin #info-accordion .title {
-    color: var(--skarb-zloto-2);
-  }
-  html.tryb-admin #info-accordion .title::before {
-    color: var(--skarb-zloto);
-  }
-  html.tryb-admin #info-accordion .accordion-arrow {
-    color: var(--skarb-zloto);
-  }
-  html.tryb-admin #info-accordion .accordion-inner p {
-    color: var(--skarb-tekst);
-  }
-  html.tryb-admin #info-accordion .accordion-inner p:first-child::first-letter {
-    color: var(--skarb-zloto-2);
-  }
-  html.tryb-admin #info-accordion .accordion-inner b {
-    color: var(--skarb-zloto-2);
-  }
-
-  /* --- STOPKA / NAWIGACJA pod spodem --- */
-  html.tryb-admin .bottomnav .back {
-    color: var(--skarb-zloto-2);
-  }
-  html.tryb-admin .bottomnav .back:hover {
-    background: var(--skarb-zloto);
-    color: var(--skarb-tlo);
-    border-color: var(--skarb-zloto);
-  }
-  html.tryb-admin footer {
-    color: var(--skarb-tekst-2);
-  }
-
-  /* --- MODALE edytora nazwy / opisu - ciemny skarbiec --- */
+  /* Okienka (dodaj punkt / nazwa / opis / audio) - dopasowane do
+     wysokości ekranu telefonu, z przewijaniem gdy treść nie mieści się. */
   html.tryb-admin #nazwaEdytor.visible,
   html.tryb-admin #opisStronyEdytor.visible {
-    background: linear-gradient(180deg, var(--skarb-panel-2), var(--skarb-panel)) !important;
-    border-color: var(--skarb-obrys) !important;
-    box-shadow:
-      0 24px 70px rgba(0,0,0,0.7),
-      inset 0 0 0 1px rgba(243,205,130,0.18) !important;
+    width: min(94vw, 460px);
+    max-height: 85vh;
+    overflow-y: auto;
+    padding: 18px 16px;
   }
-  html.tryb-admin #nazwaEdytor.visible .nazwa-edytor-label,
-  html.tryb-admin #opisStronyEdytor.visible .nazwa-edytor-label {
-    color: var(--skarb-zloto-2);
-  }
-  html.tryb-admin #nazwaEdytor.visible input,
-  html.tryb-admin #opisStronyEdytor.visible textarea {
-    background: var(--skarb-tlo-2);
-    color: var(--skarb-tekst);
-    border-color: rgba(243,205,130,0.4);
-  }
-  html.tryb-admin #nazwaEdytor.visible .nazwa-edytor-info,
-  html.tryb-admin #opisStronyEdytor.visible .nazwa-edytor-info {
-    color: var(--skarb-tekst-2);
-  }
-  html.tryb-admin #nazwaEdytor.visible code,
-  html.tryb-admin #opisStronyEdytor.visible code {
-    background: rgba(224,169,85,0.15);
-    color: var(--skarb-zloto-2);
-  }
+}
 
-  /* --- POPUP "Co dodajesz do gry?" - ciemny skarbiec --- */
-  html.tryb-admin .admin-choose {
-    background: linear-gradient(180deg, var(--skarb-panel-2) 0%, var(--skarb-panel) 100%);
-    border: 2px solid var(--skarb-obrys);
-    box-shadow:
-      0 24px 70px rgba(0,0,0,0.7),
-      0 0 0 9999px rgba(0,0,0,0.6),
-      inset 0 0 0 1px rgba(243,205,130,0.18);
-  }
-  html.tryb-admin .admin-choose::before,
-  html.tryb-admin .admin-choose::after {
-    border-color: var(--skarb-zloto-2);
-  }
-  html.tryb-admin .admin-choose h3 {
-    color: var(--skarb-zloto-2);
-    text-shadow: 0 1px 6px rgba(0,0,0,0.5);
-  }
-  html.tryb-admin .admin-choose .subtitle {
-    color: var(--skarb-tekst-2);
-  }
+/* ====================================================================
+   === PRZYCISK "INTRO" - rozwijany, lewy górny róg ===================
+   ====================================================================
+   Domyślnie zwinięty: widać tylko strzałeczkę. Klik → animowanie
+   rozwija obok niej przycisk "Intro". Klik ponownie → chowa z powrotem.
+   Na razie SAM WYGLĄD - podpięcie funkcji (co robi kliknięcie w "Intro")
+   dochodzi później. */
+.intro-toggle{
+  display:none;
+  position:fixed;
+  top:14px;
+  left:14px;
+  z-index:9500;
+  align-items:center;
+  gap:0;
+  background:linear-gradient(180deg,var(--paper-2) 0%,var(--paper-3) 100%);
+  border:2px solid var(--gold);
+  border-radius:30px;
+  padding:4px;
+  box-shadow:0 3px 12px rgba(60,40,20,0.35);
+  overflow:hidden;
+  transition:box-shadow 0.25s ease;
+}
+/* Te strzałki (Intro/Nagroda/Wyczyść wszystko/Zapisz częstotliwość/Szukaj
+   częstotliwości) to narzędzia EDYCJI - widoczne tylko dla admina.
+   Gracz wchodzący przez częstotliwość ich nie widzi i nie potrzebuje. */
+html.tryb-admin .intro-toggle{display:flex}
+.intro-toggle:hover{
+  box-shadow:0 5px 18px rgba(60,40,20,0.45);
+}
+.intro-toggle-arrow{
+  width:38px;height:38px;border-radius:50%;
+  background:none;border:none;
+  color:var(--gold);
+  font-size:18px;
+  line-height:1;
+  cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;
+  transition:transform 0.35s ease;
+}
+.intro-toggle-arrow:hover{color:var(--gold-light)}
+.intro-toggle.open .intro-toggle-arrow{transform:rotate(180deg)}
+.intro-toggle-btn{
+  max-width:0;
+  opacity:0;
+  overflow:hidden;
+  white-space:nowrap;
+  background:var(--gold);
+  color:var(--paper-2);
+  border:none;
+  border-radius:22px;
+  padding:0;
+  margin:0;
+  height:38px;
+  font-family:'Cinzel',serif;
+  font-size:13px;
+  font-weight:600;
+  letter-spacing:1.5px;
+  text-transform:uppercase;
+  cursor:pointer;
+  transition:max-width 0.35s ease, opacity 0.25s ease, padding 0.35s ease, margin 0.35s ease;
+}
+.intro-toggle-btn:hover{background:var(--gold-light)}
+.intro-toggle.open .intro-toggle-btn{
+  max-width:160px;
+  opacity:1;
+  padding:0 18px;
+  margin-left:2px;
+}
+/* Szerszy wariant dla dłuższych napisów (Wyczyść wszystko, Pobierz
+   index.html, Wersja publiczna) - inaczej tekst by się nie zmieścił. */
+.intro-toggle.open .intro-toggle-btn.szeroki{
+  max-width:280px;
+}
+/* Wariant ostrzegawczy - Wyczyść wszystko (akcja niszcząca dane) */
+.intro-toggle-btn.niebezpieczny{background:var(--crimson)}
+.intro-toggle-btn.niebezpieczny:hover{background:#a52a3e}
 
-  /* Kafelki wyboru typu - ciemne, ze złotym obrysem i blaskiem przy hover */
-  html.tryb-admin .admin-choose .choice-btn {
-    background: linear-gradient(180deg, var(--skarb-panel-2), var(--skarb-panel));
-    border: 2px solid rgba(243,205,130,0.4);
-    color: var(--skarb-tekst);
-    box-shadow:
-      inset 0 1px 0 rgba(255,255,255,0.06),
-      inset 0 -2px 6px rgba(0,0,0,0.3);
-  }
-  html.tryb-admin .admin-choose .choice-btn:hover {
-    background: linear-gradient(180deg, #463424, var(--skarb-panel-2));
-    color: var(--skarb-tekst);
-    transform: translateY(-2px);
-    box-shadow: 0 6px 18px rgba(0,0,0,0.5), 0 0 16px rgba(224,169,85,0.25);
-  }
-  html.tryb-admin .admin-choose .choice-text strong {
-    color: var(--skarb-zloto-2);
-  }
-  html.tryb-admin .admin-choose .choice-text span {
-    color: var(--skarb-tekst-2);
-  }
-  /* Akcenty kolorystyczne typów - obrys pozostaje czytelny na ciemnym tle.
-     Inline style z HTML (border-color) nadpisujemy tu spójnym zestawem. */
-  html.tryb-admin .admin-choose .choice-btn.audio {
-    border-color: rgba(170,140,230,0.55) !important;
-  }
-  html.tryb-admin .admin-choose .choice-btn.audio:hover {
-    background: linear-gradient(180deg, #3a2c52, #2a1c3c);
-    border-color: #a88ce6 !important;
-  }
-  html.tryb-admin .admin-choose .choice-btn:hover .choice-text strong {
-    color: var(--skarb-zloto-2);
-  }
-
-  /* Przycisk "Anuluj" - ciemny z czerwonym akcentem przy hover.
-     Kolor podany wprost (#f3cd82), nie przez var() - asekuracja
-     na wypadek silników słabo dziedziczących zmienne CSS. */
-  html.tryb-admin .admin-choose .cancel-link {
-    background: linear-gradient(180deg, #3a2a1d, #2e2017);
-    border: 1.5px solid rgba(243,205,130,0.5);
-    color: #f3cd82;
-    text-shadow: 0 1px 3px rgba(0,0,0,0.7);
-    box-shadow: inset 0 1px 0 rgba(255,255,255,0.06);
-  }
-  html.tryb-admin .admin-choose .cancel-link:hover {
-    background: linear-gradient(180deg, #4a2422, #311816);
-    border-color: #e0786e;
-    color: #f0b8b0;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.5);
-  }
-
-  /* --- PANEL RYSOWANIA NA MAPIE - ciemny skarbiec --- */
-  html.tryb-admin #panelRysowania {
-    background: linear-gradient(180deg, #3a2a1d 0%, #2e2017 100%);
-    border: 1.5px solid #c98b3a;
-    box-shadow:
-      0 8px 24px rgba(0,0,0,0.45),
-      inset 0 0 0 1px rgba(243,205,130,0.14);
-  }
-  html.tryb-admin #panelRysowania::before,
-  html.tryb-admin #panelRysowania::after {
-    border-color: #f3cd82;
-  }
-  html.tryb-admin .panel-rys-label {
-    color: #f3cd82;
-    text-shadow: 0 1px 4px rgba(0,0,0,0.5);
-  }
-  html.tryb-admin .panel-rys-divider {
-    background: rgba(243,205,130,0.3);
-  }
-
-  /* Przyciski narzędzi - ciemne kapsuły ze złotym obrysem.
-     Kolory podane wprost (nie var()) - asekuracja renderowania. */
-  html.tryb-admin .btn-narzedzie {
-    background: linear-gradient(180deg, #3a2a1d, #2e2017);
-    color: #f0e2c8;
-    border: 1px solid rgba(243,205,130,0.4);
-    box-shadow:
-      inset 0 1px 0 rgba(255,255,255,0.06),
-      inset 0 -2px 5px rgba(0,0,0,0.3);
-  }
-  html.tryb-admin .btn-narzedzie:hover {
-    background: linear-gradient(180deg, #463424, #3a2a1d);
-    color: #f3cd82;
-    border-color: #f3cd82;
-    transform: translateY(-2px);
-    box-shadow: 0 5px 14px rgba(0,0,0,0.45), 0 0 12px rgba(224,169,85,0.22);
-  }
-  /* Aktywne narzędzie - złota kapsuła, wyraźnie podświetlona */
-  html.tryb-admin .btn-narzedzie.active {
-    background: linear-gradient(180deg, #e0a955, #b07d2e);
-    color: #2a1c10;
-    border-color: #f3cd82;
-    box-shadow:
-      0 3px 12px rgba(224,169,85,0.5),
-      inset 0 1px 0 rgba(255,255,255,0.3);
-    text-shadow: none;
-  }
-
-  /* Próbnik koloru - ciemna ramka */
-  html.tryb-admin .panel-rys-kolor {
-    border: 2px solid #c98b3a;
-    background: #251a13;
-  }
-
-  /* Pasek informacyjny pod narzędziami */
-  html.tryb-admin #panelRysowaniaInfo {
-    color: #c4a878;
-    border-top: 1px dashed rgba(243,205,130,0.3);
-  }
-
-  /* --- PANEL "Audio w grze" (ściąga nazw plików) - ciemny skarbiec --- */
-  html.tryb-admin #audioIntroEdytor.visible {
-    background: linear-gradient(180deg, #3a2a1d, #2e2017);
-    border: 2px solid #c98b3a;
-    box-shadow:
-      0 24px 70px rgba(0,0,0,0.7),
-      inset 0 0 0 1px rgba(243,205,130,0.18);
-  }
-  html.tryb-admin #audioIntroEdytor.visible::before,
-  html.tryb-admin #audioIntroEdytor.visible::after {
-    border-color: #f3cd82;
-  }
-  html.tryb-admin #audioIntroEdytor .nazwa-edytor-label {
-    color: #f3cd82;
-  }
-  html.tryb-admin #audioIntroEdytor .nazwa-edytor-info {
-    color: #c4a878;
-  }
-  /* Nazwy plików - złota kapsuła zamiast fioletowej */
-  html.tryb-admin #audioIntroEdytor code {
-    background: rgba(224,169,85,0.18) !important;
-    color: #f3cd82 !important;
-  }
-  /* Opisy plików obok kodów */
-  html.tryb-admin #audioIntroEdytor span {
-    color: #c4a878 !important;
-  }
-  /* Przycisk "Zamknij" */
-  html.tryb-admin #audioIntroEdytor .nazwa-anuluj {
-    background: linear-gradient(180deg, #3a2a1d, #2e2017);
-    border: 1.5px solid rgba(243,205,130,0.5);
-    color: #f3cd82;
-  }
-  html.tryb-admin #audioIntroEdytor .nazwa-anuluj:hover {
-    background: linear-gradient(180deg, #4a2422, #311816);
-    border-color: #e0786e;
-    color: #f0b8b0;
-  }
+/* ====================================================================
+   === PRZYCISK "DODAJ PUNKT" - pod przyciskiem Intro =================
+   ====================================================================
+   Ten sam mechanizm co przycisk Intro: domyślnie zwinięty (sama
+   strzałeczka), klik rozwija napis "Dodaj punkt". Samo rozwinięcie
+   NIC nie robi - panel wyboru typu otwiera się dopiero po kliknięciu
+   w rozwinięty napis "Dodaj punkt". Widoczny tylko w trybie admin. */
+.punkt-toggle{
+  display:none;
+  position:fixed;
+  top:70px;
+  left:14px;
+  z-index:9500;
+  align-items:center;
+  gap:0;
+  background:linear-gradient(180deg,var(--paper-2) 0%,var(--paper-3) 100%);
+  border:2px solid var(--gold);
+  border-radius:30px;
+  padding:4px;
+  box-shadow:0 3px 12px rgba(60,40,20,0.35);
+  overflow:hidden;
+  transition:box-shadow 0.25s ease;
+}
+html.tryb-admin .punkt-toggle{display:flex}
+.punkt-toggle:hover{
+  box-shadow:0 5px 18px rgba(60,40,20,0.45);
+}
+.punkt-toggle-arrow{
+  width:38px;height:38px;border-radius:50%;
+  background:none;border:none;
+  color:var(--gold);
+  font-size:18px;
+  line-height:1;
+  cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;
+  transition:transform 0.35s ease;
+}
+.punkt-toggle-arrow:hover{color:var(--gold-light)}
+.punkt-toggle.open .punkt-toggle-arrow{transform:rotate(180deg)}
+.punkt-toggle-btn{
+  max-width:0;
+  opacity:0;
+  overflow:hidden;
+  white-space:nowrap;
+  background:var(--gold);
+  color:var(--paper-2);
+  border:none;
+  border-radius:22px;
+  padding:0;
+  margin:0;
+  height:38px;
+  line-height:38px;
+  font-family:'Cinzel',serif;
+  font-size:13px;
+  font-weight:600;
+  letter-spacing:1.5px;
+  text-transform:uppercase;
+  cursor:default;
+  display:inline-block;
+  transition:max-width 0.35s ease, opacity 0.25s ease, padding 0.35s ease, margin 0.35s ease;
+}
+.punkt-toggle.open .punkt-toggle-btn{
+  max-width:160px;
+  opacity:1;
+  padding:0 18px;
+  margin-left:2px;
+}
+/* Rozwinięte = uzbrojone: delikatny puls, żeby było wiadomo że można
+   już kliknąć w mapę, żeby dodać punkt. */
+.punkt-toggle.open{
+  animation:punktCzekaPuls 1.1s ease-in-out infinite;
+}
+@keyframes punktCzekaPuls{
+  0%,100%{box-shadow:0 3px 12px rgba(60,40,20,0.35),0 0 0 0 rgba(160,69,16,0.5)}
+  50%{box-shadow:0 3px 12px rgba(60,40,20,0.35),0 0 0 8px rgba(160,69,16,0)}
 }
 
 /* ====================================================================
@@ -5501,10 +5555,9 @@ html.tryb-admin #editorPasek { display: block !important; }
   0%,100% { box-shadow: 0 0 0 4px rgba(212,168,74,0.14), 0 4px 14px rgba(60,40,20,0.4); }
   50%     { box-shadow: 0 0 0 7px rgba(212,168,74,0.22), 0 4px 16px rgba(60,40,20,0.45); }
 }
-/* Muzyka w tle gra TYLKO w edytorze (?admin=1).
-   Dla zwykłego gracza przycisk jest ukryty. */
-#btnPodklad { display: none; }
-html.tryb-admin #btnPodklad { display: flex; }
+/* Muzyka w tle - ikonka USUNIĘTA z widoku na życzenie (prawy górny róg).
+   Ukryta na stałe, niezależnie od trybu. */
+#btnPodklad { display: none !important; }
 
 /* ====================================================================
    === CIEMNY MOTYW "SKARBIEC" - widok GRACZA na desktopie ============
@@ -6317,18 +6370,29 @@ html.tryb-admin .licznik-pobran{display:flex}
 <script>
 (function initFirebaseLicznik(){
   const firebaseConfig = {
-    apiKey: "AIzaSyDRR3vSfgpEmbpZz_-VldMTnTHoXRfuGKg",
-    authDomain: "ksiega-ramzi.firebaseapp.com",
-    projectId: "ksiega-ramzi",
-    storageBucket: "ksiega-ramzi.firebasestorage.app",
-    messagingSenderId: "400735142662",
-    appId: "1:400735142662:web:0b52a57f4fedf367839487"
+    apiKey: "AIzaSyBYCfUzKiKZOsqO4fX504EQWuUs7murmi8",
+    authDomain: "miniklik.firebaseapp.com",
+    projectId: "miniklik",
+    storageBucket: "miniklik.firebasestorage.app",
+    messagingSenderId: "855030560380",
+    appId: "1:855030560380:web:93bc4276c98befcde63bf9"
   };
   try {
     if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
     window.__db_licznik = firebase.firestore();
+    // Ta sama baza, osobny alias - używany przez zapis/wczytanie opisów miejsc.
+    window.__db_opisy = firebase.firestore();
   } catch(e) { console.warn('Firebase init:', e); }
 })();
+
+// === WCZYTYWANIE GRY PO CZĘSTOTLIWOŚCI (?czest=KOD) ===
+// PODEJŚCIE Z MAPY WSPOMNIEŃ: strona ładuje się CAŁKOWICIE NORMALNIE,
+// bez żadnego przeładowania i bez podmieniania danych przed startem.
+// Dopiero PO tym jak strona już normalnie wystartuje, doklejamy punkty
+// z Firebase na żywo - dokładnie tak samo jak admin dokłada punkt
+// klikając na mapę. Zero reloadów, zero localStorage-przekaźników.
+// Właściwa funkcja `wczytajGreZCzestotliwosci()` woła się z dołu strony,
+// gdy cała reszta kodu już działa (patrz koniec pliku).
 
 async function odswiezLicznikPobran() {
   try {
@@ -6351,7 +6415,343 @@ async function zliczPobranieHTML() {
   } catch(e) { console.warn('Licznik pobrań inkrement:', e); }
 }
 
+// === OPISY MIEJSC W CHMURZE (kolekcja "opisy", jeden dokument na klucz
+// miejsca) ===
+// Dzięki temu opis zapisany przez admina w telefonie/komputerze widzi
+// KAŻDY kto potem otworzy stronę - bez potrzeby pobierania i wgrywania
+// nowego index.html za każdym razem. Działa obok dotychczasowego zapisu
+// do samego pliku (ten zostaje jako kopia zapasowa/offline).
+async function zapiszOpisDoChmury(klucz, dane) {
+  try {
+    if (!window.__db_opisy || !klucz) return;
+    await window.__db_opisy.collection('opisy').doc(klucz).set({
+      opis: dane.opis || '',
+      tytul: dane.tytul || '',
+      linkYT: dane.linkYT || '',
+      zdjecieLink: dane.zdjecieLink || '',
+      nagranie: dane.nagranie || '',
+      zaktualizowano: firebase.firestore.FieldValue.serverTimestamp()
+    }, { merge: true });
+  } catch(e) { console.warn('Zapis opisu do chmury:', e); }
+}
+
+// Ustawienia całej strony (Intro: nazwa/autor/zdjęcie/podkład + Nagroda:
+// opis gry/odbiór nagrody) - jeden wspólny dokument "_strona" w tej samej
+// kolekcji "opisy" (odróżniony od kluczy miejsc, które nigdy nie zaczynają
+// się od podkreślnika).
+async function zapiszUstawieniaStronyDoChmury(dane) {
+  try {
+    if (!window.__db_opisy) return;
+    await window.__db_opisy.collection('opisy').doc('_strona').set({
+      ...dane,
+      zaktualizowano: firebase.firestore.FieldValue.serverTimestamp()
+    }, { merge: true });
+  } catch(e) { console.warn('Zapis ustawień strony do chmury:', e); }
+}
+
+// === CZĘSTOTLIWOŚCI - zapisanie całej zbudowanej gry pod jednym kodem ===
+// (tak jak w Mapie Wspomnień). Bierze aktualny stan edytora (nazwa, opis
+// gry, nagroda, miejsca, wszystkie punkty gry) i zapisuje jako jeden
+// dokument w kolekcji "gry_czestotliwosci". Audio (pliki mp3) NIE jest
+// tu ruszane - dalej wgrywane ręcznie do folderu audio/ na serwerze.
+// Czyści dane przed wysłaniem do Firebase: usuwa pola zaczynające się od
+// "__" (żywe referencje/techniczne znaczniki, np. __ref, __bazaIdx - Firebase
+// i tak by ich nie zapisał poprawnie) oraz wartości undefined/funkcje, które
+// Firebase odrzuca CAŁYM zapisem (jedno złe pole = zapis się nie udaje).
+function _wyczyscDoZapisuFirebase(dane) {
+  return JSON.parse(JSON.stringify(dane, (klucz, wartosc) => {
+    if (typeof klucz === 'string' && klucz.indexOf('__') === 0) return undefined;
+    if (typeof wartosc === 'function') return undefined;
+    return wartosc;
+  }));
+}
+
+async function zapiszCzestotliwosc() {
+  const kodSurowy = prompt('Podaj kod częstotliwości dla tej gry (np. nazwa, krótko, bez polskich znaków i spacji):');
+  if (!kodSurowy) return;
+  const kod = kodSurowy.trim().toLowerCase().replace(/[^a-z0-9\-]/g, '-').slice(0, 30);
+  if (!kod) { alert('⚠️ Nieprawidłowy kod częstotliwości.'); return; }
+
+  try {
+    if (!window.__db_opisy) { alert('❌ Brak połączenia z bazą danych.'); return; }
+
+    const nazwa = (localStorage.getItem('admin-nazwa-strony')
+      || document.querySelector('h1')?.textContent || 'Przygoda').trim();
+    const opisGry = localStorage.getItem('admin-opis-strony-tresc') || '';
+    const nagroda = localStorage.getItem('admin-nagroda-tresc') || '';
+
+    // Wszystkie punkty gry - te "na sztywno" (kropkiAudio, format {pozycja:[lat,lng]})
+    // + te zbudowane w tej sesji, jeszcze niewbudowane (zaplanowaneKropki, format
+    // {lat, lng} OSOBNO - inny format niż kropkiAudio!). Trzeba je ujednolicić do
+    // WSPÓLNEGO formatu {pozycja:[lat,lng]}, inaczej wczytanie się wywala
+    // ("Cannot read properties of undefined (reading 'lat')"), bo reszta kodu
+    // gry wszędzie zakłada .pozycja, nie osobne .lat/.lng.
+    const kropkiBazowe = (typeof kropkiAudio !== 'undefined' ? kropkiAudio : []).map(k => ({
+      numer: k.numer,
+      typ: k.typ || 'tajemnica',
+      pozycja: k.pozycja,
+      promien: k.promien,
+      opis: k.opis || '',
+      pokazFale: k.pokazFale === true,
+      trybKropki: k.trybKropki || null,
+      tytul: k.tytul || null,
+      autor: k.autor || null,
+      podkladYT: k.podkladYT || null,
+      emotka: k.emotka || null,
+      linkYT: k.linkYT || null,
+      strefaSzukania: k.strefaSzukania === true,
+      strefaPromien: k.strefaPromien || null
+    }));
+    const kropkiZaplanowane = (typeof zaplanowaneKropki !== 'undefined' ? zaplanowaneKropki : [])
+      .filter(k => !k.__ref)
+      .map(k => ({
+        numer: k.numer,
+        typ: k.typ || 'tajemnica',
+        pozycja: k.pozycja || [k.lat, k.lng],
+        promien: k.promien,
+        opis: k.opis || '',
+        pokazFale: k.pokazFale === true,
+        trybKropki: k.trybKropki || null,
+        tytul: k.tytul || null,
+        autor: k.autor || null,
+        podkladYT: k.podkladYT || null,
+        emotka: k.emotka || null,
+        linkYT: k.linkYT || null,
+        strefaSzukania: k.strefaSzukania === true,
+        strefaPromien: k.strefaPromien || null
+      }));
+    const kropkiSurowe = kropkiBazowe.concat(kropkiZaplanowane);
+    const miejscaSurowe = (typeof miejsca !== 'undefined' ? miejsca : []);
+
+    let kropkiCzyste, miejscaCzyste;
+    try {
+      kropkiCzyste = _wyczyscDoZapisuFirebase(kropkiSurowe);
+      miejscaCzyste = _wyczyscDoZapisuFirebase(miejscaSurowe);
+    } catch(eCzyszczenie) {
+      alert('❌ Dane na mapie mają błędny format i nie da się ich zapisać: ' + eCzyszczenie.message);
+      return;
+    }
+
+    await window.__db_opisy.collection('gry_czestotliwosci').doc(kod).set({
+      nazwa: nazwa,
+      opisGry: opisGry,
+      nagroda: nagroda,
+      miejsca: miejscaCzyste,
+      kropkiAudio: kropkiCzyste,
+      zaktualizowano: firebase.firestore.FieldValue.serverTimestamp()
+    });
+
+    // WERYFIKACJA - czytamy z powrotem z Firebase (nie z pamięci przeglądarki),
+    // żeby mieć pewność że dane naprawdę tam wylądowały, a nie tylko "wygląda
+    // że się udało".
+    const sprawdz = await window.__db_opisy.collection('gry_czestotliwosci').doc(kod).get();
+    if (!sprawdz.exists) {
+      alert('❌ Firebase nie zgłosił błędu, ale po zapisie dokumentu tam NIE MA. Spróbuj ponownie.');
+      return;
+    }
+    const zapisane = sprawdz.data();
+    const liczbaPunktow = Array.isArray(zapisane.kropkiAudio) ? zapisane.kropkiAudio.length : 0;
+    const liczbaMiejsc = Array.isArray(zapisane.miejsca) ? zapisane.miejsca.length : 0;
+
+    const link = location.origin + location.pathname + '?czest=' + kod;
+    prompt(
+      '✅ Zweryfikowano w Firebase - naprawdę tam jest:\n' +
+      '• Nazwa: ' + (zapisane.nazwa || '(brak)') + '\n' +
+      '• Punktów gry (start/tajemnice/meta): ' + liczbaPunktow + '\n' +
+      '• Miejsc: ' + liczbaMiejsc + '\n\n' +
+      'Link do gry (skopiuj i wyślij graczom):',
+      link
+    );
+  } catch(e) {
+    console.warn('Zapis częstotliwości:', e);
+    alert('❌ Nie udało się zapisać częstotliwości: ' + e.message);
+  }
+}
+
+// === CZĘSTOTLIWOŚCI - wyszukanie i wejście do gry po kodzie ===
+function szukajCzestotliwosci() {
+  const kodSurowy = prompt('Podaj kod częstotliwości, do której chcesz wejść:');
+  if (!kodSurowy) return;
+  const kod = kodSurowy.trim().toLowerCase().replace(/[^a-z0-9\-]/g, '-').slice(0, 30);
+  if (!kod) { alert('⚠️ Nieprawidłowy kod częstotliwości.'); return; }
+  try { sessionStorage.removeItem('czest-wczytana-' + kod); } catch(e) {}
+  location.href = location.pathname + '?czest=' + kod;
+}
+
+// ====================================================================
+// === NAGRYWANIE GŁOSU - przeniesione z Mapy Wspomnień (ta sama logika,
+// ten sam serwer do wysyłki). Nagranie ląduje na archive.org, a link
+// zapisuje się przy miejscu jako "nagranie".
+// ====================================================================
+const NAGR_WORKER_URL = 'https://wispy-waterfall-79e2.mini-klik.workers.dev';
+const NAGR_MAX_S = 30;
+let nagrMediaRecorder = null, nagrStream = null, nagrChunks = [], nagrBlob = null, nagrObjUrl = null;
+let nagrStanCzasId = null, nagrLimitId = null, nagrStartCzas = 0;
+
+function nagrMimeType() {
+  const kandydaci = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg;codecs=opus'];
+  for (const k of kandydaci) {
+    if (window.MediaRecorder && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(k)) return k;
+  }
+  return '';
+}
+
+function renderujNagrywanieBox() {
+  const box = document.getElementById('miejsceNagrywanieBox');
+  if (!box) return;
+  if (!navigator.mediaDevices || !window.MediaRecorder) {
+    box.innerHTML = '<span class="nagr-pusty">Ta przeglądarka nie obsługuje nagrywania dźwięku.</span>';
+    return;
+  }
+  if (nagrBlob) {
+    box.innerHTML =
+      '<audio class="nagr-audio" controls src="' + nagrObjUrl + '"></audio>' +
+      '<button type="button" class="nagr-usun" onclick="usunNagranie()" title="Usuń nagranie">🗑️</button>';
+    return;
+  }
+  if (nagrMediaRecorder && nagrMediaRecorder.state === 'recording') {
+    box.innerHTML =
+      '<div class="nagr-kropka"></div>' +
+      '<span class="nagr-czas" id="nagrCzasEl">0:00</span>' +
+      '<button type="button" class="nagr-btn stop" onclick="zatrzymajNagrywanie()">⏹ Stop</button>';
+    return;
+  }
+  // Miejsce ma już zapisane nagranie (z poprzedniego zapisu) - pokaż je,
+  // z opcją usunięcia (usunięcie tu = przy zapisie miejsca nagranie zniknie).
+  if (nagrIstniejacyLink) {
+    box.innerHTML =
+      '<audio class="nagr-audio" controls src="' + nagrIstniejacyLink + '"></audio>' +
+      '<button type="button" class="nagr-usun" onclick="usunIstniejaceNagranie()" title="Usuń nagranie">🗑️</button>';
+    return;
+  }
+  box.innerHTML = '<button type="button" class="nagr-btn" onclick="startNagrywanie()">🎙️ Nagraj</button><span class="nagr-pusty">do ' + NAGR_MAX_S + ' s</span>';
+}
+
+// Usuwa NOWO nagrany (jeszcze niewysłany) klip - wraca do przycisku "Nagraj"
+function usunIstniejaceNagranie() {
+  nagrIstniejacyLink = null;
+  renderujNagrywanieBox();
+}
+
+async function startNagrywanie() {
+  try {
+    nagrStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  } catch(e) {
+    alert('⚠️ Nie udało się uzyskać dostępu do mikrofonu.');
+    return;
+  }
+  const mime = nagrMimeType();
+  try {
+    nagrMediaRecorder = mime ? new MediaRecorder(nagrStream, { mimeType: mime }) : new MediaRecorder(nagrStream);
+  } catch(e) {
+    alert('⚠️ Nie udało się uruchomić nagrywania.');
+    nagrStream.getTracks().forEach(t => t.stop());
+    return;
+  }
+  nagrChunks = [];
+  nagrMediaRecorder.ondataavailable = e => { if (e.data && e.data.size > 0) nagrChunks.push(e.data); };
+  nagrMediaRecorder.onstop = () => {
+    nagrBlob = new Blob(nagrChunks, { type: mime || 'audio/webm' });
+    nagrObjUrl = URL.createObjectURL(nagrBlob);
+    if (nagrStream) { nagrStream.getTracks().forEach(t => t.stop()); nagrStream = null; }
+    clearInterval(nagrStanCzasId); clearTimeout(nagrLimitId);
+    renderujNagrywanieBox();
+  };
+  nagrMediaRecorder.start();
+  nagrStartCzas = Date.now();
+  renderujNagrywanieBox();
+  nagrStanCzasId = setInterval(() => {
+    const el = document.getElementById('nagrCzasEl');
+    if (!el) return;
+    const s = Math.floor((Date.now() - nagrStartCzas) / 1000);
+    el.textContent = Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
+  }, 250);
+  nagrLimitId = setTimeout(zatrzymajNagrywanie, NAGR_MAX_S * 1000);
+}
+
+function zatrzymajNagrywanie() {
+  if (nagrMediaRecorder && nagrMediaRecorder.state === 'recording') nagrMediaRecorder.stop();
+}
+
+function usunNagranie() {
+  if (nagrMediaRecorder && nagrMediaRecorder.state === 'recording') { try { nagrMediaRecorder.stop(); } catch(e) {} }
+  if (nagrStream) { nagrStream.getTracks().forEach(t => t.stop()); nagrStream = null; }
+  clearInterval(nagrStanCzasId); clearTimeout(nagrLimitId);
+  if (nagrObjUrl) URL.revokeObjectURL(nagrObjUrl);
+  nagrBlob = null; nagrObjUrl = null; nagrChunks = []; nagrMediaRecorder = null;
+  renderujNagrywanieBox();
+}
+
+// Wysyła nagranie na serwer (ten sam co Mapa Wspomnień) - zwraca link
+// do pliku na archive.org, albo null (brak nagrania) / undefined (błąd).
+async function wyslijNagranie(klucz) {
+  if (!nagrBlob) return null;
+  if (!navigator.onLine) { alert('⚠️ Brak połączenia — nie można wysłać nagrania.'); return undefined; }
+  try {
+    const resp = await fetch(NAGR_WORKER_URL, {
+      method: 'POST',
+      headers: { 'X-Nazwa-Pliku': klucz },
+      body: nagrBlob
+    });
+    const dane = await resp.json().catch(() => null);
+    if (!resp.ok || !dane || !dane.ok) {
+      alert('❌ Nie udało się wysłać nagrania. Spróbuj ponownie.');
+      return undefined;
+    }
+    return dane.link;
+  } catch(e) {
+    alert('❌ Nie udało się połączyć z serwerem nagrań.');
+    return undefined;
+  }
+}
+
+async function wczytajOpisyZChmury() {
+  try {
+    if (!window.__db_opisy) return;
+    if (typeof miejsca === 'undefined') return;
+    const snap = await window.__db_opisy.collection('opisy').get();
+    let cokolwiekSieZmienilo = false;
+    snap.forEach(doc => {
+      const dane = doc.data();
+
+      // Dokument specjalny - ustawienia całej strony (Intro + Nagroda)
+      if (doc.id === '_strona') {
+        if (dane.nazwa && typeof zastosujNazweStrony === 'function') {
+          zastosujNazweStrony(dane.nazwa);
+        }
+        if (typeof znajdzStart === 'function') {
+          const _start = znajdzStart();
+          if (_start) {
+            if (dane.autor) _start.autor = dane.autor;
+            if (dane.podkladYT) _start.podkladYT = dane.podkladYT;
+          }
+        }
+        if (dane.opisGry && typeof zastosujOpisStrony === 'function') {
+          zastosujOpisStrony('tresc', dane.opisGry);
+        }
+        if (dane.nagroda !== undefined) {
+          try { localStorage.setItem(KEY_NAGRODA_TRESC, dane.nagroda); } catch(e) {}
+        }
+        return;
+      }
+
+      // Zwykły dokument - opis konkretnego miejsca
+      const m = miejsca.find(mm => mm.klucz === doc.id);
+      if (!m) return;
+      if (dane.opis) { m.opis = dane.opis; cokolwiekSieZmienilo = true; }
+      if (dane.tytul) { m.tytul = dane.tytul; cokolwiekSieZmienilo = true; }
+      if (dane.linkYT) { m.linkYT = dane.linkYT; cokolwiekSieZmienilo = true; }
+      if (dane.zdjecieLink) { m.zdjecieLink = dane.zdjecieLink; cokolwiekSieZmienilo = true; }
+      if (dane.nagranie) { m.nagranie = dane.nagranie; cokolwiekSieZmienilo = true; }
+    });
+    if (cokolwiekSieZmienilo && typeof odswiezMiejscaNaMapie === 'function') {
+      odswiezMiejscaNaMapie();
+    }
+  } catch(e) { console.warn('Wczytanie opisów z chmury:', e); }
+}
+
 document.addEventListener('DOMContentLoaded', odswiezLicznikPobran);
+document.addEventListener('DOMContentLoaded', wczytajOpisyZChmury);
 </script>
 
 </head>
@@ -6466,6 +6866,100 @@ document.addEventListener('DOMContentLoaded', odswiezLicznikPobran);
 
 <div class="wrapper">
 
+  <!-- ============================================================
+       === PRZYCISK "INTRO" - lewy górny róg, rozwijany strzałeczką ===
+       ============================================================
+       Domyślnie zwinięty (sama strzałeczka). Klik rozwija przycisk
+       "Intro" obok. Na razie tylko wygląd/animacja - działanie
+       przycisku "Intro" podepniemy w kolejnym kroku. -->
+  <div class="intro-toggle" id="introToggle">
+    <button class="intro-toggle-arrow" onclick="toggleIntroButton()" aria-label="Pokaż przycisk Intro" title="Intro">➤</button>
+    <button class="intro-toggle-btn" onclick="document.getElementById('introToggle').classList.remove('open'); if(typeof otworzEdytorNazwy==='function') otworzEdytorNazwy();">Intro</button>
+  </div>
+
+  <!-- ============================================================
+       === PRZYCISK "DODAJ PUNKT" - pod przyciskiem Intro (admin) ===
+       ============================================================
+       Zwinięty: sama strzałeczka. Rozwinięty: dochodzi napis
+       "Dodaj punkt". Panel wyboru typu otwiera się dopiero po
+       kliknięciu w sam napis, nie po samym rozwinięciu. -->
+  <div class="punkt-toggle" id="punktToggle">
+    <button class="punkt-toggle-arrow" onclick="togglePunktButton()" aria-label="Dodaj punkt na mapie" title="Dodaj punkt">➤</button>
+    <span class="punkt-toggle-btn">Dodaj punkt</span>
+  </div>
+
+  <!-- ============================================================
+       === PRZYCISK "NAGRODA" - pod przyciskiem Dodaj punkt =========
+       ============================================================
+       Rozwinięcie strzałki pokazuje napis "Nagroda". Klik w napis
+       otwiera ramkę "Odbiór nagrody" (ten sam edytor co "📜 Opis gry"
+       w panelu admina) i chowa strzałkę z powrotem. -->
+  <div class="intro-toggle" id="nagrodaToggle" style="top:126px">
+    <button class="intro-toggle-arrow" onclick="toggleNagrodaButton()" aria-label="Pokaż przycisk Nagroda" title="Nagroda">➤</button>
+    <button class="intro-toggle-btn" onclick="document.getElementById('nagrodaToggle').classList.remove('open'); if(typeof otworzEdytorOpisuStrony==='function') otworzEdytorOpisuStrony();">Nagroda</button>
+  </div>
+
+  <!-- ============================================================
+       === PRZYCISKI: Wyczyść / Pobierz / Wersja publiczna ==========
+       ============================================================
+       Ten sam mechanizm - rozwiń strzałkę, klik w napis wykonuje akcję
+       i chowa strzałkę z powrotem. Funkcje istniały już wcześniej
+       w pasku edytora (zbudujPasekEdytora) - tu tylko drugie wejście. -->
+  <div class="intro-toggle" id="wyczyscToggle" style="top:182px">
+    <button class="intro-toggle-arrow" onclick="toggleWyczyscButton()" aria-label="Pokaż przycisk Wyczyść wszystko" title="Wyczyść wszystko">➤</button>
+    <button class="intro-toggle-btn szeroki niebezpieczny" onclick="document.getElementById('wyczyscToggle').classList.remove('open'); if(typeof wyczyscWszystkoEdytor==='function') wyczyscWszystkoEdytor();">Wyczyść wszystko</button>
+  </div>
+
+  <div class="intro-toggle" id="pobierzToggle" style="top:238px">
+    <button class="intro-toggle-arrow" onclick="togglePobierzButton()" aria-label="Pokaż przycisk Zapisz częstotliwość" title="Zapisz częstotliwość">➤</button>
+    <button class="intro-toggle-btn szeroki" onclick="document.getElementById('pobierzToggle').classList.remove('open'); if(typeof zapiszCzestotliwosc==='function') zapiszCzestotliwosc();">📡 Zapisz częstotliwość</button>
+  </div>
+
+  <div class="intro-toggle" id="publicznaToggle" style="top:294px">
+    <button class="intro-toggle-arrow" onclick="togglePublicznaButton()" aria-label="Pokaż przycisk Szukaj częstotliwości" title="Szukaj częstotliwości">➤</button>
+    <button class="intro-toggle-btn szeroki" onclick="document.getElementById('publicznaToggle').classList.remove('open'); if(typeof szukajCzestotliwosci==='function') szukajCzestotliwosci();">🔎 Szukaj częstotliwości</button>
+  </div>
+
+  <script>
+    // Globalna flaga: czy admin właśnie może kliknąć w mapę, żeby dodać
+    // punkt (uzbrojone rozwinięciem strzałki "Dodaj punkt"). Dopóki
+    // strzałka nie jest rozwinięta, zwykłe klikanie po mapie nic nie robi.
+    let trybCzekaNaKlikDodaj = false;
+
+    function toggleIntroButton(){
+      const el = document.getElementById('introToggle');
+      if(el) el.classList.toggle('open');
+    }
+    function toggleNagrodaButton(){
+      const el = document.getElementById('nagrodaToggle');
+      if(el) el.classList.toggle('open');
+    }
+    function toggleWyczyscButton(){
+      const el = document.getElementById('wyczyscToggle');
+      if(el) el.classList.toggle('open');
+    }
+    function togglePobierzButton(){
+      const el = document.getElementById('pobierzToggle');
+      if(el) el.classList.toggle('open');
+    }
+    function togglePublicznaButton(){
+      const el = document.getElementById('publicznaToggle');
+      if(el) el.classList.toggle('open');
+    }
+    // Rozwinięcie strzałki = uzbrojenie: napis "Dodaj punkt" to tylko
+    // informacja, klika się od razu w mapę. Po dodaniu punktu (patrz
+    // obsluzKlikAdmin) strzałka sama się chowa z powrotem.
+    function togglePunktButton(){
+      const el = document.getElementById('punktToggle');
+      if (!el) return;
+      const otwarte = el.classList.toggle('open');
+      trybCzekaNaKlikDodaj = otwarte;
+      if (typeof mapa !== 'undefined' && mapa && mapa.getContainer) {
+        mapa.getContainer().style.cursor = otwarte ? 'crosshair' : '';
+      }
+    }
+  </script>
+
   <!-- HEADER - potrzebny dla kodu (czyta z h1 nazwę przygody), ale
        NIEWIDOCZNY. Nazwa pokazywana jest na ekranie startowym i w pasku
        edytora. Na mapie nagłówka nie ma - mapa pełnoekranowa.
@@ -6533,9 +7027,16 @@ document.addEventListener('DOMContentLoaded', odswiezLicznikPobran);
           <input type="text" id="nazwaStronyInput" maxlength="60" placeholder="np. Tytuł przygody">
           <label class="nazwa-edytor-label" style="margin-top:12px">👤 Autor gry:</label>
           <input type="text" id="nazwaAutorInput" maxlength="60" placeholder="np. Jan Kowalski">
+
+          <label class="nazwa-edytor-label" style="margin-top:16px">🎵 Muzyka w tle (link YouTube):</label>
+          <div class="link-ramka">
+            <input type="url" id="nazwaIntroPodkladYT" maxlength="300" placeholder="https://youtube.com/watch?v=...">
+          </div>
+          <p class="nazwa-edytor-info" style="margin-top:4px">Wklej link do filmu na YouTube - zagra sama muzyka (bez obrazu) w tle ekranu startowego.</p>
+
           <div class="nazwa-edytor-akcje">
             <button class="nazwa-zapisz" onclick="zapiszNazweStrony()">✓ Zapisz</button>
-            <button class="nazwa-anuluj" onclick="zamknijEdytorNazwy()">Anuluj</button>
+            <button class="nazwa-anuluj" onclick="zamknijEdytorNazwy()">✕ Anuluj</button>
           </div>
           <p class="nazwa-edytor-info">Zmiana zostanie zapisana w pliku po pobraniu nowego index.html.</p>
         </div>
@@ -6860,7 +7361,7 @@ document.addEventListener('DOMContentLoaded', odswiezLicznikPobran);
   <!-- EDYTOR MIEJSCA (tryb admin) -->
   <div class="admin-helper" id="miejsceHelper">
     <h3 id="miejsceHelperTytul">Nowe miejsce</h3>
-    <p class="admin-subtitle">Wpisz nazwę, wybierz kategorię i ikonę. Dodaj tytuł i opis, a po pobraniu pliku — wgraj zdjęcie do folderu <code>img/</code>.</p>
+    <p class="admin-subtitle">Wpisz nazwę i dodaj opis. Dodatkowe rzeczy (YouTube, nagranie, zdjęcie) są pod „Specjalne".</p>
 
     <div class="form-row">
       <label>Nazwa:</label>
@@ -6879,7 +7380,10 @@ document.addEventListener('DOMContentLoaded', odswiezLicznikPobran);
       </select>
     </div>
 
-    <div class="form-row">
+    <!-- Ikona - UKRYTA na życzenie. Zawsze domyślna (📍), admin jej nie widzi
+         i nie ustawia. Pole zostaje w DOM (puste = JS wstawi 📍 automatycznie),
+         żeby nic w reszcie kodu się nie wysypało. -->
+    <div class="form-row" style="display:none">
       <label>Ikona:</label>
       <div style="display:flex;align-items:center;gap:6px;flex:1">
         <input type="text" id="miejsceIkona" placeholder="emoji np. ⛪ 🏰 🌳 🕯️ 🏛️" maxlength="6" style="flex:1">
@@ -6887,7 +7391,8 @@ document.addEventListener('DOMContentLoaded', odswiezLicznikPobran);
       </div>
     </div>
 
-    <div class="form-row">
+    <!-- Klucz - UKRYTY, generowany automatycznie z nazwy (jak dotąd). -->
+    <div class="form-row" style="display:none">
       <label>Klucz:</label>
       <input type="text" id="miejsceKlucz" placeholder="auto" readonly style="background:var(--paper-3);font-style:italic;color:var(--ink-muted)">
     </div>
@@ -6909,14 +7414,15 @@ document.addEventListener('DOMContentLoaded', odswiezLicznikPobran);
     </div>
 
     <div class="opis-edytor" id="opisEdytor">
-      <div class="opis-edytor-header">
-        <span class="opis-edytor-tytul">📜 Edytor opisu</span>
+      <div class="opis-edytor-header" style="justify-content:flex-end">
         <button type="button" class="opis-edytor-zamknij" onclick="zamknijEdytorOpisu()" title="Powrót do panelu miejsca (zachowa zmiany)">
           <span class="opis-zamknij-strzalka">‹</span> Powrót
         </button>
       </div>
 
-      <div class="opis-pole-tytul">
+      <!-- Tytuł opisu + opcje - UKRYTE na życzenie, zostają puste w tle
+           (elementy zostają w DOM żeby reszta kodu się nie wysypała). -->
+      <div class="opis-pole-tytul" style="display:none">
         <label>Tytuł</label>
         <input type="text" id="opisTytul" placeholder="np. Historia tego miejsca" maxlength="120">
         <div class="opis-tytul-opcje">
@@ -6935,13 +7441,8 @@ document.addEventListener('DOMContentLoaded', odswiezLicznikPobran);
         <div class="opis-licznik"><span id="opisLicznik">0</span> znaków</div>
       </div>
 
-      <!-- EDYTOR-GRA: pole Link YouTube w opisie miejsca (np. wideo o tym miejscu) -->
-      <div class="opis-pole-tytul">
-        <label>📺 Link YouTube (opcjonalny)</label>
-        <input type="url" id="opisLinkYT" placeholder="https://youtube.com/watch?v=..." maxlength="200">
-      </div>
-
-      <div class="opis-podglad-toggle">
+      <!-- Podgląd - UKRYTY na życzenie -->
+      <div class="opis-podglad-toggle" style="display:none">
         <button type="button" onclick="przelaczPodgladOpisu()" id="opisPodgladBtn">👁 Pokaż podgląd</button>
       </div>
 
@@ -6950,18 +7451,61 @@ document.addEventListener('DOMContentLoaded', odswiezLicznikPobran);
         <div class="opis-podglad-tresc" id="opisPodgladTresc"></div>
       </div>
 
-      <div class="opis-edytor-akcje">
+      <!-- Zapisz opis / Wyczyść - UKRYTE. Globalny przycisk "Zapisz" na
+           panelu miejsca i tak zawsze wciąga aktualną treść z pola opisu
+           (synchronizujBuforZPolami), więc osobny "Zapisz opis" jest zbędny. -->
+      <div class="opis-edytor-akcje" style="display:none">
         <button type="button" class="opis-zapisz-btn" onclick="zapiszOpisRoboczo()">✓ Zapisz opis</button>
         <button type="button" class="opis-wyczysc-btn" onclick="wyczyscOpis()">🗑 Wyczyść</button>
       </div>
 
-      <p class="opis-info">
+      <p class="opis-info" style="display:none">
         Opis zapisuje się roboczo i będzie zawarty w pliku po kliknięciu „Pobierz nowy index.html".
       </p>
     </div>
 
+    <!-- ============================================================
+         === PANEL "SPECJALNE" - YouTube / nagranie głosowe / zdjęcie ===
+         ============================================================
+         Wydzielone z edytora opisu - YT link przeniesiony tu (to samo
+         pole #opisLinkYT, tylko fizycznie gdzie indziej - reszta kodu
+         nic o tym nie wie i działa bez zmian). Nagranie głosowe to na
+         razie tylko zaślepka - budujemy je w kolejnym kroku. -->
+    <div class="miejsce-specjalne" id="miejsceSpecjalne">
+      <div class="opis-edytor-header">
+        <span class="opis-edytor-tytul">🔧 Specjalne</span>
+        <button type="button" class="opis-edytor-zamknij" onclick="zamknijMiejsceSpecjalne()" title="Powrót do panelu miejsca (zachowa zmiany)">
+          <span class="opis-zamknij-strzalka">‹</span> Powrót
+        </button>
+      </div>
+
+      <div class="opis-pole-tytul">
+        <label>📺 Link YouTube (opcjonalny)</label>
+        <input type="url" id="opisLinkYT" placeholder="https://youtube.com/watch?v=..." maxlength="200">
+      </div>
+
+      <div class="opis-pole-tytul">
+        <label>🎤 Nagraj wiadomość głosową (do 30 s)</label>
+        <div id="miejsceNagrywanieBox"></div>
+      </div>
+
+      <div class="opis-pole-tytul">
+        <label>🖼️ Zdjęcie (link)</label>
+        <div class="link-ramka link-ramka-z-btn">
+          <input type="url" id="miejsceZdjecieLink" maxlength="300" placeholder="https://i.postimg.cc/...">
+          <a class="link-ramka-btn" href="https://postimages.org" target="_blank" rel="noopener noreferrer">postimages.org</a>
+        </div>
+        <p class="nazwa-edytor-info" style="margin-top:4px">Wrzuć zdjęcie na postimages.org, skopiuj „Direct link" i wklej tutaj.</p>
+      </div>
+
+      <div class="opis-edytor-akcje" id="miejsceSpecjalneUsunWrap" style="display:none">
+        <button type="button" onclick="usunMiejsce()" style="background:var(--crimson);color:#fff">🗑 Usuń to miejsce</button>
+      </div>
+    </div>
+
     <!-- Przyciski są wstrzykiwane przez zaktualizujPrzyciskiMiejsce() -->
     <div class="actions"></div>
+    <a onclick="zamknijMiejsceHelper()" style="display:block;text-align:center;margin-top:10px;font-family:'EB Garamond',serif;font-size:12px;font-style:italic;color:var(--ink-muted);cursor:pointer;text-decoration:underline">✕ Anuluj</a>
   </div>
   <!-- ADMIN-MIEJSCE:END -->
 
@@ -7239,32 +7783,29 @@ function aktualizujPrzyciskCenter() {
 // === TRYB ADMINA ===
 // Włącza się przez ?admin=1 w URL. Bez hasła, bez popupów - po prostu URL decyduje.
 // Edytor zawsze otwarty dla każdego kto wpisze ?admin=1.
-const _chce_admina = new URLSearchParams(window.location.search).get('admin') === '1';
+// WYJĄTEK: jeśli w adresie jest ?czest=KOD (ktoś wszedł do konkretnej gry
+// przez częstotliwość), zawsze widzi widok GRACZA, nawet gdyby ktoś doczepił
+// ?admin=1 - częstotliwość to zawsze tryb zabawy, nie edycji.
+const _ma_czestotliwosc = !!new URLSearchParams(window.location.search).get('czest');
+const _chce_admina = _ma_czestotliwosc
+  ? false
+  : (new URLSearchParams(window.location.search).get('admin') !== '0');
 
-// BLOKADA ADMINA NA TELEFONIE: tryb budowania mapy działa tylko na dużym
-// ekranie (komputer / tablet poziomo). Na telefonie - nawet z ?admin=1 -
-// isAdmin pozostaje false, więc cały kod budujący edytor (pasek, panele,
-// brązowy "skarbiec") się NIE uruchamia. Dodatkowo overlay CSS #obrocAdmin
-// zasłania ekran komunikatem. Granica 900px = szerszy ekran to tablet/PC.
-// BLOKADA ADMINA: decyduje SZEROKOŚĆ ekranu, nie orientacja.
-// Telefon = wąski ekran (krótszy bok < 820px) - admin zablokowany,
-// bo edytor potrzebuje miejsca. Tablet i laptop = szeroki ekran -
-// admin działa. Bierzemy WIĘKSZY z wymiarów (max) - dzięki temu
-// telefon obrócony w poziom dalej jest "telefonem" (jego dłuższy
-// bok ~850px to wciąż za mało na wygodny edytor), a tablet/laptop
-// przechodzą zawsze. Granica 900px: telefon < 900 <= tablet/laptop.
-const _szerokoscEkranu = Math.max(window.innerWidth, window.innerHeight);
-const _ekranMaly = _szerokoscEkranu < 900;
-let isAdmin = _chce_admina && !_ekranMaly;
+// Admin działa na KAŻDYM urządzeniu - komputer, tablet i telefon.
+// Wcześniej tu była blokada po szerokości ekranu (telefon < 900px = brak
+// admina + nakładka "obróć telefon"). Usunięta na życzenie - edytor ma
+// być w pełni dostępny i wygodny również z telefonu.
+let isAdmin = _chce_admina;
 
-// Gdy ktoś wszedł z ?admin=1 na telefonie - pokaż komunikat blokady.
-if (_chce_admina && _ekranMaly) {
-  document.addEventListener('DOMContentLoaded', () => {
-    const ov = document.getElementById('obrocAdmin');
-    if (ov) ov.style.display = 'flex';
-    document.body.style.overflow = 'hidden';
-  });
-}
+// KRYTYCZNE: klasa "tryb-mapa-pelna" dodana TU, jak najwcześniej w całym
+// skrypcie - zanim cokolwiek innego zdąży rzucić błąd. Wcześniej ta linia
+// siedziała ~5000 linii niżej (przy inicjalizacji panelu admina) - jeśli
+// COKOLWIEK po drodze (np. dane wczytane z częstotliwości w nietypowym
+// kształcie) rzucało błąd, skrypt się zatrzymywał i ta klasa NIGDY nie
+// była dodawana - stąd stara "ramka" mimo poprawionego CSS. Dodając ją
+// od razu, mapa jest pełnoekranowa niezależnie od tego, co wydarzy się
+// dalej w kodzie.
+document.documentElement.classList.add('tryb-mapa-pelna');
 
 // HEADER STRONY ("Nazwa przygody") - chowamy na głucho dla GRACZA.
 // Niezależnie od szerokości ekranu, F12, orientacji - jeśli to nie jest
@@ -7843,6 +8384,10 @@ async function otworzPlatek(klucz, akcja) {
       if (miejsce.linkYT) {
         html += `<p style="margin-top:14px"><a href="${miejsce.linkYT}" target="_blank" rel="noopener" style="display:inline-block;background:#ff0000;color:#fff;padding:10px 18px;border-radius:6px;text-decoration:none;font-weight:700">📺 Obejrzyj wideo</a></p>`;
       }
+      // Nagranie głosowe (jeśli admin nagrał wiadomość w panelu "Specjalne")
+      if (miejsce.nagranie) {
+        html += `<div style="margin-top:14px"><audio controls src="${miejsce.nagranie}" style="width:100%;height:36px"></audio></div>`;
+      }
     } else {
       // 2. Fallback: spróbuj wczytać stary plik Markdown (kompatybilność wsteczna)
       const opis = await pobierzOpisMiejsca(klucz);
@@ -7867,7 +8412,20 @@ async function otworzPlatek(klucz, akcja) {
   } else if (akcja === 'zdjecie') {
     const klucz = miejsce.klucz;
     const safeNazwa = (miejsce.nazwa || '').replace(/"/g,'&quot;');
-    // STRATEGIA:
+
+    // Jeśli admin wkleił link do zdjęcia (panel "Specjalne") - użyj go
+    // wprost, bez sprawdzania plików w img/.
+    if (miejsce.zdjecieLink) {
+      content.innerHTML = `<div class="detail-image-wrapper">
+        <img src="${miejsce.zdjecieLink}" alt="${safeNazwa}">
+      </div>`;
+      const panel0 = document.getElementById('detailPanel');
+      panel0.classList.add('visible');
+      setTimeout(() => panel0.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
+      return;
+    }
+
+    // STRATEGIA (brak linku - jak dotąd, pliki wgrane ręcznie do img/):
     //   1. Próbujemy najpierw img/{klucz}-360.jpg -> jeśli istnieje, ładujemy
     //      w Pannellum (sferyczny viewer 360, obracasz dookoła)
     //   2. Jeśli -360 nie istnieje, fallback do img/{klucz}.jpg ze wszystkimi
@@ -8815,6 +9373,17 @@ function zamknijEkranNagrody() {
 // Plik audio/intro.mp3 - opcjonalny. Próbuje się odtworzyć gdy pojawia się
 // ekran startowy. Jeśli przeglądarka zablokuje autoplay - pokazuje przycisk 🎵.
 function graIntroSprobujOdtworzycMuzyke() {
+  // Jeśli admin wkleił link YouTube - to ma pierwszeństwo nad plikiem mp3.
+  // YouTube nie da się bezgłośnie "spróbować" tak jak lokalnego pliku (brak
+  // sensownego autoplay z dźwiękiem) - więc od razu pokazujemy przycisk 🎵,
+  // klik na niego uruchomi muzykę z YouTube (patrz graIntroWlaczMuzyke).
+  const startTmp = (typeof znajdzStart === 'function') ? znajdzStart() : null;
+  if (startTmp && startTmp.podkladYT) {
+    const btnYT = document.getElementById('graIntroMuzykaBtn');
+    if (btnYT) btnYT.classList.add('widoczny');
+    return;
+  }
+
   const audio = document.getElementById('graIntroAudio');
   if (!audio) return;
   // src ustawiamy TERAZ (z data-src) - dopiero gdy faktycznie chcemy grać.
@@ -8846,8 +9415,101 @@ function graIntroSprobujOdtworzycMuzyke() {
   }
 }
 
-// Klik 🎵 - ręczne włączenie muzyki po zablokowaniu przez autoplay
+// === MUZYKA W TLE Z YOUTUBE (link wklejony w panelu Intro) ===
+// Wyciąga 11-znakowe ID filmu z dowolnego typu linku YouTube.
+function wyciagnijIdYouTube(url) {
+  if (!url) return null;
+  const m = String(url).match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([a-zA-Z0-9_-]{11})/);
+  return m ? m[1] : null;
+}
+
+// Zwykły <iframe src="...autoplay=1"> jest często blokowany przez
+// przeglądarkę (dźwięk w iframe = "niechciany autoplay"), NAWET po
+// kliknięciu. Oficjalne YouTube IFrame Player API i wywołanie
+// player.playVideo() w reakcji na klik działa dużo pewniej.
+let __ytPlayerMuzyka = null;
+let __ytAPIGotowe = false;
+let __ytIdOczekujace = null;
+
+function _ytZaladujAPI() {
+  if (window.YT && window.YT.Player) { __ytAPIGotowe = true; return; }
+  if (document.getElementById('ytIframeApiScript')) return;
+  const tag = document.createElement('script');
+  tag.id = 'ytIframeApiScript';
+  tag.src = 'https://www.youtube.com/iframe_api';
+  document.head.appendChild(tag);
+}
+window.onYouTubeIframeAPIReady = function() {
+  __ytAPIGotowe = true;
+  if (__ytIdOczekujace) {
+    const id = __ytIdOczekujace;
+    __ytIdOczekujace = null;
+    _ytUruchomPlayer(id);
+  }
+};
+function _ytUruchomPlayer(id) {
+  const kontener = document.getElementById('introMuzykaYTKontener');
+  if (!kontener) return;
+  kontener.innerHTML = '<div id="ytPlayerMuzykaWewn"></div>';
+  try {
+    __ytPlayerMuzyka = new YT.Player('ytPlayerMuzykaWewn', {
+      videoId: id,
+      playerVars: { autoplay: 1, loop: 1, playlist: id, controls: 0 },
+      events: {
+        onReady: (e) => { try { e.target.playVideo(); } catch(err) {} },
+        onStateChange: (e) => {
+          const btn = document.getElementById('graIntroMuzykaBtn');
+          if (!btn) return;
+          // 1 = gra -> pokaż ⏸ (klik zapauzuje), inaczej ♪ (klik wznowi)
+          btn.innerHTML = (e.data === 1) ? '⏸' : '♪';
+        }
+      }
+    });
+  } catch(e) { console.warn('Muzyka YT - start playera:', e); }
+}
+// Kolejny klik gdy player już gra/jest zapauzowany - przełącz stan,
+// WZNAWIAJĄC dokładnie od miejsca, w którym muzyka stanęła (YouTube
+// player sam pamięta pozycję - nie trzeba nic dodatkowo zapisywać).
+function przelaczPauzeMuzykiYT() {
+  if (!__ytPlayerMuzyka || typeof __ytPlayerMuzyka.getPlayerState !== 'function') return;
+  try {
+    const stan = __ytPlayerMuzyka.getPlayerState();
+    if (stan === 1) { // YT.PlayerState.PLAYING
+      __ytPlayerMuzyka.pauseVideo();
+    } else {
+      __ytPlayerMuzyka.playVideo();
+    }
+  } catch(e) { console.warn('Pauza/wznów muzyki YT:', e); }
+}
+// Uruchamia się po kliknięciu (♪ albo "Zaczynamy przygodę") - to jest
+// prawdziwe kliknięcie użytkownika, więc przeglądarka nie zablokuje dźwięku.
+// Pierwszy klik startuje muzykę, każdy kolejny przełącza pauzę/wznowienie.
+function uruchomMuzykeYT() {
+  try {
+    const start = (typeof znajdzStart === 'function') ? znajdzStart() : null;
+    const id = wyciagnijIdYouTube(start && start.podkladYT);
+    if (!id) return;
+    const kontener = document.getElementById('introMuzykaYTKontener');
+    if (!kontener) return;
+
+    if (kontener.dataset.uruchomione) {
+      przelaczPauzeMuzykiYT();
+      return;
+    }
+    kontener.dataset.uruchomione = '1';
+    _ytZaladujAPI();
+    if (__ytAPIGotowe) _ytUruchomPlayer(id);
+    else __ytIdOczekujace = id;
+  } catch(e) { console.warn('Muzyka YT:', e); }
+}
+
+// Klik 🎵 - ręczne włączenie muzyki (YouTube ma pierwszeństwo nad mp3)
 function graIntroWlaczMuzyke() {
+  const start = (typeof znajdzStart === 'function') ? znajdzStart() : null;
+  if (start && start.podkladYT) {
+    if (typeof uruchomMuzykeYT === 'function') uruchomMuzykeYT();
+    return;
+  }
   const audio = document.getElementById('graIntroAudio');
   if (!audio) return;
   if (!audio.src && audio.dataset.src) {
@@ -8993,6 +9655,9 @@ function zamknijEkranStartowy() {
   if (ekran) ekran.classList.remove('visible');
   // Płynnie wycisz muzykę intro - żeby nie kłóciła się z audio przy kropkach
   graIntroWyciszMuzyke();
+  // Uruchom muzykę w tle z YouTube (jeśli admin wkleił link) - dopiero
+  // teraz, bo to jest prawdziwe kliknięcie gracza (autoplay nie zablokuje).
+  if (typeof uruchomMuzykeYT === 'function') uruchomMuzykeYT();
   // Zapis flagi w localStorage żeby już więcej nie pokazywać przy reloadzie
   try { localStorage.setItem(_kluczPostepuGry() + '_ekran', '1'); } catch(e) {}
   // EDYTOR-GRA: wyśrodkuj mapę na punkcie START żeby user od razu wiedział gdzie jest
@@ -9125,6 +9790,10 @@ zastosujKategorie();
 // Aby dodać nową kropkę: użyj przycisków w panelu admin (?admin=1).
 const kropkiAudio = [
 ];
+// Punkty gry z częstotliwości (jeśli ?czest=KOD w adresie) dochodzą
+// PÓŹNIEJ, na żywo, dopiero jak cała strona już normalnie wystartuje
+// (patrz wczytajGreZCzestotliwosci() na końcu pliku) - dokładnie tak jak
+// admin dokłada punkt klikając na mapę. Tu tablica zostaje po prostu pusta.
 // Flaga: od tego miejsca `kropkiAudio` istnieje. renderujMiejscaNaMapie()
 // sprawdza ją, by przy pierwszym (startowym) renderze nie wejść w TDZ.
 window._kropkiGotowe = true;
@@ -10273,6 +10942,10 @@ function otworzEdytorNazwy() {
   const autorEl = document.getElementById('nazwaAutorInput');
   if (autorEl) autorEl.value = (_start && _start.autor) ? _start.autor : '';
 
+  // Muzyka w tle (link YouTube) - trzymana tak samo jak autor, przy punkcie START.
+  const podkladEl = document.getElementById('nazwaIntroPodkladYT');
+  if (podkladEl) podkladEl.value = (_start && _start.podkladYT) ? _start.podkladYT : '';
+
   edytor.classList.add('visible');
   if (btn) btn.style.display = 'none'; // ukryj sam przycisk gdy edytor otwarty
   setTimeout(() => document.getElementById('nazwaStronyInput').focus(), 50);
@@ -10308,6 +10981,21 @@ function zapiszNazweStrony() {
     const autorEl = document.getElementById('nazwaAutorInput');
     const autorVal = autorEl ? autorEl.value.trim() : '';
     if (autorVal) _start.autor = autorVal; else delete _start.autor;
+
+    const podkladEl = document.getElementById('nazwaIntroPodkladYT');
+    const podkladVal = podkladEl ? podkladEl.value.trim() : '';
+    if (podkladVal) _start.podkladYT = podkladVal; else delete _start.podkladYT;
+
+    // Wyślij też do chmury (Firebase) - żeby każdy gracz widział aktualne
+    // dane bez potrzeby pobierania nowego index.html.
+    if (typeof zapiszUstawieniaStronyDoChmury === 'function') {
+      zapiszUstawieniaStronyDoChmury({
+        nazwa: nowa,
+        autor: autorVal || '',
+        podkladYT: podkladVal || ''
+      });
+    }
+
     // Utrwal - jeśli START jest w zaplanowanych kropkach admina.
     if (typeof zapiszZaplanowane === 'function') {
       try { zapiszZaplanowane(); } catch(e) {}
@@ -10471,9 +11159,16 @@ function zapiszOpisStrony() {
 
   // ODBIÓR NAGRODY - zapisz treść (pokaże się graczowi po ukończeniu gry)
   const nagrodaInput = document.getElementById('opisNagrodaInput');
+  let nowaNagroda = '';
   if (nagrodaInput) {
-    const nowaNagroda = (nagrodaInput.value || '').trim();
+    nowaNagroda = (nagrodaInput.value || '').trim();
     try { localStorage.setItem(KEY_NAGRODA_TRESC, nowaNagroda); } catch(e) {}
+  }
+
+  // Wyślij też do chmury (Firebase) - żeby każdy gracz widział aktualny
+  // opis gry i nagrodę bez potrzeby pobierania nowego index.html.
+  if (typeof zapiszUstawieniaStronyDoChmury === 'function') {
+    zapiszUstawieniaStronyDoChmury({ opisGry: nowaTresc, nagroda: nowaNagroda });
   }
 
   // Wizualne potwierdzenie
@@ -10648,7 +11343,7 @@ function otworzEdytorOpisu() {
   document.getElementById('opisPodgladBtn').textContent = '👁 Pokaż podgląd';
 
   // Focus na tytuł
-  setTimeout(() => document.getElementById('opisTytul').focus(), 50);
+  setTimeout(() => document.getElementById('opisTekst').focus(), 50);
 }
 
 function zamknijEdytorOpisu() {
@@ -10674,6 +11369,44 @@ function zamknijEdytorOpisu() {
 function aktualizujLicznikOpisu() {
   const tekst = document.getElementById('opisTekst').value;
   document.getElementById('opisLicznik').textContent = tekst.length;
+}
+
+// === PANEL "SPECJALNE" (YouTube / nagranie głosowe / zdjęcie) ===
+let nagrIstniejacyLink = null; // link do JUŻ zapisanego nagrania (przy edycji)
+let nagrDlaMiejsca = null; // do którego miejsca należy aktualny stan nagrywania
+
+function otworzMiejsceSpecjalne() {
+  document.getElementById('miejsceSpecjalne').classList.add('visible');
+  const helper = document.getElementById('miejsceHelper');
+  helper.classList.add('edytuje-specjalne');
+
+  // Wczytaj zdjęcie (link) jeśli edytujemy istniejące miejsce
+  const zdjEl = document.getElementById('miejsceZdjecieLink');
+  if (zdjEl && edytowaneMiejsce) zdjEl.value = edytowaneMiejsce.zdjecieLink || '';
+
+  // Nagranie - jeśli otwieramy panel dla INNEGO miejsca niż ostatnio,
+  // czyścimy stan (żeby nagranie jednego miejsca nie "przykleiło się"
+  // do drugiego). Jeśli edytujemy miejsce, które już MA nagranie,
+  // pokazujemy je jako "obecne nagranie".
+  const cel = edytowaneMiejsce || 'nowe';
+  if (cel !== nagrDlaMiejsca) {
+    nagrBlob = null;
+    if (nagrObjUrl) { try { URL.revokeObjectURL(nagrObjUrl); } catch(e) {} }
+    nagrObjUrl = null;
+    nagrDlaMiejsca = cel;
+  }
+  nagrIstniejacyLink = edytowaneMiejsce ? (edytowaneMiejsce.nagranie || null) : null;
+  if (typeof renderujNagrywanieBox === 'function') renderujNagrywanieBox();
+
+  // Przycisk "Usuń to miejsce" tylko przy edycji istniejącego miejsca
+  const usunWrap = document.getElementById('miejsceSpecjalneUsunWrap');
+  if (usunWrap) usunWrap.style.display = edytowaneMiejsce ? '' : 'none';
+}
+
+function zamknijMiejsceSpecjalne() {
+  document.getElementById('miejsceSpecjalne').classList.remove('visible');
+  const helper = document.getElementById('miejsceHelper');
+  helper.classList.remove('edytuje-specjalne');
 }
 
 function przelaczPodgladOpisu() {
@@ -10863,6 +11596,11 @@ function obsluzKlikAdmin(e) {
   // a nie do dodawania punktów audio/miejsc. Wracamy bez efektu.
   if (typeof trybRysowaniaWlaczony !== 'undefined' && trybRysowaniaWlaczony) return;
 
+  // BLOKADA: dodawanie punktu klikiem na mapę działa TYLKO po uzbrojeniu
+  // przyciskiem "Dodaj punkt" (rozwinięty napis w lewym górnym rogu).
+  // Zwykły klik na mapę (przesuwanie widoku, oglądanie) nic nie robi.
+  if (typeof trybCzekaNaKlikDodaj === 'undefined' || !trybCzekaNaKlikDodaj) return;
+
   // Sprawdź czy nie kliknięto w istniejący marker (Leaflet już to obsłużył)
   // Tu dochodzimy tylko jak klik był w pustą mapę
 
@@ -10888,6 +11626,13 @@ function obsluzKlikAdmin(e) {
     })
   }).addTo(mapa);
 
+  // Rozbrój tryb oczekiwania - punkt już wskazany, chowamy strzałkę
+  // z powrotem do stanu zwiniętego.
+  trybCzekaNaKlikDodaj = false;
+  if (mapa && mapa.getContainer) mapa.getContainer().style.cursor = '';
+  const pt = document.getElementById('punktToggle');
+  if (pt) pt.classList.remove('open');
+
   // Pokaż popup wyboru typu obiektu
   document.getElementById('adminChoose').classList.add('visible');
 }
@@ -10911,6 +11656,8 @@ function wybierzTypGry(typ) {
     if (selKat) selKat.value = 'punkt';
     document.getElementById('miejsceIkona').value = '📍';
     document.getElementById('miejsceKlucz').value = '';
+    const zdjResetEl1 = document.getElementById('miejsceZdjecieLink');
+    if (zdjResetEl1) zdjResetEl1.value = '';
     // Reset numerGry (nie używamy w punktach orientacyjnych)
     const ngInput = document.getElementById('miejsceNumerGry');
     if (ngInput) ngInput.value = '';
@@ -11085,6 +11832,8 @@ function wybierzTyp(typ) {
     document.getElementById('miejsceKategoria').value = 'zabytek';
     document.getElementById('miejsceIkona').value = '🏛️';
     document.getElementById('miejsceKlucz').value = '';
+    const zdjResetEl2 = document.getElementById('miejsceZdjecieLink');
+    if (zdjResetEl2) zdjResetEl2.value = '';
     // TRYB GRY - reset pola numerGry + pokaż/ukryj zależnie od trybu
     const ngInput = document.getElementById('miejsceNumerGry');
     if (ngInput) ngInput.value = '';
@@ -11463,14 +12212,11 @@ function wytnijAdmina(tekst) {
     'const _chce_admina = false; // wersja publiczna - tryb admin wyłączony na stałe'
   );
 
-  // Skrypty Firebase (licznik pobrań) - zbędne dla gracza. Funkcje licznika
-  // w kodzie zostają, ale bez SDK są nieszkodliwe: init łapie błąd,
-  // window.__db_licznik nie powstaje, a guardy "if (!__db_licznik) return"
-  // kończą każdą próbę użycia.
-  wynik = wynik.replace(
-    /[ \t]*<script src="https:\/\/www\.gstatic\.com\/firebasejs\/[^"]*"><\/script>\s*\n?/g,
-    ''
-  );
+  // Firebase SDK - ZOSTAJE też w wersji publicznej. Wcześniej był wycinany
+  // (przydatny tylko admiowi do licznika pobrań), ale teraz gracz też go
+  // potrzebuje - stamtąd wczytują się opisy miejsc zapisane w chmurze
+  // (kolekcja "opisy"), więc każdy widzi aktualną treść bez pobierania
+  // nowego pliku za każdym razem.
 
   return wynik;
 }
@@ -12192,6 +12938,8 @@ function edytujMiejsce(klucz) {
   document.getElementById('miejsceKategoria').value = edytowaneMiejsce.kategoria || 'zabytek';
   document.getElementById('miejsceIkona').value = edytowaneMiejsce.ikona || '📍';
   document.getElementById('miejsceKlucz').value = edytowaneMiejsce.klucz || '';
+  const zdjEdytujEl = document.getElementById('miejsceZdjecieLink');
+  if (zdjEdytujEl) zdjEdytujEl.value = edytowaneMiejsce.zdjecieLink || '';
   // TRYB GRY - wczytaj numerGry (pole widoczne tylko gdy admin włączył tryb gry)
   const numerGryInput = document.getElementById('miejsceNumerGry');
   if (numerGryInput) numerGryInput.value = edytowaneMiejsce.numerGry || '';
@@ -12205,7 +12953,7 @@ function edytujMiejsce(klucz) {
 }
 
 // Zapisz edycję istniejącego miejsca (do localStorage + odśwież widok)
-function zapiszEdycjeMiejsca() {
+async function zapiszEdycjeMiejsca() {
   if (!edytowaneMiejsce || !aktualnyKlik) return;
 
   const nazwa = document.getElementById('miejsceNazwa').value.trim();
@@ -12221,6 +12969,11 @@ function zapiszEdycjeMiejsca() {
   // żeby user nie musiał najpierw klikać "Zapisz opis" osobno
   synchronizujBuforZPolami();
 
+  // Nagranie głosowe - jeśli nagrano nowe, wyślij je NAJPIERW (przed
+  // zapisem), żeby ewentualny błąd wysyłki nie skasował reszty zmian.
+  const wynikNagrania = await _przygotujNagranieDoZapisu(miejsca[edytowanyMiejsceIdx].klucz);
+  if (!wynikNagrania.ok) return; // błąd wysyłki - przerywamy, nic nie tracimy
+
   // Zaktualizuj na żywo w tablicy
   miejsca[edytowanyMiejsceIdx].nazwa = nazwa;
   miejsca[edytowanyMiejsceIdx].kategoria = kategoria;
@@ -12233,6 +12986,14 @@ function zapiszEdycjeMiejsca() {
   // EDYTOR-GRA: link YouTube w opisie miejsca
   if (opisRoboczy.linkYT) miejsca[edytowanyMiejsceIdx].linkYT = opisRoboczy.linkYT;
   else delete miejsca[edytowanyMiejsceIdx].linkYT;
+  // Zdjęcie (link) - z panelu "Specjalne"
+  const zdjEl = document.getElementById('miejsceZdjecieLink');
+  const zdjVal = zdjEl ? zdjEl.value.trim() : '';
+  if (zdjVal) miejsca[edytowanyMiejsceIdx].zdjecieLink = zdjVal;
+  else delete miejsca[edytowanyMiejsceIdx].zdjecieLink;
+  // Nagranie głosowe
+  if (wynikNagrania.link) miejsca[edytowanyMiejsceIdx].nagranie = wynikNagrania.link;
+  else delete miejsca[edytowanyMiejsceIdx].nagranie;
   // TRYB GRY - zapisz numer etapu (jeśli pusty lub 0 - usuwamy pole)
   const numerGryInput = document.getElementById('miejsceNumerGry');
   if (numerGryInput) {
@@ -12245,8 +13006,27 @@ function zapiszEdycjeMiejsca() {
   }
 
   zapiszZmianyMiejsc();
+  if (typeof zapiszOpisDoChmury === 'function') {
+    zapiszOpisDoChmury(miejsca[edytowanyMiejsceIdx].klucz, miejsca[edytowanyMiejsceIdx]);
+  }
+  nagrBlob = null; nagrObjUrl = null; nagrIstniejacyLink = null; nagrDlaMiejsca = null;
   odswiezMiejscaNaMapie();
   zamknijMiejsceHelper();
+}
+
+// Pomocnicza: przygotowuje wartość pola "nagranie" przed zapisem miejsca.
+// - Jest nowe nagranie w buforze (nagrBlob) -> wysyła je, zwraca link.
+// - Nie ma nowego, ale było stare i user go NIE usunął -> zostaje jak było.
+// - Nie ma żadnego (albo user kliknął 🗑️ przy istniejącym) -> null (usuń pole).
+// Zwraca {ok:false} tylko gdy wysyłka nowego nagrania się nie powiodła -
+// wtedy zapis miejsca należy przerwać, żeby nic nie zgubić.
+async function _przygotujNagranieDoZapisu(klucz) {
+  if (nagrBlob) {
+    const link = await wyslijNagranie(klucz);
+    if (link === undefined) return { ok: false };
+    return { ok: true, link: link || null };
+  }
+  return { ok: true, link: nagrIstniejacyLink || null };
 }
 
 // Pomocnicza: jeśli edytor opisu jest otwarty, przepisz pola do bufora
@@ -12261,7 +13041,7 @@ function synchronizujBuforZPolami() {
 }
 
 // Dodaj nowe miejsce do tablicy
-function planujMiejsce() {
+async function planujMiejsce() {
   if (!aktualnyKlik) return;
 
   const nazwa = document.getElementById('miejsceNazwa').value.trim();
@@ -12283,6 +13063,11 @@ function planujMiejsce() {
   // Wciągnij stan edytora opisu (jeśli user wpisał coś ale nie kliknął "Zapisz opis")
   synchronizujBuforZPolami();
 
+  // Nagranie głosowe - wyślij PRZED dodaniem miejsca (żeby błąd wysyłki
+  // nie zostawił miejsca bez nagrania po cichu).
+  const wynikNagrania = await _przygotujNagranieDoZapisu(klucz);
+  if (!wynikNagrania.ok) return;
+
   // Dodaj do tablicy miejsc - z opisem jeśli istnieje
   const nowe = {
     klucz: klucz,
@@ -12297,6 +13082,12 @@ function planujMiejsce() {
   if (opisRoboczy.duzy) nowe.tytulDuzy = true;
   // EDYTOR-GRA: link YouTube w opisie miejsca
   if (opisRoboczy.linkYT) nowe.linkYT = opisRoboczy.linkYT;
+  // Zdjęcie (link) - z panelu "Specjalne"
+  const zdjEl = document.getElementById('miejsceZdjecieLink');
+  const zdjVal = zdjEl ? zdjEl.value.trim() : '';
+  if (zdjVal) nowe.zdjecieLink = zdjVal;
+  // Nagranie głosowe - z panelu "Specjalne"
+  if (wynikNagrania.link) nowe.nagranie = wynikNagrania.link;
   // TRYB GRY - dodaj numer etapu jeśli admin wpisał
   const numerGryInputN = document.getElementById('miejsceNumerGry');
   if (numerGryInputN) {
@@ -12306,6 +13097,10 @@ function planujMiejsce() {
   miejsca.push(nowe);
 
   zapiszZmianyMiejsc();
+  if (typeof zapiszOpisDoChmury === 'function') {
+    zapiszOpisDoChmury(klucz, nowe);
+  }
+  nagrBlob = null; nagrObjUrl = null; nagrIstniejacyLink = null; nagrDlaMiejsca = null;
   odswiezMiejscaNaMapie();
   zamknijMiejsceHelper();
 }
@@ -12314,8 +13109,13 @@ function usunMiejsce() {
   if (!edytowaneMiejsce) return;
   if (!confirm(`Usunąć miejsce "${edytowaneMiejsce.nazwa}"?\n\nDo zapisania zmian musisz pobrać nowy index.html.`)) return;
 
+  const kluczUsuwany = edytowaneMiejsce.klucz;
   miejsca.splice(edytowanyMiejsceIdx, 1);
   zapiszZmianyMiejsc();
+  if (window.__db_opisy && kluczUsuwany) {
+    window.__db_opisy.collection('opisy').doc(kluczUsuwany).delete()
+      .catch(e => console.warn('Usuwanie opisu z chmury:', e));
+  }
   odswiezMiejscaNaMapie();
   zamknijMiejsceHelper();
 }
@@ -12335,14 +13135,13 @@ function zaktualizujPrzyciskiMiejsce() {
   const akcje = document.getElementById('miejsceHelper').querySelector('.actions');
   if (edytowaneMiejsce) {
     akcje.innerHTML = `
-      <button onclick="zapiszEdycjeMiejsca()">💾 Zapisz zmiany</button>
-      <button class="secondary" style="background:rgba(239,68,68,0.1);color:var(--crimson);border-color:var(--crimson)" onclick="usunMiejsce()">🗑 Usuń</button>
-      <button class="secondary" onclick="zamknijMiejsceHelper()">✕ Anuluj</button>
+      <button class="secondary" onclick="otworzMiejsceSpecjalne()">🔧 Specjalne</button>
+      <button onclick="zapiszEdycjeMiejsca()">✓ Zapisz</button>
     `;
   } else {
     akcje.innerHTML = `
-      <button onclick="planujMiejsce()">➕ Dodaj miejsce</button>
-      <button class="secondary" onclick="zamknijMiejsceHelper()">✕ Anuluj</button>
+      <button class="secondary" onclick="otworzMiejsceSpecjalne()">🔧 Specjalne</button>
+      <button onclick="planujMiejsce()">✓ Zapisz</button>
     `;
   }
 }
@@ -12416,10 +13215,66 @@ if (trybGryWlaczony) {
   // EDYTOR-GRA: ekran startowy pokazuje się ZA KAŻDYM RAZEM gdy user wchodzi na grę.
   // Dzięki temu wracający user widzi swoje aktualne osiągnięcia (np. "Już odkryłeś 2/4")
   // i może wrócić do gry z pełnym kontekstem.
-  if (!isAdmin) {
+  if (!isAdmin && !_ma_czestotliwosc) {
     setTimeout(pokazEkranStartowy, 800);
   }
 }
+
+// =====================================================================
+// === CZĘSTOTLIWOŚĆ (?czest=KOD) - doklejenie punktów PO starcie =====
+// =====================================================================
+// Wywoływane na samym końcu, gdy strona już w pełni normalnie wystartowała
+// (dokładnie tak jak w Mapie Wspomnień - zero przeładowań, zero podmiany
+// danych przed startem). Ściąga zapisaną grę z Firebase i dokleja ją na
+// żywo, tą samą drogą co admin dodający punkt z panelu.
+async function wczytajGreZCzestotliwosci() {
+  if (!_ma_czestotliwosc) return;
+  const kod = new URLSearchParams(window.location.search).get('czest');
+  if (!kod) return;
+
+  try {
+    if (!window.__db_opisy) {
+      alert('❌ Brak połączenia z bazą danych - nie można wczytać częstotliwości.');
+      if (!isAdmin) pokazEkranStartowy();
+      return;
+    }
+    const doc = await window.__db_opisy.collection('gry_czestotliwosci').doc(kod).get();
+    if (!doc.exists) {
+      alert('❌ Nie znaleziono częstotliwości „' + kod + '".');
+      if (!isAdmin) pokazEkranStartowy();
+      return;
+    }
+    const dane = doc.data();
+
+    // Doklej punkty gry i miejsca do już istniejących (pustych) tablic -
+    // identycznie jak admin dokłada punkt klikając na mapę.
+    if (Array.isArray(dane.kropkiAudio)) kropkiAudio.push(...dane.kropkiAudio);
+    if (Array.isArray(dane.miejsca)) miejsca.push(...dane.miejsca);
+
+    // Nazwa / opis gry / nagroda
+    if (dane.nazwa && typeof zastosujNazweStrony === 'function') zastosujNazweStrony(dane.nazwa);
+    if (dane.opisGry && typeof zastosujOpisStrony === 'function') zastosujOpisStrony('tresc', dane.opisGry);
+    if (dane.nagroda !== undefined) {
+      try { localStorage.setItem('admin-nagroda-tresc', dane.nagroda); } catch(e) {}
+    }
+
+    // Re-renderuj wszystko, żeby punkty faktycznie pojawiły się na mapie
+    if (typeof renderujMiejscaNaMapie === 'function') renderujMiejscaNaMapie();
+    if (typeof renderujKropkiAudio === 'function') renderujKropkiAudio();
+    if (typeof renderujStrefySzukania === 'function') renderujStrefySzukania();
+    if (typeof renderujOdkryteTajemnice === 'function') renderujOdkryteTajemnice();
+    if (typeof aktualizujPostepGryUI === 'function') aktualizujPostepGryUI();
+    if (typeof moOdswiez === 'function') moOdswiez();
+
+    // Dopiero teraz pokaż ekran startowy - dane są już na miejscu
+    if (!isAdmin) pokazEkranStartowy();
+  } catch(e) {
+    console.warn('Wczytywanie częstotliwości:', e);
+    alert('❌ Błąd wczytywania częstotliwości: ' + e.message);
+    if (!isAdmin) pokazEkranStartowy();
+  }
+}
+wczytajGreZCzestotliwosci();
 
 // =====================================================================
 // === GÓRNY PASEK EDYTORA (admin desktop) =============================
@@ -12523,6 +13378,10 @@ function zamknijModaleEdytora() {
 // Ustawiana ZAWSZE (i dla gracza, i dla admina). CSS aktywuje motyw
 // dopiero od 1024px wzwyż - na telefonie nic się nie zmienia.
 document.documentElement.classList.add('tryb-ciemny');
+
+// Klasa "tryb-mapa-pelna" - PRZENIESIONA dużo wcześniej w kodzie (zaraz
+// po ustaleniu isAdmin), żeby działała nawet gdyby coś dalej w skrypcie
+// się wysypało błędem. Zostaje tu tylko ten komentarz jako ślad.
 
 // Aktywuj pomocnik tylko w trybie admin
 if (isAdmin) {
@@ -15175,6 +16034,12 @@ mapa.on('zoomend', () => {
   <!-- MUZYKA INTRO - plik audio/intro.mp3 (opcjonalny). src ustawiany przez
        JS dopiero przy próbie odtworzenia - bez błędu 404 gdy pliku brak. -->
   <audio id="graIntroAudio" preload="none" data-src="audio/intro.mp3"></audio>
+
+  <!-- MUZYKA W TLE Z YOUTUBE (opcjonalna, link wklejony w panelu Intro) -
+       ukryty odtwarzacz, sam dźwięk bez obrazu. Uruchamia się dopiero po
+       kliknięciu "Zaczynamy przygodę" (żeby przeglądarka nie zablokowała
+       dźwięku jako niechciany autoplay). -->
+  <div id="introMuzykaYTKontener" style="position:absolute;width:1px;height:1px;overflow:hidden;opacity:0;pointer-events:none"></div>
 
   <!-- SZKLANA KARTA -->
   <div class="gss-karta">
