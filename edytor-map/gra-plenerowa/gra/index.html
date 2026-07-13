@@ -6508,6 +6508,7 @@ async function zapiszCzestotliwosc() {
       autor: k.autor || null,
       podkladYT: k.podkladYT || null,
       emotka: k.emotka || null,
+      podpowiedz: k.podpowiedz || null,
       linkYT: k.linkYT || null,
       strefaSzukania: k.strefaSzukania === true,
       strefaPromien: k.strefaPromien || null
@@ -6526,6 +6527,7 @@ async function zapiszCzestotliwosc() {
         autor: k.autor || null,
         podkladYT: k.podkladYT || null,
         emotka: k.emotka || null,
+        podpowiedz: k.podpowiedz || null,
         linkYT: k.linkYT || null,
         strefaSzukania: k.strefaSzukania === true,
         strefaPromien: k.strefaPromien || null
@@ -7257,40 +7259,20 @@ document.addEventListener('DOMContentLoaded', wczytajOpisyZChmury);
     </div>
     <div class="promien-display"><span id="adminPromienVal">50 m</span></div>
 
-    <!-- EDYTOR-GRA: pole EMOTKI (tylko dla tajemnic).
-         Emotka = pieczątka na Mapie Odkrywcy + trofeum na mapie gry po zdobyciu.
-         Admin klika gotową emotkę (wpisuje się do pola) albo wpisuje własną. -->
-    <div class="form-row" id="adminEmotkaRow" style="display:none">
-      <label>🎟️ Pieczątka (emotka):</label>
-      <div class="emotka-szybki-wybor" id="emotkaSzybkiWybor">
-        <button type="button" class="emotka-opcja" onclick="wybierzEmotke('⛪')">⛪</button>
-        <button type="button" class="emotka-opcja" onclick="wybierzEmotke('🌳')">🌳</button>
-        <button type="button" class="emotka-opcja" onclick="wybierzEmotke('🏰')">🏰</button>
-        <button type="button" class="emotka-opcja" onclick="wybierzEmotke('⛲')">⛲</button>
-        <button type="button" class="emotka-opcja" onclick="wybierzEmotke('🌉')">🌉</button>
-        <button type="button" class="emotka-opcja" onclick="wybierzEmotke('🗿')">🗿</button>
-        <button type="button" class="emotka-opcja" onclick="wybierzEmotke('🏛️')">🏛️</button>
-        <button type="button" class="emotka-opcja" onclick="wybierzEmotke('🗼')">🗼</button>
-        <button type="button" class="emotka-opcja" onclick="wybierzEmotke('⚓')">⚓</button>
-        <button type="button" class="emotka-opcja" onclick="wybierzEmotke('🌲')">🌲</button>
-        <button type="button" class="emotka-opcja" onclick="wybierzEmotke('💎')">💎</button>
-        <button type="button" class="emotka-opcja" onclick="wybierzEmotke('⭐')">⭐</button>
-        <button type="button" class="emotka-opcja" onclick="wybierzEmotke('🔮')">🔮</button>
-        <button type="button" class="emotka-opcja" onclick="wybierzEmotke('🕯️')">🕯️</button>
-        <button type="button" class="emotka-opcja" onclick="wybierzEmotke('🎏')">🎏</button>
-      </div>
-      <input type="text" id="adminEmotka" placeholder="lub wpisz własną emotkę" maxlength="8" oninput="podswietlEmotke()" style="margin-top:8px;text-align:center;font-size:18px">
-    </div>
-    <div id="adminEmotkaHint" style="display:none;font-size:11px;color:#7a5530;margin:-4px 0 8px 0;padding:6px 10px;background:rgba(120,70,30,0.08);border-left:3px solid var(--gold);border-radius:3px;font-style:italic">
-      Ta emotka pojawi się jako pieczątka na Mapie Odkrywcy oraz na mapie gry po zdobyciu tajemnicy. Puste = domyślny znak.
-    </div>
-
     <!-- EDYTOR-GRA: pole "Opis"/Wiadomość - używane TYLKO dla punktu START.
          Tekst czytany na głos (TTS) w chwili wejścia na start, PRZED odpaleniem
          start.mp3. Dla tajemnic/mety pole zostaje ukryte (fabuła idzie przez audio). -->
     <div class="form-row" id="adminOpisRow" style="display:none">
       <label>Wiadomość:</label>
       <textarea id="adminOpis" rows="3" maxlength="500" placeholder="np. Witaj podróżniku! Tu zaczyna się Twoja przygoda..." style="resize:vertical;font-family:'EB Garamond',serif;font-size:14px;font-weight:500;padding:8px 10px;border:1px solid rgba(124,58,237,0.4);border-radius:4px;background:var(--paper-2);color:var(--ink);width:100%"></textarea>
+    </div>
+
+    <!-- EDYTOR-GRA: pole "Podpowiedź" - TYLKO dla tajemnicy. Czytane na głos (TTS),
+         gdy gracz kliknie w hamburgerze/Mapie Odkrywcy w numer TEJ, jeszcze
+         nieodkrytej tajemnicy (podpowiedź "gdzie szukać kolejnej"). -->
+    <div class="form-row" id="adminPodpowiedzRow" style="display:none">
+      <label>Podpowiedź:</label>
+      <textarea id="adminPodpowiedz" rows="3" maxlength="500" placeholder="np. Szukaj przy starym dębie obok fontanny w parku..." style="resize:vertical;font-family:'EB Garamond',serif;font-size:14px;font-weight:500;padding:8px 10px;border:1px solid rgba(124,58,237,0.4);border-radius:4px;background:var(--paper-2);color:var(--ink);width:100%"></textarea>
     </div>
 
     <!-- EDYTOR-GRA: pole LINK YOUTUBE (tylko dla startu) -->
@@ -7940,6 +7922,9 @@ function odtworzWskazowke(numer) {
   // aktualnyEtapGry == numer => to ta nieodkryta, której gracz teraz szuka.
   if (numer !== aktualnyEtapGry) return;
 
+  // Zatrzymaj poprzednią syntezę mowy, jeśli akurat czyta
+  if (window.speechSynthesis) window.speechSynthesis.cancel();
+
   // Zatrzymaj poprzednią wskazówkę jeśli gra
   if (audioWskazowki) {
     audioWskazowki.pause();
@@ -7951,6 +7936,29 @@ function odtworzWskazowke(numer) {
     aktualneAudio = null;
   }
 
+  // TTS: jeśli admin wpisał tekst "Podpowiedź" dla tej tajemnicy - czytamy go
+  // na głos NAJPIERW, a dopiero potem (jeśli istnieje) odpala się plik
+  // audio/tajemnicaN.mp3. Brak tekstu = zachowanie bez zmian (od razu plik).
+  const _kropkaDoWskazowki = (typeof kropkiAudio !== 'undefined')
+    ? kropkiAudio.find(k => k.numer === numer && typKropki(k) === 'tajemnica')
+    : null;
+  const _podpowiedzTekst = _kropkaDoWskazowki && _kropkaDoWskazowki.podpowiedz
+    ? _kropkaDoWskazowki.podpowiedz.trim() : '';
+
+  if (_podpowiedzTekst && window.speechSynthesis) {
+    const _utteranceWsk = new SpeechSynthesisUtterance(_podpowiedzTekst);
+    _utteranceWsk.lang = 'pl-PL';
+    _utteranceWsk.onend = () => _zagrajPlikWskazowki(numer);
+    _utteranceWsk.onerror = () => _zagrajPlikWskazowki(numer);
+    window.speechSynthesis.speak(_utteranceWsk);
+  } else {
+    _zagrajPlikWskazowki(numer);
+  }
+}
+
+// Właściwe odtworzenie pliku audio/tajemnicaN.mp3 - wydzielone z odtworzWskazowke,
+// żeby dało się je wywołać dopiero PO zakończeniu czytania podpowiedzi (TTS).
+function _zagrajPlikWskazowki(numer) {
   // Ścieżka audio wskazówki - TYLKO indywidualna: audio/tajemnicaN.mp3.
   // Każda tajemnica jest gdzie indziej, więc wskazówka "dokąd iść" musi
   // być osobna dla każdej. Nie ma wspólnego pliku wskazówki.
@@ -9239,19 +9247,12 @@ function renderujOdkryteTajemnice() {
     const tytulSafe = String(tytul).replace(/"/g, '&quot;');
 
     let html, rozmiar, kotwica;
-    if (kropka.emotka) {
-      // WARIANT EMOTKA - duża emotka jako zdobyte trofeum (kolorowe, dla dzieci)
-      html = `<div class="odkryta-tajemnica-emotka" title="${tytulSafe} - klik aby odtworzyć audio">${kropka.emotka}</div>`
-           + `<div class="odkryta-tajemnica-label">${tytulSafe}</div>`;
-      rozmiar = [54, 54];
-      kotwica = [27, 27];
-    } else {
-      // WARIANT KROPKA - mała kropka (minimalistycznie)
-      html = `<div class="odkryta-tajemnica-kropka" title="${tytulSafe} - klik aby odtworzyć audio"></div>`
-           + `<div class="odkryta-tajemnica-label">${tytulSafe}</div>`;
-      rozmiar = [18, 18];
-      kotwica = [9, 9];
-    }
+    // EDYTOR-GRA: pieczątka admina (kropka.emotka) usunięta - po zdobyciu
+    // tajemnicy zawsze pokazuje się ta sama, stała emotka uśmiechniętej buzi.
+    html = `<div class="odkryta-tajemnica-emotka" title="${tytulSafe} - klik aby odtworzyć audio">😊</div>`
+         + `<div class="odkryta-tajemnica-label">${tytulSafe}</div>`;
+    rozmiar = [54, 54];
+    kotwica = [27, 27];
 
     const marker = L.marker(kropka.pozycja, {
       icon: L.divIcon({
@@ -10109,9 +10110,14 @@ function edytujKropkePoIdx(idx) {
   if (emotkaInput) emotkaInput.value = kropka.emotka || '';
   if (typeof podswietlEmotke === 'function') podswietlEmotke();
 
-  // EDYTOR-GRA: pole "Wiadomość" (czytana na starcie) - tylko dla typu start
+  // EDYTOR-GRA: pole "Wiadomość" - dla startu (czytana na starcie) i tajemnicy
+  // (czytana po odnalezieniu). Pole "Podpowiedź" - tylko dla tajemnicy.
   const opisRow = document.getElementById('adminOpisRow');
-  if (opisRow) opisRow.style.display = (t === 'start') ? 'block' : 'none';
+  if (opisRow) opisRow.style.display = (t === 'start' || t === 'tajemnica') ? 'block' : 'none';
+  const podpowiedzRow = document.getElementById('adminPodpowiedzRow');
+  const podpowiedzInput = document.getElementById('adminPodpowiedz');
+  if (podpowiedzRow) podpowiedzRow.style.display = (t === 'tajemnica') ? 'block' : 'none';
+  if (podpowiedzInput) podpowiedzInput.value = kropka.podpowiedz || '';
 
   // Tytuł panelu
   const tytulPanelu = document.querySelector('#adminHelper h3');
@@ -10172,9 +10178,13 @@ function edytujZaplanowanaPoIdx(idx) {
   if (emotkaInput) emotkaInput.value = kropka.emotka || '';
   if (typeof podswietlEmotke === 'function') podswietlEmotke();
 
-  // EDYTOR-GRA: pole "Wiadomość" (czytana na starcie) - tylko dla typu start
+  // EDYTOR-GRA: pole "Wiadomość" - start i tajemnica. "Podpowiedź" - tylko tajemnica.
   const opisRowZap = document.getElementById('adminOpisRow');
-  if (opisRowZap) opisRowZap.style.display = (t === 'start') ? 'block' : 'none';
+  if (opisRowZap) opisRowZap.style.display = (t === 'start' || t === 'tajemnica') ? 'block' : 'none';
+  const podpowiedzRowZap = document.getElementById('adminPodpowiedzRow');
+  const podpowiedzInputZap = document.getElementById('adminPodpowiedz');
+  if (podpowiedzRowZap) podpowiedzRowZap.style.display = (t === 'tajemnica') ? 'block' : 'none';
+  if (podpowiedzInputZap) podpowiedzInputZap.value = kropka.podpowiedz || '';
 
   // Tytuł panelu
   const tytulPanelu = document.querySelector('#adminHelper h3');
@@ -10492,7 +10502,7 @@ function odtworzKropke(kropka, zKlikniecia) {
   // czytania odpala się start.mp3. Dla pozostałych typów / braku tekstu - audio
   // leci od razu, bez zmian w zachowaniu.
   const _typDlaTTS = typKropki(kropka);
-  const _maWiadomoscTTS = _typDlaTTS === 'start' && kropka.opis && kropka.opis.trim().length > 0;
+  const _maWiadomoscTTS = (_typDlaTTS === 'start' || _typDlaTTS === 'tajemnica') && kropka.opis && kropka.opis.trim().length > 0;
 
   if (_maWiadomoscTTS && window.speechSynthesis) {
     const _utterance = new SpeechSynthesisUtterance(kropka.opis);
@@ -10857,6 +10867,7 @@ function nalozEdycjeNaKropke(k, wpis) {
   if (wpis.tytul) k.tytul = wpis.tytul; else delete k.tytul;
   // Pieczątka-zwierzak (Mapa Odkrywcy)
   if (wpis.emotka) k.emotka = wpis.emotka; else delete k.emotka;
+  if (wpis.podpowiedz) k.podpowiedz = wpis.podpowiedz; else delete k.podpowiedz;
   // Strefa szukania - okrąg "Tu ukryta jest tajemnica"
   if (wpis.strefaSzukania === true) {
     k.strefaSzukania = true;
@@ -11741,11 +11752,17 @@ function wybierzTypGry(typ) {
   slider.max = maxPromien;
   slider.value = domyslnyPromien;
   document.getElementById('adminPromienVal').textContent = domyslnyPromien + ' m';
-  document.getElementById('adminOpis').value = '';
+  document.getElementById('adminOpis').value = (typ === 'tajemnica')
+    ? 'Brawo ! odnalazłeś tajemnicę. kliknij w zakladce mapy w kolejną tajemnicę i wysłuchaj podpowiedzi.'
+    : '';
 
-  // EDYTOR-GRA: pole "Wiadomość" (czytana na starcie) - tylko dla nowego punktu typu start
+  // EDYTOR-GRA: pole "Wiadomość" - start i tajemnica. "Podpowiedź" - tylko tajemnica.
   const opisRowNowy = document.getElementById('adminOpisRow');
-  if (opisRowNowy) opisRowNowy.style.display = (typ === 'start') ? 'block' : 'none';
+  if (opisRowNowy) opisRowNowy.style.display = (typ === 'start' || typ === 'tajemnica') ? 'block' : 'none';
+  const podpowiedzRowNowy = document.getElementById('adminPodpowiedzRow');
+  const podpowiedzInputNowy = document.getElementById('adminPodpowiedz');
+  if (podpowiedzRowNowy) podpowiedzRowNowy.style.display = (typ === 'tajemnica') ? 'block' : 'none';
+  if (podpowiedzInputNowy) podpowiedzInputNowy.value = '';
 
   // Pola "Link YouTube" i "Autor" PRZENIESIONE do edytora "Nazwa przygody".
   // W panelu dodawania punktu START pozostają ukryte (HTML zostaje dla kodu).
@@ -12010,6 +12027,11 @@ function planujKolejna() {
     const emEl = document.getElementById('adminEmotka');
     const em = emEl ? emEl.value.trim() : '';
     if (em) nowa.emotka = em;
+    // EDYTOR-GRA: podpowiedź czytana na głos przy kliku w nieodkrytą
+    // tajemnicę w hamburgerze (menu Mapa Odkrywcy).
+    const podEl = document.getElementById('adminPodpowiedz');
+    const pod = podEl ? podEl.value.trim() : '';
+    if (pod) nowa.podpowiedz = pod;
   }
   // EDYTOR-GRA: tytuł dla WSZYSTKICH typów (start/tajemnica/meta)
   const tytulInput = document.getElementById('adminTytul');
@@ -12356,6 +12378,7 @@ function pobierzNowyIndex(czyPubliczna) {
         autor: k.autor || null,
         // Pola które wcześniej GINĘŁY przy pobieraniu pliku:
         emotka: k.emotka || null,                       // pieczątka Mapy Odkrywcy
+        podpowiedz: k.podpowiedz || null,                // wskazówka do kolejnej tajemnicy
         linkYT: k.linkYT || null,                       // film na punkcie START
         strefaSzukania: k.strefaSzukania === true,      // okrąg "Tu ukryta jest tajemnica"
         strefaPromien: k.strefaPromien || null
@@ -12371,6 +12394,7 @@ function pobierzNowyIndex(czyPubliczna) {
         tytul: k.tytul || null,
         autor: k.autor || null,
         emotka: k.emotka || null,
+        podpowiedz: k.podpowiedz || null,
         linkYT: k.linkYT || null,
         strefaSzukania: k.strefaSzukania === true,
         strefaPromien: k.strefaPromien || null
@@ -12395,11 +12419,12 @@ function pobierzNowyIndex(czyPubliczna) {
       // bez tych pól dane znikały z pliku przy każdym pobraniu: Mapa Odkrywcy
       // traciła pieczątki, start tracił wideo, tajemnice traciły strefy.
       const emo = k.emotka ? `, emotka: '${escTekst(k.emotka)}'` : '';
+      const pod = k.podpowiedz ? `, podpowiedz: '${escTekst(k.podpowiedz)}'` : '';
       const yt = k.linkYT ? `, linkYT: '${escTekst(k.linkYT)}'` : '';
       const strefa = k.strefaSzukania === true
         ? `, strefaSzukania: true${k.strefaPromien ? ', strefaPromien: ' + k.strefaPromien : ''}`
         : '';
-      return `  { numer: ${k.numer}, pozycja: [${lat}, ${lng}], promien: ${k.promien}, opis: '${escTekst(k.opis)}'${typK}${fala}${tryb}${tyt}${aut}${emo}${yt}${strefa} }`;
+      return `  { numer: ${k.numer}, pozycja: [${lat}, ${lng}], promien: ${k.promien}, opis: '${escTekst(k.opis)}'${typK}${fala}${tryb}${tyt}${aut}${emo}${pod}${yt}${strefa} }`;
     });
     const nowaKropki = 'const kropkiAudio = [\n' + linieKropek.join(',\n') + '\n];';
     const regexKropki = /const\s+kropkiAudio\s*=\s*\[[\s\S]*?\n\];/;
@@ -12681,9 +12706,13 @@ function edytujKropke(typ, numer) {
   if (emotkaInputEd2) emotkaInputEd2.value = kropka.emotka || '';
   if (typeof podswietlEmotke === 'function') podswietlEmotke();
 
-  // EDYTOR-GRA: pole "Wiadomość" (czytana na starcie) - tylko dla typu start
+  // EDYTOR-GRA: pole "Wiadomość" - start i tajemnica. "Podpowiedź" - tylko tajemnica.
   const opisRowEd = document.getElementById('adminOpisRow');
-  if (opisRowEd) opisRowEd.style.display = (tEd === 'start') ? 'block' : 'none';
+  if (opisRowEd) opisRowEd.style.display = (tEd === 'start' || tEd === 'tajemnica') ? 'block' : 'none';
+  const podpowiedzRowEd = document.getElementById('adminPodpowiedzRow');
+  const podpowiedzInputEd2 = document.getElementById('adminPodpowiedz');
+  if (podpowiedzRowEd) podpowiedzRowEd.style.display = (tEd === 'tajemnica') ? 'block' : 'none';
+  if (podpowiedzInputEd2) podpowiedzInputEd2.value = kropka.podpowiedz || '';
 
   aktualizujKodKropki();
   zaktualizujPrzyciskiHelpera();
@@ -12720,6 +12749,9 @@ function zapiszEdycje() {
   // EDYTOR-GRA: emotka - tylko dla tajemnic
   const emotkaInputEd = document.getElementById('adminEmotka');
   const noweEmotka = (emotkaInputEd && tEdyt === 'tajemnica') ? emotkaInputEd.value.trim() : null;
+  // EDYTOR-GRA: podpowiedź (czytana na głos w hamburgerze) - tylko dla tajemnic
+  const podpowiedzInputEd = document.getElementById('adminPodpowiedz');
+  const nowaPodpowiedz = (podpowiedzInputEd && tEdyt === 'tajemnica') ? podpowiedzInputEd.value.trim() : null;
 
   if (edytowanyTyp === 'audio') {
     // Edytujemy kropkę z kodu - zapisujemy zmiany do listy zaplanowanych
@@ -12746,6 +12778,7 @@ function zapiszEdycje() {
     if (_zrodloYTAutor.linkYT) noweDaneZapis.linkYT = _zrodloYTAutor.linkYT;
     if (_zrodloYTAutor.autor) noweDaneZapis.autor = _zrodloYTAutor.autor;
     if (noweEmotka) noweDaneZapis.emotka = noweEmotka;
+    if (nowaPodpowiedz) noweDaneZapis.podpowiedz = nowaPodpowiedz;
     // (brak emotki = nie dodajemy pola; noweDaneZapis tworzony od zera,
     //  więc nie ma czego usuwać - stara wartość nie przenosi się)
     if (tEdyt === 'tajemnica' && aktualnaStrefaSzukania) {
@@ -12776,6 +12809,7 @@ function zapiszEdycje() {
     if (noweLinkYT) edytowanaKropka.linkYT = noweLinkYT;
     if (noweAutor) edytowanaKropka.autor = noweAutor;
     if (noweEmotka) edytowanaKropka.emotka = noweEmotka; else delete edytowanaKropka.emotka;
+    if (nowaPodpowiedz) edytowanaKropka.podpowiedz = nowaPodpowiedz; else delete edytowanaKropka.podpowiedz;
     if (tEdyt === 'tajemnica' && aktualnaStrefaSzukania) {
       edytowanaKropka.strefaSzukania = true;
       edytowanaKropka.strefaPromien = aktualnaStrefaPromien;
@@ -12884,7 +12918,7 @@ function zaktualizujPrzyciskiHelpera() {
     } else if (aktTyp === 'meta') {
       sub.textContent = 'Punkt końcowy gry. Pojawi się dopiero po odkryciu wszystkich tajemnic.';
     } else {
-      sub.textContent = 'Tajemnica fabularna. Lokalizacja zapisana z kliknięcia w mapę. Możesz ustawić promień i opis.';
+      sub.textContent = '';
     }
     // Etykieta przycisku zapisu zależna od typu
     const etykietaZapisu = (aktTyp === 'start')
@@ -16312,7 +16346,9 @@ mapa.on('zoomend', () => {
       if (jestAdmin) odkr = true;
       if (odkr) liczbaOdkrytych++;
 
-      const emotka = t.emotka ? t.emotka : '🔮';
+      // EDYTOR-GRA: pieczątka admina usunięta - odkryta tajemnica zawsze
+      // pokazuje stałą emotkę uśmiechniętej buzi, nieodkryta = znak zapytania.
+      const emotka = '😊';
       const nazwa = t.tytul ? String(t.tytul).replace(/</g,'&lt;').replace(/>/g,'&gt;') : ('Tajemnica ' + t.numer);
 
       const slot = document.createElement('div');
