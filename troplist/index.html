@@ -463,6 +463,11 @@ body.magia #modalBox{border-color:rgba(232,160,192,.3);outline-color:rgba(232,16
       <div class="wiecej-naglo" id="szukStatusNaglo" style="font-size:30px">Szukam Twojej lokalizacji…</div>
       <div id="szukStatusOpis" style="font-size:19px;color:var(--atrament-mil);margin-top:10px;line-height:1.5">Sprawdzam listy w Twojej okolicy.</div>
     </div>
+    <div class="panel" id="szukSuwakBox" style="text-align:center;display:none">
+      <span class="etykieta etykieta-duza" style="font-size:16px">Zasięg szukania</span>
+      <input type="range" id="suwakSzukaj" min="10" max="200" value="100" step="5" oninput="zmienSuwakSzukaj()">
+      <div class="widoc-val" id="suwakSzukajVal">100 m</div>
+    </div>
     <div class="panel" id="szukImieBox" style="display:none">
       <input type="text" id="mojeImie" placeholder="np. Skarbek" maxlength="15" autocomplete="off">
       <button class="btn btn-glowny btn-pelny" style="margin-top:12px" onclick="sprawdzImie()">Sprawdź ♥</button>
@@ -483,7 +488,7 @@ body.magia #modalBox{border-color:rgba(232,160,192,.3);outline-color:rgba(232,16
       <div class="tresc" id="liscikTresc">…</div>
       <div class="skad">— zostawione tu, gdzie jesteś</div>
     </div>
-    <div style="margin-top:14px"><button class="btn btn-drugi btn-pelny" onclick="odtworzPonownie()">🔊 Odtwórz ponownie</button></div>
+    <div style="margin-top:14px"><button class="btn btn-drugi btn-pelny" onclick="odtworzPonownie()">🔊 Przeczytaj</button></div>
     <button class="btn btn-glowny btn-pelny" style="margin-top:14px" onclick="wrocDoListy()">← Wróć do listów</button>
   </div>
   <div class="podkrok" id="innePanel">
@@ -837,50 +842,76 @@ function zakonczSzukanie(){
 }
 function aktualnaPoz(){ return mojaPoz; }
 
-let celeWZasiegu=[]; // wszystkie listy (dowolny adresat) w zasiegu wlasnego promienia kazdego listu (20-150 m)
+let celeWZasiegu=[]; // wszystkie listy (dowolny adresat) w zasiegu wybranym suwakiem
+let wszystkieDoSzukania=[]; // wszystkie listy pobrane z bazy na start szukania
+let promienSzukania=100; // m, sterowane suwakiem 10-200
+let szukIntervalId=null; // odświeżanie co 1s
+let ostatniaDokladnoscGps=null;
+
+function zatrzymajSzukanieNaZywo(){
+  if(watchId!==null){ navigator.geolocation.clearWatch(watchId); watchId=null; }
+  if(szukIntervalId!==null){ clearInterval(szukIntervalId); szukIntervalId=null; }
+}
+
+function zmienSuwakSzukaj(){
+  promienSzukania=parseInt(document.getElementById('suwakSzukaj').value,10);
+  document.getElementById('suwakSzukajVal').textContent=promienSzukania+' m';
+  przeliczSzukanieNaZywo();
+}
+
+function przeliczSzukanieNaZywo(){
+  if(!mojaPoz){ return; }
+  const ukr=ukryteLok();
+  celeWZasiegu=wszystkieDoSzukania.filter(c=>ukr.indexOf(c.id)===-1 && metrowDo(mojaPoz.lat,mojaPoz.lng,c.lat,c.lng)<=promienSzukania);
+  const n=celeWZasiegu.length;
+  if(!n){
+    document.getElementById('szukStatusNaglo').textContent='Tu jeszcze nic ♥';
+    let najD=Infinity,najIm='';
+    wszystkieDoSzukania.forEach(c=>{ const d=metrowDo(mojaPoz.lat,mojaPoz.lng,c.lat,c.lng); if(d<najD){najD=d;najIm=c.imieWyswietl||c.imie;} });
+    if(najD<Infinity){
+      document.getElementById('szukStatusOpis').innerHTML='W wybranym zasięgu nie ma żadnych listów.<br><small style="opacity:.7">[debug] najbliższy list ("'+escHtml(najIm)+'") jest '+Math.round(najD)+' m stąd — dokł. GPS: '+(ostatniaDokladnoscGps?Math.round(ostatniaDokladnoscGps)+' m':'?')+'</small>';
+    } else {
+      document.getElementById('szukStatusOpis').innerHTML='W wybranym zasięgu nie ma żadnych listów.<br><small style="opacity:.7">[debug] w bazie w ogóle nie znaleziono listów</small>';
+    }
+  } else {
+    const slowo=n===1?'list':(n<5?'listy':'listów');
+    document.getElementById('szukStatusNaglo').innerHTML='Znaleziono w pobliżu: <b>'+n+'</b> '+slowo+' 💌';
+    document.getElementById('szukStatusOpis').textContent='Sprawdź — może są do Ciebie?';
+  }
+  document.getElementById('szukSuwakBox').style.display='block';
+  document.getElementById('szukImieBox').style.display='block';
+}
 
 async function rozpocznijSzukanie(){
   ostatniLiscik=''; ostatniCelId=null; aktualnaGrupa=null; naListach=false; szukaneImie='';
+  zatrzymajSzukanieNaZywo();
+  mojaPoz=null;
   const pole=document.getElementById('mojeImie'); if(pole)pole.value='';
+  document.getElementById('szukSuwakBox').style.display='none';
   document.getElementById('szukImieBox').style.display='none';
   document.getElementById('szukStatusNaglo').textContent='Szukam Twojej lokalizacji…';
   document.getElementById('szukStatusOpis').innerHTML='Sprawdzam listy w Twojej okolicy.<br><small style="opacity:.7">[debug] baza: '+(Baza.online?'POŁĄCZONO (Firebase)':'TRYB TESTOWY — tylko to urządzenie!')+'</small>';
+  const suwak=document.getElementById('suwakSzukaj');
+  if(suwak){ suwak.value=promienSzukania; document.getElementById('suwakSzukajVal').textContent=promienSzukania+' m'; }
   if(!navigator.geolocation){
     document.getElementById('szukStatusNaglo').textContent='Brak GPS';
     document.getElementById('szukStatusOpis').textContent='Twoje urządzenie nie udostępnia lokalizacji.';
     return;
   }
-  let wszystkie=[];
-  try{ wszystkie=await Baza.znajdzWszystkie(); }catch(e){ console.warn(e); }
-  navigator.geolocation.getCurrentPosition(
+  try{ wszystkieDoSzukania=await Baza.znajdzWszystkie(); }catch(e){ wszystkieDoSzukania=[]; console.warn(e); }
+  watchId=navigator.geolocation.watchPosition(
     p=>{
       mojaPoz={lat:p.coords.latitude,lng:p.coords.longitude};
-      const ukr=ukryteLok();
-      celeWZasiegu=wszystkie.filter(c=>ukr.indexOf(c.id)===-1 && metrowDo(mojaPoz.lat,mojaPoz.lng,c.lat,c.lng)<=(c.promien||60));
-      const n=celeWZasiegu.length;
-      if(!n){
-        document.getElementById('szukStatusNaglo').textContent='Tu jeszcze nic ♥';
-        let najD=Infinity,najIm='';
-        wszystkie.forEach(c=>{ const d=metrowDo(mojaPoz.lat,mojaPoz.lng,c.lat,c.lng); if(d<najD){najD=d;najIm=c.imieWyswietl||c.imie;} });
-        if(najD<Infinity){
-          document.getElementById('szukStatusOpis').innerHTML='W pobliżu nie ma żadnych listów.<br><small style="opacity:.7">[debug] najbliższy list ("'+escHtml(najIm)+'") jest '+Math.round(najD)+' m stąd — Twoja pozycja: '+mojaPoz.lat.toFixed(5)+', '+mojaPoz.lng.toFixed(5)+' (dokł. '+Math.round(p.coords.accuracy)+' m)</small>';
-        } else {
-          document.getElementById('szukStatusOpis').innerHTML='W pobliżu nie ma żadnych listów.<br><small style="opacity:.7">[debug] w bazie w ogóle nie znaleziono listów (wszystkie.length=0) — Twoja pozycja: '+mojaPoz.lat.toFixed(5)+', '+mojaPoz.lng.toFixed(5)+'</small>';
-        }
-      } else {
-        const slowo=n===1?'list':(n<5?'listy':'listów');
-        document.getElementById('szukStatusNaglo').innerHTML='Znaleziono w pobliżu: <b>'+n+'</b> '+slowo+' 💌';
-        document.getElementById('szukStatusOpis').textContent='Sprawdź — może są do Ciebie?';
-      }
-      document.getElementById('szukImieBox').style.display='block';
+      ostatniaDokladnoscGps=p.coords.accuracy;
     },
     err=>{
       console.warn('GPS:',err);
       document.getElementById('szukStatusNaglo').textContent='Nie mogę ustalić pozycji';
       document.getElementById('szukStatusOpis').textContent='Sprawdź zgodę na lokalizację. (Na komputerze pozycja bywa niedokładna.)';
     },
-    {enableHighAccuracy:true,maximumAge:3000,timeout:15000}
+    {enableHighAccuracy:true,maximumAge:1000,timeout:15000}
   );
+  szukIntervalId=setInterval(przeliczSzukanieNaZywo,1000);
 }
 
 function wystrzelSerca(){
@@ -923,6 +954,7 @@ function sprawdzImie(){
     return;
   }
   cele=dopasowane; naListach=true; aktualnaGrupa=null;
+  zatrzymajSzukanieNaZywo();
   pokazPodkrok('#ekranOdbiorca .podkrok','podsumPanel');
   renderListaListow(dopasowane);
   wystrzelSerca();
@@ -935,10 +967,10 @@ function pokazListeNadawcow(){
   const opisEl=document.getElementById('podsumOpis');
   const boxEl=document.getElementById('listaNadawcow');
   if(!poz){ return; }
-  // TYLKO listy, w ktorych faktycznie jestes (wlasny promien kazdego listu, 20-150 m)
+  // TYLKO listy w wybranym zasięgu szukania
   const wZasiegu=cele.filter(c=>{
     if(ukryteLok().indexOf(c.id)!==-1)return false;
-    return metrowDo(poz.lat,poz.lng,c.lat,c.lng)<=(c.promien||60);
+    return metrowDo(poz.lat,poz.lng,c.lat,c.lng)<=promienSzukania;
   });
   if(!wZasiegu.length){
     // pokaz dystans do najblizszego, zeby wiedziec gdzie isc
@@ -986,7 +1018,6 @@ function czytajList(cel){
   document.getElementById('liscikOd').textContent='od: '+pseudoNapis(cel);
   document.getElementById('liscikTresc').textContent=cel.wiadomosc;
   pokazPodkrok('#ekranOdbiorca .podkrok','listPanel');
-  odblokujMowe(); powiedz(cel.wiadomosc);
 }
 function szukajOdTegoNadawcy(){
   if(!ostatniCel)return;
