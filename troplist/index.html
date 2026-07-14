@@ -848,7 +848,7 @@ async function rozpocznijSzukanie(){
   const pole=document.getElementById('mojeImie'); if(pole)pole.value='';
   document.getElementById('szukImieBox').style.display='none';
   document.getElementById('szukStatusNaglo').textContent='Szukam Twojej lokalizacji…';
-  document.getElementById('szukStatusOpis').textContent='Sprawdzam listy w promieniu 50 m.';
+  document.getElementById('szukStatusOpis').innerHTML='Sprawdzam listy w promieniu 50 m.<br><small style="opacity:.7">[debug] baza: '+(Baza.online?'POŁĄCZONO (Firebase)':'TRYB TESTOWY — tylko to urządzenie!')+'</small>';
   if(!navigator.geolocation){
     document.getElementById('szukStatusNaglo').textContent='Brak GPS';
     document.getElementById('szukStatusOpis').textContent='Twoje urządzenie nie udostępnia lokalizacji.';
@@ -864,11 +864,17 @@ async function rozpocznijSzukanie(){
       const n=celeWZasiegu.length;
       if(!n){
         document.getElementById('szukStatusNaglo').textContent='Tu jeszcze nic ♥';
-        document.getElementById('szukStatusOpis').textContent='W promieniu 50 m nie ma żadnych listów.';
+        let najD=Infinity,najIm='';
+        wszystkie.forEach(c=>{ const d=metrowDo(mojaPoz.lat,mojaPoz.lng,c.lat,c.lng); if(d<najD){najD=d;najIm=c.imieWyswietl||c.imie;} });
+        if(najD<Infinity){
+          document.getElementById('szukStatusOpis').innerHTML='W promieniu 50 m nie ma żadnych listów.<br><small style="opacity:.7">[debug] najbliższy list ("'+escHtml(najIm)+'") jest '+Math.round(najD)+' m stąd — Twoja pozycja: '+mojaPoz.lat.toFixed(5)+', '+mojaPoz.lng.toFixed(5)+' (dokł. '+Math.round(p.coords.accuracy)+' m)</small>';
+        } else {
+          document.getElementById('szukStatusOpis').innerHTML='W promieniu 50 m nie ma żadnych listów.<br><small style="opacity:.7">[debug] w bazie w ogóle nie znaleziono listów (wszystkie.length=0) — Twoja pozycja: '+mojaPoz.lat.toFixed(5)+', '+mojaPoz.lng.toFixed(5)+'</small>';
+        }
       } else {
         const slowo=n===1?'list':(n<5?'listy':'listów');
         document.getElementById('szukStatusNaglo').innerHTML='Znaleziono w pobliżu: <b>'+n+'</b> '+slowo+' 💌';
-        document.getElementById('szukStatusOpis').textContent='Wpisz imię i sprawdź, czy któryś jest do Ciebie.';
+        document.getElementById('szukStatusOpis').innerHTML='Wpisz imię i sprawdź, czy któryś jest do Ciebie.<br><small style="opacity:.7">[debug] w bazie łącznie: '+wszystkie.length+' listów</small>';
       }
       document.getElementById('szukImieBox').style.display='block';
     },
