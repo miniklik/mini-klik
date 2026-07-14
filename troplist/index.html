@@ -63,7 +63,7 @@ body.magia .wroc{border-color:rgba(232,160,192,.35)}
 .motyw-btn svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .motyw-btn.aktywny{background:var(--wino);color:#fff}
 body.magia .motyw-btn.aktywny{background:linear-gradient(135deg,var(--wino),var(--zloto));color:#2a1830}
-*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
 html,body{height:100%}
 body{font-family:'EB Garamond',serif;color:var(--atrament);background:var(--papier);
   background-image:radial-gradient(circle at 12% 18%,rgba(156,43,43,0.12) 0%,transparent 40%),radial-gradient(circle at 88% 82%,rgba(184,134,11,0.14) 0%,transparent 40%),url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='80' height='80' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
@@ -447,7 +447,6 @@ body.magia #modalBox{border-color:rgba(232,160,192,.3);outline-color:rgba(232,16
       <span class="serce-ok">💌</span>
       <h3 id="potwNaglo">Gotowe.</h3>
       <p>Twoja wiadomość czeka na <span class="imie-cel" id="potwImie">…</span>.<br>Usłyszy ją, gdy stanie w wyznaczonym miejscu.</p>
-      <p style="font-size:13px;color:var(--atrament-cichy);margin-top:10px">Wiadomości nie da się już edytować ani usunąć (zabezpieczenie). Chcesz usunąć ten list? Napisz na <b>troplist@wp.pl</b>, a w mailu podaj: <b>imię adresata</b> oraz <b>podpis Amora</b>, którego użyłeś. <br>Pozdrawiamy, zespół Troplist 💌</p>
     </div>
     <div class="rzad">
       <button class="btn btn-drugi" onclick="nowaWiadomosc()">+ Kolejna wiadomość</button>
@@ -462,11 +461,9 @@ body.magia #modalBox{border-color:rgba(232,160,192,.3);outline-color:rgba(232,16
   <div class="podkrok aktywny" id="szukImie">
     <div class="panel" id="szukStatusPanel" style="text-align:center">
       <div class="wiecej-naglo" id="szukStatusNaglo" style="font-size:30px">Szukam Twojej lokalizacji…</div>
-      <div id="szukStatusOpis" style="font-size:19px;color:var(--atrament-mil);margin-top:10px;line-height:1.5">Sprawdzam listy w promieniu 50 m.</div>
+      <div id="szukStatusOpis" style="font-size:19px;color:var(--atrament-mil);margin-top:10px;line-height:1.5">Sprawdzam listy w Twojej okolicy.</div>
     </div>
     <div class="panel" id="szukImieBox" style="display:none">
-      <span class="etykieta etykieta-duza">Wpisz swoje imię</span>
-      <p class="podpowiedz" style="text-align:center">albo tak, jak mógłby Cię ktoś nazywać 💕</p>
       <input type="text" id="mojeImie" placeholder="np. Skarbek" maxlength="15" autocomplete="off">
       <button class="btn btn-glowny btn-pelny" style="margin-top:12px" onclick="sprawdzImie()">Sprawdź ♥</button>
     </div>
@@ -487,7 +484,6 @@ body.magia #modalBox{border-color:rgba(232,160,192,.3);outline-color:rgba(232,16
       <div class="skad">— zostawione tu, gdzie jesteś</div>
     </div>
     <div style="margin-top:14px"><button class="btn btn-drugi btn-pelny" onclick="odtworzPonownie()">🔊 Odtwórz ponownie</button></div>
-    <button class="zglos-btn" onclick="zglosWiadomosc()">⚐ Zgłoś tę wiadomość</button>
     <button class="btn btn-glowny btn-pelny" style="margin-top:14px" onclick="wrocDoListy()">← Wróć do listów</button>
   </div>
   <div class="podkrok" id="innePanel">
@@ -822,7 +818,7 @@ function nowaWiadomosc(){
 }
 
 /* ════ ODBIORCA ════ */
-let mojaPoz=null,cele=[],szukaneImie='',aktualnaGrupa=null,ostatniLiscik='',ostatniCelId=null,watchId=null,naListach=false;
+let mojaPoz=null,cele=[],szukaneImie='',aktualnaGrupa=null,ostatniLiscik='',ostatniCelId=null,ostatniCel=null,watchId=null,naListach=false;
 function zacznijSzukac(){ pokaz('ekranOdbiorca'); rozpocznijSzukanie(); }
 function zakonczSzukanie(){
   // Jeśli jesteśmy na wynikach (lub głębiej), cofnij tylko o krok — do wpisywania imienia.
@@ -841,14 +837,14 @@ function zakonczSzukanie(){
 }
 function aktualnaPoz(){ return mojaPoz; }
 
-let celeWZasiegu=[]; // wszystkie listy (dowolny adresat) znalezione w promieniu 50 m od pozycji
+let celeWZasiegu=[]; // wszystkie listy (dowolny adresat) w zasiegu wlasnego promienia kazdego listu (20-150 m)
 
 async function rozpocznijSzukanie(){
   ostatniLiscik=''; ostatniCelId=null; aktualnaGrupa=null; naListach=false; szukaneImie='';
   const pole=document.getElementById('mojeImie'); if(pole)pole.value='';
   document.getElementById('szukImieBox').style.display='none';
   document.getElementById('szukStatusNaglo').textContent='Szukam Twojej lokalizacji…';
-  document.getElementById('szukStatusOpis').innerHTML='Sprawdzam listy w promieniu 50 m.<br><small style="opacity:.7">[debug] baza: '+(Baza.online?'POŁĄCZONO (Firebase)':'TRYB TESTOWY — tylko to urządzenie!')+'</small>';
+  document.getElementById('szukStatusOpis').innerHTML='Sprawdzam listy w Twojej okolicy.<br><small style="opacity:.7">[debug] baza: '+(Baza.online?'POŁĄCZONO (Firebase)':'TRYB TESTOWY — tylko to urządzenie!')+'</small>';
   if(!navigator.geolocation){
     document.getElementById('szukStatusNaglo').textContent='Brak GPS';
     document.getElementById('szukStatusOpis').textContent='Twoje urządzenie nie udostępnia lokalizacji.';
@@ -860,21 +856,21 @@ async function rozpocznijSzukanie(){
     p=>{
       mojaPoz={lat:p.coords.latitude,lng:p.coords.longitude};
       const ukr=ukryteLok();
-      celeWZasiegu=wszystkie.filter(c=>ukr.indexOf(c.id)===-1 && metrowDo(mojaPoz.lat,mojaPoz.lng,c.lat,c.lng)<=50);
+      celeWZasiegu=wszystkie.filter(c=>ukr.indexOf(c.id)===-1 && metrowDo(mojaPoz.lat,mojaPoz.lng,c.lat,c.lng)<=(c.promien||60));
       const n=celeWZasiegu.length;
       if(!n){
         document.getElementById('szukStatusNaglo').textContent='Tu jeszcze nic ♥';
         let najD=Infinity,najIm='';
         wszystkie.forEach(c=>{ const d=metrowDo(mojaPoz.lat,mojaPoz.lng,c.lat,c.lng); if(d<najD){najD=d;najIm=c.imieWyswietl||c.imie;} });
         if(najD<Infinity){
-          document.getElementById('szukStatusOpis').innerHTML='W promieniu 50 m nie ma żadnych listów.<br><small style="opacity:.7">[debug] najbliższy list ("'+escHtml(najIm)+'") jest '+Math.round(najD)+' m stąd — Twoja pozycja: '+mojaPoz.lat.toFixed(5)+', '+mojaPoz.lng.toFixed(5)+' (dokł. '+Math.round(p.coords.accuracy)+' m)</small>';
+          document.getElementById('szukStatusOpis').innerHTML='W pobliżu nie ma żadnych listów.<br><small style="opacity:.7">[debug] najbliższy list ("'+escHtml(najIm)+'") jest '+Math.round(najD)+' m stąd — Twoja pozycja: '+mojaPoz.lat.toFixed(5)+', '+mojaPoz.lng.toFixed(5)+' (dokł. '+Math.round(p.coords.accuracy)+' m)</small>';
         } else {
-          document.getElementById('szukStatusOpis').innerHTML='W promieniu 50 m nie ma żadnych listów.<br><small style="opacity:.7">[debug] w bazie w ogóle nie znaleziono listów (wszystkie.length=0) — Twoja pozycja: '+mojaPoz.lat.toFixed(5)+', '+mojaPoz.lng.toFixed(5)+'</small>';
+          document.getElementById('szukStatusOpis').innerHTML='W pobliżu nie ma żadnych listów.<br><small style="opacity:.7">[debug] w bazie w ogóle nie znaleziono listów (wszystkie.length=0) — Twoja pozycja: '+mojaPoz.lat.toFixed(5)+', '+mojaPoz.lng.toFixed(5)+'</small>';
         }
       } else {
         const slowo=n===1?'list':(n<5?'listy':'listów');
         document.getElementById('szukStatusNaglo').innerHTML='Znaleziono w pobliżu: <b>'+n+'</b> '+slowo+' 💌';
-        document.getElementById('szukStatusOpis').innerHTML='Wpisz imię i sprawdź, czy któryś jest do Ciebie.<br><small style="opacity:.7">[debug] w bazie łącznie: '+wszystkie.length+' listów</small>';
+        document.getElementById('szukStatusOpis').textContent='Sprawdź — może są do Ciebie?';
       }
       document.getElementById('szukImieBox').style.display='block';
     },
@@ -904,6 +900,20 @@ function wystrzelSerca(){
   }
 }
 
+function renderListaListow(lista){
+  const nagloEl=document.getElementById('podsumNaglo');
+  nagloEl.innerHTML='Jest tu coś dla Ciebie od wielbicieli ♥';
+  document.getElementById('podsumOpis').textContent='';
+  nagloEl.classList.remove('naglo-anim'); void nagloEl.offsetWidth; nagloEl.classList.add('naglo-anim');
+  const boxEl=document.getElementById('listaNadawcow'); boxEl.innerHTML='';
+  lista.forEach(c=>{
+    const karta=document.createElement('button'); karta.className='nadawca-karta';
+    karta.innerHTML='<span class="pieczatka">💌</span><span class="info"><span class="ksywka">'+escHtml(pseudoNapis(c))+'</span></span><span class="strzal">→</span>';
+    karta.onclick=(function(cc){return function(){czytajList(cc);};})(c);
+    boxEl.appendChild(karta);
+  });
+}
+
 function sprawdzImie(){
   const im=document.getElementById('mojeImie').value.trim(); if(!im){toast('Wpisz swoje imię.');return;}
   odblokujMowe(); szukaneImie=im;
@@ -914,22 +924,8 @@ function sprawdzImie(){
   }
   cele=dopasowane; naListach=true; aktualnaGrupa=null;
   pokazPodkrok('#ekranOdbiorca .podkrok','podsumPanel');
-  const grupy={};
-  dopasowane.forEach(c=>{ const k=pseudoKlucz(c); if(!grupy[k])grupy[k]={disp:pseudoNapis(c),pseudoNorm:k,listy:[]}; grupy[k].listy.push(c); });
-  const klucze=Object.keys(grupy); const ilu=klucze.length;
-  const nagloEl=document.getElementById('podsumNaglo');
-  nagloEl.innerHTML='Jest tu coś dla Ciebie od <b>'+ilu+'</b> '+(ilu===1?'wielbiciela':'wielbicieli')+' ♥';
-  document.getElementById('podsumOpis').textContent='Kliknij i przeczytaj.';
-  nagloEl.classList.remove('naglo-anim'); void nagloEl.offsetWidth; nagloEl.classList.add('naglo-anim');
+  renderListaListow(dopasowane);
   wystrzelSerca();
-  const boxEl=document.getElementById('listaNadawcow'); boxEl.innerHTML='';
-  klucze.forEach(k=>{
-    const g=grupy[k]; const il=g.listy.length;
-    const karta=document.createElement('button'); karta.className='nadawca-karta';
-    karta.innerHTML='<span class="pieczatka">💌</span><span class="info"><span class="ksywka">'+escHtml(g.disp)+'</span><span class="ile-list">'+il+(il===1?' list':(il<5?' listy':' listów'))+'</span></span><span class="strzal">→</span>';
-    karta.onclick=(function(gr){return function(){pokazListyNadawcy(gr);};})(g);
-    boxEl.appendChild(karta);
-  });
 }
 
 function pokazListeNadawcow(){
@@ -939,10 +935,10 @@ function pokazListeNadawcow(){
   const opisEl=document.getElementById('podsumOpis');
   const boxEl=document.getElementById('listaNadawcow');
   if(!poz){ return; }
-  // TYLKO listy, w ktorych faktycznie jestes (promien 50 m — spójny z etapem szukania)
+  // TYLKO listy, w ktorych faktycznie jestes (wlasny promien kazdego listu, 20-150 m)
   const wZasiegu=cele.filter(c=>{
     if(ukryteLok().indexOf(c.id)!==-1)return false;
-    return metrowDo(poz.lat,poz.lng,c.lat,c.lng)<=50;
+    return metrowDo(poz.lat,poz.lng,c.lat,c.lng)<=(c.promien||60);
   });
   if(!wZasiegu.length){
     // pokaz dystans do najblizszego, zeby wiedziec gdzie isc
@@ -957,20 +953,7 @@ function pokazListeNadawcow(){
     }
     boxEl.innerHTML=''; return;
   }
-  const grupy={};
-  wZasiegu.forEach(c=>{ const k=pseudoKlucz(c); if(!grupy[k])grupy[k]={disp:pseudoNapis(c),pseudoNorm:k,listy:[]}; grupy[k].listy.push(c); });
-  const klucze=Object.keys(grupy);
-  const ilu=klucze.length;
-  nagloEl.innerHTML='Jesteś w miejscu, gdzie czekają listy od <b>'+ilu+'</b> '+(ilu===1?'wielbiciela':'wielbicieli')+' ♥';
-  opisEl.textContent='Kliknij i przeczytaj.';
-  boxEl.innerHTML='';
-  klucze.forEach(k=>{
-    const g=grupy[k]; const il=g.listy.length;
-    const karta=document.createElement('button'); karta.className='nadawca-karta';
-    karta.innerHTML='<span class="pieczatka">💌</span><span class="info"><span class="ksywka">'+escHtml(g.disp)+'</span><span class="ile-list">'+il+(il===1?' list':(il<5?' listy':' listów'))+'</span></span><span class="strzal">→</span>';
-    karta.onclick=(function(gr){return function(){pokazListyNadawcy(gr);};})(g);
-    boxEl.appendChild(karta);
-  });
+  renderListaListow(wZasiegu);
 }
 
 function pokazListyNadawcy(grupa){
@@ -999,11 +982,16 @@ function pokazListyNadawcy(grupa){
 
 function czytajList(cel){
   naListach=false;
-  ostatniLiscik=cel.wiadomosc; ostatniCelId=cel.id;
+  ostatniLiscik=cel.wiadomosc; ostatniCelId=cel.id; ostatniCel=cel;
   document.getElementById('liscikOd').textContent='od: '+pseudoNapis(cel);
   document.getElementById('liscikTresc').textContent=cel.wiadomosc;
   pokazPodkrok('#ekranOdbiorca .podkrok','listPanel');
   odblokujMowe(); powiedz(cel.wiadomosc);
+}
+function szukajOdTegoNadawcy(){
+  if(!ostatniCel)return;
+  const grupa={disp:pseudoNapis(ostatniCel),pseudoNorm:pseudoKlucz(ostatniCel),listy:[ostatniCel]};
+  szukajWInnychMiejscach(grupa);
 }
 function wrocDoListy(){
   try{speechSynthesis.cancel();}catch(e){}
@@ -1020,7 +1008,7 @@ async function szukajWInnychMiejscach(grupa){
   const poz=aktualnaPoz();
   // pokaż listy, w których zasięgu aktualnie NIE jesteś (żeby nie liczyć tego pod nogami).
   // każdy list ma swój promień (do 150 m) — pomijamy ten, w którego kole stoimy.
-  const wInnych=poz?odNiego.filter(c=>metrowDo(poz.lat,poz.lng,c.lat,c.lng)>50):odNiego.slice();
+  const wInnych=poz?odNiego.filter(c=>metrowDo(poz.lat,poz.lng,c.lat,c.lng)>(c.promien||60)):odNiego.slice();
   const wynikBox=document.getElementById('wynikInne');
   if(!wInnych.length){
     wynikBox.innerHTML='<div style="font-size:46px">🙁</div><div style="font-family:\'Caveat\',cursive;font-size:25px;color:var(--wino);margin-top:8px">Wielbiciel nie zostawił jeszcze innych listów…</div><div style="font-size:17px;color:var(--atrament-mil);margin-top:8px;line-height:1.55">Ale bądź cierpliwa i sprawdzaj często ♥</div>';
@@ -1197,8 +1185,8 @@ function ustawMotyw(m){
   if(br&&bm){ br.classList.toggle('aktywny',m!=='magia'); bm.classList.toggle('aktywny',m==='magia'); }
   try{ localStorage.setItem('tl_motyw',m); }catch(e){}
 }
-// domyślny motyw: magia. Wczytaj zapamiętany jeśli user zmienił.
-(function(){ try{ const z=localStorage.getItem('tl_motyw'); if(z==='retro'){ ustawMotyw('retro'); } else { ustawMotyw('magia'); } }catch(e){ ustawMotyw('magia'); } })();
+// domyślny motyw: retro. Wczytaj zapamiętany jeśli user zmienił.
+(function(){ try{ const z=localStorage.getItem('tl_motyw'); if(z==='magia'){ ustawMotyw('magia'); } else { ustawMotyw('retro'); } }catch(e){ ustawMotyw('retro'); } })();
 </script>
 </body>
 </html>
