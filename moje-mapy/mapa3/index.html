@@ -49,7 +49,7 @@ body.dzien .leaflet-control-attribution{background:rgba(255,247,230,.85)!importa
 .licznik-gora:active{transform:scale(.96)}
 .calk-licznik{font-family:'Cormorant Garamond',serif;font-size:13px;color:var(--tekst-cichy);display:flex;align-items:center;gap:5px;margin-left:10px;white-space:nowrap}
 .calk-licznik b{color:var(--tekst-mil);font-weight:600;font-size:15px}
-@media(max-width:640px){.calk-licznik{display:none}}
+@media(max-width:820px){.calk-licznik{display:none}}
 .licznik-gora b{color:var(--akcent);font-weight:600;font-size:20px}
 .licznik-kropka{width:14px;height:14px;border-radius:50%;background:radial-gradient(circle,var(--akcent2),var(--wino));box-shadow:0 0 8px 1px rgba(232,160,192,.6);flex:0 0 auto}
 .btn-ikon{width:38px;height:38px;border-radius:50%;background:var(--karta);border:1px solid var(--obw);color:var(--akcent);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:18px;transition:.2s}
@@ -239,6 +239,10 @@ body.dzien #nagrywanieBox{background:rgba(0,0,0,.03)}
 .wiecej-tab{flex:1;padding:10px 6px;border-radius:10px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.05);color:var(--tekst);font-size:14px;font-weight:600;cursor:pointer;transition:.2s;text-align:center}
 .wiecej-tab:hover{background:rgba(255,255,255,.1)}
 .wiecej-tab.aktywny{background:var(--akcent);color:var(--bg);border-color:transparent}
+
+.btn-toggle-zielony{width:100%;margin-top:6px;padding:10px;border-radius:10px;border:1px solid var(--obw);background:rgba(255,255,255,.05);color:var(--tekst);font-family:'EB Garamond',serif;font-size:13.5px;cursor:pointer;transition:.2s}
+.btn-toggle-zielony:hover{border-color:var(--akcent)}
+.btn-toggle-zielony.aktywny{background:#2ecc71;border-color:#2ecc71;color:#06210f;font-weight:600}
 
 .hosting-btny{display:flex;gap:10px;margin-top:6px}
 .btn-zewn-duzy{flex:1;justify-content:center;padding:10px 8px;font-size:13.5px;font-weight:600}
@@ -589,6 +593,11 @@ body.dzien #nagrywanieBox{background:rgba(0,0,0,.03)}
         </div>
         <div class="pomoc-dod">Publiczna pojawi się w menu - każdy może dołączyć</div>
       </div>
+      <div class="pole">
+        <span class="etyk">Jeśli to nowa częstotliwość</span>
+        <button type="button" class="btn-toggle-zielony" id="czBtnPozwol" onclick="przelaczPozwolTworz()">🔓 Pozwól innym dodawać punkty</button>
+        <div class="pomoc-dod">Domyślnie tylko Ty (twórca) będziesz mógł/mogła dodawać. Możesz to zmienić później.</div>
+      </div>
       <div class="rzad-btn"><button class="btn btn-prim" style="flex:1" onclick="nastawCzestotliwosc()">📻 Nastroj się</button></div>
     </div>
 
@@ -598,6 +607,10 @@ body.dzien #nagrywanieBox{background:rgba(0,0,0,.03)}
         <div style="font-family:'Cormorant Garamond',serif;font-weight:600;font-size:24px;color:var(--akcent);letter-spacing:3px" id="czKodWyswietl"></div>
       </div>
       <div class="podpowiedz-dod">Widzisz tylko kropki z tego kanału</div>
+      <div class="pole" id="czWlascicielPole" style="display:none">
+        <span class="etyk">Ty jesteś twórcą tej częstotliwości</span>
+        <button type="button" class="btn-toggle-zielony" id="czBtnPozwolAkt" onclick="przelaczPozwolAktywna()">🔓 Pozwól innym dodawać punkty</button>
+      </div>
       <div class="rzad-btn"><button class="btn btn-sec" style="flex:1" onclick="wylaczCzestotliwosc()">Wróć do mapy publicznej</button></div>
     </div>
   </div>
@@ -776,6 +789,7 @@ function initMapa(){
   zaladujLokalneKropki();
   ustawLicznikCalkowity(liczbaMoichNaCzestotliwosci());
   odswiezLicznikGlobalny();
+  if(aktywnaCzestotliwosc)ustawMetaCzestotliwosci(aktywnaCzestotliwosc,false);
   zaladujKropkiWObszarze();
   otworzZUrl();
 }
@@ -1064,7 +1078,15 @@ function wycentrujPopup(marker){
   mapa.setView(nowySrodek,zoom,{animate:true});
 }
 
-function obslKlikMapy(e){if(!trybAkt)return;pozWybrana=[e.latlng.lat,e.latlng.lng];if(markerNowy)mapa.removeLayer(markerNowy);const ik=L.divIcon({html:'<div class="kropka-nowa"></div>',className:'',iconSize:[22,22],iconAnchor:[11,11]});markerNowy=L.marker(pozWybrana,{icon:ik}).addTo(mapa);ukryjInstr();zakonczTryb();otworzPanel();}
+function obslKlikMapy(e){
+  if(!trybAkt)return;
+  if(!czyMoznaDodawac()){
+    toast('🔒 Dodawanie jest zablokowane przez twórcę tej częstotliwości.');
+    zakonczTryb();
+    return;
+  }
+  pozWybrana=[e.latlng.lat,e.latlng.lng];if(markerNowy)mapa.removeLayer(markerNowy);const ik=L.divIcon({html:'<div class="kropka-nowa"></div>',className:'',iconSize:[22,22],iconAnchor:[11,11]});markerNowy=L.marker(pozWybrana,{icon:ik}).addTo(mapa);ukryjInstr();zakonczTryb();otworzPanel();
+}
 function trybDodawania(){
   if(trybAkt){zakonczTryb();return;}
   const pozostalo=pozostalyCzasDodawania();
@@ -1241,6 +1263,7 @@ async function wyslijNagranie(klucz){
 }
 
 async function zapiszWspom(btn){
+  if(!czyMoznaDodawac()){toast('🔒 Dodawanie jest zablokowane przez twórcę tej częstotliwości.');return;}
   const tytul=document.getElementById('polTytul').value.trim();
   const tresc=document.getElementById('polTresc').value.trim();
   const autor=document.getElementById('polAutor').value.trim()||'Anonim';
@@ -1425,6 +1448,69 @@ function odswiezWidokCzestotliwosci(){
   aktualizujBadgeCzestotliwosci();
 }
 let _czZamkTimeout=null;
+function mojKluczUrzadzenia(){
+  try{
+    let k=localStorage.getItem('mw_klucz_urzadzenia');
+    if(!k){k=losowyKlucz();localStorage.setItem('mw_klucz_urzadzenia',k);}
+    return k;
+  }catch(e){return 'brak-lokalnego';}
+}
+let czMetaAktywna={wlasciciel:null,pozwol_dodawac:true};
+function czyMoznaDodawac(){
+  if(!aktywnaCzestotliwosc)return true;
+  if(czMetaAktywna.pozwol_dodawac)return true;
+  if(czMetaAktywna.wlasciciel&&czMetaAktywna.wlasciciel===mojKluczUrzadzenia())return true;
+  return false;
+}
+async function ustawMetaCzestotliwosci(kod,domyslnePozwol,zapytajOZmiane){
+  if(!online){czMetaAktywna={wlasciciel:mojKluczUrzadzenia(),pozwol_dodawac:true};aktualizujPanelWlasciciela();return;}
+  try{
+    const ref=db.collection('czestotliwosci_meta').doc(kod);
+    const doc=await ref.get();
+    if(doc.exists){
+      const d=doc.data();
+      const jaJestemWlascicielem=d.wlasciciel===mojKluczUrzadzenia();
+      if(zapytajOZmiane&&jaJestemWlascicielem&&!!d.pozwol_dodawac!==!!domyslnePozwol){
+        const chce=confirm('To Twoja częstotliwość „'+kod+'". Czy chcesz zmienić ustawienie na: '+(domyslnePozwol?'inni MOGĄ dodawać punkty':'inni NIE MOGĄ dodawać punktów')+'?');
+        if(chce){
+          await ref.update({pozwol_dodawac:!!domyslnePozwol});
+          czMetaAktywna={wlasciciel:d.wlasciciel,pozwol_dodawac:!!domyslnePozwol};
+        }else{
+          czMetaAktywna={wlasciciel:d.wlasciciel,pozwol_dodawac:!!d.pozwol_dodawac};
+        }
+      }else{
+        czMetaAktywna={wlasciciel:d.wlasciciel||null,pozwol_dodawac:!!d.pozwol_dodawac};
+      }
+    }else{
+      czMetaAktywna={wlasciciel:mojKluczUrzadzenia(),pozwol_dodawac:!!domyslnePozwol};
+      await ref.set({kod,wlasciciel:mojKluczUrzadzenia(),pozwol_dodawac:!!domyslnePozwol,utworzono:Date.now()});
+    }
+  }catch(e){console.warn(e);czMetaAktywna={wlasciciel:null,pozwol_dodawac:true};}
+  aktualizujPanelWlasciciela();
+}
+function aktualizujPanelWlasciciela(){
+  const pole=document.getElementById('czWlascicielPole');
+  const btn=document.getElementById('czBtnPozwolAkt');
+  if(!pole||!btn)return;
+  const jestemWlascicielem=aktywnaCzestotliwosc&&czMetaAktywna.wlasciciel===mojKluczUrzadzenia();
+  pole.style.display=jestemWlascicielem?'block':'none';
+  btn.classList.toggle('aktywny',!!czMetaAktywna.pozwol_dodawac);
+}
+async function przelaczPozwolAktywna(){
+  if(!aktywnaCzestotliwosc)return;
+  czMetaAktywna.pozwol_dodawac=!czMetaAktywna.pozwol_dodawac;
+  aktualizujPanelWlasciciela();
+  if(online){
+    try{await db.collection('czestotliwosci_meta').doc(aktywnaCzestotliwosc).update({pozwol_dodawac:czMetaAktywna.pozwol_dodawac});}catch(e){console.warn(e);}
+  }
+  toast(czMetaAktywna.pozwol_dodawac?'🟢 Inni mogą teraz dodawać punkty':'🔒 Dodawanie zablokowane dla innych');
+}
+let czPozwolNowa=false;
+function przelaczPozwolTworz(){
+  czPozwolNowa=!czPozwolNowa;
+  document.getElementById('czBtnPozwol').classList.toggle('aktywny',czPozwolNowa);
+}
+
 function otworzPanelCz(){
   const tlo=document.getElementById('panelTloCz');
   if(_czZamkTimeout){clearTimeout(_czZamkTimeout);_czZamkTimeout=null;}
@@ -1434,10 +1520,13 @@ function otworzPanelCz(){
     document.getElementById('czKodWyswietl').textContent=aktywnaCzestotliwosc;
     document.getElementById('czStanWylaczony').style.display='none';
     document.getElementById('czStanWlaczony').style.display='block';
+    aktualizujPanelWlasciciela();
   }else{
     document.getElementById('czStanWylaczony').style.display='block';
     document.getElementById('czStanWlaczony').style.display='none';
     ustawWidocznoscCz('prywatna');
+    czPozwolNowa=false;
+    document.getElementById('czBtnPozwol').classList.remove('aktywny');
     setTimeout(()=>document.getElementById('polCzKod').focus(),200);
   }
 }
@@ -1458,7 +1547,7 @@ function zamknijPanelCz(){
   },320);
 }
 function zamknijTloCz(e){if(e.target===document.getElementById('panelTloCz'))zamknijPanelCz();}
-function nastawCzestotliwosc(){
+async function nastawCzestotliwosc(){
   const kod=document.getElementById('polCzKod').value.trim();
   if(!kod){toast('Wpisz kod.');return;}
   if(maStop(kod)){toast('Brzydkie słowo — popraw.');return;}
@@ -1467,12 +1556,14 @@ function nastawCzestotliwosc(){
   if(czWidocznosc==='publiczna'&&online){
     db.collection('czestotliwosci_publiczne').doc(kod).set({kod,ostatnia_aktywnosc:Date.now()}).catch(e=>console.warn(e));
   }
+  await ustawMetaCzestotliwosci(kod,czPozwolNowa,true);
   zamknijPanelCz();
   toast('📻 Nastrojono na: '+kod);
   odswiezWidokCzestotliwosci();
 }
 function wylaczCzestotliwosc(){
   aktywnaCzestotliwosc='';
+  czMetaAktywna={wlasciciel:null,pozwol_dodawac:true};
   try{localStorage.removeItem('mw_czestotliwosc');}catch(e){}
   zamknijPanelCz();
   toast('📻 Wróciłeś/aś do mapy publicznej');
@@ -1511,12 +1602,13 @@ async function wczytajPubliczneCzestotliwosci(){
     lista.innerHTML=kody.map(k=>'<button class="btn btn-sec" style="text-align:left;width:100%" onclick="wejdzNaCzestotliwoscZListy(\''+k.replace(/'/g,"\\'")+'\')">📻 '+escHtml(k)+'</button>').join('');
   }catch(e){console.warn(e);lista.innerHTML='';pusta.textContent='Nie udało się wczytać.';pusta.style.display='block';}
 }
-function wejdzNaCzestotliwoscZListy(kod){
+async function wejdzNaCzestotliwoscZListy(kod){
   aktywnaCzestotliwosc=kod;
   try{localStorage.setItem('mw_czestotliwosc',kod);}catch(e){}
   zamknijPanelM();
   zamknijPanelCz();
   toast('📻 Nastrojono na: '+kod);
+  await ustawMetaCzestotliwosci(kod,false);
   odswiezWidokCzestotliwosci();
 }
 
