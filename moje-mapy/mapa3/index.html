@@ -357,6 +357,11 @@ body.dzien #nagrywanieBox{background:rgba(0,0,0,.03)}
 
 #demoBlokada{position:fixed;inset:0;z-index:99990;display:none;background:transparent;cursor:default}
 #demoBlokada.aktywna{display:block}
+
+#demoSciezkaSvg{position:fixed;inset:0;width:100%;height:100%;z-index:99995;pointer-events:none}
+#demoStopa{position:fixed;font-size:26px;z-index:99996;opacity:0;transform:translate(-50%,-50%);pointer-events:none;transition:left 1s linear,top 1s linear,opacity .3s ease;filter:drop-shadow(0 3px 5px rgba(0,0,0,.6))}
+.demo-punkt-mapa{position:fixed;width:16px;height:16px;border-radius:50%;background:#5ab4ff;box-shadow:0 0 0 4px rgba(90,180,255,.3);transform:translate(-50%,-50%);z-index:99994;animation:demoPunktPuls 1.4s ease-in-out infinite}
+@keyframes demoPunktPuls{0%,100%{transform:translate(-50%,-50%) scale(1)}50%{transform:translate(-50%,-50%) scale(1.3)}}
 .info-img.jasno{filter:brightness(1);opacity:1}
 .matrix-karta .btn{width:100%;margin-top:18px;background:#0f2418;color:#7dffb0;border:1px solid #2fff6a80;border-radius:10px;padding:12px 16px;font-family:'Courier New',monospace;letter-spacing:1px;font-size:14px;cursor:pointer;transition:.2s}
 .matrix-karta .btn:hover{background:#173a26;border-color:#5dffa0}
@@ -690,6 +695,9 @@ body.dzien #nagrywanieBox{background:rgba(0,0,0,.03)}
   <path id="duchStrzalkaSciezka" fill="none" stroke="#f5d272" stroke-width="6" stroke-linecap="round"/>
   <polygon id="duchStrzalkaGrot" points="0,-12 26,0 0,12" fill="#f5d272"/>
 </svg>
+
+<svg id="demoSciezkaSvg"><path id="demoSciezkaLinia" fill="none" stroke="#5ab4ff" stroke-width="3" stroke-dasharray="8 8" opacity="0"/></svg>
+<div id="demoStopa">🚶</div>
 
 <div id="toast"><span id="toastTekst"></span><div id="toastPasek"></div></div>
 
@@ -1952,18 +1960,10 @@ const INFO_KROKI=[
 "Kochani,\noddajemy w wasze ręce\nmapę wspomnień.",
 "Wybierz czy chcesz publikować\nna ogólnej, startowej mapie —\na może wolisz stworzyć\nwłasną?",
 "Po prostu kliknij\n„Zostaw wspomnienie”\ni wybierz dowolny punkt\nna mapie.",
-"Nastrój się\nna prywatną częstotliwość\nlub dołącz do publicznej —\nwłasna mapa dla siebie lub grona znajomych.",
-"Przy każdym miejscu\nmasz naprawdę szeroką gamę możliwości:\nopis, zdjęcie, nagranie głosowe,\nlink z YouTube, audio z archiwum\nlub nawigację prosto do celu.",
-"Jednym kliknięciem\nw Twój punkt na mapie\nprzełączysz się na Mapy Google,\nktóre same wyznaczą trasę.",
-"Bądźmy kreatywni,\ngrzeczni dla innych,\npokazujmy i oglądajmy\nciekawe miejsca.",
 "Włącz tryb spaceru\ni słuchaj opisów w okolicy —\nsuwakiem ustawisz zasięg:\nod 10 m na rowerze, do 100 m na spacer.",
-"Dbamy o bezpieczeństwo:\nfiltr treści, limity wpisów,\nzgłoszenia niewłaściwych miejsc.",
-"Pod maską: Leaflet.js + Firebase Firestore.\nHosting: GitHub Pages.\nBrak logowania — cała logika\ndziała w Twojej przeglądarce.",
-"Ten projekt jest w 100% darmowy —\nmapa, baza danych, hosting.",
-"Mapa służy\ndo zabawy\noraz dzielenia się\nciekawostkami.",
-"Chcesz zrobić swoją własną mapę?\nUżyj Skarbca na mini-klik.pl."
+"Zaufaj swojej wyobraźni —\nnasz program możesz wykorzystać\nw różny, ciekawy sposób.\nPowodzenia!"
 ];
-const INFO_IKONY=["🗺️","🤝","","📻 ⌄","📝 🖼️ 🎙️ ▶","🧭","✨","🚶 ‹","🚩","⚙️","💛","🎉","🔗"];
+const INFO_IKONY=["🗺️","🤝","","🚶 ‹","🎉"];
 const INFO_WIDGET={
 0:'<img class="info-img" id="infoObrazek" src="img/intro.jpg" alt="Mapa Wspomnień">',
 2:'<div class="info-demo"><div class="info-demo-btn">Zostaw wspomnienie</div><div class="info-demo-tap">👆</div></div>'
@@ -2114,6 +2114,31 @@ function uruchomDemoCzestotliwosc(){
   });
 }
 
+function demoNarysujSciezke(punkty){
+  const linia=document.getElementById('demoSciezkaLinia');
+  let d='M'+punkty[0].x+','+punkty[0].y;
+  for(let i=1;i<punkty.length;i++)d+=' L'+punkty[i].x+','+punkty[i].y;
+  linia.setAttribute('d',d);
+  linia.style.opacity='1';
+}
+function demoUkryjSciezke(){document.getElementById('demoSciezkaLinia').style.opacity='0';}
+let demoPunktyEl=[];
+function demoPokazPunktSciezki(x,y){
+  const p=document.createElement('div');
+  p.className='demo-punkt-mapa';
+  p.style.left=x+'px';p.style.top=y+'px';
+  document.body.appendChild(p);
+  demoPunktyEl.push(p);
+}
+function demoUsunPunktySciezki(){demoPunktyEl.forEach(p=>p.remove());demoPunktyEl=[];}
+function demoStopaIdzDo(x,y){
+  const s=document.getElementById('demoStopa');
+  s.style.opacity='1';
+  s.style.left=x+'px';
+  s.style.top=y+'px';
+}
+function demoStopaUkryj(){document.getElementById('demoStopa').style.opacity='0';}
+
 function demoStworzFale(cx,cy){
   [0,240].forEach(op=>{
     demoCzT(()=>{
@@ -2200,16 +2225,64 @@ function uruchomDemoDodawanie(){
   },57200);
   demoCzT(()=>{
     demoOdblokujKlikanie();
-    document.getElementById('matrixTlo').classList.add('poka');
-    infoKrok=INFO_KROKI.length-2;
+    infoKrok=3;
     pokazKrokInfo();
   },58200);
+}
+
+function uruchomDemoSpacer(){
+  demoBlokujKlikanie();
+  duchNapisPokaz('Dodatkowa fajna funkcja —\nto tryb spaceru!');
+  demoCzT(()=>duchNapisUkryj(),3000);
+  demoCzT(()=>duchNapisPokaz('Włącz tryb spaceru,\nnastaw odległość słuchania miejsc\ni po prostu idź —\nopisy same będą się czytały,\nniczym nawigacja.'),3400);
+  demoCzT(()=>duchNapisUkryj(),8600);
+  demoCzT(()=>duchPokazPrzy('fabSpacer'),9000);
+  demoCzT(()=>duchKlik(),10200);
+  demoCzT(()=>{document.getElementById('fabSpacer').classList.add('spacer-akt');toast('🚶 Tryb spaceru włączony');},10500);
+  demoCzT(()=>{duchUkryj();duchPokazPrzy('btnZasiegStrzalka');},11800);
+  demoCzT(()=>duchKlik(),13000);
+  demoCzT(()=>przelaczSuwakZasiegu(),13300);
+  demoCzT(()=>duchPokazPrzy('suwakZasiegWartosc'),13600);
+  demoCzT(()=>{
+    zmienZasiegSpaceru(40);
+    const s=document.getElementById('suwakZasiegWartosc');
+    if(s)s.value=40;
+  },15200);
+  demoCzT(()=>duchUkryj(),16600);
+  demoCzT(()=>przelaczSuwakZasiegu(),16900);
+  demoCzT(()=>{
+    const punkty=[demoPunktMapy(.25,.65),demoPunktMapy(.42,.4),demoPunktMapy(.62,.55),demoPunktMapy(.78,.3)];
+    demoNarysujSciezke(punkty);
+    punkty.forEach(p=>demoPokazPunktSciezki(p.x,p.y));
+    demoStopaIdzDo(punkty[0].x,punkty[0].y);
+    toast('🚶 Idziesz — opisy czytają się same');
+    demoCzT(()=>demoStopaIdzDo(punkty[1].x,punkty[1].y),400);
+    demoCzT(()=>demoStworzFale(punkty[1].x,punkty[1].y),1400);
+    demoCzT(()=>demoStopaIdzDo(punkty[2].x,punkty[2].y),2400);
+    demoCzT(()=>demoStworzFale(punkty[2].x,punkty[2].y),3400);
+    demoCzT(()=>demoStopaIdzDo(punkty[3].x,punkty[3].y),4400);
+    demoCzT(()=>demoStworzFale(punkty[3].x,punkty[3].y),5400);
+  },18000);
+  demoCzT(()=>{
+    demoStopaUkryj();
+    demoUkryjSciezke();
+    demoUsunPunktySciezki();
+    document.getElementById('fabSpacer').classList.remove('spacer-akt');
+    toast('🚶 W ten sposób mapa sama Cię poprowadzi');
+  },24500);
+  demoCzT(()=>{
+    demoOdblokujKlikanie();
+    document.getElementById('matrixTlo').classList.add('poka');
+    infoKrok=INFO_KROKI.length-1;
+    pokazKrokInfo();
+  },27000);
 }
 
 function pokazKrokInfo(){
   demoCzWyczysc();
   if(infoKrok===1){uruchomDemoCzestotliwosc();return;}
   if(infoKrok===2){uruchomDemoDodawanie();return;}
+  if(infoKrok===3){uruchomDemoSpacer();return;}
   document.getElementById('infoTekst').textContent=INFO_KROKI[infoKrok];
   document.getElementById('infoBtn').style.display=(infoKrok===0)?'none':'';
   document.getElementById('infoBtn').textContent=(infoKrok===INFO_KROKI.length-1)?'Koniec':'Dalej';
