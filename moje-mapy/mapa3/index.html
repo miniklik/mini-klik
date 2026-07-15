@@ -47,9 +47,6 @@ body.dzien .leaflet-control-attribution{background:rgba(255,247,230,.85)!importa
 .licznik-gora{font-family:'Cormorant Garamond',serif;font-size:14px;color:var(--tekst-mil);display:flex;align-items:center;gap:7px;background:var(--karta);border:1px solid var(--obw);border-radius:22px;padding:8px 16px;cursor:pointer;transition:.2s}
 .licznik-gora:hover{border-color:var(--akcent);background:var(--bg2)}
 .licznik-gora:active{transform:scale(.96)}
-.calk-licznik{font-family:'Cormorant Garamond',serif;font-size:13px;color:var(--tekst-cichy);display:flex;align-items:center;gap:5px;margin-left:10px;white-space:nowrap}
-.calk-licznik b{color:var(--tekst-mil);font-weight:600;font-size:15px}
-@media(max-width:820px){.calk-licznik{display:none}}
 .licznik-gora b{color:var(--akcent);font-weight:600;font-size:20px}
 .licznik-kropka{width:14px;height:14px;border-radius:50%;background:radial-gradient(circle,var(--akcent2),var(--wino));box-shadow:0 0 8px 1px rgba(232,160,192,.6);flex:0 0 auto}
 .btn-ikon{width:38px;height:38px;border-radius:50%;background:var(--karta);border:1px solid var(--obw);color:var(--akcent);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:18px;transition:.2s}
@@ -405,7 +402,6 @@ body.dzien #nagrywanieBox{background:rgba(0,0,0,.03)}
 </div>
 <div class="gora">
   <div class="tytul">Mapa <em>Wspomnień</em></div>
-  <div class="calk-licznik" id="calkLicznik" data-tooltip="Liczba wspomnień na tej mapie" title="Liczba wspomnień na tej mapie">📍 <b id="calkLicznikN">—</b></div>
   <div class="gora-prawo">
     <button class="licznik-gora" id="btnMojeKropki" onclick="idzDoNajblizszej()" data-tooltip="Idź do najbliższej mojej kropki" title="Idź do najbliższej mojej kropki"><span class="licznik-kropka"></span><b id="liczKropek">—</b></button>
     <div class="radyjko-wrap">
@@ -583,7 +579,11 @@ body.dzien #nagrywanieBox{background:rgba(0,0,0,.03)}
 
     <div id="czStanWylaczony">
       <div class="pole">
-        <input type="text" id="polCzKod" placeholder="np. 1234" maxlength="20" style="text-align:center;letter-spacing:3px;font-size:18px">
+        <div class="link-rzad">
+          <input type="text" id="polCzKod" placeholder="np. 1234" maxlength="15" style="text-align:center;letter-spacing:3px;font-size:18px">
+          <input type="text" id="polCzNick" placeholder="nick" maxlength="5" style="max-width:70px;text-align:center;flex:0 0 auto">
+        </div>
+        <div class="pomoc-dod">Nick (max 5 znaków) — po nim inni będą mogli Cię znaleźć na liście częstotliwości</div>
       </div>
       <div class="pole">
         <span class="etyk">Widoczność</span>
@@ -788,7 +788,6 @@ function initMapa(){
   if(navigator.geolocation)navigator.geolocation.getCurrentPosition(p=>{if(!trybAkt&&!pozWybrana)mapa.setView([p.coords.latitude,p.coords.longitude],13);},()=>{},{timeout:5000});
   zaladujLokalneKropki();
   ustawLicznikCalkowity(liczbaMoichNaCzestotliwosci());
-  odswiezLicznikGlobalny();
   if(aktywnaCzestotliwosc)ustawMetaCzestotliwosci(aktywnaCzestotliwosc,false);
   zaladujKropkiWObszarze();
   otworzZUrl();
@@ -1420,16 +1419,6 @@ function resetStanKropek(){
   wszystkieKropki=[];
   zapytaneObszary=[];
 }
-async function odswiezLicznikGlobalny(){
-  const el=document.getElementById('calkLicznikN');
-  if(!el)return;
-  if(!online){el.textContent='—';return;}
-  try{
-    const wynik=await db.collection('wspomnienia').where('czestotliwosc','==',aktywnaCzestotliwosc).count().get();
-    el.textContent=wynik.data().count;
-  }catch(e){console.warn(e);el.textContent='—';}
-}
-
 function aktualizujBadgeCzestotliwosci(){
   const badge=document.getElementById('czBadge');
   if(aktywnaCzestotliwosc){
@@ -1443,7 +1432,6 @@ function odswiezWidokCzestotliwosci(){
   resetStanKropek();
   zaladujLokalneKropki();
   ustawLicznikCalkowity(liczbaMoichNaCzestotliwosci());
-  odswiezLicznikGlobalny();
   zaladujKropkiWObszarze();
   aktualizujBadgeCzestotliwosci();
 }
@@ -1462,7 +1450,7 @@ function czyMoznaDodawac(){
   if(czMetaAktywna.wlasciciel&&czMetaAktywna.wlasciciel===mojKluczUrzadzenia())return true;
   return false;
 }
-async function ustawMetaCzestotliwosci(kod,domyslnePozwol,zapytajOZmiane){
+async function ustawMetaCzestotliwosci(kod,domyslnePozwol,zapytajOZmiane,nick){
   if(!online){czMetaAktywna={wlasciciel:mojKluczUrzadzenia(),pozwol_dodawac:true};aktualizujPanelWlasciciela();return;}
   try{
     const ref=db.collection('czestotliwosci_meta').doc(kod);
@@ -1483,7 +1471,9 @@ async function ustawMetaCzestotliwosci(kod,domyslnePozwol,zapytajOZmiane){
       }
     }else{
       czMetaAktywna={wlasciciel:mojKluczUrzadzenia(),pozwol_dodawac:!!domyslnePozwol};
-      await ref.set({kod,wlasciciel:mojKluczUrzadzenia(),pozwol_dodawac:!!domyslnePozwol,utworzono:Date.now()});
+      const nowyDok={kod,wlasciciel:mojKluczUrzadzenia(),pozwol_dodawac:!!domyslnePozwol,utworzono:Date.now()};
+      if(nick)nowyDok.nick=nick;
+      await ref.set(nowyDok);
     }
   }catch(e){console.warn(e);czMetaAktywna={wlasciciel:null,pozwol_dodawac:true};}
   aktualizujPanelWlasciciela();
@@ -1543,20 +1533,24 @@ function zamknijPanelCz(){
     tlo.classList.remove('poka');
     tlo.classList.remove('wyjazd');
     document.getElementById('polCzKod').value='';
+    document.getElementById('polCzNick').value='';
     _czZamkTimeout=null;
   },320);
 }
 function zamknijTloCz(e){if(e.target===document.getElementById('panelTloCz'))zamknijPanelCz();}
 async function nastawCzestotliwosc(){
   const kod=document.getElementById('polCzKod').value.trim();
+  const nick=document.getElementById('polCzNick').value.trim();
   if(!kod){toast('Wpisz kod.');return;}
-  if(maStop(kod)){toast('Brzydkie słowo — popraw.');return;}
+  if(maStop(kod)||maStop(nick)){toast('Brzydkie słowo — popraw.');return;}
   aktywnaCzestotliwosc=kod;
   try{localStorage.setItem('mw_czestotliwosc',kod);}catch(e){}
   if(czWidocznosc==='publiczna'&&online){
-    db.collection('czestotliwosci_publiczne').doc(kod).set({kod,ostatnia_aktywnosc:Date.now()}).catch(e=>console.warn(e));
+    const dane={kod,ostatnia_aktywnosc:Date.now()};
+    if(nick)dane.nick=nick;
+    db.collection('czestotliwosci_publiczne').doc(kod).set(dane,{merge:true}).catch(e=>console.warn(e));
   }
-  await ustawMetaCzestotliwosci(kod,czPozwolNowa,true);
+  await ustawMetaCzestotliwosci(kod,czPozwolNowa,true,nick);
   zamknijPanelCz();
   toast('📻 Nastrojono na: '+kod);
   odswiezWidokCzestotliwosci();
@@ -1595,11 +1589,16 @@ async function wczytajPubliczneCzestotliwosci(){
   if(!online){lista.innerHTML='';pusta.textContent='Brak połączenia.';pusta.style.display='block';return;}
   try{
     const snap=await db.collection('czestotliwosci_publiczne').get();
-    let kody=[];
-    snap.forEach(d=>{const k=(d.data()&&d.data().kod)||d.id;if(k)kody.push(k);});
-    kody=[...new Set(kody)].sort((a,b)=>a.localeCompare(b,'pl'));
-    if(!kody.length){lista.innerHTML='';pusta.textContent='Brak publicznych częstotliwości.';pusta.style.display='block';return;}
-    lista.innerHTML=kody.map(k=>'<button class="btn btn-sec" style="text-align:left;width:100%" onclick="wejdzNaCzestotliwoscZListy(\''+k.replace(/'/g,"\\'")+'\')">📻 '+escHtml(k)+'</button>').join('');
+    let poz=[];
+    const widziane=new Set();
+    snap.forEach(d=>{
+      const dane=d.data()||{};
+      const k=dane.kod||d.id;
+      if(k&&!widziane.has(k)){widziane.add(k);poz.push({kod:k,nick:dane.nick||''});}
+    });
+    poz.sort((a,b)=>a.kod.localeCompare(b.kod,'pl'));
+    if(!poz.length){lista.innerHTML='';pusta.textContent='Brak publicznych częstotliwości.';pusta.style.display='block';return;}
+    lista.innerHTML=poz.map(p=>'<button class="btn btn-sec" style="text-align:left;width:100%;display:flex;justify-content:space-between;gap:8px" onclick="wejdzNaCzestotliwoscZListy(\''+p.kod.replace(/'/g,"\\'")+'\')"><span>📻 '+escHtml(p.kod)+'</span>'+(p.nick?'<span style="color:var(--tekst-cichy);font-size:12px">'+escHtml(p.nick)+'</span>':'')+'</button>').join('');
   }catch(e){console.warn(e);lista.innerHTML='';pusta.textContent='Nie udało się wczytać.';pusta.style.display='block';}
 }
 async function wejdzNaCzestotliwoscZListy(kod){
