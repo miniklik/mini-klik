@@ -979,7 +979,36 @@ function zatrzymajSpacer(){
   toast('Tryb spaceru wyłączony');
 }
 function odblokujMowe(){try{const u=new SpeechSynthesisUtterance(' ');u.volume=0;speechSynthesis.speak(u);}catch(e){}}
-function powiedz(t,onEnd){if(!('speechSynthesis' in window))return;try{const u=new SpeechSynthesisUtterance(t);u.lang='pl-PL';u.rate=0.95;if(onEnd)u.onend=onEnd;speechSynthesis.speak(u);}catch(e){if(onEnd)onEnd();}}
+let _glosPolski=null;
+let _glosyZaladowane=false;
+function _wybierzGlosPolski(){
+  try{
+    const glosy=speechSynthesis.getVoices();
+    if(!glosy||!glosy.length)return;
+    _glosyZaladowane=true;
+    _glosPolski=glosy.find(g=>g.lang==='pl-PL'&&/google/i.test(g.name))
+      ||glosy.find(g=>/^pl/i.test(g.lang)&&/google/i.test(g.name))
+      ||glosy.find(g=>g.lang==='pl-PL')
+      ||glosy.find(g=>/^pl/i.test(g.lang))
+      ||null;
+  }catch(e){}
+}
+if('speechSynthesis' in window){
+  _wybierzGlosPolski();
+  speechSynthesis.onvoiceschanged=_wybierzGlosPolski;
+}
+function powiedz(t,onEnd){
+  if(!('speechSynthesis' in window))return;
+  try{
+    if(!_glosyZaladowane)_wybierzGlosPolski();
+    const u=new SpeechSynthesisUtterance(t);
+    u.lang='pl-PL';
+    if(_glosPolski)u.voice=_glosPolski;
+    u.rate=0.95;
+    if(onEnd)u.onend=onEnd;
+    speechSynthesis.speak(u);
+  }catch(e){if(onEnd)onEnd();}
+}
 let dzwiekWlaczony=true;
 function przelaczDzwiek(){
   dzwiekWlaczony=!dzwiekWlaczony;
@@ -1079,11 +1108,11 @@ function odtworzNagranieSpacer(url,onEnd){
   a.onerror=koniec;
   a.play().catch(koniec);
 }
-function czytajKropke(r,onEnd){
+function czytajKropke(r,onEnd,pomijNagranie){
   if(!dzwiekWlaczony){if(onEnd)onEnd();return;}
   try{speechSynthesis.cancel();}catch(e){}
   const potemNagranie=()=>{
-    if(bezpUrl(r.nagranie)&&dzwiekWlaczony)odtworzNagranieSpacer(r.nagranie,onEnd);
+    if(!pomijNagranie&&bezpUrl(r.nagranie)&&dzwiekWlaczony)odtworzNagranieSpacer(r.nagranie,onEnd);
     else if(onEnd)onEnd();
   };
   if(!('speechSynthesis' in window)||!r.tresc){potemNagranie();return;}
@@ -1805,7 +1834,7 @@ function popCzytajPrzelacz(rid){
   if(przycisk)przycisk.classList.add('mowi');
   czytajKropke(r,()=>{
     if(mowionyId===rid){mowionyId=null;if(przycisk)przycisk.classList.remove('mowi');}
-  });
+  },true);
 }
 
 function popPrzelacz(rid,typ){
