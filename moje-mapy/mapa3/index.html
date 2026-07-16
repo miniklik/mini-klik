@@ -380,6 +380,13 @@ body.dzien #nagrywanieBox{background:rgba(0,0,0,.03)}
 .btn-udostepnij.skopiowano{background:#27ae60;border-color:#2ecc71;box-shadow:0 6px 20px rgba(39,174,96,.5)}
 .btn-udostepnij.pojawia-sie{opacity:0;transition:opacity 1.1s ease}
 .btn-udostepnij.pojawia-sie.poj{opacity:1}
+.btn-powrot-mk{position:relative;z-index:2;display:inline-block;margin:0 auto;padding:11px 26px;color:#ff9a3d;font-family:'Courier New',monospace;font-size:13px;letter-spacing:1.5px;text-decoration:none;border:1px solid rgba(255,154,61,.35);border-radius:10px;background:rgba(0,0,0,.35);backdrop-filter:blur(2px);transition:all .25s}
+.btn-powrot-mk:hover{color:#ffb26a;border-color:rgba(255,154,61,.7);background:rgba(255,154,61,.08);transform:translateY(-2px)}
+#demoPauzaOverlay{position:fixed;inset:0;z-index:99991;display:none;flex-direction:column;align-items:center;justify-content:center;pointer-events:none;animation:pauzaWjazd .4s ease}
+#demoPauzaOverlay.poka{display:flex}
+@keyframes pauzaWjazd{from{opacity:0;transform:scale(.92)}to{opacity:1;transform:scale(1)}}
+.pauza-napis-d{font-family:'Courier New',monospace;font-size:38px;font-weight:700;color:#7dffb0;letter-spacing:12px;text-shadow:0 0 20px rgba(0,0,0,.9),0 0 30px rgba(93,255,160,.6),0 2px 6px rgba(0,0,0,.8)}
+#demoBlokada.aktywna{cursor:pointer}
 .btn-udostepnij:hover{background:#1e88e5;transform:translateY(-1px)}
 .cz-badge{position:fixed;left:50%;top:128px;transform:translateX(-50%);z-index:895;background:var(--karta);border:1px solid var(--akcent);border-radius:24px;padding:8px 14px;font-size:13px;color:var(--tekst);box-shadow:var(--cien-l);display:none;align-items:center;gap:8px}
 .cz-badge.poka{display:flex;animation:slidd .3s ease}
@@ -700,13 +707,18 @@ body.dzien #nagrywanieBox{background:rgba(0,0,0,.03)}
     <button class="btn" id="infoBtn" onclick="infoDalej()">Dalej</button>
   </div>
   <button class="btn-udostepnij" id="btnUdostepnijApp" onclick="udostepnijAplikacje()">Udostępnij aplikację</button>
+  <a href="../../" class="btn-powrot-mk" id="btnPowrotMK">← powrót do mini-klik</a>
 </div>
 
 <div id="duchWskaznik"><div class="duch-obrys"></div><div class="duch-palec">👆</div></div>
 
 <button class="zamknij" id="demoZamknij" onclick="zamknijInfo()" style="position:fixed;top:16px;right:16px;z-index:100000;background:rgba(0,0,0,.5);border-color:#2fff6a55;color:#5dffa0;display:none">✕</button>
 
-<div id="demoBlokada"></div>
+<div id="demoBlokada" onclick="toggleDemoPauza()"></div>
+
+<div id="demoPauzaOverlay">
+  <div class="pauza-napis-d">PAUZA</div>
+</div>
 
 <div id="duchNapis"></div>
 
@@ -2133,16 +2145,52 @@ function duchStrzalkaDuzaUkryj(){
   document.getElementById('duchStrzalkaDuza').classList.remove('poka');
 }
 
-let demoCzTimeouty=[];
+let demoCzZadania=[];
+let demoPauzowane=false;
 function demoCzWyczysc(){
-  demoCzTimeouty.forEach(t=>clearTimeout(t));
-  demoCzTimeouty=[];
+  demoCzZadania.forEach(z=>{if(z.id)clearTimeout(z.id);});
+  demoCzZadania=[];
+  demoPauzowane=false;
+  document.getElementById('demoPauzaOverlay').classList.remove('poka');
   demoOdblokujKlikanie();
   duchUkryj();
   duchNapisUkryj();
   duchStrzalkaDuzaUkryj();
 }
-function demoCzT(fn,ms){demoCzTimeouty.push(setTimeout(fn,ms));}
+function demoCzT(fn,ms){
+  const z={fn:fn,ms:ms,plannedAt:Date.now(),done:false,id:null};
+  z.id=setTimeout(()=>{z.done=true;z.id=null;fn();},ms);
+  demoCzZadania.push(z);
+}
+function pauzujDemo(){
+  if(demoPauzowane)return;
+  demoPauzowane=true;
+  const now=Date.now();
+  demoCzZadania.forEach(z=>{
+    if(z.done||z.id===null)return;
+    clearTimeout(z.id);
+    z.id=null;
+    z.ms=Math.max(0,z.ms-(now-z.plannedAt));
+  });
+  try{if(speechSynthesis.speaking&&!speechSynthesis.paused)speechSynthesis.pause();}catch(e){}
+  document.getElementById('demoPauzaOverlay').classList.add('poka');
+}
+function wznowDemo(){
+  if(!demoPauzowane)return;
+  demoPauzowane=false;
+  document.getElementById('demoPauzaOverlay').classList.remove('poka');
+  const now=Date.now();
+  demoCzZadania.forEach(z=>{
+    if(z.done||z.id!==null)return;
+    z.plannedAt=now;
+    z.id=setTimeout(()=>{z.done=true;z.id=null;z.fn();},z.ms);
+  });
+  try{if(speechSynthesis.paused)speechSynthesis.resume();}catch(e){}
+}
+function toggleDemoPauza(){
+  if(!document.getElementById('demoBlokada').classList.contains('aktywna'))return;
+  if(demoPauzowane)wznowDemo();else pauzujDemo();
+}
 function duchPokazPrzy(elId){
   const el=document.getElementById(elId);
   const wsk=document.getElementById('duchWskaznik');
