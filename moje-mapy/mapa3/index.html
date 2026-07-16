@@ -212,6 +212,7 @@ body.dzien .btn-zewn{background:rgba(0,0,0,.04)}
 .pop-ikona:active{transform:scale(.94)}
 .pop-tresc-ukryta{margin-top:10px}
 .foto-360-info{font-size:12px;color:var(--tekst-cichy);font-style:italic;text-align:center;margin-bottom:8px}
+.opis-link{color:var(--niebo);text-decoration:underline;word-break:break-all}
 .foto-sfera{width:100%;height:280px;border-radius:12px;overflow:hidden;background:#111;border:1px solid var(--obw)}
 .sidebar-szczegoly .foto-sfera{height:52vh}
 .pop-yt-embed{position:relative;width:100%;aspect-ratio:16/9;border-radius:10px;overflow:hidden;margin-bottom:8px;border:1px solid var(--obw);background:#000}
@@ -1762,6 +1763,22 @@ function galeriaBladObrazu(img){
   galeriaOdswiezUi(kont,nowyIdx,imgi);
 }
 
+function linkujOpis(tekst){
+  if(!tekst)return'';
+  const wzorzec=/(https?:\/\/[^\s<>"']+)/gi;
+  let wynik='',ostatni=0,m;
+  while((m=wzorzec.exec(tekst))){
+    wynik+=escHtml(tekst.slice(ostatni,m.index));
+    const dopasowanie=m[0];
+    const url=dopasowanie.replace(/[.,;:!?)\]]+$/,'');
+    const koncowka=dopasowanie.slice(url.length);
+    wynik+='<a href="'+escHtml(url)+'" target="_blank" rel="noopener" class="opis-link">'+escHtml(url)+'</a>'+escHtml(koncowka);
+    ostatni=m.index+dopasowanie.length;
+  }
+  wynik+=escHtml(tekst.slice(ostatni));
+  return wynik;
+}
+
 function youtubeId(link){
   if(!link)return null;
   const wzory=[/[?&]v=([\w-]{11})/,/youtu\.be\/([\w-]{11})/,/\/embed\/([\w-]{11})/,/\/shorts\/([\w-]{11})/];
@@ -1798,6 +1815,9 @@ function htmlPopup(r){
     if(ytId){
       filmHtml='<div class="pop-yt-embed"><iframe src="https://www.youtube.com/embed/'+ytId+'" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen loading="lazy"></iframe></div>'+
         '<a class="pop-yt-link" href="'+escHtml(r.yt)+'" target="_blank" rel="noopener">📺 Otwórz w YouTube</a>';
+    }else if(bezpUrl(r.yt)){
+      filmHtml='<div class="pomoc-dod" style="margin-bottom:8px">To nie jest rozpoznany link YouTube — pokazujemy go jako zwykły odnośnik:</div>'+
+        '<a class="pop-yt-link" href="'+escHtml(r.yt)+'" target="_blank" rel="noopener">🔗 Otwórz link</a>';
     }
   }
   let audioHtml='';
@@ -1807,7 +1827,7 @@ function htmlPopup(r){
     '<div class="pop-tyt pop-tyt-klik" onclick="popPokazRozmowe(\''+r.id+'\')" title="Wróć do rozmowy">'+escHtml(r.tytul||'Bez tytułu')+'</div>'+
     '<div class="pop-rozmowa" id="popRozmowa-'+r.id+'">'+
       '<div class="pop-od">— '+escHtml(r.autor||'Anonim')+' <span class="pop-czas-inline">· '+fmtData(r.utworzono)+'</span> <button class="pop-ucho" id="popUcho-'+r.id+'" onclick="popCzytajPrzelacz(\''+r.id+'\')" title="Czytaj na głos">👂</button></div>'+
-      '<div class="pop-tresc">'+escHtml(r.tresc||'')+'</div>'+
+      '<div class="pop-tresc">'+linkujOpis(r.tresc||'')+'</div>'+
       '<div class="pop-odpowiedzi" id="odpLista-'+r.id+'-publiczna"></div>'+
       '<button class="pop-odp-toggle" onclick="pokazFormOdp(\''+r.id+'\',\'publiczna\')">💬 Odpowiedz</button>'+
       '<div class="pop-odp-form" id="odpForm-'+r.id+'-publiczna">'+
