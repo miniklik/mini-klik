@@ -9,6 +9,8 @@
 <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
 <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css"/>
 <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css"/>
+<link rel="stylesheet" href="https://cdn.pannellum.org/2.5/pannellum.css">
+<script src="https://cdn.pannellum.org/2.5/pannellum.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
@@ -209,6 +211,9 @@ body.dzien .btn-zewn{background:rgba(0,0,0,.04)}
 .pop-ikona:hover{background:rgba(255,255,255,.12);border-color:var(--akcent)}
 .pop-ikona:active{transform:scale(.94)}
 .pop-tresc-ukryta{margin-top:10px}
+.foto-360-info{font-size:12px;color:var(--tekst-cichy);font-style:italic;text-align:center;margin-bottom:8px}
+.foto-sfera{width:100%;height:280px;border-radius:12px;overflow:hidden;background:#111;border:1px solid var(--obw)}
+.sidebar-szczegoly .foto-sfera{height:52vh}
 .pop-yt-embed{position:relative;width:100%;aspect-ratio:16/9;border-radius:10px;overflow:hidden;margin-bottom:8px;border:1px solid var(--obw);background:#000}
 .pop-yt-embed iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
 .pop-yt-link{display:block;text-align:center;text-decoration:none;margin-bottom:10px;background:linear-gradient(180deg,#ff0000,#c00);color:#fff;font-weight:700;font-size:13.5px;padding:10px 16px;border-radius:8px;transition:.2s}
@@ -256,6 +261,7 @@ body.dzien #nagrywanieBox{background:rgba(0,0,0,.03)}
 .btn-toggle-zielony{width:100%;margin-top:6px;padding:10px;border-radius:10px;border:1px solid var(--obw);background:rgba(255,255,255,.05);color:var(--tekst);font-family:'EB Garamond',serif;font-size:13.5px;cursor:pointer;transition:.2s}
 .btn-toggle-zielony:hover{border-color:var(--akcent)}
 .btn-toggle-zielony.aktywny{background:#2ecc71;border-color:#2ecc71;color:#06210f;font-weight:600}
+#btnZdjecie360{color:#000}
 
 .hosting-btny{display:flex;gap:10px;margin-top:6px}
 .btn-zewn-duzy{flex:1;justify-content:center;padding:10px 8px;font-size:13.5px;font-weight:600}
@@ -578,6 +584,8 @@ body.dzien #nagrywanieBox{background:rgba(0,0,0,.03)}
           <div id="genBlad" class="gen-blad" style="display:none">To link do strony podglądu, nie do zdjęcia. Wklej kod HTML albo BBCode (przycisk "Kody do osadzania" na hostingu).</div>
         </div>
         <div class="galeria-podglad-mini" id="galeriaPodgladMini"></div>
+        <button type="button" class="btn-toggle-zielony" id="btnZdjecie360" onclick="przelaczZdjecie360()">🔄 To zdjęcie sferyczne (360°)</button>
+        <div class="pomoc-dod">Panorama equirectangular — otworzy się z możliwością obracania palcem</div>
         <div class="pole ukryte">
           <input type="text" id="polZdjecieFreeimage" placeholder="https://iili.io/..." maxlength="300">
         </div>
@@ -1185,7 +1193,7 @@ function zakonczTryb(){trybAkt=false;document.getElementById('btnDodaj').classLi
 function pokazInstr(){const i=document.getElementById('instr');i.style.display='block';clearTimeout(i._tk);i._tk=setTimeout(ukryjInstr,3500);}
 function ukryjInstr(){document.getElementById('instr').style.display='none';}
 function otworzPanel(){document.getElementById('panelTlo').classList.add('poka');dodIdz(1);setTimeout(()=>document.getElementById('polTresc').focus(),200);}
-function zamknijPanel(){document.getElementById('panelTlo').classList.remove('poka');if(markerNowy){mapa.removeLayer(markerNowy);markerNowy=null;}pozWybrana=null;document.getElementById('polTytul').value='';document.getElementById('polTresc').value='';document.getElementById('polAutor').value='';document.getElementById('polYt').value='';document.getElementById('polArchiwum').value='';document.getElementById('polZdjecieFreeimage').value='';document.getElementById('polZdjecie').value='';document.getElementById('genWejscie').value='';document.getElementById('genBlad').style.display='none';document.getElementById('galeriaPodgladMini').innerHTML='';document.getElementById('hostBtnFreeimage').classList.remove('udane');document.getElementById('hostBtnImgbb').classList.remove('udane');document.getElementById('lzTresc').textContent='0';document.getElementById('zapiszInfo').style.display='none';resetujNagrywanie();dodIdz(1);zamknijSzybkieDodaj();}
+function zamknijPanel(){document.getElementById('panelTlo').classList.remove('poka');if(markerNowy){mapa.removeLayer(markerNowy);markerNowy=null;}pozWybrana=null;document.getElementById('polTytul').value='';document.getElementById('polTresc').value='';document.getElementById('polAutor').value='';document.getElementById('polYt').value='';document.getElementById('polArchiwum').value='';document.getElementById('polZdjecieFreeimage').value='';document.getElementById('polZdjecie').value='';document.getElementById('genWejscie').value='';document.getElementById('genBlad').style.display='none';document.getElementById('galeriaPodgladMini').innerHTML='';document.getElementById('hostBtnFreeimage').classList.remove('udane');document.getElementById('hostBtnImgbb').classList.remove('udane');polZdjecie360=false;document.getElementById('btnZdjecie360').classList.remove('aktywny');document.getElementById('lzTresc').textContent='0';document.getElementById('zapiszInfo').style.display='none';resetujNagrywanie();dodIdz(1);zamknijSzybkieDodaj();}
 function zamknijTlo(e){if(e.target===document.getElementById('panelTlo'))zamknijPanel();}
 document.getElementById('polTresc').addEventListener('input',e=>{document.getElementById('lzTresc').textContent=e.target.value.length;});
 
@@ -1377,6 +1385,7 @@ async function zapiszWspom(btn){
   if(archiwum)rek.archiwum=archiwum;
   if(zdjecieFreeimage)rek.zdjecie=zdjecieFreeimage;
   if(zdjecie)rek.zdjecie2=zdjecie;
+  if(polZdjecie360&&(zdjecieFreeimage||zdjecie))rek.zdjecie360=true;
   try{
     if(nagrBlob){
       if(btn)btn.textContent='Wysyłam nagranie…';
@@ -1585,6 +1594,12 @@ async function przelaczPozwolAktywna(){
   toast(czMetaAktywna.pozwol_dodawac?'🟢 Inni mogą teraz dodawać punkty':'🔒 Dodawanie zablokowane dla innych');
 }
 let czPozwolNowa=false;
+let polZdjecie360=false;
+function przelaczZdjecie360(){
+  polZdjecie360=!polZdjecie360;
+  document.getElementById('btnZdjecie360').classList.toggle('aktywny',polZdjecie360);
+}
+
 function przelaczPozwolTworz(){
   czPozwolNowa=!czPozwolNowa;
   document.getElementById('czBtnPozwol').classList.toggle('aktywny',czPozwolNowa);
@@ -1758,7 +1773,10 @@ function htmlPopup(r){
   let fotoHtml='';
   {
     const listaZdjec=[r.zdjecie,r.zdjecie2,r.zdjecie3].filter(u=>bezpUrl(u));
-    if(listaZdjec.length){
+    if(listaZdjec.length&&r.zdjecie360){
+      fotoHtml='<div class="foto-360-info">🔄 Zdjęcie 360° — przesuń palcem / myszką dookoła</div>'+
+        '<div class="foto-sfera" id="sfera-'+r.id+'" data-url="'+escHtml(listaZdjec[0])+'"></div>';
+    }else if(listaZdjec.length){
       const obrazki=listaZdjec.map((u,i)=>'<img src="'+escHtml(u)+'" alt="" loading="lazy" style="display:'+(i===0?'block':'none')+'" onerror="galeriaBladObrazu(this)" ondblclick="otworzZdjeciePelnyEkran(this.src)">').join('');
       const strzalki=listaZdjec.length>1?(
         '<button class="galeria-strzalka galeria-lewo" onclick="galeriaPrzelacz(this,-1)" title="Poprzednie zdjęcie">‹</button>'+
@@ -1844,6 +1862,27 @@ function popPrzelacz(rid,typ){
     const e=document.getElementById('pop'+t+'-'+rid);
     if(e)e.style.display=(t===typ)?'block':'none';
   });
+  if(typ==='Foto')setTimeout(()=>uruchomSfere360(rid),50);
+}
+function uruchomSfere360(rid){
+  const el=document.getElementById('sfera-'+rid);
+  if(!el||el.dataset.uruchomiona==='1')return;
+  const url=el.dataset.url;
+  if(!url)return;
+  if(typeof pannellum==='undefined'){
+    el.innerHTML='<p style="color:var(--tekst-cichy);text-align:center;padding:20px;font-style:italic">Viewer 360° nie załadował się. Sprawdź internet i odśwież.</p>';
+    return;
+  }
+  el.dataset.uruchomiona='1';
+  try{
+    pannellum.viewer(el.id,{
+      type:'equirectangular',panorama:url,autoLoad:true,
+      hfov:100,autoRotate:0,compass:false,
+      showControls:true,mouseZoom:true,keyboardZoom:false
+    });
+  }catch(e){
+    el.innerHTML='<p style="color:#e06b5a;text-align:center;padding:20px">Błąd ładowania panoramy: '+(e.message||'')+'</p>';
+  }
 }
 function popPokazRozmowe(rid){
   const rozmowa=document.getElementById('popRozmowa-'+rid);
