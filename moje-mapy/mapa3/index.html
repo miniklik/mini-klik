@@ -470,7 +470,7 @@ body.dzien #nagrywanieBox{background:rgba(0,0,0,.03)}
 <div class="gora">
   <div class="tytul">Mapa <em>Wspomnień</em></div>
   <div class="gora-prawo">
-    <button class="licznik-gora" id="btnMojeKropki" onclick="idzDoNajblizszej()" data-tooltip="Idź do najbliższej mojej kropki" title="Idź do najbliższej mojej kropki"><span class="licznik-kropka"></span><b id="liczKropek">—</b></button>
+    <button class="licznik-gora" id="btnMojeKropki" onclick="idzDoNajblizszej()" data-tooltip="Idź do najbliższej kropki" title="Idź do najbliższej kropki"><span class="licznik-kropka"></span><b id="liczKropek">—</b></button>
     <div class="radyjko-wrap">
       <button class="btn-ikon btn-ikon-duzy" id="btnCzest" onclick="otworzPanelCz()" data-tooltip="Częstotliwość - prywatny kanał" title="Częstotliwość">📻</button>
       <button class="fab-strzalka fab-strzalka-dol" id="btnPubliczneStrzalka" onclick="otworzPanelM()" data-tooltip="Publiczne częstotliwości" title="Publiczne częstotliwości">⌄</button>
@@ -878,7 +878,7 @@ function initMapa(){
   mapa.on('moveend',()=>{clearTimeout(obszarTimeout);obszarTimeout=setTimeout(zaladujKropkiWObszarze,600);});
   if(navigator.geolocation)navigator.geolocation.getCurrentPosition(p=>{if(!trybAkt&&!pozWybrana)mapa.setView([p.coords.latitude,p.coords.longitude],13);},()=>{},{timeout:5000});
   zaladujLokalneKropki();
-  ustawLicznikCalkowity(liczbaMoichNaCzestotliwosci());
+  odswiezLicznikMiejsc();
   if(aktywnaCzestotliwosc)ustawMetaCzestotliwosci(aktywnaCzestotliwosc,false);
   zaladujKropkiWObszarze();
   otworzZUrl();
@@ -1424,12 +1424,31 @@ async function zapiszWspom(btn){
     if(markerNowy){mapa.removeLayer(markerNowy);markerNowy=null;}
     dodajMojaKropkeLok(rek.id,aktywnaCzestotliwosc,klucz,rek.lat,rek.lng);
     dodajKropkeNaMape(rek);toast('✨ Wspomnienie zapisane!');zamknijPanel();zapiszCzas('mw_ostatnia_kropka');
-    ustawLicznikCalkowity(liczbaMoichNaCzestotliwosci());
+    odswiezLicznikMiejsc();
   }catch(e){console.error(e);toast('Błąd zapisu.');}
   finally{if(btn){btn.disabled=false;btn.textContent=oryginalnyTekst;}}
 }
 
 function ustawLicznikCalkowity(n){licznikCalkowity=n;document.getElementById('liczKropek').textContent=n;}
+let _licznikTimeout=null;
+function odswiezLicznikMiejsc(){
+  // Natychmiast pokaż liczbę załadowanych — żeby coś było widać od razu
+  ustawLicznikCalkowity(wszystkieKropki.length);
+  // Jeśli offline albo bez częstotliwości — kończymy
+  if(!online||typeof db==='undefined')return;
+  // Debounce: 500 ms po ostatnim wywołaniu pytamy serwer o prawdziwą liczbę
+  if(_licznikTimeout){clearTimeout(_licznikTimeout);}
+  const kod=aktywnaCzestotliwosc;
+  _licznikTimeout=setTimeout(async ()=>{
+    _licznikTimeout=null;
+    try{
+      const q=db.collection('wspomnienia').where('czestotliwosc','==',kod);
+      const snap=await q.count().get();
+      if(kod!==aktywnaCzestotliwosc)return;
+      ustawLicznikCalkowity(snap.data().count);
+    }catch(e){console.warn('licznik count:',e);}
+  },500);
+}
 
 function mojeKropkiLok(){try{return JSON.parse(localStorage.getItem('mw_moje_kropki')||'[]');}catch(e){return[];}}
 function dodajMojaKropkeLok(id,czest,klucz,lat,lng){try{const l=mojeKropkiLok();l.push({id,czestotliwosc:czest||'',klucz:klucz||null,lat,lng});localStorage.setItem('mw_moje_kropki',JSON.stringify(l));}catch(e){}}
@@ -1440,11 +1459,11 @@ function liczbaMoichNaCzestotliwosci(){return mojeKropkiLok().filter(x=>(x.czest
 function losowyKlucz(){return Math.random().toString(36).slice(2)+Date.now().toString(36);}
 
 function idzDoNajblizszej(){
-  const moje=mojeKropkiLok().filter(x=>(x.czestotliwosc||'')===aktywnaCzestotliwosc && typeof x.lat==='number' && typeof x.lng==='number');
-  if(!moje.length){toast('Nie masz jeszcze żadnej kropki.');return;}
+  const dostepne=wszystkieKropki.filter(x=>typeof x.lat==='number' && typeof x.lng==='number');
+  if(!dostepne.length){toast('Brak kropek na tej częstotliwości.');return;}
   function centrujNaNajblizszej(lat,lng){
     let najblizsza=null,najmniejszy=Infinity;
-    moje.forEach(k=>{
+    dostepne.forEach(k=>{
       const d=metrowDo(lat,lng,k.lat,k.lng);
       if(d<najmniejszy){najmniejszy=d;najblizsza=k;}
     });
@@ -1482,7 +1501,7 @@ async function usunSwojaKropke(id){
   wszystkieKropki=wszystkieKropki.filter(k=>k.id!==id);
   mapa.closePopup();
   zamknijSzczegoly();
-  ustawLicznikCalkowity(liczbaMoichNaCzestotliwosci());
+  odswiezLicznikMiejsc();
   toast('🗑️ Kropka usunięta.');
 }
 
@@ -1492,7 +1511,7 @@ async function zaladujLokalneKropki(){
   try{lista=JSON.parse(localStorage.getItem('mw_lok')||'[]');}catch(e){}
   lista=lista.filter(r=>(r.czestotliwosc||'')===aktywnaCzestotliwosc);
   lista.forEach(dodajKropkeNaMape);
-  ustawLicznikCalkowity(liczbaMoichNaCzestotliwosci());
+  odswiezLicznikMiejsc();
 }
 
 function obszarPokryty(b){
@@ -1520,7 +1539,7 @@ async function zaladujKropkiWObszarze(){
             if(m){grupaMarkerow.removeLayer(m);delete markeryWgKropki[v.id];}
             wszystkieKropki=wszystkieKropki.filter(k=>k.id!==v.id);
             usunMojaKropkeLok(v.id);
-            ustawLicznikCalkowity(liczbaMoichNaCzestotliwosci());
+            odswiezLicznikMiejsc();
           }else if(zm.type==='modified'){
             const istniejacy=wszystkieKropki.find(k=>k.id===v.id);
             if(istniejacy)Object.assign(istniejacy,v);
@@ -1552,7 +1571,7 @@ function aktualizujBadgeCzestotliwosci(){
 function odswiezWidokCzestotliwosci(){
   resetStanKropek();
   zaladujLokalneKropki();
-  ustawLicznikCalkowity(liczbaMoichNaCzestotliwosci());
+  odswiezLicznikMiejsc();
   zaladujKropkiWObszarze();
   aktualizujBadgeCzestotliwosci();
 }
@@ -2024,6 +2043,7 @@ function dodajKropkeNaMape(r){
   grupaMarkerow.addLayer(m);
   markeryWgKropki[r.id]=m;
   wszystkieKropki.push(r);
+  odswiezLicznikMiejsc();
 }
 
 async function lajkuj(id,btn){
@@ -2059,7 +2079,7 @@ async function zglosKropke(id){
       if(m){grupaMarkerow.removeLayer(m);delete markeryWgKropki[id];}
       wszystkieKropki=wszystkieKropki.filter(k=>k.id!==id);
       usunMojaKropkeLok(id);
-      ustawLicznikCalkowity(liczbaMoichNaCzestotliwosci());
+      odswiezLicznikMiejsc();
       mapa.closePopup();
       toast('🗑️ Kropka usunięta po zgłoszeniach.');
     }
