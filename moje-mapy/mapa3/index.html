@@ -467,7 +467,8 @@ body.dzien #nagrywanieBox{background:rgba(0,0,0,.03)}
 <div class="gora">
   <div class="tytul">Mapa <em>Wspomnień</em></div>
   <div class="gora-prawo">
-    <button class="licznik-gora" id="btnMojeKropki" onclick="klikLicznikUlub(event)" data-tooltip="Kliknij: przelot po ulubionych. Przytrzymaj 2 s: dodaj ulubione" title="Kliknij: przelot po ulubionych. Przytrzymaj 2 s: dodaj ulubione"><span class="licznik-kropka"></span><b id="liczKropek">—</b></button>
+    <button class="licznik-gora" id="btnMojeKropki" onclick="idzDoNajblizszej()" data-tooltip="Przelot po ulubionych miejscach" title="Przelot po ulubionych miejscach"><span class="licznik-kropka"></span><b id="liczKropek">—</b></button>
+    <button class="btn-ikon" id="btnDodajUlub" onclick="rozpocznijTrybDodawaniaUlub()" data-tooltip="Dodaj / usuń ulubione miejsce" title="Dodaj / usuń ulubione miejsce">💛</button>
     <div class="radyjko-wrap">
       <button class="btn-ikon btn-ikon-duzy" id="btnCzest" onclick="otworzPanelCz()" data-tooltip="Częstotliwość - prywatny kanał" title="Częstotliwość">📻</button>
       <button class="fab-strzalka fab-strzalka-dol" id="btnPubliczneStrzalka" onclick="otworzPanelM()" data-tooltip="Publiczne częstotliwości" title="Publiczne częstotliwości">⌄</button>
@@ -1355,12 +1356,11 @@ function losowyKlucz(){return Math.random().toString(36).slice(2)+Date.now().toS
 
 let _ulubioneKolejka=[],_ulubioneIdx=0,_ulubioneKontekst=null;
 let trybDodawaniaUlub=false;
-let _lpTimer=null,_lpFired=false;
 let _sprawdzanyCelUlub=0;
 function idzDoNajblizszej(){
   if(trybDodawaniaUlub){zakonczTrybDodawaniaUlub();return;}
   const lista=ulubioneNaCzestotliwosci();
-  if(!lista.length){toast('Brak ulubionych. Przytrzymaj przycisk 2 s, żeby dodać.');return;}
+  if(!lista.length){toast('Brak ulubionych. Kliknij 💛, żeby dodać.');return;}
   const centrum=mapa.getCenter();
   const kontekst=aktywnaCzestotliwosc+':'+lista.length;
   if(_ulubioneKontekst!==kontekst){
@@ -1398,8 +1398,10 @@ function idzDoNajblizszej(){
 const _banerTeksty=['💛 Kliknij kropkę, żeby dodać do ulubionych','🗑️ Kliknij ulubioną, żeby usunąć'];
 let _banerIdx=0,_banerTimer=null;
 function rozpocznijTrybDodawaniaUlub(){
+  if(trybDodawaniaUlub){zakonczTrybDodawaniaUlub();return;}
   trybDodawaniaUlub=true;
   document.getElementById('banerUlub').classList.add('poka');
+  document.getElementById('btnDodajUlub').classList.add('akt');
   _banerIdx=0;
   const el=document.getElementById('banerUlubTresc');
   el.textContent=_banerTeksty[0];
@@ -1418,35 +1420,10 @@ function rozpocznijTrybDodawaniaUlub(){
 function zakonczTrybDodawaniaUlub(){
   trybDodawaniaUlub=false;
   document.getElementById('banerUlub').classList.remove('poka');
+  const b=document.getElementById('btnDodajUlub');
+  if(b)b.classList.remove('akt');
   if(_banerTimer){clearInterval(_banerTimer);_banerTimer=null;}
 }
-function _lpStart(e){
-  _lpFired=false;
-  if(_lpTimer)clearTimeout(_lpTimer);
-  _lpTimer=setTimeout(()=>{
-    _lpFired=true;
-    _lpTimer=null;
-    if(navigator.vibrate)try{navigator.vibrate(40);}catch(e){}
-    rozpocznijTrybDodawaniaUlub();
-  },2000);
-}
-function _lpEnd(){
-  if(_lpTimer){clearTimeout(_lpTimer);_lpTimer=null;}
-}
-function klikLicznikUlub(ev){
-  if(_lpFired){_lpFired=false;ev&&ev.preventDefault&&ev.preventDefault();return;}
-  idzDoNajblizszej();
-}
-window.addEventListener('DOMContentLoaded',()=>{
-  const btn=document.getElementById('btnMojeKropki');
-  if(!btn)return;
-  btn.addEventListener('mousedown',_lpStart);
-  btn.addEventListener('touchstart',_lpStart,{passive:true});
-  btn.addEventListener('mouseup',_lpEnd);
-  btn.addEventListener('mouseleave',_lpEnd);
-  btn.addEventListener('touchend',_lpEnd);
-  btn.addEventListener('touchcancel',_lpEnd);
-});
 
 async function usunSwojaKropke(id){
   if(!czyMoja(id)){toast('Możesz usuwać wyłącznie swoje punkty.');return;}
