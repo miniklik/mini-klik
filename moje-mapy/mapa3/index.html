@@ -39,6 +39,11 @@ body.dzien .leaflet-control-attribution{background:rgba(255,247,230,.85)!importa
 .lista-poz-cz{display:flex;align-items:center;gap:8px;width:100%}
 .btn-kosz-cz{flex:none;width:38px;height:38px;border-radius:50%;background:var(--karta);border:1px solid var(--obw);color:var(--wino);cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;transition:.2s}
 .btn-kosz-cz:hover{background:var(--wino);color:#fff;transform:scale(1.06)}
+.cz-status{margin-top:8px;font-size:13px;text-align:center;min-height:20px;transition:.2s}
+.cz-status.sprawdzam{color:var(--tekst-cichy)}
+.cz-status.ok{color:#5dffa0}
+.cz-status.moja{color:var(--akcent)}
+.cz-status.zajete{color:var(--wino);font-weight:600}
 .licznik-gora{font-family:'Cormorant Garamond',serif;font-size:14px;color:var(--tekst-mil);display:flex;align-items:center;gap:7px;background:var(--karta);border:1px solid var(--obw);border-radius:22px;padding:8px 16px;cursor:pointer;transition:.2s}
 .licznik-gora:hover{border-color:var(--akcent);background:var(--bg2)}
 .licznik-gora:active{transform:scale(.96)}
@@ -635,6 +640,7 @@ body.dzien #nagrywanieBox{background:rgba(0,0,0,.03)}
           <input type="text" id="polCzNick" placeholder="nick" maxlength="5" style="max-width:70px;text-align:center;flex:0 0 auto">
         </div>
         <div class="pomoc-dod">Nick (max 5 znaków) — po nim inni będą mogli Cię znaleźć na liście częstotliwości</div>
+        <div id="polCzStatus" class="cz-status"></div>
       </div>
       <div class="pole">
         <span class="etyk">Widoczność</span>
@@ -1635,15 +1641,57 @@ function zamknijPanelCz(){
     tlo.classList.remove('wyjazd');
     document.getElementById('polCzKod').value='';
     document.getElementById('polCzNick').value='';
+    const st=document.getElementById('polCzStatus');
+    if(st){st.textContent='';st.className='cz-status';}
     _czZamkTimeout=null;
   },320);
 }
 function zamknijTloCz(e){if(e.target===document.getElementById('panelTloCz'))zamknijPanelCz();}
+let _sprawdzKodTimeout=null;
+async function sprawdzKodCzest(){
+  const pole=document.getElementById('polCzKod');
+  const status=document.getElementById('polCzStatus');
+  if(!pole||!status)return;
+  const kod=pole.value.trim();
+  if(!kod){status.textContent='';status.className='cz-status';return;}
+  if(!online){status.textContent='';status.className='cz-status';return;}
+  status.textContent='⏳ Sprawdzam…';
+  status.className='cz-status sprawdzam';
+  try{
+    const doc=await db.collection('czestotliwosci_meta').doc(kod).get();
+    if(pole.value.trim()!==kod)return;
+    if(!doc.exists){
+      status.textContent='✨ Kod dostępny';
+      status.className='cz-status ok';
+    }else{
+      const d=doc.data();
+      if(d.wlasciciel===mojKluczUrzadzenia()){
+        status.textContent='✅ To Twoja istniejąca częstotliwość';
+        status.className='cz-status moja';
+      }else{
+        status.textContent='🔒 Ten kod jest już zajęty przez kogoś innego';
+        status.className='cz-status zajete';
+      }
+    }
+  }catch(e){status.textContent='';status.className='cz-status';}
+}
 async function nastawCzestotliwosc(){
   const kod=document.getElementById('polCzKod').value.trim();
   const nick=document.getElementById('polCzNick').value.trim();
   if(!kod){toast('Wpisz kod.');return;}
   if(maStop(kod)||maStop(nick)){toast('Brzydkie słowo — popraw.');return;}
+  if(online){
+    try{
+      const doc=await db.collection('czestotliwosci_meta').doc(kod).get();
+      if(doc.exists){
+        const d=doc.data();
+        if(d.wlasciciel!==mojKluczUrzadzenia()){
+          toast('🔒 Ten kod jest już zajęty przez kogoś innego. Wybierz inny.');
+          return;
+        }
+      }
+    }catch(e){}
+  }
   aktywnaCzestotliwosc=kod;
   try{localStorage.setItem('mw_czestotliwosc',kod);}catch(e){}
   if(czWidocznosc==='publiczna'&&online){
@@ -2620,6 +2668,13 @@ function otworzPelnyPanel(){
 
 initMapa();
 aktualizujBadgeCzestotliwosci();
+{
+  const polKod=document.getElementById('polCzKod');
+  if(polKod)polKod.addEventListener('input',()=>{
+    if(_sprawdzKodTimeout)clearTimeout(_sprawdzKodTimeout);
+    _sprawdzKodTimeout=setTimeout(sprawdzKodCzest,500);
+  });
+}
 </script>
 </body>
 </html>
