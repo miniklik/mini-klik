@@ -1486,6 +1486,7 @@ function losowyKlucz(){return Math.random().toString(36).slice(2)+Date.now().toS
 let _ulubioneKolejka=[],_ulubioneIdx=0,_ulubioneKontekst=null;
 let trybDodawaniaUlub=false;
 let _lpTimer=null,_lpFired=false;
+let _sprawdzanyCelUlub=0;
 function idzDoNajblizszej(){
   if(trybDodawaniaUlub){zakonczTrybDodawaniaUlub();return;}
   const lista=ulubioneNaCzestotliwosci();
@@ -1502,9 +1503,27 @@ function idzDoNajblizszej(){
     _ulubioneIdx=0;
   }
   const cel=_ulubioneKolejka[_ulubioneIdx];
+  const czestSnapshot=aktywnaCzestotliwosc;
+  const mojRequest=++_sprawdzanyCelUlub;
   if(gpsZywo)zatrzymajGps();
   mapa.flyTo([cel.lat,cel.lng],17,{duration:1.2});
   _ulubioneIdx=(_ulubioneIdx+1)%_ulubioneKolejka.length;
+  mapa.once('moveend',()=>{
+    if(mojRequest!==_sprawdzanyCelUlub)return;
+    if(aktywnaCzestotliwosc!==czestSnapshot)return;
+    setTimeout(()=>{
+      if(mojRequest!==_sprawdzanyCelUlub)return;
+      if(aktywnaCzestotliwosc!==czestSnapshot)return;
+      const istnieje=wszystkieKropki.some(k=>k.id===cel.id);
+      if(!istnieje){
+        usunUlubioneLok(cel.id);
+        odswiezLicznikMiejsc();
+        _ulubioneKontekst=null;
+        toast('🗑️ Autor usunął to miejsce — lecę dalej');
+        setTimeout(idzDoNajblizszej,700);
+      }
+    },1200);
+  });
 }
 const _banerTeksty=['💛 Kliknij kropkę, żeby dodać do ulubionych','🗑️ Kliknij ulubioną, żeby usunąć'];
 let _banerIdx=0,_banerTimer=null;
