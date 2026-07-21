@@ -3,776 +3,407 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Pod Wielkim Dachem Nieba — prototyp</title>
+<title>Gra terenowa · mini-klik.pl</title>
+<meta name="description" content="Gra terenowa — zaplanuj wędrówkę z tajemniczymi miejscami i zagadkami">
+
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Literata:ital,wght@0,400;0,500;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+
 <style>
-  :root{
-    --ink:#1b2340;
-    --ink-deep:#12172c;
-    --lead:#0f0f18;
-    --parchment:#f3ead6;
-    --parchment-dim:#e8dcc1;
-    --gold:#c9a227;
-    --gold-soft:#e4c96a;
-    --ruby:#a33b3b;
-    --sapphire:#2e5090;
-    --emerald:#2f6d5b;
-    --ink-text:#2a2318;
-  }
-  *{box-sizing:border-box}
-  html,body{margin:0;padding:0}
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{min-height:100%;overflow-x:hidden}
   body{
-    background:radial-gradient(ellipse at 50% -10%, #232c52 0%, var(--ink) 45%, var(--ink-deep) 100%);
-    color:var(--parchment);
-    font-family:'Literata',serif;
+    font-family:'Space Grotesk',system-ui,sans-serif;
+    background:radial-gradient(ellipse at 20% 0%,#1a0f2e 0%,#0a0a14 50%,#000 100%);
+    color:#e8e8ea;
+    position:relative;
     min-height:100vh;
-    overflow-x:hidden;
+    padding:48px 32px;
   }
-  h1,h2,h3,.display{font-family:'Fraunces',serif;font-weight:600;letter-spacing:.01em}
-  .meta{font-family:'JetBrains Mono',monospace;letter-spacing:.06em;text-transform:uppercase;font-size:11px;opacity:.7}
-  button{font-family:inherit;cursor:pointer}
-  a{color:inherit}
 
-  /* ===================== TOP BAR ===================== */
-  .topbar{
-    display:flex;align-items:center;justify-content:space-between;
-    padding:22px 28px 10px;max-width:1000px;margin:0 auto;
-    position:relative;z-index:5;
+  body::before{
+    content:'';position:fixed;inset:0;pointer-events:none;
+    background-image:
+      radial-gradient(1px 1px at 23% 14%,#fff,transparent),
+      radial-gradient(1px 1px at 67% 28%,#fff,transparent),
+      radial-gradient(1px 1px at 41% 52%,#fff,transparent),
+      radial-gradient(2px 2px at 89% 71%,#ffd9a3,transparent),
+      radial-gradient(1px 1px at 12% 84%,#fff,transparent),
+      radial-gradient(1px 1px at 76% 91%,#fff,transparent),
+      radial-gradient(1px 1px at 55% 8%,#a3d9ff,transparent),
+      radial-gradient(1px 1px at 33% 39%,#fff,transparent),
+      radial-gradient(2px 2px at 8% 47%,#ff9a3d,transparent),
+      radial-gradient(1px 1px at 92% 35%,#fff,transparent);
+    opacity:0.85;
+    animation:twinkle 4s ease-in-out infinite;
   }
-  .brand{display:flex;flex-direction:column;gap:2px}
-  .brand .display{font-size:22px;color:var(--parchment)}
-  .brand .meta{color:var(--gold-soft)}
-  .crumbs{display:flex;align-items:center;gap:8px}
-  .crumbs button{
-    background:none;border:1px solid rgba(243,234,214,.25);color:var(--parchment);
-    padding:6px 14px;border-radius:2px;font-family:'JetBrains Mono',monospace;font-size:12px;
-    letter-spacing:.05em;transition:border-color .2s, background .2s;
-  }
-  .crumbs button:hover{border-color:var(--gold-soft);background:rgba(201,162,39,.1)}
-  .crumbs button:disabled{opacity:.25;pointer-events:none}
+  @keyframes twinkle{0%,100%{opacity:0.7}50%{opacity:0.4}}
 
-  /* =====================================================
-     KOŁO MAPY — jeden element, dwa tryby:
-       .mode-home   → duże, wyśrodkowane (ekran startowy)
-       .mode-detail → małe, po lewej (pulpit miejscowości)
-     ===================================================== */
-  .medallion{
-    position:relative;flex-shrink:0;margin:0 auto;
-    width:min(560px,86vw);height:min(560px,86vw);
-    transition:width .5s ease, height .5s ease;
+  body::after{
+    content:'';position:fixed;top:-200px;left:50%;transform:translateX(-50%);
+    width:800px;height:600px;
+    background:radial-gradient(ellipse,rgba(255,154,61,0.15) 0%,transparent 60%);
+    pointer-events:none;
   }
-  .stage.mode-detail .medallion{
-    width:300px;height:300px;margin:0;
-  }
-  .med-frame{
-    position:absolute;inset:-12px;border-radius:50%;
-    border:2px solid var(--gold);opacity:.55;pointer-events:none;
-  }
-  .med-frame::before{
-    content:'';position:absolute;inset:11px;border-radius:50%;
-    border:1px solid var(--gold-soft);opacity:.4;
-  }
-  .med-circle{
-    position:absolute;inset:0;border-radius:50%;overflow:hidden;
-    border:5px solid var(--gold);
-    box-shadow:0 0 0 1px var(--lead), 0 18px 50px -10px rgba(0,0,0,.6), inset 0 0 40px rgba(0,0,0,.5);
-  }
-  #leaflet-map{width:100%;height:100%;background:var(--ink-deep)}
-  .leaflet-control-container{display:none}
 
-  /* warstwa zdjęcia nad mapą (tylko w trybie detail) */
-  .med-photo{
-    position:absolute;inset:0;border-radius:50%;overflow:hidden;z-index:500;
-    border:5px solid var(--gold);
-    box-shadow:0 0 0 1px var(--lead), 0 18px 50px -10px rgba(0,0,0,.6), inset 0 0 40px rgba(0,0,0,.5);
-    background:linear-gradient(150deg,var(--sapphire),var(--emerald));
-    display:none;
-  }
-  .med-photo.show{display:block;animation:fadeIn .3s ease}
-  .med-photo .ph-fallback{
-    position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
-    color:var(--parchment);font-family:'JetBrains Mono',monospace;font-size:11px;
-    letter-spacing:.06em;text-transform:uppercase;text-align:center;padding:26px;opacity:.85;white-space:pre-line;
-  }
-  .med-photo::after{
-    content:'';position:absolute;inset:0;
-    background:linear-gradient(115deg, transparent 42%, rgba(201,162,39,.28) 50%, transparent 58%);
-  }
-  .med-toggle{
-    position:absolute;top:8px;right:8px;z-index:520;
-    height:34px;padding:0 12px;border-radius:18px;
-    border:1px solid var(--gold);background:rgba(15,15,24,.82);color:var(--gold-soft);
-    font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.05em;text-transform:uppercase;
-    display:flex;align-items:center;gap:6px;transition:background .2s,color .2s;
-  }
-  .med-toggle:hover{background:var(--gold);color:var(--ink-deep)}
-  .med-toggle.hidden{display:none}
+  .wrapper{position:relative;z-index:2;max-width:1100px;margin:0 auto}
 
-  /* ===================== STAGE (układ nagłówka) ===================== */
-  .stage{
-    max-width:1000px;margin:0 auto;padding:12px 28px 0;
-    display:flex;gap:26px;align-items:flex-start;justify-content:center;
+  header{text-align:center;margin-bottom:30px;padding-top:20px}
+
+  .ikona-strony{
+    font-size:72px;line-height:1;margin-bottom:14px;display:inline-block;
+    filter:drop-shadow(0 4px 16px rgba(255,154,61,0.5));
+    animation:floatIcon 3s ease-in-out infinite;
   }
-  /* w trybie startowym: kolumna, duże koło na środku, napis pod spodem */
-  .stage.mode-home{flex-direction:column;align-items:center}
-  .stage.mode-home .stage-context{text-align:center;max-width:560px;padding-top:14px}
-  /* w trybie detail: koło po lewej, treść po prawej (STARY UKŁAD) */
-  .stage.mode-detail{align-items:flex-start;justify-content:flex-start}
-  .stage.mode-detail .stage-context{text-align:left;padding-top:8px}
-
-  .stage-context{flex:1;min-width:0}
-  .stage-context .eyebrow{color:var(--gold-soft);font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px}
-  .stage-context h2{font-size:30px;margin:0 0 8px;color:var(--parchment);line-height:1.12}
-  .stage-context .sub{color:var(--gold-soft);font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:.05em;margin-bottom:14px}
-  .stage-context .lede{color:var(--parchment-dim);font-size:15px;line-height:1.65;margin:0}
-  .map-hint{margin-top:14px;color:var(--parchment-dim);font-size:12px;font-family:'JetBrains Mono',monospace;letter-spacing:.03em;opacity:.75}
-
-  .pin{width:16px;height:16px;border-radius:50%;background:var(--gold-soft);border:2px solid var(--lead);box-shadow:0 0 0 6px rgba(228,201,106,.25);cursor:pointer}
-  .pin.poem{
-    width:12px;height:12px;background:#9a6dd7;border:2px solid var(--lead);
-    box-shadow:0 0 0 5px rgba(154,109,215,.28);
+  @keyframes floatIcon{
+    0%,100%{transform:translateY(0)}
+    50%{transform:translateY(-6px)}
   }
-  .tt-mapa{
-    background:rgba(15,15,24,.85)!important;border:1px solid var(--gold)!important;color:var(--parchment)!important;
-    font-family:'JetBrains Mono',monospace!important;font-size:10px!important;letter-spacing:.04em!important;
-    text-transform:uppercase!important;border-radius:2px!important;box-shadow:none!important;
+  @keyframes fadeUp{
+    from{opacity:0;transform:translateY(20px)}
+    to{opacity:1;transform:translateY(0)}
   }
-  .tt-mapa::before{display:none!important}
-  .leaflet-popup-content-wrapper{background:var(--parchment);color:var(--ink-text);border-radius:2px;font-family:'Literata',serif}
-  .leaflet-popup-tip{background:var(--parchment)}
-  .leaflet-popup-content b{font-family:'Fraunces',serif;color:var(--ruby);font-size:15px}
-  .leaflet-popup-content a{color:var(--sapphire)}
 
-  /* ===================== PANELE TREŚCI ===================== */
-  .content{max-width:1000px;margin:24px auto 0;padding:0 28px 80px}
-  .divider{height:1px;background:rgba(243,234,214,.16);margin:6px 0 22px}
-
-  .panel{display:none}
-  .panel.active{display:block;animation:fadeIn .4s ease}
-  @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
-
-  .tabs{display:flex;gap:2px;border-bottom:1px solid rgba(243,234,214,.18);margin:0 0 22px}
-  .tab-btn{
-    background:none;border:none;color:var(--parchment-dim);
-    padding:10px 18px;font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:.06em;text-transform:uppercase;
-    border-bottom:2px solid transparent;transition:color .2s, border-color .2s;
+  h1{
+    font-size:56px;font-weight:700;letter-spacing:-1px;line-height:1;
+    background:linear-gradient(180deg,#ff9a3d 0%,#e87a1d 70%,#a04510 100%);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+    text-shadow:0 0 80px rgba(255,154,61,0.4);
   }
-  .tab-btn.active{color:var(--gold-soft);border-bottom-color:var(--gold)}
-  .tab-btn:hover{color:var(--parchment)}
-  .tab-panel{display:none}
-  .tab-panel.active{display:block;animation:fadeIn .35s ease}
 
-  .prose p{line-height:1.75;color:var(--parchment-dim);font-size:15.5px}
+  .line{
+    width:60px;height:2px;background:#ff9a3d;margin:20px auto;
+  }
 
-  .tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:16px}
-  .tile{
-    background:rgba(243,234,214,.04);border:1px solid rgba(243,234,214,.14);
-    border-radius:3px;padding:16px;text-align:left;color:var(--parchment);
-    display:flex;flex-direction:column;gap:10px;transition:border-color .2s, transform .2s, background .2s;
+  .tagline{
+    margin-top:14px;font-size:15px;color:#888;letter-spacing:5px;
+    text-transform:uppercase;
   }
-  .tile:hover{border-color:var(--gold);background:rgba(201,162,39,.07);transform:translateY(-2px)}
-  .tile .thumb{
-    width:100%;height:120px;border-radius:2px;
-    background:linear-gradient(135deg,var(--sapphire),var(--emerald));position:relative;overflow:hidden;
-  }
-  .tile .thumb::after{content:'';position:absolute;inset:0;background:linear-gradient(115deg,transparent 40%,rgba(201,162,39,.3) 50%,transparent 60%)}
-  .tile .name{font-family:'Fraunces',serif;font-size:16px;font-weight:600}
-  .tile .years{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--gold-soft);letter-spacing:.05em}
 
-  .works-list{display:flex;flex-direction:column;border-top:1px solid rgba(243,234,214,.14)}
-  .work-row{
-    display:flex;justify-content:space-between;align-items:center;gap:12px;
-    padding:16px 4px;border-bottom:1px solid rgba(243,234,214,.14);
-    background:none;border-left:none;border-right:none;border-top:none;color:var(--parchment);
-    text-align:left;width:100%;transition:padding-left .2s, background .2s;
+  /* === DUŻY PRZYCISK CTA === */
+  .cta-wrap{text-align:center;margin:40px auto 0}
+  .cta-btn{
+    display:inline-flex;align-items:center;gap:16px;
+    padding:20px 44px;
+    background:linear-gradient(180deg,#ff9a3d 0%,#e87a1d 100%);
+    color:#fff;
+    text-decoration:none;
+    font-family:'JetBrains Mono',monospace;
+    font-size:18px;font-weight:700;letter-spacing:2px;text-transform:uppercase;
+    border-radius:14px;
+    box-shadow:0 8px 32px rgba(255,154,61,0.35),inset 0 1px 0 rgba(255,255,255,0.3);
+    transition:all 0.25s;
+    position:relative;overflow:hidden;
   }
-  .work-row:hover{padding-left:12px;background:rgba(201,162,39,.06)}
-  .work-row .wt{font-family:'Fraunces',serif;font-size:17px}
-  .work-row .wy{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--gold-soft)}
+  .cta-btn::before{
+    content:'';position:absolute;top:0;left:-100%;width:100%;height:100%;
+    background:linear-gradient(90deg,transparent,rgba(255,255,255,0.2),transparent);
+    transition:left 0.6s;
+  }
+  .cta-btn:hover{
+    transform:translateY(-3px);
+    box-shadow:0 12px 40px rgba(255,154,61,0.5),inset 0 1px 0 rgba(255,255,255,0.3);
+  }
+  .cta-btn:hover::before{left:100%}
+  .cta-btn:active{transform:translateY(-1px)}
+  .cta-btn .strzalka{font-size:24px;line-height:1}
 
-  .poem-topbar{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:4px}
-  .poem-body{
-    font-size:19px;line-height:2;white-space:pre-wrap;color:var(--parchment);
-    padding:20px 0 26px;border-top:1px solid rgba(243,234,214,.14);border-bottom:1px solid rgba(243,234,214,.14);margin:14px 0 18px;font-style:italic;
+  .cta-info{
+    margin-top:14px;
+    color:#888;font-size:12px;font-style:italic;
+    letter-spacing:1px;font-family:'JetBrains Mono',monospace;
   }
-  .poem-nav{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
-  .btn:disabled{opacity:.3;pointer-events:none}
-  .btn.playing{background:var(--gold);color:var(--ink-deep)}
-  .btn{
-    border:1px solid var(--gold);color:var(--gold-soft);background:none;
-    padding:11px 20px;border-radius:2px;font-family:'JetBrains Mono',monospace;
-    font-size:12px;letter-spacing:.06em;text-transform:uppercase;transition:background .2s,color .2s;
-  }
-  .btn:hover{background:var(--gold);color:var(--ink-deep)}
-  .btn.ghost{border-color:rgba(243,234,214,.3);color:var(--parchment-dim)}
-  .btn.ghost:hover{background:rgba(243,234,214,.1);color:var(--parchment)}
 
-  .attrib{max-width:1000px;margin:0 auto;padding:10px 28px 30px;color:var(--parchment-dim);font-size:10px;font-family:'JetBrains Mono',monospace;opacity:.45}
-
-  @media(max-width:720px){
-    .stage.mode-detail{flex-direction:column;align-items:center;gap:16px}
-    .stage.mode-detail .medallion{width:260px;height:260px;margin:0 auto}
-    .stage.mode-detail .stage-context{text-align:center}
+  /* === KARTA: szybki opis pod przyciskiem CTA === */
+  .quick-card{
+    max-width:760px;margin:36px auto 0;
+    background:linear-gradient(180deg,rgba(40,40,55,0.5) 0%,rgba(20,20,30,0.7) 100%);
+    border:1px solid rgba(255,154,61,0.25);
+    border-radius:16px;
+    padding:30px 34px;
+    backdrop-filter:blur(10px);
+    animation:fadeUp 1s 0.8s both;
   }
-  @media(max-width:600px){
-    .topbar{padding:16px 18px 8px}
-    .content{padding:0 18px 60px}
-    .poem-body{font-size:17px}
+  .quick-card-tekst{
+    font-size:16px;line-height:1.75;color:#ccc;
+    margin:0;
+  }
+  .quick-card-tekst + .quick-card-tekst{margin-top:14px}
+  .quick-card-tekst b{color:#ff9a3d;font-weight:600}
+  .quick-card-link-row{
+    margin-top:18px;padding-top:16px;
+    border-top:1px dashed rgba(255,154,61,0.25);
+    font-size:14px;line-height:1.55;color:#aaa;
+    text-align:center;
+  }
+  .quick-card-link{
+    display:inline-block;
+    margin-left:8px;
+    padding:6px 16px;
+    background:linear-gradient(180deg,#ff9a3d 0%,#e87a1d 100%);
+    color:#fff;
+    text-decoration:none;
+    font-family:'JetBrains Mono',monospace;
+    font-size:12px;font-weight:700;
+    letter-spacing:1.5px;text-transform:uppercase;
+    border-radius:8px;
+    transition:all 0.25s;
+    box-shadow:0 4px 12px rgba(255,154,61,0.3);
+  }
+  .quick-card-link:hover{
+    transform:translateY(-2px);
+    box-shadow:0 6px 18px rgba(255,154,61,0.5);
+  }
+
+  /* === ILUSTRACJA: Mapa przygody === */
+  .ilustracja-wrap{
+    max-width:900px;margin:48px auto 0;
+    text-align:center;
+    animation:fadeUp 1s 1s both;
+  }
+  .ilustracja-ramka{
+    position:relative;
+    padding:14px;
+    background:linear-gradient(180deg,#f5e8c8 0%,#e8d4a0 100%);
+    border:2px solid #a04510;
+    border-radius:14px;
+    box-shadow:0 12px 40px rgba(0,0,0,0.4),inset 0 0 0 1px rgba(255,255,255,0.3);
+    display:inline-block;
+    max-width:100%;
+  }
+  .ilustracja-ramka::before,
+  .ilustracja-ramka::after{
+    content:'';position:absolute;width:18px;height:18px;
+    border:2px solid #a04510;
+    pointer-events:none;
+  }
+  .ilustracja-ramka::before{top:4px;left:4px;border-right:none;border-bottom:none;border-radius:6px 0 0 0}
+  .ilustracja-ramka::after{bottom:4px;right:4px;border-left:none;border-top:none;border-radius:0 0 6px 0}
+  .ilustracja-img{
+    display:block;
+    max-width:100%;height:auto;
+    border-radius:8px;
+    box-shadow:inset 0 0 0 1px rgba(160,69,16,0.3);
+  }
+  .ilustracja-podpis{
+    margin-top:16px;
+    font-family:Georgia,serif;
+    font-size:14px;font-style:italic;
+    color:#ff9a3d;
+    letter-spacing:1px;
+  }
+  @media (max-width:520px){
+    .ilustracja-wrap{margin-top:32px}
+    .ilustracja-ramka{padding:8px;border-radius:10px}
+    .ilustracja-podpis{font-size:12px}
+  }
+
+  /* === SEKCJE PONIŻEJ === */
+  .sekcja{
+    max-width:900px;margin:48px auto 0;
+    background:linear-gradient(180deg,rgba(40,40,55,0.4) 0%,rgba(20,20,30,0.6) 100%);
+    border:1px solid rgba(255,154,61,0.15);
+    border-radius:16px;
+    padding:32px 36px;
+    backdrop-filter:blur(6px);
+  }
+  .sekcja h2{
+    display:flex;align-items:center;gap:12px;
+    font-size:22px;color:#ff9a3d;
+    margin-bottom:18px;
+    letter-spacing:1.5px;
+    text-transform:uppercase;
+    font-weight:700;
+  }
+  .ikona-h2{
+    display:inline-flex;align-items:center;justify-content:center;
+    width:36px;height:36px;
+    background:rgba(255,154,61,0.15);
+    border:1px solid rgba(255,154,61,0.4);
+    border-radius:10px;
+    font-size:20px;
+  }
+  .sekcja p{
+    font-size:15px;line-height:1.75;color:#bbb;
+  }
+  .sekcja p + p{margin-top:12px}
+  .sekcja b{color:#ff9a3d;font-weight:600}
+
+  /* === LISTA KROKÓW === */
+  .kroki{
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
+    gap:16px;margin-top:22px;
+  }
+  .krok{
+    background:rgba(20,20,30,0.5);
+    border:1px solid rgba(255,154,61,0.2);
+    border-radius:12px;
+    padding:18px 16px;
+    text-align:center;
+    transition:all 0.25s;
+  }
+  .krok:hover{
+    border-color:rgba(255,154,61,0.5);
+    transform:translateY(-3px);
+    box-shadow:0 8px 24px rgba(255,154,61,0.15);
+  }
+  .krok-numer{
+    display:inline-block;
+    width:32px;height:32px;line-height:32px;
+    background:linear-gradient(180deg,#ff9a3d,#e87a1d);
+    color:#fff;
+    border-radius:50%;
+    font-family:'JetBrains Mono',monospace;
+    font-weight:700;
+    margin-bottom:10px;
+  }
+  .krok-tytul{
+    font-size:14px;color:#ff9a3d;font-weight:600;
+    margin-bottom:6px;
+    letter-spacing:0.5px;
+  }
+  .krok-opis{
+    font-size:12.5px;line-height:1.55;color:#999;
+    font-family:'JetBrains Mono',monospace;
+  }
+
+  /* === STOPKA === */
+  .bottomnav{margin-top:60px;text-align:center}
+  .back{
+    display:inline-block;
+    padding:11px 26px;
+    color:#888;
+    font-family:'JetBrains Mono',monospace;
+    font-size:13px;letter-spacing:1.5px;
+    text-decoration:none;
+    border:1px solid rgba(255,255,255,0.15);
+    border-radius:10px;
+    transition:all 0.25s;
+  }
+  .back:hover{
+    color:#ff9a3d;
+    border-color:rgba(255,154,61,0.5);
+    background:rgba(255,154,61,0.06);
+  }
+
+  footer{
+    text-align:center;margin-top:30px;padding-bottom:20px;
+    color:#555;font-size:12px;
+    font-family:'JetBrains Mono',monospace;letter-spacing:2px;
+  }
+
+  @media (max-width:768px){
+    h1{font-size:42px}
+    .ikona-strony{font-size:60px}
+    .tagline{font-size:12px;letter-spacing:3px}
+    .cta-btn{font-size:15px;padding:16px 32px}
+    .quick-card{padding:22px 22px}
+    .quick-card-tekst{font-size:15px}
+    .sekcja{padding:24px 22px}
+    .sekcja h2{font-size:18px}
+    .kroki{grid-template-columns:repeat(2,1fr)}
+  }
+  @media (max-width:480px){
+    body{padding:32px 16px}
+    .kroki{grid-template-columns:1fr}
+    .quick-card-link{display:block;margin:10px auto 0;width:fit-content}
   }
 </style>
 </head>
 <body>
 
-<div class="topbar">
-  <div class="brand">
-    <div class="display">Pod Wielkim Dachem Nieba</div>
-    <div class="meta">mapa poezji regionalnej · okolice Siedliszcza</div>
+<div class="wrapper">
+
+  <header>
+    <span class="ikona-strony">🎮</span>
+    <h1>Gra terenowa</h1>
+    <div class="line"></div>
+    <p class="tagline">zaplanuj · zagaduj · odkrywaj</p>
+  </header>
+
+  <!-- DUŻY PRZYCISK CTA -->
+  <div class="cta-wrap">
+    <a href="./gra/?admin=1" class="cta-btn">
+      <span>Otwórz grę</span>
+      <span class="strzalka">→</span>
+    </a>
+    <p class="cta-info">// edytor gry z trybem admin</p>
   </div>
-  <div class="crumbs">
-    <button id="btn-back" onclick="goBack()">← wstecz</button>
-    <button onclick="goHome()">🗺 cała mapa</button>
+
+  <!-- KARTA: szybki opis -->
+  <div class="quick-card">
+    <p class="quick-card-tekst">
+      Zaplanuj <b>start gry</b>, ustaw <b>tajemnicze miejsca</b>, dorzuć <b>podpowiedzi</b> i <b>zagadki</b>. Każde odkryte miejsce zapamiętuje się w przeglądarce jako odkryta tajemnica — tylko po to, aby gracz mógł szukać kolejnych, aż dotrze do <b>mety</b>.
+    </p>
+    <p class="quick-card-tekst">
+      Nie ograniczaj się do krótkich dystansów — zbuduj swoją tajemniczą wędrówkę w swojej miejscowości, w sąsiednim parku, w wakacyjnej miejscowości, albo… na drugim końcu świata. <b>Wyobraźnia decyduje, gdzie poprowadzisz graczy.</b>
+    </p>
+    <p class="quick-card-link-row">
+      Nie masz gdzie szybko udostępnić swojej gry? Zajrzyj do naszego poradnika jak zrobić to za darmo →
+      <a href="../../instrukcje/" class="quick-card-link">Publikuj</a>
+    </p>
   </div>
+
+  <!-- ILUSTRACJA: Mapa przygody -->
+  <div class="ilustracja-wrap">
+    <div class="ilustracja-ramka">
+      <img src="./mapa-gry.jpg" alt="Mapa gry terenowej - Tropem zaginionych legend" class="ilustracja-img">
+    </div>
+    <p class="ilustracja-podpis">~ tak może wyglądać Twoja przygoda ~</p>
+  </div>
+
+  <!-- SEKCJA: Jak to działa -->
+  <section class="sekcja">
+    <h2><span class="ikona-h2">🎯</span> Jak to działa</h2>
+    <p>Gra terenowa to <b>zabawa w odkrywanie</b>. Ty jako autor planujesz trasę — ustawiasz punkty startu, ukryte miejsca po drodze i metę. Każdy punkt to mała tajemnica: krótki opis, podpowiedź, zagadka do rozwiązania albo zdjęcie miejsca, którego trzeba szukać. Gracz przemierza teren krok po kroku, odkrywając kolejne punkty.</p>
+
+    <div class="kroki">
+      <div class="krok">
+        <div class="krok-numer">1</div>
+        <div class="krok-tytul">Zaplanuj trasę</div>
+        <div class="krok-opis">wybierz miejscowość, ustaw start i metę</div>
+      </div>
+      <div class="krok">
+        <div class="krok-numer">2</div>
+        <div class="krok-tytul">Ukryj miejsca</div>
+        <div class="krok-opis">postaw tajemnicze punkty po drodze</div>
+      </div>
+      <div class="krok">
+        <div class="krok-numer">3</div>
+        <div class="krok-tytul">Dodaj zagadki</div>
+        <div class="krok-opis">podpowiedzi, zdjęcia, pytania do rozwiązania</div>
+      </div>
+      <div class="krok">
+        <div class="krok-numer">4</div>
+        <div class="krok-tytul">Udostępnij</div>
+        <div class="krok-opis">wyślij grę znajomym i obserwuj jak grają</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SEKCJA: Pomysły -->
+  <section class="sekcja">
+    <h2><span class="ikona-h2">💡</span> Pomysły na grę</h2>
+    <p>🏘️ <b>Twoja miejscowość</b> — pokaż znajomym ukryte zakątki tam, gdzie mieszkasz. Tajemnice za rogiem, których nikt nie zna.</p>
+    <p>🥾 <b>Wakacyjna trasa</b> — przygotuj grę dla bliskich w miejscu, do którego jedziecie razem. Niech odkryją je w niezwykły sposób.</p>
+    <p>🎓 <b>Gra edukacyjna</b> — szkolny wyjazd, lekcja w terenie, harcerski podchód. Niech zwiedzanie zamieni się w przygodę.</p>
+    <p>🎂 <b>Urodzinowy quest</b> — zaplanuj grę dla dziecka na urodziny. Każde miejsce — krok bliżej do tortu.</p>
+    <p>🌍 <b>Gra dla podróżników</b> — wyobraź sobie grę poprowadzoną w Lizbonie, Tokio czy na Sycylii. Ograniczeń nie ma żadnych.</p>
+  </section>
+
+  <!-- POWRÓT -->
+  <div class="bottomnav">
+    <a href="../" class="back">← powrót</a>
+  </div>
+
+  <footer>// gra terenowa · mini-klik.pl · 2026</footer>
+
 </div>
 
-<!-- ====== NAGŁÓWEK: koło mapy (duże na start / małe w miejscowości) ====== -->
-<div class="stage mode-home" id="stage">
-  <div class="medallion">
-    <div class="med-circle"><div id="leaflet-map"></div></div>
-    <div class="med-photo" id="med-photo">
-      <div class="ph-fallback" id="ph-fallback">tu pojawi się zdjęcie miejscowości</div>
-    </div>
-    <button class="med-toggle hidden" id="med-toggle" onclick="toggleFoto()">📷 zdjęcie</button>
-    <div class="med-frame"></div>
-  </div>
-  <div class="stage-context">
-    <div class="eyebrow" id="ctx-eyebrow"></div>
-    <h2 id="ctx-title">Miejsca, z których wyrosły wiersze</h2>
-    <div class="sub" id="ctx-sub"></div>
-    <p class="lede" id="ctx-lede">Kliknij złoty punkt na mapie, aby wejść do miejscowości i poznać jej poetów.</p>
-    <div class="map-hint" id="ctx-hint"></div>
-  </div>
-</div>
-
-<!-- ====== TREŚĆ ====== -->
-<div class="content">
-  <div class="divider"></div>
-
-  <div class="panel active" id="panel-home">
-  </div>
-
-  <div class="panel" id="panel-village">
-    <div class="tabs">
-      <button class="tab-btn active" data-tab="v-tab-info" onclick="switchTab(this)">Miejscowość</button>
-      <button class="tab-btn" data-tab="v-tab-artists" onclick="switchTab(this)">Artyści</button>
-    </div>
-    <div class="tab-panel active" id="v-tab-info">
-      <div class="prose"><p id="v-desc"></p></div>
-    </div>
-    <div class="tab-panel" id="v-tab-artists">
-      <div class="tiles" id="v-tiles"></div>
-    </div>
-  </div>
-
-  <div class="panel" id="panel-author">
-    <div class="tabs">
-      <button class="tab-btn active" data-tab="a-tab-bio" onclick="switchTab(this)">Biografia</button>
-      <button class="tab-btn" data-tab="a-tab-works" onclick="switchTab(this)">Dzieła</button>
-    </div>
-    <div class="tab-panel active" id="a-tab-bio">
-      <div class="prose"><p id="a-bio"></p><p id="a-link"></p></div>
-    </div>
-    <div class="tab-panel" id="a-tab-works">
-      <div class="works-list" id="a-works"></div>
-    </div>
-  </div>
-
-  <div class="panel" id="panel-poem">
-    <div class="poem-topbar">
-      <button class="btn" id="btn-czytaj" onclick="czytajWiersz()">📖 Czytaj</button>
-      <button class="btn ghost" id="btn-audio" onclick="odtworzAudioAutora()">🎧 Audio autora</button>
-    </div>
-    <div class="poem-body" id="p-body"></div>
-    <div class="poem-nav">
-      <button class="btn ghost" id="btn-prev" onclick="poprzedniWiersz()">← Poprzedni</button>
-      <button class="btn ghost" id="btn-next" onclick="nastepnyWiersz()">Kolejny →</button>
-    </div>
-  </div>
-</div>
-
-<div class="attrib">Mapa © współtwórcy OpenStreetMap</div>
-
-<script>
-/* ============ PRZYKŁADOWE DANE — zgodne z proponowaną strukturą JSON ============ */
-/* ============ DANE — wczytywane z plików JSON ============
-   Struktura na dysku: każda miejscowość ma osobny plik /dane/<slug>/dane.json
-   (zagnieżdżony: miejscowość → artyści → wiersze).
-   Po wczytaniu składamy z nich płaską strukturę, której używa reszta kodu:
-   dane.miejscowosci[], dane.artysci{slug}, dane.wiersze{slug}. */
-let dane = { miejscowosci: [], artysci: {}, wiersze: {} };
-
-async function wczytajDane(){
-  // 1. spis miejscowości
-  const spis = await fetch('miejscowosci.json').then(r=>r.json());
-  // 2. dla każdej miejscowości pobierz jej samodzielny plik i rozłóż na płaską strukturę
-  for(const slug of spis){
-    try{
-      const m = await fetch(`dane/${slug}/dane.json`).then(r=>r.json());
-      // miejscowość (z listą slugów artystów zamiast pełnych obiektów)
-      dane.miejscowosci.push({
-        slug: m.slug,
-        nazwa: m.nazwa,
-        podtytul: m.podtytul,
-        opis: m.opis,
-        lat: m.lat, lng: m.lng,
-        zdjecie: m.zdjecie ? `dane/${slug}/${m.zdjecie}` : null,
-        artysci: (m.artysci||[]).map(a=>a.slug)
-      });
-      // artyści + wiersze do słowników globalnych
-      (m.artysci||[]).forEach(a=>{
-        dane.artysci[a.slug] = {
-          imie_nazwisko: a.imie_nazwisko,
-          lata: a.lata,
-          zdjecie: a.zdjecie ? `dane/${slug}/${a.zdjecie}` : null,
-          bio: a.bio,
-          miejscowosc: m.slug,
-          dziela: (a.dziela||[]).map(w=>w.slug)
-        };
-        (a.dziela||[]).forEach(w=>{
-          dane.wiersze[w.slug] = {
-            tytul: w.tytul,
-            tresc: w.tresc,
-            data_powstania: w.data_powstania,
-            zrodlo: w.zrodlo,
-            audio: w.audio ? `dane/${slug}/${w.audio}` : null,
-            miejsca: w.miejsca || []
-          };
-        });
-      });
-    }catch(e){
-      console.error(`Nie udało się wczytać danych miejscowości: ${slug}`, e);
-    }
-  }
-}
-
-/* ============ MAPA (jeden egzemplarz, tworzony raz) ============ */
-let mapa = null;
-let warstwaMiejscowosci = null;   // żółte kropki — zawsze widoczne
-let warstwaWierszy = null;         // fioletowe kropki — tylko dla wybranego autora
-const stage = document.getElementById('stage');
-
-function ikonaMiejscowosci(){
-  return L.divIcon({
-    className: '',
-    html: `<div class="pin"></div>`,
-    iconSize: [16,16], iconAnchor: [8,8]
-  });
-}
-function ikonaWiersza(){
-  return L.divIcon({
-    className: '',
-    html: `<div class="pin poem"></div>`,
-    iconSize: [12,12], iconAnchor: [6,6]
-  });
-}
-
-function initMapa(){
-  mapa = L.map('leaflet-map', { zoomControl:false, attributionControl:false, scrollWheelZoom:true })
-          .setView([51.20, 23.215], 12);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18 }).addTo(mapa);
-  warstwaMiejscowosci = L.layerGroup().addTo(mapa);
-  warstwaWierszy = L.layerGroup().addTo(mapa);
-  rysujMiejscowosci();
-}
-
-function rysujMiejscowosci(){
-  warstwaMiejscowosci.clearLayers();
-  dane.miejscowosci.forEach(m=>{
-    const marker = L.marker([m.lat, m.lng], { icon: ikonaMiejscowosci() }).addTo(warstwaMiejscowosci);
-    marker.bindTooltip(m.nazwa, { direction:'top', offset:[0,-10], className:'tt-mapa' });
-    marker.on('click', ()=> wejdzWMiejscowosc(m.slug));
-  });
-}
-
-/* pozycja kropki wiersza = pierwsze miejsce z jego listy */
-function pozycjaWiersza(w){
-  const p = w.miejsca && w.miejsca[0];
-  return p ? [p.lat, p.lng] : null;
-}
-
-/* pokaż fioletowe kropki wszystkich wierszy danego autora */
-function rysujWierszeAutora(a){
-  warstwaWierszy.clearLayers();
-  a.dziela.forEach(slug=>{
-    const w = dane.wiersze[slug];
-    const poz = pozycjaWiersza(w);
-    if(!poz) return;
-    const marker = L.marker(poz, { icon: ikonaWiersza() }).addTo(warstwaWierszy);
-    marker.bindTooltip(w.tytul, { direction:'top', offset:[0,-8], className:'tt-mapa' });
-    marker.on('click', ()=> wejdzWWiersz(slug));
-  });
-}
-
-function ukryjWiersze(){
-  if(warstwaWierszy) warstwaWierszy.clearLayers();
-}
-
-/* spokojne wycentrowanie nad kropką wiersza — bez zmiany przybliżenia */
-function centrujNadWierszem(w){
-  const poz = pozycjaWiersza(w);
-  if(poz) mapa.panTo(poz, { animate:true, duration:1.1 });
-}
-
-/* przełączanie trybu koła: 'home' (duże) / 'detail' (małe)
-   opcjonalnie: przelotDo = {lat, lng, zoom} — płynny przelot PO zmianie rozmiaru */
-function ustawTrybKola(tryb, przelotDo){
-  const bylDetail = stage.classList.contains('mode-detail');
-  if(tryb === 'home'){ stage.classList.add('mode-home'); stage.classList.remove('mode-detail'); }
-  else { stage.classList.add('mode-detail'); stage.classList.remove('mode-home'); }
-
-  const rozmiarSieZmienia = (tryb === 'detail' && !bylDetail) || (tryb === 'home' && bylDetail);
-
-  const wykonajPrzelot = ()=>{
-    mapa.invalidateSize({ animate:false });   // przelicz rozmiar mapy w nowym kole
-    if(przelotDo){
-      // jeden wolny, płynny przelot — bez skakania
-      mapa.flyTo([przelotDo.lat, przelotDo.lng], przelotDo.zoom || 14, {
-        duration: 2.2,
-        easeLinearity: 0.25
-      });
-    }
-  };
-
-  if(rozmiarSieZmienia){
-    // poczekaj aż koło skończy zmieniać rozmiar (nasłuch końca animacji CSS)
-    const kolo = document.querySelector('.medallion');
-    let odpalono = false;
-    const handler = ()=>{
-      if(odpalono) return; odpalono = true;
-      kolo.removeEventListener('transitionend', handler);
-      wykonajPrzelot();
-    };
-    kolo.addEventListener('transitionend', handler);
-    // zabezpieczenie, gdyby transitionend nie zaskoczył
-    setTimeout(handler, 650);
-  } else {
-    // rozmiar się nie zmienia (np. skok między miejscowościami) — nic nie ruszamy
-    if(przelotDo) wykonajPrzelot();
-  }
-}
-
-
-/* ============ PRZEŁĄCZNIK MAPA / ZDJĘCIE ============ */
-let zdjeciePokazane = false;
-
-function ustawZdjecie(obiekt, etykietaFallback){
-  const photo = document.getElementById('med-photo');
-  const fallback = document.getElementById('ph-fallback');
-  const toggle = document.getElementById('med-toggle');
-  zdjeciePokazane = false;
-  photo.classList.remove('show');
-  if(obiekt && obiekt.zdjecie){
-    photo.style.backgroundImage = `url('${obiekt.zdjecie}')`;
-    photo.style.backgroundSize = 'cover';
-    photo.style.backgroundPosition = 'center';
-    fallback.style.display = 'none';
-  } else {
-    photo.style.backgroundImage = '';
-    fallback.style.display = 'flex';
-    fallback.textContent = obiekt ? `${etykietaFallback || 'zdjęcie'}\n(dodasz je w pliku danych)` : 'brak zdjęcia';
-  }
-  toggle.classList.toggle('hidden', !obiekt);  // przycisk tylko gdy jest co pokazać
-  toggle.textContent = '📷 zdjęcie';
-}
-
-function toggleFoto(){
-  const photo = document.getElementById('med-photo');
-  const toggle = document.getElementById('med-toggle');
-  zdjeciePokazane = !zdjeciePokazane;
-  photo.classList.toggle('show', zdjeciePokazane);
-  toggle.textContent = zdjeciePokazane ? '🗺 mapa' : '📷 zdjęcie';
-  if(!zdjeciePokazane) setTimeout(()=> mapa.invalidateSize(), 50);
-}
-
-/* ============ NAWIGACJA (panele) ============ */
-let historia = [];
-let stan = { panel: 'home' };
-
-function pokazPanel(id){
-  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
-  document.getElementById('panel-'+id).classList.add('active');
-}
-function ustawKontekst({eyebrow, title, sub, lede, hint}){
-  document.getElementById('ctx-eyebrow').textContent = eyebrow || '';
-  document.getElementById('ctx-title').textContent = title || '';
-  document.getElementById('ctx-sub').textContent = sub || '';
-  document.getElementById('ctx-lede').textContent = lede || '';
-  document.getElementById('ctx-hint').textContent = hint || '';
-}
-function przejdz(nowyStan){
-  historia.push(stan);
-  stan = nowyStan;
-  render();
-  document.getElementById('btn-back').disabled = (historia.length === 0);
-  window.scrollTo({top:0, behavior:'smooth'});
-}
-function goBack(){
-  if(historia.length === 0){ goHome(); return; }
-  stan = historia.pop();
-  render();
-  document.getElementById('btn-back').disabled = (historia.length === 0);
-  window.scrollTo({top:0, behavior:'smooth'});
-}
-function goHome(){
-  historia = [];
-  stan = { panel:'home' };
-  render();
-  document.getElementById('btn-back').disabled = true;
-  window.scrollTo({top:0, behavior:'smooth'});
-}
-
-let poprzedniPanel = null;
-
-function render(){
-  // wychodząc z wiersza gdziekolwiek indziej — ucisz dźwięk
-  if(poprzedniPanel === 'poem' && stan.panel !== 'poem') zatrzymajDzwiek();
-  if(stan.panel === 'home'){
-    pokazPanel('home');
-    ustawZdjecie(null);
-    rysujMiejscowosci();
-    ukryjWiersze();
-    ustawTrybKola('home', { lat:51.20, lng:23.215, zoom:12 });   // DUŻE koło + płynny odlot
-    ustawKontekst({
-      title:'Miejsca, z których wyrosły wiersze',
-      lede:'Kliknij złoty punkt na mapie, aby wejść do miejscowości i poznać jej poetów.'
-    });
-  }
-  if(stan.panel === 'village'){
-    const m = dane.miejscowosci.find(x=>x.slug===stan.slug);
-    const zDuzejMapy = (poprzedniPanel === 'home');
-    pokazPanel('village');
-    rysujMiejscowosci();
-    ukryjWiersze();
-    // przy wejściu z dużej mapy: płynny przelot PO zmniejszeniu koła;
-    // przy skakaniu między miejscowościami: bez ruchu mapy
-    ustawTrybKola('detail', zDuzejMapy ? { lat:m.lat, lng:m.lng, zoom:14 } : null);
-    renderVillage(m);
-    ustawZdjecie(m, `zdjęcie: ${m.nazwa}`);
-    ustawKontekst({
-      eyebrow:'miejscowość',
-      title:m.nazwa, sub:m.podtytul
-    });
-    resetTabs('panel-village');
-  }
-  if(stan.panel === 'author'){
-    const a = dane.artysci[stan.slug];
-    const m = dane.miejscowosci.find(x=>x.slug===a.miejscowosc);
-    pokazPanel('author');
-    ustawTrybKola('detail');
-    rysujMiejscowosci();
-    rysujWierszeAutora(a);         // FIOLETOWE kropki wierszy na tej samej mapie
-    renderAuthor(stan.slug, a);
-    ustawZdjecie(a, `zdjęcie: ${a.imie_nazwisko}`);   // koło przełącza mapę ↔ portret artysty
-    ustawKontekst({
-      eyebrow:'autor',
-      title:a.imie_nazwisko, sub:a.lata
-    });
-    resetTabs('panel-author');
-  }
-  if(stan.panel === 'poem'){
-    const w = dane.wiersze[stan.slug];
-    zatrzymajDzwiek();   // ucisz lektora/audio przy wejściu w nowy wiersz
-    // znajdź autora tego wiersza, żeby utrzymać jego fioletowe kropki na mapie
-    const autorSlug = Object.keys(dane.artysci).find(s => dane.artysci[s].dziela.includes(stan.slug));
-    const a = autorSlug ? dane.artysci[autorSlug] : null;
-    pokazPanel('poem');
-    ustawTrybKola('detail');
-    rysujMiejscowosci();
-    if(a) rysujWierszeAutora(a);   // kropki wierszy autora nadal widoczne
-    document.getElementById('p-body').textContent = w.tresc;
-    ustawZdjecie(null);
-    centrujNadWierszem(w);         // spokojne wycentrowanie, bez zmiany przybliżenia
-    ustawPrzyciskiWiersza();
-    ustawKontekst({
-      eyebrow:'utwór',
-      title:w.tytul, sub:`${w.data_powstania} · ${w.zrodlo}`
-    });
-  }
-  poprzedniPanel = stan.panel;
-}
-function wejdzWMiejscowosc(slug){ przejdz({ panel:'village', slug }); }
-function wejdzWAutora(slug){ przejdz({ panel:'author', slug }); }
-function wejdzWWiersz(slug){ przejdz({ panel:'poem', slug }); }
-/* ============ WIERSZ: lektor, audio autora, nawigacja ============ */
-let lektor = null;              // aktualne SpeechSynthesisUtterance
-let audioEl = null;            // aktualny odtwarzacz MP3
-let _glosPolski = null;
-let _glosyZaladowane = false;
-
-// „obudzenie" silnika mowy — Chrome blokuje syntezę do pierwszej interakcji użytkownika
-function odblokujMowe(){
-  try{ const u = new SpeechSynthesisUtterance(' '); u.volume = 0; speechSynthesis.speak(u); }catch(e){}
-}
-function _wybierzGlosPolski(){
-  try{
-    const glosy = speechSynthesis.getVoices();
-    if(!glosy || !glosy.length) return;
-    _glosyZaladowane = true;
-    // priorytet: polski głos Google (najlepiej brzmi), potem dowolny polski
-    _glosPolski = glosy.find(g => g.lang === 'pl-PL' && /google/i.test(g.name))
-        || glosy.find(g => /^pl/i.test(g.lang) && /google/i.test(g.name))
-        || glosy.find(g => g.lang === 'pl-PL')
-        || glosy.find(g => /^pl/i.test(g.lang))
-        || null;
-  }catch(e){}
-}
-if('speechSynthesis' in window){
-  _wybierzGlosPolski();
-  speechSynthesis.onvoiceschanged = _wybierzGlosPolski;
-}
-// odblokuj mowę przy pierwszym kliknięciu gdziekolwiek na stronie
-let _mowaOdblokowana = false;
-document.addEventListener('click', ()=>{
-  if(_mowaOdblokowana) return;
-  _mowaOdblokowana = true;
-  odblokujMowe();
-}, { once:false });
-
-function zatrzymajDzwiek(){
-  if(window.speechSynthesis) { try{ speechSynthesis.cancel(); }catch(e){} }
-  lektor = null;
-  if(audioEl){ audioEl.pause(); audioEl.currentTime = 0; audioEl = null; }
-  const bc = document.getElementById('btn-czytaj');
-  const ba = document.getElementById('btn-audio');
-  if(bc){ bc.classList.remove('playing'); bc.textContent = '📖 Czytaj'; }
-  if(ba){ ba.classList.remove('playing'); ba.textContent = '🎧 Audio autora'; }
-}
-
-function czytajWiersz(){
-  const bc = document.getElementById('btn-czytaj');
-  if(!('speechSynthesis' in window)){ alert('Ta przeglądarka nie obsługuje czytania na głos.'); return; }
-  // jeśli już czyta — zatrzymaj (przycisk działa jak play/stop)
-  if(speechSynthesis.speaking){
-    zatrzymajDzwiek();
-    return;
-  }
-  try{ speechSynthesis.cancel(); }catch(e){}
-  const w = dane.wiersze[stan.slug];
-  if(!_glosyZaladowane) _wybierzGlosPolski();
-  lektor = new SpeechSynthesisUtterance(w.tresc);
-  lektor.lang = 'pl-PL';
-  if(_glosPolski) lektor.voice = _glosPolski;
-  lektor.rate = 0.9;   // trochę wolniej, do poezji
-  lektor.onend = ()=> zatrzymajDzwiek();
-  lektor.onerror = ()=> zatrzymajDzwiek();
-  bc.classList.add('playing');
-  bc.textContent = '⏹ Zatrzymaj';
-  speechSynthesis.speak(lektor);
-}
-
-function odtworzAudioAutora(){
-  const ba = document.getElementById('btn-audio');
-  const w = dane.wiersze[stan.slug];
-  if(!w.audio){ return; }   // brak nagrania — przycisk i tak jest wyłączony
-  if(audioEl && !audioEl.paused){
-    zatrzymajDzwiek();
-    return;
-  }
-  zatrzymajDzwiek();
-  audioEl = new Audio(w.audio);
-  audioEl.onended = ()=> zatrzymajDzwiek();
-  audioEl.onerror = ()=> { zatrzymajDzwiek(); alert('Nie udało się odtworzyć nagrania.'); };
-  ba.classList.add('playing');
-  ba.textContent = '⏹ Zatrzymaj';
-  audioEl.play();
-}
-
-/* nawigacja w obrębie wierszy tego samego autora */
-function autorWierszaISlug(){
-  const autorSlug = Object.keys(dane.artysci).find(s => dane.artysci[s].dziela.includes(stan.slug));
-  return autorSlug ? dane.artysci[autorSlug] : null;
-}
-function poprzedniWiersz(){
-  const a = autorWierszaISlug(); if(!a) return;
-  const i = a.dziela.indexOf(stan.slug);
-  if(i > 0) wejdzWWiersz(a.dziela[i-1]);
-}
-function nastepnyWiersz(){
-  const a = autorWierszaISlug(); if(!a) return;
-  const i = a.dziela.indexOf(stan.slug);
-  if(i < a.dziela.length-1) wejdzWWiersz(a.dziela[i+1]);
-}
-function ustawPrzyciskiWiersza(){
-  const w = dane.wiersze[stan.slug];
-  const a = autorWierszaISlug();
-  // audio autora — aktywne tylko gdy jest nagranie
-  const ba = document.getElementById('btn-audio');
-  ba.disabled = !w.audio;
-  // poprzedni/następny — wyłączone na krańcach listy
-  const i = a ? a.dziela.indexOf(stan.slug) : 0;
-  document.getElementById('btn-prev').disabled = !(a && i > 0);
-  document.getElementById('btn-next').disabled = !(a && i < a.dziela.length-1);
-}
-
-/* ============ RENDER TREŚCI ============ */
-function renderVillage(m){
-  document.getElementById('v-desc').textContent = m.opis;
-  const tiles = document.getElementById('v-tiles');
-  tiles.innerHTML = '';
-  m.artysci.forEach(slug=>{
-    const a = dane.artysci[slug];
-    const btn = document.createElement('button');
-    btn.className = 'tile';
-    btn.onclick = ()=> wejdzWAutora(slug);
-    btn.innerHTML = `<div class="thumb"></div>
-      <div class="name">${a.imie_nazwisko}</div>
-      <div class="years">${a.lata}</div>`;
-    tiles.appendChild(btn);
-  });
-}
-
-function renderAuthor(slug, a){
-  document.getElementById('a-bio').textContent = a.bio;
-  const m = dane.miejscowosci.find(x=>x.slug===a.miejscowosc);
-  document.getElementById('a-link').innerHTML =
-    `<span class="meta">Związek z miejscowością:</span> ${m ? m.nazwa : '—'}`;
-  const list = document.getElementById('a-works');
-  list.innerHTML = '';
-  a.dziela.forEach(ws=>{
-    const w = dane.wiersze[ws];
-    const row = document.createElement('button');
-    row.className = 'work-row';
-    row.onclick = ()=> wejdzWWiersz(ws);
-    row.innerHTML = `<span class="wt">${w.tytul}</span><span class="wy">${w.data_powstania}</span>`;
-    list.appendChild(row);
-  });
-}
-
-/* ============ ZAKŁADKI ============ */
-function switchTab(btn){
-  const group = btn.parentElement;
-  group.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
-  btn.classList.add('active');
-  const panel = group.parentElement;
-  panel.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
-  document.getElementById(btn.dataset.tab).classList.add('active');
-}
-function resetTabs(panelId){
-  const panel = document.getElementById(panelId);
-  panel.querySelectorAll('.tab-btn').forEach((b,i)=>b.classList.toggle('active', i===0));
-  panel.querySelectorAll('.tab-panel').forEach((p,i)=>p.classList.toggle('active', i===0));
-}
-
-/* ============ START ============ */
-async function startApp(){
-  await wczytajDane();
-  initMapa();
-  render();
-  document.getElementById('btn-back').disabled = true;
-}
-startApp();
-</script>
 </body>
 </html>
