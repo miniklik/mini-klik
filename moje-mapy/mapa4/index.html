@@ -360,7 +360,44 @@
   .wybor-poz .wa{font-family:'JetBrains Mono',monospace;font-size:10px;color:#d89a5c;letter-spacing:.04em}
   .wybor-poz .wd{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--gold-soft)}
 
-  /* wygięty przycisk spaceru — leży na łuku koła, godz. 13–14 */
+  /* kolisty licznik zasięgu — pierścień wokół koła mapy (jak w liczniku auta) */
+  .licznik{
+    position:absolute;inset:-5%;z-index:525;
+    overflow:visible;pointer-events:none;
+    opacity:0;transition:opacity .4s;
+    transform:rotate(-90deg);          /* start od godziny 12 */
+  }
+  .licznik.on{opacity:1}
+  .licznik-tor{
+    fill:none;stroke:rgba(243,234,214,.12);stroke-width:5;
+  }
+  .licznik-wskaz{
+    fill:none;stroke:#d89a5c;stroke-width:5;stroke-linecap:round;
+    stroke-dasharray:597;               /* obwód = 2πr, r=95 */
+    stroke-dashoffset:597;              /* pełny offset = pusty pierścień */
+    transition:stroke-dashoffset .5s ease, stroke .4s;
+  }
+  .licznik-wskaz.blisko{stroke:#6dbf8f}
+  .licznik-wskaz.srednio{stroke:#e0b355}
+  .licznik-wskaz.daleko{stroke:#c07a5a}
+
+  /* odczyt odległości w środku dolnej części koła */
+  .licznik-odczyt{
+    position:absolute;left:0;right:0;bottom:-2px;z-index:527;
+    text-align:center;pointer-events:none;
+    font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.08em;
+    color:#d89a5c;opacity:0;transition:opacity .4s;
+  }
+  .licznik-odczyt.on{opacity:.9}
+
+  /* ostrzeżenie po wyjściu ze strefy */
+  .poza-strefa{
+    display:none;margin-bottom:14px;padding:10px 14px;border-radius:3px;
+    background:rgba(192,122,90,.14);border:1px solid rgba(192,122,90,.5);
+    color:#e8b199;font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.04em;
+  }
+  .poza-strefa.on{display:block;animation:fadeIn .3s ease}
+
   .luk-spacer{
     position:absolute;inset:-11%;z-index:530;
     overflow:visible;cursor:pointer;
@@ -426,12 +463,17 @@
     </div>
     <button class="med-toggle hidden" id="med-toggle" onclick="toggleFoto()">📷 zdjęcie</button>
     <div class="med-frame"></div>
+    <svg class="licznik" id="licznik" viewBox="0 0 200 200" aria-hidden="true">
+      <circle class="licznik-tor" cx="100" cy="100" r="95"/>
+      <circle class="licznik-wskaz" id="licznik-wskaz" cx="100" cy="100" r="95"/>
+    </svg>
     <svg class="luk-spacer" id="luk-spacer" viewBox="0 0 200 200" onclick="toggleSpacer()" role="button" tabindex="0" aria-label="Tryb spaceru">
       <defs><path id="luk-sciezka" d="M 147.1 25.7 A 88 88 0 0 1 174.3 52.9" fill="none"/></defs>
       <path class="luk-obwod" d="M 147.1 25.7 A 88 88 0 0 1 174.3 52.9"/>
       <path class="luk-tlo" d="M 147.1 25.7 A 88 88 0 0 1 174.3 52.9"/>
       <text class="luk-napis"><textPath href="#luk-sciezka" startOffset="50%" text-anchor="middle" id="luk-tekst">spacer</textPath></text>
     </svg>
+    <div class="licznik-odczyt" id="licznik-odczyt"></div>
     <div class="attrib-kolo">Mapa © współtwórcy OpenStreetMap</div>
   </div>
   <div class="stage-context">
@@ -496,6 +538,7 @@
   </div>
 
   <div class="panel" id="panel-poem">
+    <div class="poza-strefa" id="poza-strefa">⚠ Odszedłeś od tego miejsca — wiersz dokończy się i zamknie</div>
     <div class="poem-topbar">
       <button class="btn" id="btn-czytaj" onclick="czytajWiersz()">📖 Czytaj</button>
       <button class="btn ghost" id="btn-audio" onclick="odtworzAudioAutora()">🎧 Audio autora</button>
@@ -892,6 +935,22 @@ let trybSpaceru = false;
 let warstwaTerenu = null;           // brązowe kropki
 let aktywnyWierszSpacer = null;     // slug wiersza otwartego z terenu
 let ostatnieWZasiegu = [];          // slugi wierszy w strefie 50 m
+let czekamNaKoniec = false;         // wyszedł ze strefy, ale dokańczamy odtwarzanie
+
+function zamknijWierszSpaceru(){
+  aktywnyWierszSpacer = null;
+  czekamNaKoniec = false;
+  zatrzymajDzwiek();
+  document.getElementById('poza-strefa').classList.remove('on');
+  if(!trybSpaceru) return;
+  pokazPanel('spacer');
+  ustawKontekst({
+    eyebrow:'tryb spaceru',
+    title:'Wiersze wokół Ciebie',
+    lede:'Idź w stronę brązowej kropki. Gdy podejdziesz na 50 metrów, wiersz otworzy się sam.'
+  });
+  toast('Wiersz zamknięty — odszedłeś od miejsca');
+}
 
 function ikonaTerenu(blisko){
   return L.divIcon({
@@ -950,7 +1009,11 @@ function wylaczSpacer(){
   document.getElementById('spacer-info').classList.add('hidden');
   if(warstwaTerenu){ warstwaTerenu.clearLayers(); }
   aktywnyWierszSpacer = null;
+  czekamNaKoniec = false;
   ostatnieWZasiegu = [];
+  document.getElementById('licznik').classList.remove('on');
+  document.getElementById('licznik-odczyt').classList.remove('on');
+  document.getElementById('poza-strefa').classList.remove('on');
   mapa.setMinZoom(0);               // znowu można oddalać dowolnie
   zatrzymajGps();
   goHome();                         // wracamy do zwykłego przeglądania
@@ -981,15 +1044,53 @@ function odswiezTeren(){
     }
   });
 
-  // pasek informacyjny
+  // pasek informacyjny + licznik
   if(!wPoblizu.length){
     infoSpacer('W promieniu 1,5 km nie ma jeszcze żadnych wierszy.');
+    aktualizujLicznik(null);
   } else {
     const najbl = wPoblizu.sort((a,b)=>a.d-b.d)[0];
     infoSpacer(`W pobliżu: <b>${wPoblizu.length}</b> ${wPoblizu.length===1?'wiersz':'wierszy'} · najbliższy <b>${Math.round(najbl.d)} m</b>`);
+    aktualizujLicznik(najbl.d);
   }
 
   obsluzStrefe(wZasiegu);
+}
+
+/* kolisty licznik zasięgu: pusty przy 50 m, pełny przy 0 m */
+const OBWOD_LICZNIKA = 597;   // 2π × 95
+
+function aktualizujLicznik(najblizszaOdleglosc){
+  const l = document.getElementById('licznik');
+  const w = document.getElementById('licznik-wskaz');
+  const o = document.getElementById('licznik-odczyt');
+  if(!trybSpaceru || najblizszaOdleglosc === null){
+    l.classList.remove('on'); o.classList.remove('on');
+    return;
+  }
+  l.classList.add('on'); o.classList.add('on');
+
+  // poza strefą odczytu — licznik pusty
+  if(najblizszaOdleglosc > PROMIEN_ODCZYTU){
+    w.style.strokeDashoffset = OBWOD_LICZNIKA;
+    w.className.baseVal = 'licznik-wskaz';
+    o.textContent = `${Math.round(najblizszaOdleglosc)} m do wiersza`;
+    return;
+  }
+
+  // w strefie: 50 m → 0% wypełnienia, 0 m → 100%
+  const udzial = 1 - (najblizszaOdleglosc / PROMIEN_ODCZYTU);
+  w.style.strokeDashoffset = OBWOD_LICZNIKA * (1 - udzial);
+
+  // kolor zależny od bliskości
+  let klasa = 'daleko';
+  if(udzial > 0.66) klasa = 'blisko';
+  else if(udzial > 0.33) klasa = 'srednio';
+  w.className.baseVal = 'licznik-wskaz ' + klasa;
+
+  o.textContent = najblizszaOdleglosc < 10
+    ? 'jesteś na miejscu'
+    : `${Math.round(najblizszaOdleglosc)} m`;
 }
 
 /* wejście/wyjście ze strefy 50 m */
@@ -1000,21 +1101,25 @@ function obsluzStrefe(wZasiegu){
   if(bylo === jest) return;          // nic się nie zmieniło
   ostatnieWZasiegu = slugi;
 
-  // wyszliśmy ze strefy — zamknij otwarty wiersz
+  // wyszliśmy ze strefy
   if(!wZasiegu.length){
     if(aktywnyWierszSpacer){
-      aktywnyWierszSpacer = null;
-      zatrzymajDzwiek();
-      pokazPanel('spacer');
-      ustawKontekst({
-        eyebrow:'tryb spaceru',
-        title:'Wiersze wokół Ciebie',
-        lede:'Idź w stronę brązowej kropki. Gdy podejdziesz na 50 metrów, wiersz otworzy się sam.'
-      });
-      toast('Wiersz zamknięty — odszedłeś od miejsca');
+      const gra = (window.speechSynthesis && speechSynthesis.speaking) || (audioEl && !audioEl.paused);
+      if(gra){
+        // DOKOŃCZ — pokaż tylko ostrzeżenie, zamknij po zakończeniu odtwarzania
+        document.getElementById('poza-strefa').classList.add('on');
+        czekamNaKoniec = true;
+        toast('Odszedłeś od miejsca — wiersz dokończy się i zamknie', 4000);
+      } else {
+        zamknijWierszSpaceru();
+      }
     }
     return;
   }
+
+  // wróciliśmy do strefy — schowaj ostrzeżenie
+  document.getElementById('poza-strefa').classList.remove('on');
+  czekamNaKoniec = false;
 
   // jeden wiersz w zasięgu — otwórz sam
   if(wZasiegu.length === 1){
@@ -1201,6 +1306,12 @@ function zatrzymajDzwiek(){
   if(ba){ ba.classList.remove('playing'); ba.textContent = '🎧 Audio autora'; }
 }
 
+/* po naturalnym zakończeniu odtwarzania — zamknij wiersz, jeśli wyszliśmy ze strefy */
+function koniecOdtwarzania(){
+  zatrzymajDzwiek();
+  if(czekamNaKoniec) zamknijWierszSpaceru();
+}
+
 function czytajWiersz(){
   const bc = document.getElementById('btn-czytaj');
   if(!('speechSynthesis' in window)){ alert('Ta przeglądarka nie obsługuje czytania na głos.'); return; }
@@ -1216,7 +1327,7 @@ function czytajWiersz(){
   lektor.lang = 'pl-PL';
   if(_glosPolski) lektor.voice = _glosPolski;
   lektor.rate = 0.9;   // trochę wolniej, do poezji
-  lektor.onend = ()=> zatrzymajDzwiek();
+  lektor.onend = ()=> koniecOdtwarzania();
   lektor.onerror = ()=> zatrzymajDzwiek();
   bc.classList.add('playing');
   bc.textContent = '⏹ Zatrzymaj';
@@ -1233,7 +1344,7 @@ function odtworzAudioAutora(){
   }
   zatrzymajDzwiek();
   audioEl = new Audio(w.audio);
-  audioEl.onended = ()=> zatrzymajDzwiek();
+  audioEl.onended = ()=> koniecOdtwarzania();
   audioEl.onerror = ()=> { zatrzymajDzwiek(); alert('Nie udało się odtworzyć nagrania.'); };
   ba.classList.add('playing');
   ba.textContent = '⏹ Zatrzymaj';
