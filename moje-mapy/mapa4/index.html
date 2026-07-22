@@ -287,6 +287,79 @@
   }
   @keyframes introHintPulse{0%,100%{opacity:.3}50%{opacity:.65}}
 
+  /* kropka użytkownika (GPS) — szafirowa, z pulsującą aureolą */
+  .user-dot{
+    width:16px;height:16px;
+    background:#5b8dd9;
+    border:3px solid var(--parchment);
+    border-radius:50%;
+    box-shadow:0 0 0 2px #5b8dd9, 0 4px 12px rgba(0,0,0,.5);
+    position:relative;
+  }
+  .user-dot::before{
+    content:'';position:absolute;top:-12px;left:-12px;
+    width:34px;height:34px;background:rgba(91,141,217,.3);border-radius:50%;
+    animation:userPulse 2s ease-out infinite;
+  }
+  @keyframes userPulse{
+    0%{transform:scale(.5);opacity:1}
+    100%{transform:scale(2.5);opacity:0}
+  }
+
+  /* komunikat (toast) */
+  #toast{
+    position:fixed;left:50%;bottom:28px;transform:translateX(-50%);
+    background:rgba(15,15,24,.94);border:1px solid var(--gold);color:var(--parchment);
+    padding:11px 20px;border-radius:3px;z-index:9998;
+    font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:.04em;
+    opacity:0;pointer-events:none;transition:opacity .3s;max-width:88vw;text-align:center;
+  }
+  #toast.show{opacity:1}
+
+  /* ===================== TRYB SPACERU ===================== */
+  /* brązowa kropka wiersza w terenie (wszyscy poeci razem) */
+  .pin.teren{
+    width:15px;height:15px;background:#a9713f;border:2px solid var(--lead);
+    box-shadow:0 0 0 5px rgba(169,113,63,.28);
+  }
+  .pin.teren.blisko{
+    background:#d89a5c;
+    box-shadow:0 0 0 7px rgba(216,154,92,.45);
+    animation:terenPuls 1.6s ease-in-out infinite;
+  }
+  @keyframes terenPuls{0%,100%{box-shadow:0 0 0 6px rgba(216,154,92,.35)}50%{box-shadow:0 0 0 11px rgba(216,154,92,.15)}}
+
+  /* w trybie spaceru koło mapy jest duże i samotne */
+  body.spacer .topbar .brand .meta{color:#d89a5c}
+  .spacer-info{
+    max-width:1000px;margin:14px auto 0;padding:0 28px;text-align:center;
+    font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.05em;
+    color:var(--parchment-dim);opacity:.75;
+  }
+  .spacer-info b{color:#d89a5c;font-weight:400}
+
+  /* lista wyboru, gdy w zasięgu jest kilka wierszy */
+  .wybor-lista{display:flex;flex-direction:column;gap:10px;margin-top:6px}
+  .wybor-poz{
+    display:flex;justify-content:space-between;align-items:center;gap:12px;
+    background:rgba(169,113,63,.1);border:1px solid rgba(216,154,92,.4);
+    border-radius:3px;padding:14px 16px;color:var(--parchment);text-align:left;
+    transition:background .2s,border-color .2s;
+  }
+  .wybor-poz:hover{background:rgba(216,154,92,.2);border-color:#d89a5c}
+  .wybor-poz .wt{font-family:'Fraunces',serif;font-size:16px}
+  .wybor-poz .wa{font-family:'JetBrains Mono',monospace;font-size:10px;color:#d89a5c;letter-spacing:.04em}
+  .wybor-poz .wd{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--gold-soft)}
+
+  /* przycisk trybu spaceru w pasku górnym */
+  .btn-spacer{
+    background:none;border:1px solid rgba(216,154,92,.55);color:#d89a5c;
+    padding:6px 14px;border-radius:2px;font-family:'JetBrains Mono',monospace;font-size:12px;
+    letter-spacing:.05em;transition:background .2s,color .2s;
+  }
+  .btn-spacer:hover{background:#a9713f;color:var(--parchment);border-color:#a9713f}
+  .btn-spacer.on{background:#a9713f;color:var(--parchment);border-color:#a9713f}
+
 </style>
 </head>
 <body>
@@ -307,11 +380,12 @@
 <div class="topbar">
   <div class="brand">
     <div class="display">Pod Wielkim Dachem Nieba</div>
-    <div class="meta">mapa poezji regionalnej · okolice Siedliszcza</div>
+    <div class="meta">mapa poezji regionalnej</div>
   </div>
   <div class="crumbs">
     <button id="btn-back" onclick="goBack()">← wstecz</button>
     <button onclick="goHome()">🗺 cała mapa</button>
+    <button class="btn-spacer" id="btn-spacer" onclick="toggleSpacer()">🚶 spacer</button>
   </div>
 </div>
 
@@ -333,6 +407,8 @@
     <div class="map-hint" id="ctx-hint"></div>
   </div>
 </div>
+
+<div class="spacer-info hidden" id="spacer-info"></div>
 
 <!-- ====== TREŚĆ ====== -->
 <div class="content">
@@ -378,6 +454,12 @@
     <div class="works-list" id="t-wiersze"></div>
   </div>
 
+  <div class="panel" id="panel-spacer"></div>
+
+  <div class="panel" id="panel-wybor">
+    <div class="wybor-lista" id="wybor-lista"></div>
+  </div>
+
   <div class="panel" id="panel-poem">
     <div class="poem-topbar">
       <button class="btn" id="btn-czytaj" onclick="czytajWiersz()">📖 Czytaj</button>
@@ -392,6 +474,7 @@
 </div>
 
 <div class="attrib">Mapa © współtwórcy OpenStreetMap</div>
+<div id="toast"></div>
 
 <script>
 /* ============ PRZYKŁADOWE DANE — zgodne z proponowaną strukturą JSON ============ */
@@ -713,21 +796,26 @@ function render(){
   if(stan.panel === 'poem'){
     const w = dane.wiersze[stan.slug];
     zatrzymajDzwiek();   // ucisz lektora/audio przy wejściu w nowy wiersz
-    // znajdź autora tego wiersza (szuka i w tomikach, i w luźnych)
-    const autorSlug = znajdzAutoraWiersza(stan.slug);
-    const a = autorSlug ? dane.artysci[autorSlug] : null;
     pokazPanel('poem');
-    ustawTrybKola('detail');
-    rysujMiejscowosci();
-    if(a) rysujWierszeAutora(a);   // kropki wierszy autora nadal widoczne
     document.getElementById('p-body').textContent = w.tresc;
-    ustawZdjecie(null);
-    centrujNadWierszem(w);         // spokojne wycentrowanie, bez zmiany przybliżenia
     ustawPrzyciskiWiersza();
     ustawKontekst({
-      eyebrow:'utwór',
+      eyebrow: stan.zeSpaceru ? 'jesteś na miejscu' : 'utwór',
       title:w.tytul, sub:`${w.data_powstania} · ${w.zrodlo}`
     });
+    if(trybSpaceru){
+      // W SPACERZE: mapa zostaje jak jest (brązowe kropki + wędrowiec na środku)
+      ustawTrybKola('home');
+    } else {
+      // POZA SPACEREM: zwykły widok — kropki autora, wycentrowanie na wierszu
+      const autorSlug = znajdzAutoraWiersza(stan.slug);
+      const a = autorSlug ? dane.artysci[autorSlug] : null;
+      ustawTrybKola('detail');
+      rysujMiejscowosci();
+      if(a) rysujWierszeAutora(a);
+      ustawZdjecie(null);
+      centrujNadWierszem(w);
+    }
   }
   poprzedniPanel = stan.panel;
 }
@@ -735,6 +823,293 @@ function wejdzWMiejscowosc(slug){ przejdz({ panel:'village', slug }); }
 function wejdzWAutora(slug){ przejdz({ panel:'author', slug }); }
 function wejdzWTomik(autor, slug){ przejdz({ panel:'tomik', autor, slug }); }
 function wejdzWWiersz(slug){ przejdz({ panel:'poem', slug }); }
+/* wszystkie wiersze ze WSZYSTKICH autorów, które mają pozycję na mapie
+   (potrzebne w trybie spaceru — tam nie ma podziału na autorów) */
+function wszystkieWierszeZPozycja(){
+  const lista = [];
+  Object.keys(dane.wiersze).forEach(slug=>{
+    const w = dane.wiersze[slug];
+    const poz = pozycjaWiersza(w);
+    if(poz) lista.push({ slug, w, lat:poz[0], lng:poz[1] });
+  });
+  return lista;
+}
+
+/* odległość w metrach między dwoma punktami (wzór haversine) */
+function odlegloscM(lat1,lng1,lat2,lng2){
+  const R = 6371000;
+  const toRad = x=> x*Math.PI/180;
+  const dLat = toRad(lat2-lat1), dLng = toRad(lng2-lng1);
+  const a = Math.sin(dLat/2)**2 +
+            Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLng/2)**2;
+  return 2*R*Math.asin(Math.sqrt(a));
+}
+
+/* =========================================================
+   TRYB SPACERU — GPS trzyma wędrowca na środku,
+   brązowe kropki wierszy w promieniu 1500 m,
+   wejście w strefę 50 m otwiera wiersz
+   ========================================================= */
+const PROMIEN_WIDOCZNOSCI = 1500;   // m — co widać na mapie
+const PROMIEN_ODCZYTU     = 50;     // m — kiedy wiersz się otwiera
+const ZOOM_MIN_SPACER     = 14;     // odpowiada mniej więcej 1500 m w kole
+
+let trybSpaceru = false;
+let warstwaTerenu = null;           // brązowe kropki
+let aktywnyWierszSpacer = null;     // slug wiersza otwartego z terenu
+let ostatnieWZasiegu = [];          // slugi wierszy w strefie 50 m
+
+function ikonaTerenu(blisko){
+  return L.divIcon({
+    className:'',
+    html:`<div class="pin teren ${blisko?'blisko':''}"></div>`,
+    iconSize:[15,15], iconAnchor:[7,7]
+  });
+}
+
+function toggleSpacer(){
+  if(trybSpaceru) wylaczSpacer();
+  else wlaczSpacer();
+}
+
+function wlaczSpacer(){
+  if(!navigator.geolocation){ toast('Twoje urządzenie nie udostępnia lokalizacji.'); return; }
+  trybSpaceru = true;
+  document.body.classList.add('spacer');
+  const bs = document.getElementById('btn-spacer');
+  bs.classList.add('on');
+  bs.textContent = '✕ zakończ spacer';
+  document.getElementById('spacer-info').classList.remove('hidden');
+
+  // tryb spaceru = tylko mapa: chowamy zdjęcie i jego przełącznik
+  ustawZdjecie(null);
+  historia = [];
+  stan = { panel:'spacer' };
+  pokazPanel('spacer');
+  ustawTrybKola('home');            // duże koło, sama mapa
+
+  // czyścimy zwykłe kropki, pokazujemy teren
+  if(warstwaMiejscowosci) warstwaMiejscowosci.clearLayers();
+  if(warstwaWierszy) warstwaWierszy.clearLayers();
+  if(!warstwaTerenu) warstwaTerenu = L.layerGroup().addTo(mapa);
+
+  // ograniczenie oddalania — nie dalej niż ~1500 m
+  mapa.setMinZoom(ZOOM_MIN_SPACER);
+
+  ustawKontekst({
+    eyebrow:'tryb spaceru',
+    title:'Wiersze wokół Ciebie',
+    lede:'Idź w stronę brązowej kropki. Gdy podejdziesz na 50 metrów, wiersz otworzy się sam.'
+  });
+  infoSpacer('Szukam Twojej pozycji…');
+
+  // GPS odpala się sam
+  if(watchId === null) startGps(true);
+  else if(userPozycja) odswiezTeren();
+}
+
+function wylaczSpacer(){
+  trybSpaceru = false;
+  document.body.classList.remove('spacer');
+  const b = document.getElementById('btn-spacer');
+  b.classList.remove('on'); b.textContent = '🚶 spacer';
+  document.getElementById('spacer-info').classList.add('hidden');
+  if(warstwaTerenu){ warstwaTerenu.clearLayers(); }
+  aktywnyWierszSpacer = null;
+  ostatnieWZasiegu = [];
+  mapa.setMinZoom(0);               // znowu można oddalać dowolnie
+  zatrzymajGps();
+  goHome();                         // wracamy do zwykłego przeglądania
+}
+
+function infoSpacer(txt){
+  document.getElementById('spacer-info').innerHTML = txt;
+}
+
+/* rysuje brązowe kropki wierszy w promieniu widoczności */
+function odswiezTeren(){
+  if(!trybSpaceru || !userPozycja || !warstwaTerenu) return;
+  warstwaTerenu.clearLayers();
+
+  const wszystkie = wszystkieWierszeZPozycja();
+  const wPoblizu = [];
+  const wZasiegu = [];
+
+  wszystkie.forEach(poz=>{
+    const d = odlegloscM(userPozycja.lat, userPozycja.lng, poz.lat, poz.lng);
+    if(d <= PROMIEN_WIDOCZNOSCI){
+      const blisko = d <= PROMIEN_ODCZYTU;
+      const marker = L.marker([poz.lat,poz.lng], { icon: ikonaTerenu(blisko) }).addTo(warstwaTerenu);
+      marker.bindTooltip(poz.w.tytul, { direction:'top', offset:[0,-8], className:'tt-mapa' });
+      marker.on('click', ()=> wejdzWWiersz(poz.slug));
+      wPoblizu.push({...poz, d});
+      if(blisko) wZasiegu.push({...poz, d});
+    }
+  });
+
+  // pasek informacyjny
+  if(!wPoblizu.length){
+    infoSpacer('W promieniu 1,5 km nie ma jeszcze żadnych wierszy.');
+  } else {
+    const najbl = wPoblizu.sort((a,b)=>a.d-b.d)[0];
+    infoSpacer(`W pobliżu: <b>${wPoblizu.length}</b> ${wPoblizu.length===1?'wiersz':'wierszy'} · najbliższy <b>${Math.round(najbl.d)} m</b>`);
+  }
+
+  obsluzStrefe(wZasiegu);
+}
+
+/* wejście/wyjście ze strefy 50 m */
+function obsluzStrefe(wZasiegu){
+  const slugi = wZasiegu.map(x=>x.slug).sort();
+  const bylo = ostatnieWZasiegu.join('|');
+  const jest = slugi.join('|');
+  if(bylo === jest) return;          // nic się nie zmieniło
+  ostatnieWZasiegu = slugi;
+
+  // wyszliśmy ze strefy — zamknij otwarty wiersz
+  if(!wZasiegu.length){
+    if(aktywnyWierszSpacer){
+      aktywnyWierszSpacer = null;
+      zatrzymajDzwiek();
+      pokazPanel('spacer');
+      ustawKontekst({
+        eyebrow:'tryb spaceru',
+        title:'Wiersze wokół Ciebie',
+        lede:'Idź w stronę brązowej kropki. Gdy podejdziesz na 50 metrów, wiersz otworzy się sam.'
+      });
+      toast('Wiersz zamknięty — odszedłeś od miejsca');
+    }
+    return;
+  }
+
+  // jeden wiersz w zasięgu — otwórz sam
+  if(wZasiegu.length === 1){
+    otworzWierszSpaceru(wZasiegu[0].slug);
+    return;
+  }
+
+  // kilka wierszy — pokaż listę do wyboru
+  pokazWyborWierszy(wZasiegu);
+}
+
+function otworzWierszSpaceru(slug){
+  if(aktywnyWierszSpacer === slug) return;
+  aktywnyWierszSpacer = slug;
+  stan = { panel:'poem', slug, zeSpaceru:true };
+  render();
+  toast('Jesteś na miejscu — wiersz otwarty');
+}
+
+function pokazWyborWierszy(lista){
+  const box = document.getElementById('wybor-lista');
+  box.innerHTML = '';
+  lista.sort((a,b)=>a.d-b.d).forEach(poz=>{
+    const autorSlug = znajdzAutoraWiersza(poz.slug);
+    const autor = autorSlug ? dane.artysci[autorSlug].imie_nazwisko : '';
+    const btn = document.createElement('button');
+    btn.className = 'wybor-poz';
+    btn.onclick = ()=> otworzWierszSpaceru(poz.slug);
+    btn.innerHTML = `<span>
+        <span class="wt">${poz.w.tytul}</span><br>
+        <span class="wa">${autor}</span>
+      </span>
+      <span class="wd">${Math.round(poz.d)} m</span>`;
+    box.appendChild(btn);
+  });
+  pokazPanel('wybor');
+  ustawKontekst({
+    eyebrow:'tryb spaceru',
+    title:'Jesteś przy kilku wierszach',
+    lede:'W zasięgu jest więcej niż jeden utwór — wybierz, który chcesz przeczytać.'
+  });
+}
+
+/* ============ GPS — „Tu jesteś" (wzorowane na audio-przewodniku) ============ */
+let watchId = null;
+let userMarker = null;
+let userPozycja = null;
+let wakeLock = null;
+
+function ikonaUzytkownika(){
+  return L.divIcon({
+    className:'user-position-marker',
+    html:'<div class="user-dot"></div>',
+    iconSize:[16,16], iconAnchor:[8,8]
+  });
+}
+
+function toast(txt, ms){
+  const t = document.getElementById('toast');
+  t.textContent = txt;
+  t.classList.add('show');
+  clearTimeout(t._h);
+  t._h = setTimeout(()=> t.classList.remove('show'), ms || 3000);
+}
+
+function startGps(zeSpaceru){
+  if(!navigator.geolocation){ toast('Twoje urządzenie nie udostępnia lokalizacji.'); return; }
+
+  // FAZA 1 — szybki, przybliżony fix, żeby coś od razu się pojawiło
+  navigator.geolocation.getCurrentPosition(
+    pokazPozycje, ()=>{},
+    { enableHighAccuracy:false, maximumAge:30000, timeout:5000 }
+  );
+  // FAZA 2 — dokładny GPS, śledzenie na żywo
+  watchId = navigator.geolocation.watchPosition(
+    pokazPozycje, bladPozycji,
+    { enableHighAccuracy:true, maximumAge:5000, timeout:2147483647 }
+  );
+  zalozWakeLock();
+}
+
+function zatrzymajGps(){
+  if(watchId !== null){ navigator.geolocation.clearWatch(watchId); watchId = null; }
+  if(userMarker){ mapa.removeLayer(userMarker); userMarker = null; }
+  userPozycja = null;
+  zwolnijWakeLock();
+}
+
+function pokazPozycje(pos){
+  const lat = pos.coords.latitude, lng = pos.coords.longitude;
+  const pierwszyFix = !userPozycja;
+  userPozycja = { lat, lng };
+
+  if(!userMarker){
+    userMarker = L.marker([lat,lng], { icon:ikonaUzytkownika(), zIndexOffset:1000 }).addTo(mapa);
+    userMarker.bindTooltip('Tu jesteś', { direction:'top', offset:[0,-10], className:'tt-mapa' });
+  } else {
+    userMarker.setLatLng([lat,lng]);
+  }
+
+  if(trybSpaceru){
+    // wędrowiec zawsze na środku koła
+    if(pierwszyFix){
+      mapa.flyTo([lat,lng], 16, { duration:1.2 });
+      toast('Znaleziono Twoją pozycję');
+    } else {
+      mapa.panTo([lat,lng], { animate:true, duration:.8 });
+    }
+    odswiezTeren();
+  }
+}
+
+function bladPozycji(err){
+  if(err.code === 3) return;   // timeout ignorujemy — watch pracuje dalej
+  if(trybSpaceru) infoSpacer('Nie mogę ustalić pozycji — sprawdź zgodę na lokalizację.');
+  toast('Nie mogę ustalić pozycji. Sprawdź zgodę na lokalizację.', 4500);
+}
+
+/* ekran nie gaśnie podczas spaceru */
+async function zalozWakeLock(){
+  try{ if('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen'); }catch(e){}
+}
+function zwolnijWakeLock(){
+  try{ if(wakeLock){ wakeLock.release(); wakeLock = null; } }catch(e){}
+}
+document.addEventListener('visibilitychange', ()=>{
+  if(document.visibilityState === 'visible' && watchId !== null && !wakeLock) zalozWakeLock();
+});
+
 /* ============ INTRO ============ */
 let _introZamkniete = false;
 function zamknijIntro(){
