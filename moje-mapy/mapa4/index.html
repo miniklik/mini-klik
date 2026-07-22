@@ -404,9 +404,9 @@
   .tryby-sluchania{display:flex;gap:10px;justify-content:center;margin:16px 0 4px;flex-wrap:wrap}
   .tryby-sluchania.hidden{display:none}
   .tryb-btn{
-    flex:1;min-width:132px;max-width:190px;
+    min-width:170px;max-width:240px;
     background:rgba(169,113,63,.1);border:1px solid rgba(216,154,92,.45);
-    color:#d89a5c;padding:11px 14px;border-radius:3px;
+    color:#d89a5c;padding:11px 20px;border-radius:3px;
     font-family:'JetBrains Mono',monospace;font-size:11.5px;letter-spacing:.04em;
     transition:background .2s,border-color .2s,color .2s;
   }
@@ -528,8 +528,7 @@
     <p class="lede" id="ctx-lede">Kliknij złoty punkt na mapie, aby wejść do miejscowości i poznać jej poetów.</p>
     <div class="map-hint" id="ctx-hint"></div>
     <div class="tryby-sluchania hidden" id="tryby-sluchania">
-      <button class="tryb-btn" id="tryb-kolejno" onclick="ustawTryb('kolejno')">🎧 czytaj kolejno</button>
-      <button class="tryb-btn active" id="tryb-wybor" onclick="ustawTryb('wybor')">👆 wybierz sam</button>
+      <button class="tryb-btn" id="tryb-kolejno" onclick="toggleCzytanieKolejne()">🎧 czytaj kolejno</button>
     </div>
   </div>
 </div>
@@ -1031,7 +1030,7 @@ function czyUrzadzeniePrzenosne(){
    wejście w strefę 50 m otwiera wiersz
    ========================================================= */
 const PROMIEN_WIDOCZNOSCI = 1500;   // m — co widać na mapie
-const PROMIEN_ODCZYTU     = 50;     // m — kiedy wiersz się otwiera
+const PROMIEN_ODCZYTU     = 100;    // m — zasięg wyświetlania i czytania wierszy
 const ZOOM_MIN_SPACER     = 14;     // odpowiada mniej więcej 1500 m w kole
 
 let trybSpaceru = false;
@@ -1128,7 +1127,6 @@ function wylaczSpacer(){
   if(wygaszaczAktywny) wylaczWygaszacz();
   trybSluchania = 'wybor';
   document.getElementById('tryb-kolejno').classList.remove('active');
-  document.getElementById('tryb-wybor').classList.add('active');
   if(warstwaTerenu){ warstwaTerenu.clearLayers(); }
   aktywnyWierszSpacer = null;
   czekamNaKoniec = false;
@@ -1229,6 +1227,13 @@ function wylaczWygaszacz(){
   if(ov) ov.classList.remove('aktywny');
   wygaszaczAnulujOdblokuj();
   if(_wygaszaczInterval){ clearInterval(_wygaszaczInterval); _wygaszaczInterval = null; }
+  // wyjście z wygaszacza kończy czytanie kolejne — wracamy do listy
+  if(trybSluchania === 'kolejno' && trybSpaceru){
+    trybSluchania = 'wybor';
+    document.getElementById('tryb-kolejno').classList.remove('active');
+    zatrzymajKolejke();
+    odswiezTeren();
+  }
 }
 
 function wygaszaczStartOdblokuj(e){
@@ -1277,19 +1282,24 @@ let kolejka = [];                 // slugi czekające na odtworzenie
 let terazGra = null;              // slug aktualnie odtwarzanego
 let przerwaTimer = null;
 
-function ustawTryb(tryb){
-  if(trybSluchania === tryb) return;
-  trybSluchania = tryb;
-  document.getElementById('tryb-kolejno').classList.toggle('active', tryb==='kolejno');
-  document.getElementById('tryb-wybor').classList.toggle('active', tryb==='wybor');
-
-  if(tryb === 'wybor'){
-    // wyłączamy czytanie kolejne
+function toggleCzytanieKolejne(){
+  if(trybSluchania === 'kolejno'){
+    // wyłączamy — wracamy do listy
+    trybSluchania = 'wybor';
+    document.getElementById('tryb-kolejno').classList.remove('active');
     zatrzymajKolejke();
-    if(wygaszaczAktywny) wylaczWygaszacz();
-    toast('Wiersze będą się otwierać do czytania');
+    if(wygaszaczAktywny){
+      wygaszaczAktywny = false;
+      document.getElementById('wygaszaczEkranu').classList.remove('aktywny');
+      wygaszaczAnulujOdblokuj();
+      if(_wygaszaczInterval){ clearInterval(_wygaszaczInterval); _wygaszaczInterval = null; }
+    }
+    odswiezTeren();                  // pokaż listę z powrotem
+    toast('Wybieraj wiersze z listy');
   } else {
     // włączamy — komunikat, potem wygaszacz, w tle rusza kolejka
+    trybSluchania = 'kolejno';
+    document.getElementById('tryb-kolejno').classList.add('active');
     zatrzymajDzwiek();
     aktywnyWierszSpacer = null;
     pokazPanel('spacer');
@@ -1415,19 +1425,22 @@ function obsluzStrefe(wZasiegu){
     return;
   }
 
-  // ===== TRYB „WYBIERZ SAM" (jak dotąd) =====
-  // wyszliśmy ze strefy
+  // ===== LISTA WIERSZY W ZASIĘGU (domyślne zachowanie) =====
   if(!wZasiegu.length){
+    // wyszliśmy ze strefy
     if(aktywnyWierszSpacer){
       const gra = (window.speechSynthesis && speechSynthesis.speaking) || (audioEl && !audioEl.paused);
       if(gra){
-        // DOKOŃCZ — pokaż tylko ostrzeżenie, zamknij po zakończeniu odtwarzania
         document.getElementById('poza-strefa').classList.add('on');
         czekamNaKoniec = true;
         toast('Odszedłeś od miejsca — wiersz dokończy się i zamknie', 4000);
       } else {
         zamknijWierszSpaceru();
       }
+    } else {
+      // pusto — wracamy do widoku spaceru
+      pokazPanel('spacer');
+      ustawKontekst({ eyebrow:'tryb spaceru', title:'Wiersze wokół Ciebie' });
     }
     return;
   }
@@ -1436,13 +1449,10 @@ function obsluzStrefe(wZasiegu){
   document.getElementById('poza-strefa').classList.remove('on');
   czekamNaKoniec = false;
 
-  // jeden wiersz w zasięgu — otwórz sam
-  if(wZasiegu.length === 1){
-    otworzWierszSpaceru(wZasiegu[0].slug);
-    return;
-  }
+  // jeśli akurat czytamy jakiś wiersz, nie przerywamy mu listą
+  if(aktywnyWierszSpacer && wZasiegu.some(x=>x.slug===aktywnyWierszSpacer)) return;
 
-  // kilka wierszy — pokaż listę do wyboru
+  // pokaż listę wszystkich wierszy w zasięgu
   pokazWyborWierszy(wZasiegu);
 }
 
@@ -1471,10 +1481,11 @@ function pokazWyborWierszy(lista){
     box.appendChild(btn);
   });
   pokazPanel('wybor');
+  const ile = lista.length;
   ustawKontekst({
     eyebrow:'tryb spaceru',
-    title:'Jesteś przy kilku wierszach',
-    lede:'Wybierz, który chcesz przeczytać.'
+    title: ile === 1 ? 'Wiersz w tym miejscu' : 'Wiersze w tym miejscu',
+    lede: ile === 1 ? 'Kliknij, aby przeczytać.' : 'Wybierz, który chcesz przeczytać.'
   });
 }
 
