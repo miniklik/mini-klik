@@ -101,16 +101,6 @@
     content:'';position:absolute;inset:0;
     background:linear-gradient(115deg, transparent 42%, rgba(201,162,39,.28) 50%, transparent 58%);
   }
-  .med-toggle{
-    position:absolute;top:8px;right:8px;z-index:520;
-    height:34px;padding:0 12px;border-radius:18px;
-    border:1px solid var(--gold);background:rgba(15,15,24,.82);color:var(--gold-soft);
-    font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.05em;text-transform:uppercase;
-    display:flex;align-items:center;gap:6px;transition:background .2s,color .2s;
-  }
-  .med-toggle:hover{background:var(--gold);color:var(--ink-deep)}
-  .med-toggle.hidden{display:none}
-
   /* ===================== STAGE (układ nagłówka) ===================== */
   .stage{
     max-width:1000px;margin:0 auto;padding:12px 28px 0;
@@ -398,12 +388,18 @@
   }
   .poza-strefa.on{display:block;animation:fadeIn .3s ease}
 
-  .luk-spacer{
+  .luk-spacer, .luk-foto{
     position:absolute;inset:-11%;z-index:530;
     overflow:visible;cursor:pointer;
     pointer-events:none;              /* całe SVG przepuszcza kliknięcia do mapy… */
     -webkit-tap-highlight-color:transparent;
   }
+  .luk-foto.hidden{display:none}
+  .luk-foto .luk-tlo{stroke:rgba(15,15,24,.92)}
+  .luk-foto:hover .luk-tlo, .luk-foto.on .luk-tlo{stroke:#8a6c2a}
+  .luk-foto:hover .luk-obwod, .luk-foto.on .luk-obwod{opacity:.9}
+  .luk-foto:hover .luk-napis, .luk-foto.on .luk-napis{fill:var(--parchment)}
+  .luk-foto .luk-napis{fill:var(--gold-soft)}
   .luk-tlo, .luk-napis, .luk-obwod{pointer-events:auto}   /* …tylko sam łuk je łapie */
   .luk-tlo{
     fill:none;stroke:rgba(15,15,24,.92);stroke-width:12;stroke-linecap:round;
@@ -461,7 +457,12 @@
     <div class="med-photo" id="med-photo">
       <div class="ph-fallback" id="ph-fallback">tu pojawi się zdjęcie miejscowości</div>
     </div>
-    <button class="med-toggle hidden" id="med-toggle" onclick="toggleFoto()">📷 zdjęcie</button>
+    <svg class="luk-foto hidden" id="luk-foto" viewBox="0 0 200 200" onclick="toggleFoto()" role="button" tabindex="0" aria-label="Przełącz zdjęcie i mapę">
+      <defs><path id="foto-sciezka" d="M 24.1 55.5 A 88 88 0 0 1 55.5 24.1" fill="none"/></defs>
+      <path class="luk-obwod" d="M 24.1 55.5 A 88 88 0 0 1 55.5 24.1"/>
+      <path class="luk-tlo" d="M 24.1 55.5 A 88 88 0 0 1 55.5 24.1"/>
+      <text class="luk-napis"><textPath href="#foto-sciezka" startOffset="50%" text-anchor="middle" id="foto-tekst">zdjęcie</textPath></text>
+    </svg>
     <div class="med-frame"></div>
     <svg class="licznik" id="licznik" viewBox="0 0 200 200" aria-hidden="true">
       <circle class="licznik-tor" cx="100" cy="100" r="95"/>
@@ -744,7 +745,7 @@ let zdjeciePokazane = false;
 function ustawZdjecie(obiekt, etykietaFallback){
   const photo = document.getElementById('med-photo');
   const fallback = document.getElementById('ph-fallback');
-  const toggle = document.getElementById('med-toggle');
+  const toggle = document.getElementById('luk-foto');
   zdjeciePokazane = false;
   photo.classList.remove('show');
   if(obiekt && obiekt.zdjecie){
@@ -757,16 +758,18 @@ function ustawZdjecie(obiekt, etykietaFallback){
     fallback.style.display = 'flex';
     fallback.textContent = obiekt ? `${etykietaFallback || 'zdjęcie'}\n(dodasz je w pliku danych)` : 'brak zdjęcia';
   }
-  toggle.classList.toggle('hidden', !obiekt);  // przycisk tylko gdy jest co pokazać
-  toggle.textContent = '📷 zdjęcie';
+  toggle.classList.toggle('hidden', !obiekt);  // łuk tylko gdy jest co pokazać
+  toggle.classList.remove('on');
+  document.getElementById('foto-tekst').textContent = 'zdjęcie';
 }
 
 function toggleFoto(){
   const photo = document.getElementById('med-photo');
-  const toggle = document.getElementById('med-toggle');
+  const toggle = document.getElementById('luk-foto');
   zdjeciePokazane = !zdjeciePokazane;
   photo.classList.toggle('show', zdjeciePokazane);
-  toggle.textContent = zdjeciePokazane ? '🗺 mapa' : '📷 zdjęcie';
+  toggle.classList.toggle('on', zdjeciePokazane);
+  document.getElementById('foto-tekst').textContent = zdjeciePokazane ? 'mapa' : 'zdjęcie';
   if(!zdjeciePokazane) setTimeout(()=> mapa.invalidateSize(), 50);
 }
 
