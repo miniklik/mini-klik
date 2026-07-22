@@ -101,6 +101,8 @@
     content:'';position:absolute;inset:0;
     background:linear-gradient(115deg, transparent 42%, rgba(201,162,39,.28) 50%, transparent 58%);
   }
+  body.spacer .divider{display:none}
+
   /* ===================== STAGE (układ nagłówka) ===================== */
   .stage{
     max-width:1000px;margin:0 auto;padding:12px 28px 0;
@@ -350,36 +352,6 @@
   .wybor-poz .wa{font-family:'JetBrains Mono',monospace;font-size:10px;color:#d89a5c;letter-spacing:.04em}
   .wybor-poz .wd{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--gold-soft)}
 
-  /* kolisty licznik zasięgu — pierścień wokół koła mapy (jak w liczniku auta) */
-  .licznik{
-    position:absolute;inset:-5%;z-index:525;
-    overflow:visible;pointer-events:none;
-    opacity:0;transition:opacity .4s;
-    transform:rotate(-90deg);          /* start od godziny 12 */
-  }
-  .licznik.on{opacity:1}
-  .licznik-tor{
-    fill:none;stroke:rgba(243,234,214,.12);stroke-width:5;
-  }
-  .licznik-wskaz{
-    fill:none;stroke:#d89a5c;stroke-width:5;stroke-linecap:round;
-    stroke-dasharray:597;               /* obwód = 2πr, r=95 */
-    stroke-dashoffset:597;              /* pełny offset = pusty pierścień */
-    transition:stroke-dashoffset .5s ease, stroke .4s;
-  }
-  .licznik-wskaz.blisko{stroke:#6dbf8f}
-  .licznik-wskaz.srednio{stroke:#e0b355}
-  .licznik-wskaz.daleko{stroke:#c07a5a}
-
-  /* odczyt odległości w środku dolnej części koła */
-  .licznik-odczyt{
-    position:absolute;left:0;right:0;bottom:-2px;z-index:527;
-    text-align:center;pointer-events:none;
-    font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.08em;
-    color:#d89a5c;opacity:0;transition:opacity .4s;
-  }
-  .licznik-odczyt.on{opacity:.9}
-
   /* ostrzeżenie po wyjściu ze strefy */
   .poza-strefa{
     display:none;margin-bottom:14px;padding:10px 14px;border-radius:3px;
@@ -422,6 +394,83 @@
   /* delikatna złota obwódka łuku, żeby wtapiał się w ramę */
   .luk-spacer::after{content:''}
 
+  /* przeglądarka rysuje prostokątny obrys wokół klikniętego elementu z tabindex.
+     Ponieważ SVG jest rozciągnięte na całe koło, wyglądało to jak złoty kwadrat
+     wokół mapy. Chowamy go przy kliknięciu myszą/palcem, zostawiamy dla klawiatury. */
+  .luk-spacer:focus, .luk-foto:focus{outline:none}
+  .luk-spacer:focus-visible, .luk-foto:focus-visible{outline:2px solid var(--gold-soft);outline-offset:2px}
+
+  /* przyciski trybu słuchania w spacerze */
+  .tryby-sluchania{display:flex;gap:10px;justify-content:center;margin:16px 0 4px;flex-wrap:wrap}
+  .tryby-sluchania.hidden{display:none}
+  .tryb-btn{
+    flex:1;min-width:132px;max-width:190px;
+    background:rgba(169,113,63,.1);border:1px solid rgba(216,154,92,.45);
+    color:#d89a5c;padding:11px 14px;border-radius:3px;
+    font-family:'JetBrains Mono',monospace;font-size:11.5px;letter-spacing:.04em;
+    transition:background .2s,border-color .2s,color .2s;
+  }
+  .tryb-btn:hover{background:rgba(216,154,92,.2);border-color:#d89a5c}
+  .tryb-btn.active{background:#a9713f;border-color:#a9713f;color:var(--parchment)}
+  .tryb-btn.gra{animation:trybPuls 1.8s ease-in-out infinite}
+  @keyframes trybPuls{0%,100%{box-shadow:0 0 0 0 rgba(216,154,92,.5)}50%{box-shadow:0 0 0 7px rgba(216,154,92,0)}}
+
+  .kolejka-info{
+    max-width:1000px;margin:8px auto 0;padding:0 28px;text-align:center;
+    font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:.04em;
+    color:#d89a5c;min-height:18px;
+  }
+  .kolejka-info b{color:var(--parchment);font-weight:400}
+
+  /* ===================== WYGASZACZ (z audio-przewodnika) ===================== */
+  #wygaszaczKurtyna{position:fixed;inset:0;z-index:100000;display:none}
+  .wygaszacz{
+    position:fixed;inset:0;z-index:99999;background:#000;display:none;
+    flex-direction:column;align-items:center;justify-content:center;gap:26px;
+    touch-action:none;user-select:none;-webkit-user-select:none;
+    -webkit-touch-callout:none;cursor:default;
+  }
+  .wygaszacz.aktywny{display:flex}
+  .wygaszacz-zegar{
+    font-family:'Fraunces',serif;font-size:54px;font-weight:500;letter-spacing:2px;color:#4b5563;
+  }
+  .wygaszacz-status{
+    max-width:80vw;text-align:center;font-family:'Literata',serif;
+    font-size:15px;color:#6b7280;font-style:italic;
+  }
+  .wygaszacz-odblokuj{
+    position:relative;overflow:hidden;width:190px;padding:16px 10px;
+    background:#111827;border:1.5px solid #374151;border-radius:30px;color:#9ca3af;
+    font-family:'Literata',serif;font-size:15px;cursor:pointer;touch-action:none;
+    -webkit-tap-highlight-color:transparent;
+  }
+  .wygaszacz-odblokuj-fill{position:absolute;inset:0;width:0;background:rgba(201,162,39,.4)}
+  .wygaszacz-odblokuj.trzymam .wygaszacz-odblokuj-fill{width:100%;transition:width 1s linear}
+  .wygaszacz-odblokuj-tekst{position:relative;z-index:1;line-height:1.35}
+  .wygaszacz-hint{
+    max-width:82vw;text-align:center;font-size:11.5px;line-height:1.5;
+    color:#374151;font-family:'Literata',serif;
+  }
+
+  /* okienko komunikatu (spacer tylko na urządzeniach przenośnych) */
+  .okno-tlo{
+    position:fixed;inset:0;z-index:9997;display:none;
+    align-items:center;justify-content:center;padding:24px;
+    background:rgba(9,11,22,.82);backdrop-filter:blur(3px);
+  }
+  .okno-tlo.on{display:flex;animation:fadeIn .25s ease}
+  .okno{
+    max-width:420px;width:100%;text-align:center;
+    background:radial-gradient(ellipse at 50% 0%, #232c52 0%, var(--ink) 60%, var(--ink-deep) 100%);
+    border:1px solid var(--gold);border-radius:4px;padding:30px 26px 26px;
+    box-shadow:0 22px 60px -12px rgba(0,0,0,.7);
+  }
+  .okno-iko{font-size:38px;margin-bottom:10px;opacity:.9}
+  .okno h3{font-family:'Fraunces',serif;font-size:21px;color:var(--parchment);margin:0 0 12px}
+  .okno p{color:var(--parchment-dim);font-size:14.5px;line-height:1.65;margin:0 0 12px}
+  .okno .okno-hint{color:var(--gold-soft);font-size:13.5px;margin-bottom:22px}
+  .okno .btn{width:100%}
+
 </style>
 </head>
 <body>
@@ -457,16 +506,12 @@
     <div class="med-photo" id="med-photo">
       <div class="ph-fallback" id="ph-fallback">tu pojawi się zdjęcie miejscowości</div>
     </div>
+    <div class="med-frame"></div>
     <svg class="luk-foto hidden" id="luk-foto" viewBox="0 0 200 200" onclick="toggleFoto()" role="button" tabindex="0" aria-label="Przełącz zdjęcie i mapę">
       <defs><path id="foto-sciezka" d="M 24.1 55.5 A 88 88 0 0 1 55.5 24.1" fill="none"/></defs>
       <path class="luk-obwod" d="M 24.1 55.5 A 88 88 0 0 1 55.5 24.1"/>
       <path class="luk-tlo" d="M 24.1 55.5 A 88 88 0 0 1 55.5 24.1"/>
       <text class="luk-napis"><textPath href="#foto-sciezka" startOffset="50%" text-anchor="middle" id="foto-tekst">zdjęcie</textPath></text>
-    </svg>
-    <div class="med-frame"></div>
-    <svg class="licznik" id="licznik" viewBox="0 0 200 200" aria-hidden="true">
-      <circle class="licznik-tor" cx="100" cy="100" r="95"/>
-      <circle class="licznik-wskaz" id="licznik-wskaz" cx="100" cy="100" r="95"/>
     </svg>
     <svg class="luk-spacer" id="luk-spacer" viewBox="0 0 200 200" onclick="toggleSpacer()" role="button" tabindex="0" aria-label="Tryb spaceru">
       <defs><path id="luk-sciezka" d="M 147.1 25.7 A 88 88 0 0 1 174.3 52.9" fill="none"/></defs>
@@ -474,7 +519,6 @@
       <path class="luk-tlo" d="M 147.1 25.7 A 88 88 0 0 1 174.3 52.9"/>
       <text class="luk-napis"><textPath href="#luk-sciezka" startOffset="50%" text-anchor="middle" id="luk-tekst">spacer</textPath></text>
     </svg>
-    <div class="licznik-odczyt" id="licznik-odczyt"></div>
     <div class="attrib-kolo">Mapa © współtwórcy OpenStreetMap</div>
   </div>
   <div class="stage-context">
@@ -483,10 +527,15 @@
     <div class="sub" id="ctx-sub"></div>
     <p class="lede" id="ctx-lede">Kliknij złoty punkt na mapie, aby wejść do miejscowości i poznać jej poetów.</p>
     <div class="map-hint" id="ctx-hint"></div>
+    <div class="tryby-sluchania hidden" id="tryby-sluchania">
+      <button class="tryb-btn" id="tryb-kolejno" onclick="ustawTryb('kolejno')">🎧 czytaj kolejno</button>
+      <button class="tryb-btn active" id="tryb-wybor" onclick="ustawTryb('wybor')">👆 wybierz sam</button>
+    </div>
   </div>
 </div>
 
 <div class="spacer-info hidden" id="spacer-info"></div>
+<div class="kolejka-info" id="kolejka-info"></div>
 
 <!-- ====== TREŚĆ ====== -->
 <div class="content">
@@ -553,6 +602,44 @@
 </div>
 
 <div id="toast"></div>
+
+<!-- ====== KOMUNIKAT: spacer tylko na telefonie/tablecie ====== -->
+<div class="okno-tlo" id="okno-spacer" onclick="if(event.target===this) zamknijKomunikatSpaceru()">
+  <div class="okno">
+    <div class="okno-iko">🚶</div>
+    <h3>Tryb spaceru działa w terenie</h3>
+    <p>Ten tryb korzysta z lokalizacji GPS, żeby otwierać wiersze dokładnie tam, gdzie powstały. Ma sens tylko wtedy, gdy masz urządzenie przy sobie w drodze.</p>
+    <p class="okno-hint">Otwórz stronę na <b>telefonie lub tablecie</b> i wybierz „spacer", idąc w teren.</p>
+    <button class="btn" onclick="zamknijKomunikatSpaceru()">Rozumiem</button>
+  </div>
+</div>
+
+<!-- ====== KOMUNIKAT PRZED WYGASZACZEM ====== -->
+<div class="okno-tlo" id="okno-oszczedzanie">
+  <div class="okno">
+    <div class="okno-iko">🌙</div>
+    <h3>Włączam oszczędzanie baterii</h3>
+    <p class="okno-hint">Wsłuchaj się w poezję — ekran przygaśnie, a wiersze będą płynąć dalej.</p>
+  </div>
+</div>
+
+<!-- ====== WYGASZACZ (z audio-przewodnika) ====== -->
+<canvas id="wygaszaczKurtyna"></canvas>
+<div id="wygaszaczEkranu" class="wygaszacz" aria-label="Ekran przyciemniony na czas słuchania">
+  <div class="wygaszacz-zegar" id="wygaszaczZegar">--:--</div>
+  <div class="wygaszacz-status" id="wygaszaczStatus">🌙 Ekran wyciszony — poezja płynie dalej</div>
+  <button class="wygaszacz-odblokuj" id="wygaszaczOdblokuj"
+          aria-label="Przytrzymaj sekundę, aby odblokować ekran"
+          onpointerdown="wygaszaczStartOdblokuj(event)"
+          onpointerup="wygaszaczAnulujOdblokuj()"
+          onpointercancel="wygaszaczAnulujOdblokuj()"
+          onpointerleave="wygaszaczAnulujOdblokuj()">
+    <span class="wygaszacz-odblokuj-fill"></span>
+    <span class="wygaszacz-odblokuj-tekst">🔓 Przytrzymaj,<br>by odblokować</span>
+  </button>
+  <div class="wygaszacz-hint">Muśnięcie w kieszeni nic nie zrobi — trzeba przytrzymać przycisk.</div>
+</div>
+
 
 <script>
 /* ============ PRZYKŁADOWE DANE — zgodne z proponowaną strukturą JSON ============ */
@@ -925,6 +1012,19 @@ function odlegloscM(lat1,lng1,lat2,lng2){
   return 2*R*Math.asin(Math.sqrt(a));
 }
 
+/* czy to urządzenie przenośne? (telefon/tablet)
+   Nie da się tego stwierdzić w 100%, więc łączymy kilka poszlak:
+   - obsługa dotyku (komputery stacjonarne jej nie mają)
+   - szerokość ekranu (laptopy zwykle > 1280 px)
+   - deklaracja przeglądarki (userAgent)                        */
+function czyUrzadzeniePrzenosne(){
+  const dotyk = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+  const waskiEkran = Math.min(screen.width, screen.height) <= 1024;
+  const ua = /Android|iPhone|iPad|iPod|Mobile|Tablet|Silk|Kindle/i.test(navigator.userAgent);
+  // musi mieć dotyk ORAZ (wąski ekran LUB deklarację mobilną)
+  return dotyk && (waskiEkran || ua);
+}
+
 /* =========================================================
    TRYB SPACERU — GPS trzyma wędrowca na środku,
    brązowe kropki wierszy w promieniu 1500 m,
@@ -949,8 +1049,7 @@ function zamknijWierszSpaceru(){
   pokazPanel('spacer');
   ustawKontekst({
     eyebrow:'tryb spaceru',
-    title:'Wiersze wokół Ciebie',
-    lede:'Idź w stronę brązowej kropki. Gdy podejdziesz na 50 metrów, wiersz otworzy się sam.'
+    title:'Wiersze wokół Ciebie'
   });
   toast('Wiersz zamknięty — odszedłeś od miejsca');
 }
@@ -969,6 +1068,11 @@ function toggleSpacer(){
 }
 
 function wlaczSpacer(){
+  // tryb spaceru ma sens tylko w terenie, z telefonem lub tabletem
+  if(!czyUrzadzeniePrzenosne()){
+    pokazKomunikatSpaceru();
+    return;
+  }
   if(!navigator.geolocation){ toast('Twoje urządzenie nie udostępnia lokalizacji.'); return; }
   trybSpaceru = true;
   document.body.classList.add('spacer');
@@ -976,6 +1080,7 @@ function wlaczSpacer(){
   luk.classList.add('on');
   document.getElementById('luk-tekst').textContent = 'koniec';
   document.getElementById('spacer-info').classList.remove('hidden');
+  document.getElementById('tryby-sluchania').classList.remove('hidden');
 
   // tryb spaceru = tylko mapa: chowamy zdjęcie i jego przełącznik
   ustawZdjecie(null);
@@ -994,8 +1099,7 @@ function wlaczSpacer(){
 
   ustawKontekst({
     eyebrow:'tryb spaceru',
-    title:'Wiersze wokół Ciebie',
-    lede:'Idź w stronę brązowej kropki. Gdy podejdziesz na 50 metrów, wiersz otworzy się sam.'
+    title:'Wiersze wokół Ciebie'
   });
   infoSpacer('Szukam Twojej pozycji…');
 
@@ -1004,18 +1108,31 @@ function wlaczSpacer(){
   else if(userPozycja) odswiezTeren();
 }
 
+/* komunikat: spacer działa tylko na urządzeniach przenośnych */
+function pokazKomunikatSpaceru(){
+  document.getElementById('okno-spacer').classList.add('on');
+}
+function zamknijKomunikatSpaceru(){
+  document.getElementById('okno-spacer').classList.remove('on');
+}
+
 function wylaczSpacer(){
   trybSpaceru = false;
   document.body.classList.remove('spacer');
   document.getElementById('luk-spacer').classList.remove('on');
   document.getElementById('luk-tekst').textContent = 'spacer';
   document.getElementById('spacer-info').classList.add('hidden');
+  document.getElementById('tryby-sluchania').classList.add('hidden');
+  infoKolejka('');
+  zatrzymajKolejke();
+  if(wygaszaczAktywny) wylaczWygaszacz();
+  trybSluchania = 'wybor';
+  document.getElementById('tryb-kolejno').classList.remove('active');
+  document.getElementById('tryb-wybor').classList.add('active');
   if(warstwaTerenu){ warstwaTerenu.clearLayers(); }
   aktywnyWierszSpacer = null;
   czekamNaKoniec = false;
   ostatnieWZasiegu = [];
-  document.getElementById('licznik').classList.remove('on');
-  document.getElementById('licznik-odczyt').classList.remove('on');
   document.getElementById('poza-strefa').classList.remove('on');
   mapa.setMinZoom(0);               // znowu można oddalać dowolnie
   zatrzymajGps();
@@ -1047,53 +1164,234 @@ function odswiezTeren(){
     }
   });
 
-  // pasek informacyjny + licznik
+  // pasek informacyjny
   if(!wPoblizu.length){
     infoSpacer('W promieniu 1,5 km nie ma jeszcze żadnych wierszy.');
-    aktualizujLicznik(null);
   } else {
     const najbl = wPoblizu.sort((a,b)=>a.d-b.d)[0];
     infoSpacer(`W pobliżu: <b>${wPoblizu.length}</b> ${wPoblizu.length===1?'wiersz':'wierszy'} · najbliższy <b>${Math.round(najbl.d)} m</b>`);
-    aktualizujLicznik(najbl.d);
   }
 
   obsluzStrefe(wZasiegu);
+  sprawdzKolejke();   // w trybie kolejnym: podejmij następny wiersz, jeśli nic nie gra
 }
 
-/* kolisty licznik zasięgu: pusty przy 50 m, pełny przy 0 m */
-const OBWOD_LICZNIKA = 597;   // 2π × 95
+/* =========================================================
+   WYGASZACZ EKRANU — przeniesiony z audio-przewodnika
+   ========================================================= */
+let wygaszaczAktywny = false;
+let _wygaszaczTimerOdblokuj = null;
+let _wygaszaczInterval = null;
 
-function aktualizujLicznik(najblizszaOdleglosc){
-  const l = document.getElementById('licznik');
-  const w = document.getElementById('licznik-wskaz');
-  const o = document.getElementById('licznik-odczyt');
-  if(!trybSpaceru || najblizszaOdleglosc === null){
-    l.classList.remove('on'); o.classList.remove('on');
+/* animacja „matrix" jako kurtyna przy zapadaniu ekranu */
+function wygaszaczMatrixKurtyna(duration, onDone){
+  const canvas = document.getElementById('wygaszaczKurtyna');
+  const ctx = canvas.getContext('2d');
+  canvas.style.display = 'block';
+  const w = canvas.width = window.innerWidth,
+        h = canvas.height = window.innerHeight,
+        fontSize = 15;
+  const columns = Math.floor(w/fontSize);
+  const drops = Array(columns).fill(1);
+  const znaki = 'アイウエオカキクケコサシスセソ0123456789';
+  ctx.fillStyle = '#000'; ctx.fillRect(0,0,w,h);
+  const start = Date.now();
+  function klatka(){
+    ctx.fillStyle = 'rgba(0,0,0,0.15)'; ctx.fillRect(0,0,w,h);
+    ctx.fillStyle = '#3ef07a'; ctx.font = fontSize+'px monospace';
+    for(let i=0;i<drops.length;i++){
+      const t = znaki[Math.floor(Math.random()*znaki.length)];
+      ctx.fillText(t, i*fontSize, drops[i]*fontSize);
+      if(drops[i]*fontSize > h && Math.random() > 0.975) drops[i] = 0;
+      drops[i]++;
+    }
+    if(Date.now()-start < duration){ requestAnimationFrame(klatka); }
+    else { canvas.style.display = 'none'; if(onDone) onDone(); }
+  }
+  klatka();
+}
+
+function wlaczWygaszacz(){
+  const ov = document.getElementById('wygaszaczEkranu');
+  if(!ov) return;
+  odblokujMowe();
+  wygaszaczMatrixKurtyna(1100, ()=>{
+    wygaszaczAktywny = true;
+    ov.classList.add('aktywny');
+    _wygaszaczOdswiez();
+    _wygaszaczInterval = setInterval(_wygaszaczOdswiez, 30000);
+  });
+}
+
+function wylaczWygaszacz(){
+  const ov = document.getElementById('wygaszaczEkranu');
+  wygaszaczAktywny = false;
+  if(ov) ov.classList.remove('aktywny');
+  wygaszaczAnulujOdblokuj();
+  if(_wygaszaczInterval){ clearInterval(_wygaszaczInterval); _wygaszaczInterval = null; }
+}
+
+function wygaszaczStartOdblokuj(e){
+  if(e && e.preventDefault) e.preventDefault();
+  const btn = document.getElementById('wygaszaczOdblokuj');
+  if(btn) btn.classList.add('trzymam');
+  if(_wygaszaczTimerOdblokuj) clearTimeout(_wygaszaczTimerOdblokuj);
+  _wygaszaczTimerOdblokuj = setTimeout(()=>{
+    _wygaszaczTimerOdblokuj = null;
+    wylaczWygaszacz();
+    if(navigator.vibrate){ try{ navigator.vibrate(30); }catch(err){} }
+  }, 1000);
+}
+
+function wygaszaczAnulujOdblokuj(){
+  if(_wygaszaczTimerOdblokuj){ clearTimeout(_wygaszaczTimerOdblokuj); _wygaszaczTimerOdblokuj = null; }
+  const btn = document.getElementById('wygaszaczOdblokuj');
+  if(btn) btn.classList.remove('trzymam');
+}
+
+function _wygaszaczOdswiez(){
+  const zegar = document.getElementById('wygaszaczZegar');
+  if(!zegar) return;
+  const t = new Date();
+  zegar.textContent = String(t.getHours()).padStart(2,'0')+':'+String(t.getMinutes()).padStart(2,'0');
+  // pokaż na wygaszaczu, co aktualnie leci
+  const st = document.getElementById('wygaszaczStatus');
+  if(st){
+    if(terazGra && dane.wiersze[terazGra]){
+      st.textContent = '▶ ' + dane.wiersze[terazGra].tytul;
+    } else {
+      st.textContent = '🌙 Ekran wyciszony — poezja płynie dalej';
+    }
+  }
+}
+
+document.addEventListener('keydown', (e)=>{
+  if(wygaszaczAktywny && e.key === 'Escape') wylaczWygaszacz();
+});
+
+/* =========================================================
+   TRYB SŁUCHANIA — „czytaj kolejno" vs „wybierz sam"
+   ========================================================= */
+let trybSluchania = 'wybor';      // 'kolejno' | 'wybor'
+let kolejka = [];                 // slugi czekające na odtworzenie
+let terazGra = null;              // slug aktualnie odtwarzanego
+let przerwaTimer = null;
+
+function ustawTryb(tryb){
+  if(trybSluchania === tryb) return;
+  trybSluchania = tryb;
+  document.getElementById('tryb-kolejno').classList.toggle('active', tryb==='kolejno');
+  document.getElementById('tryb-wybor').classList.toggle('active', tryb==='wybor');
+
+  if(tryb === 'wybor'){
+    // wyłączamy czytanie kolejne
+    zatrzymajKolejke();
+    if(wygaszaczAktywny) wylaczWygaszacz();
+    toast('Wiersze będą się otwierać do czytania');
+  } else {
+    // włączamy — komunikat, potem wygaszacz, w tle rusza kolejka
+    zatrzymajDzwiek();
+    aktywnyWierszSpacer = null;
+    pokazPanel('spacer');
+    sprawdzKolejke();
+    pokazKomunikatOszczedzania();
+  }
+}
+
+/* komunikat „włączam oszczędzanie" → po 3 s wygaszacz */
+function pokazKomunikatOszczedzania(){
+  const okno = document.getElementById('okno-oszczedzanie');
+  okno.classList.add('on');
+  setTimeout(()=>{
+    okno.classList.remove('on');
+    // wygaszacz tylko jeśli nadal jesteśmy w trybie kolejnym
+    if(trybSluchania === 'kolejno' && trybSpaceru) wlaczWygaszacz();
+  }, 3000);
+}
+
+function zatrzymajKolejke(){
+  clearTimeout(przerwaTimer);
+  przerwaTimer = null;
+  kolejka = [];
+  terazGra = null;
+  przeczytaneWStrefie = [];
+  zatrzymajDzwiek();
+  document.getElementById('tryb-kolejno').classList.remove('gra');
+}
+
+/* co już przeczytaliśmy w bieżącym „pobycie" w strefie */
+let przeczytaneWStrefie = [];
+
+/* sprawdź, czy jest co odtwarzać — wywoływane po każdej zmianie pozycji */
+function sprawdzKolejke(){
+  if(trybSluchania !== 'kolejno' || !trybSpaceru) return;
+  if(terazGra || przerwaTimer) return;         // już coś gra albo trwa przerwa
+
+  // wiersze w zasięgu, których jeszcze nie przeczytaliśmy w tym pobycie
+  const dostepne = ostatnieWZasiegu.filter(s => !przeczytaneWStrefie.includes(s));
+
+  if(!dostepne.length){
+    // wszystko z tej strefy przeczytane — czekamy na nową
+    if(ostatnieWZasiegu.length && przeczytaneWStrefie.length){
+      infoKolejka('Przeczytano wszystkie tutaj — idź dalej');
+    }
     return;
   }
-  l.classList.add('on'); o.classList.add('on');
+  odtworzZKolejki(dostepne[0]);
+}
 
-  // poza strefą odczytu — licznik pusty
-  if(najblizszaOdleglosc > PROMIEN_ODCZYTU){
-    w.style.strokeDashoffset = OBWOD_LICZNIKA;
-    w.className.baseVal = 'licznik-wskaz';
-    o.textContent = `${Math.round(najblizszaOdleglosc)} m do wiersza`;
-    return;
+function odtworzZKolejki(slug){
+  const w = dane.wiersze[slug];
+  if(!w) return;
+  terazGra = slug;
+  przeczytaneWStrefie.push(slug);
+  document.getElementById('tryb-kolejno').classList.add('gra');
+
+  const autorSlug = znajdzAutoraWiersza(slug);
+  const autor = autorSlug ? dane.artysci[autorSlug].imie_nazwisko : '';
+  infoKolejka(`▶ <b>${w.tytul}</b>${autor?' · '+autor:''}`);
+
+  // audio autora jeśli jest, w przeciwnym razie lektor
+  if(w.audio){
+    audioEl = new Audio(w.audio);
+    audioEl.onended = ()=> poWierszuWKolejce();
+    audioEl.onerror = ()=> { czytajLektorem(w); };   // gdy plik się nie wczyta
+    audioEl.play().catch(()=> czytajLektorem(w));
+  } else {
+    czytajLektorem(w);
   }
+}
 
-  // w strefie: 50 m → 0% wypełnienia, 0 m → 100%
-  const udzial = 1 - (najblizszaOdleglosc / PROMIEN_ODCZYTU);
-  w.style.strokeDashoffset = OBWOD_LICZNIKA * (1 - udzial);
+function czytajLektorem(w){
+  if(!('speechSynthesis' in window)){ poWierszuWKolejce(); return; }
+  try{ speechSynthesis.cancel(); }catch(e){}
+  if(!_glosyZaladowane) _wybierzGlosPolski();
+  lektor = new SpeechSynthesisUtterance(w.tresc);
+  lektor.lang = 'pl-PL';
+  if(_glosPolski) lektor.voice = _glosPolski;
+  lektor.rate = 0.9;
+  lektor.onend = ()=> poWierszuWKolejce();
+  lektor.onerror = ()=> poWierszuWKolejce();
+  speechSynthesis.speak(lektor);
+}
 
-  // kolor zależny od bliskości
-  let klasa = 'daleko';
-  if(udzial > 0.66) klasa = 'blisko';
-  else if(udzial > 0.33) klasa = 'srednio';
-  w.className.baseVal = 'licznik-wskaz ' + klasa;
+/* wiersz skończony — przerwa i następny */
+function poWierszuWKolejce(){
+  terazGra = null;
+  if(audioEl){ audioEl = null; }
+  lektor = null;
+  document.getElementById('tryb-kolejno').classList.remove('gra');
+  if(trybSluchania !== 'kolejno' || !trybSpaceru) return;
+  infoKolejka('');
+  przerwaTimer = setTimeout(()=>{
+    przerwaTimer = null;
+    sprawdzKolejke();
+  }, 2200);   // krótka przerwa między wierszami
+}
 
-  o.textContent = najblizszaOdleglosc < 10
-    ? 'jesteś na miejscu'
-    : `${Math.round(najblizszaOdleglosc)} m`;
+function infoKolejka(txt){
+  const el = document.getElementById('kolejka-info');
+  if(el) el.innerHTML = txt;
 }
 
 /* wejście/wyjście ze strefy 50 m */
@@ -1104,6 +1402,20 @@ function obsluzStrefe(wZasiegu){
   if(bylo === jest) return;          // nic się nie zmieniło
   ostatnieWZasiegu = slugi;
 
+  // ===== TRYB „CZYTAJ KOLEJNO" =====
+  if(trybSluchania === 'kolejno'){
+    if(!wZasiegu.length){
+      // wyszliśmy ze strefy — nic nie przerywamy, raz zaczęty wiersz gra do końca.
+      // czyścimy listę przeczytanych, żeby po powrocie czytał od nowa
+      przeczytaneWStrefie = [];
+      return;
+    }
+    // weszliśmy w nową strefę — jeśli nic nie gra, zacznij
+    sprawdzKolejke();
+    return;
+  }
+
+  // ===== TRYB „WYBIERZ SAM" (jak dotąd) =====
   // wyszliśmy ze strefy
   if(!wZasiegu.length){
     if(aktywnyWierszSpacer){
@@ -1162,7 +1474,7 @@ function pokazWyborWierszy(lista){
   ustawKontekst({
     eyebrow:'tryb spaceru',
     title:'Jesteś przy kilku wierszach',
-    lede:'W zasięgu jest więcej niż jeden utwór — wybierz, który chcesz przeczytać.'
+    lede:'Wybierz, który chcesz przeczytać.'
   });
 }
 
@@ -1486,6 +1798,11 @@ async function startApp(){
   initMapa();
   render();
   document.getElementById('btn-back').disabled = true;
+  // na komputerze przygaś łuk spaceru — sygnał, że tryb jest dla urządzeń przenośnych
+  if(!czyUrzadzeniePrzenosne()){
+    const luk = document.getElementById('luk-spacer');
+    if(luk) luk.style.opacity = '.4';
+  }
 }
 startApp();
 </script>
