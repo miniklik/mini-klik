@@ -555,6 +555,9 @@ function setArt(id,pole,wart){
    ========================================================= */
 function renderTworczosc(){
   const box = document.getElementById('tworczosc-lista');
+  // przerysowanie niszczy stare mapy — czyścimy rejestr, żeby odtworzyły się na nowo
+  Object.keys(mapyTomikow).forEach(k=>{ try{ mapyTomikow[k].remove(); }catch(e){} delete mapyTomikow[k]; });
+  Object.keys(mapyWierszy).forEach(k=>{ try{ mapyWierszy[k].map.remove(); }catch(e){} delete mapyWierszy[k]; });
   box.innerHTML = '';
   if(!model.artysci.length){
     box.innerHTML = '<div class="empty-note">Najpierw dodaj artystów w kroku 2.</div>';
@@ -715,11 +718,29 @@ function renderMiejsceTomiku(artId, tomId){
       const c = document.getElementById('mtc-'+tomId);
       c.textContent = `Punkt: ${t.miejsce.lat}, ${t.miejsce.lng}`;
       c.classList.remove('empty');
-      renderTworczosc();
+      // odśwież tylko wiersze tego tomiku — mapa tomiku zostaje nietknięta
+      odswiezWierszeTomiku(artId, tomId);
     });
     mapyTomikow[tomId] = map;
     setTimeout(()=>map.invalidateSize(),40);
   },0);
+}
+
+/* odświeża listę wierszy tomiku bez niszczenia jego mapy */
+function odswiezWierszeTomiku(artId, tomId){
+  const a = model.artysci.find(x=>x._id===artId);
+  const t = a.tomiki.find(x=>x._id===tomId);
+  const cont = document.getElementById('tw-'+tomId);
+  if(!cont) return;
+  // usuń mapy wierszy tego tomiku z rejestru (znikają razem z HTML)
+  (t.wiersze||[]).forEach(w=>{
+    if(mapyWierszy[w._id]){
+      try{ mapyWierszy[w._id].map.remove(); }catch(e){}
+      delete mapyWierszy[w._id];
+    }
+  });
+  cont.innerHTML = '';
+  (t.wiersze||[]).forEach((w,wi)=> cont.appendChild(blokWiersza(a,t,w,wi)));
 }
 
 function setMiejsceTomiku(artId, tomId, wartosc){
