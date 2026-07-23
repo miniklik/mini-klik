@@ -1,14 +1,162 @@
 <!DOCTYPE html>
+<!--
+═══════════════════════════════════════════════════════════════════════════════
+  INSTRUKCJA DLA CLAUDE  (ten komentarz jest niewidoczny w przeglądarce)
+  ─────────────────────────────────────────────────────────────────────────────
+  Cześć Claude! Jeśli użytkownik wkleił Ci ten plik, to znaczy, że chce Twojej
+  pomocy przy tworzeniu danych do projektu „Pod Wielkim Dachem Nieba" —
+  interaktywnej mapy poezji regionalnej. Poniżej masz wszystko, czego potrzebujesz.
+
+  ── CO ROBIMY ──
+  Użytkownik wkleja Ci surowe materiały (wiersze, biografie, dane artysty),
+  a Ty składasz z nich fragment pliku dane.json o strukturze opisanej niżej.
+  Pracujecie FRAGMENT PO FRAGMENCIE — zwykle jeden artysta albo jeden tomik na raz.
+
+  ── PODZIAŁ PRACY (bardzo ważne) ──
+  TY (Claude) wypełniasz:
+    • tytuły i treść wierszy (przepisujesz z tego, co wkleja użytkownik)
+    • slug — tworzysz sam z nazwy/tytułu: małe litery, polskie znaki zamieniasz
+      (ą→a ć→c ę→e ł→l ń→n ó→o ś→s ź→z ż→z), spacje i znaki → myślniki.
+      Przykłady: „Nad zalewem" → nad-zalewem ; „Halina Wierzbicka" → halina-wierzbicka
+    • imie_nazwisko, lata, bio — jeśli użytkownik je poda
+    • data_powstania, zrodlo — jeśli poda; jeśli nie poda → wstaw ""
+    • strukturę: rozpoznajesz, czy wiersz jest w tomiku, czy luźny (spoza tomików)
+
+  ZOSTAWIASZ JAKO null (bo nie masz jak tego wiedzieć — użytkownik uzupełni sam):
+    • lat, lng przy miejscowości → null
+    • lat, lng przy KAŻDYM miejscu wiersza → null
+    • zdjecie (miejscowość, artysta) → null
+    • okladka (tomik) → null
+    • audio (wiersz) → null
+
+  MIEJSCA W WIERSZU (pole "miejsca"):
+    • Jeśli z treści wiersza wynika, JAKIE miejsca są wspomniane (zalew, rynek,
+      aleja, most…), zaproponuj wpisy z "nazwa" i lat/lng = null.
+    • Jeśli nie wiadomo — zostaw "miejsca": [] (pusta lista).
+    • Pole "typ" zostawiaj "".
+
+  ── ZASADY ──
+  1. Zawsze zwracaj POPRAWNY JSON (sprawdzone przecinki i nawiasy).
+  2. NIE WYMYŚLAJ dat, źródeł, miejsc ani biografii. Czego użytkownik nie poda —
+     zostaw puste ("", null albo []).
+  3. Slug rób sam — to Twoja robota.
+  4. Jeśli czegoś brakuje albo coś jest niejasne (np. nie wiesz, czy wiersz jest
+     w tomiku) — NAPISZ DO UŻYTKOWNIKA i poproś o brakującą informację, np.:
+     „Podaj datę powstania tego wiersza" albo „Czy ten wiersz należy do tomiku,
+     czy jest luźny?"
+  5. Gdy fragment jest kompletny — oddaj gotowy JSON i NAPISZ użytkownikowi
+     podsumowanie, np.:
+     „Tomik gotowy. Z Twojej strony zostaje jeszcze: ustaw położenie miejscowości
+      i wierszy na mapie (lat/lng) oraz dodaj zdjęcia i nagrania (nazwy plików)."
+
+  ── STRUKTURA (trzymaj się co do pola) ──
+
+  CAŁA MIEJSCOWOŚĆ:
+  {
+    "slug": "siedliszcze",
+    "nazwa": "Siedliszcze",
+    "podtytul": "gmina Siedliszcze · powiat chełmski · lubelskie",
+    "opis": "Krótki opis miejscowości…",
+    "lat": null,
+    "lng": null,
+    "zdjecie": null,
+    "artysci": [ …artyści… ]
+  }
+
+  ARTYSTA (ma dwa OPCJONALNE pola: "tomiki" i "dziela" = luźne wiersze;
+  może mieć jedno, drugie albo oba):
+  {
+    "slug": "halina-wierzbicka",
+    "imie_nazwisko": "Halina Wierzbicka",
+    "lata": "1932–2011",
+    "zdjecie": null,
+    "bio": "Życiorys i opis twórczości…",
+    "tomiki": [ …tomiki… ],
+    "dziela": [ …luźne wiersze spoza tomików… ]
+  }
+  • tylko luźne wiersze → daj samo "dziela", pomiń "tomiki"
+  • tylko tomiki → daj samo "tomiki", pomiń "dziela"
+
+  TOMIK:
+  {
+    "slug": "cisza-po-drodze",
+    "tytul": "Cisza po drodze",
+    "okladka": null,
+    "wiersze": [ …wiersze tego tomiku… ]
+  }
+
+  WIERSZ (identyczny w tomiku i w luźnych):
+  {
+    "slug": "nad-zalewem",
+    "tytul": "Nad zalewem",
+    "tresc": "Pierwsza linijka\nDruga linijka\n\nNowa strofa po pustej linii",
+    "data_powstania": "1987",
+    "zrodlo": "tomik „Cisza po drodze", 2012",
+    "audio": null,
+    "miejsca": [
+      { "nazwa": "Zalew", "typ": "", "lat": null, "lng": null }
+    ]
+  }
+  • Treść wiersza: nowe linijki jako \n, pusta linia między strofami jako \n\n.
+    Zachowaj podział wersów dokładnie jak w oryginale.
+
+  ── PEŁNY PRZYKŁAD (jeden artysta z tomikiem i luźnym wierszem) ──
+  {
+    "slug": "halina-wierzbicka",
+    "imie_nazwisko": "Halina Wierzbicka",
+    "lata": "1932–2011",
+    "zdjecie": null,
+    "bio": "Urodzona w Siedliszczu, pisała o zalewie i codzienności miasteczka.",
+    "tomiki": [
+      {
+        "slug": "cisza-po-drodze",
+        "tytul": "Cisza po drodze",
+        "okladka": null,
+        "wiersze": [
+          {
+            "slug": "nad-zalewem",
+            "tytul": "Nad zalewem",
+            "tresc": "Woda tu inaczej milczy niż w mieście,\nrozkłada się płasko pod ciężarem nieba.",
+            "data_powstania": "1987",
+            "zrodlo": "tomik „Cisza po drodze", 2012",
+            "audio": null,
+            "miejsca": [
+              { "nazwa": "Zalew Majdan Zahorodyński", "typ": "", "lat": null, "lng": null }
+            ]
+          }
+        ]
+      }
+    ],
+    "dziela": [
+      {
+        "slug": "z-biuletynu",
+        "tytul": "Wiersz z biuletynu",
+        "tresc": "Ten wiersz nie trafił do żadnej książki,\nzostał na łamach gminnej gazetki.",
+        "data_powstania": "1995",
+        "zrodlo": "Biuletyn Gminy Siedliszcze, 1995",
+        "audio": null,
+        "miejsca": []
+      }
+    ]
+  }
+
+  ── JAK ODDAWAĆ WYNIK ──
+  Oddawaj gotowy fragment JSON w bloku kodu, żeby użytkownik mógł go skopiować.
+  Użytkownik wklei go potem do edytora (przycisk „Wczytaj istniejący dane.json")
+  albo bezpośrednio do pliku dane.json na GitHubie.
+═══════════════════════════════════════════════════════════════════════════════
+-->
 <html lang="pl">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Edytor — Pod Wielkim Dachem Nieba</title>
+<title>Narzędzia — Pod Wielkim Dachem Nieba</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Literata:ital,wght@0,400;0,500;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <style>
+
   :root{
     --ink:#1b2340; --ink-deep:#12172c; --lead:#0f0f18;
     --parchment:#f3ead6; --parchment-dim:#e8dcc1;
@@ -120,9 +268,137 @@
     .row2,.row3{grid-template-columns:1fr}
     .wrap{padding:18px 16px 70px}
   }
+
+
+/* ===================== MENU GŁÓWNE ===================== */
+  .menu-glowne{max-width:640px;margin:0 auto;padding:60px 24px;text-align:center}
+  .menu-tytul{font-family:'Fraunces',serif;font-weight:600;font-size:28px;color:var(--parchment);margin-bottom:6px}
+  .menu-sub{font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.06em;
+            text-transform:uppercase;color:var(--gold-soft);margin-bottom:42px}
+  .menu-kafle{display:flex;flex-direction:column;gap:16px}
+  .kafel{
+    display:flex;align-items:center;gap:20px;text-align:left;
+    background:rgba(243,234,214,.04);border:1px solid rgba(243,234,214,.2);
+    border-radius:5px;padding:26px 24px;color:var(--parchment);
+    transition:border-color .2s,background .2s,transform .2s;
+  }
+  .kafel:hover{border-color:var(--gold);background:rgba(201,162,39,.08);transform:translateY(-2px)}
+  .kafel .iko{font-size:34px;flex-shrink:0;opacity:.9}
+  .kafel .nm{font-family:'Fraunces',serif;font-size:20px;font-weight:600}
+  .kafel .ds{color:var(--parchment-dim);font-size:13.5px;line-height:1.55;margin-top:5px}
+
+  .pasek-powrotu{max-width:860px;margin:0 auto;padding:18px 24px 0}
+  .btn-powrot{
+    background:none;border:1px solid rgba(243,234,214,.28);color:var(--parchment-dim);
+    padding:7px 14px;border-radius:2px;font-family:'JetBrains Mono',monospace;
+    font-size:11px;letter-spacing:.05em;transition:border-color .2s,color .2s,background .2s;
+  }
+  .btn-powrot:hover{border-color:var(--gold-soft);color:var(--parchment);background:rgba(201,162,39,.1)}
+
+  .ekran{display:none}
+  .ekran.on{display:block}
+
+
+h1,h2{font-family:'Fraunces',serif;font-weight:600;letter-spacing:.01em}
+  button{font-family:inherit;cursor:pointer}
+  .mono{font-family:'JetBrains Mono',monospace;letter-spacing:.05em}
+
+  .wrap{max-width:720px;margin:0 auto;padding:30px 24px 90px}
+  .title{font-size:24px;margin-bottom:4px}
+  .sub{font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.06em;
+       text-transform:uppercase;color:var(--gold-soft);margin-bottom:28px}
+
+  .drop{
+    border:2px dashed rgba(243,234,214,.3);border-radius:6px;padding:38px 20px;
+    color:var(--parchment-dim);cursor:pointer;text-align:center;
+    transition:border-color .2s,background .2s;
+  }
+  .drop:hover{border-color:var(--gold-soft);background:rgba(201,162,39,.06)}
+  .drop .big{font-size:34px;margin-bottom:10px}
+  .drop .hint{font-family:'JetBrains Mono',monospace;font-size:10px;opacity:.6;margin-top:8px}
+
+  .lista{margin-top:22px;display:flex;flex-direction:column;gap:10px}
+  .plik{
+    display:flex;align-items:center;gap:12px;
+    background:rgba(243,234,214,.04);border:1px solid rgba(243,234,214,.16);
+    border-radius:3px;padding:13px 15px;
+  }
+  .plik .iko{font-size:19px;flex-shrink:0}
+  .plik .info{flex:1;min-width:0}
+  .plik .nm{font-family:'Fraunces',serif;font-size:15px}
+  .plik .op{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--gold-soft);
+            opacity:.8;margin-top:3px}
+  .plik.zly{border-color:rgba(163,59,59,.5);background:rgba(163,59,59,.08)}
+  .plik.zly .op{color:#d98a8a}
+  .plik .usun{background:none;border:none;color:var(--parchment-dim);opacity:.4;font-size:16px;
+              padding:0 4px;transition:opacity .2s}
+  .plik .usun:hover{opacity:1;color:var(--gold-soft)}
+
+  .podsum{
+    margin-top:24px;padding:16px 18px;border-radius:3px;
+    background:rgba(47,109,91,.1);border:1px solid rgba(47,109,91,.45);
+    font-size:14px;line-height:1.65;
+  }
+  .podsum.pusty{display:none}
+  .podsum b{color:var(--gold-soft);font-weight:400}
+  .ostrzez{
+    margin-top:12px;padding:12px 16px;border-radius:3px;
+    background:rgba(201,162,39,.1);border:1px solid rgba(201,162,39,.45);
+    font-size:13.5px;line-height:1.6;color:var(--gold-soft);display:none;
+  }
+  .ostrzez.on{display:block}
+
+  .btn{
+    border:1px solid var(--gold);color:var(--gold-soft);background:none;
+    padding:12px 22px;border-radius:2px;font-family:'JetBrains Mono',monospace;
+    font-size:12px;letter-spacing:.06em;text-transform:uppercase;transition:background .2s,color .2s;
+  }
+  .btn:hover{background:var(--gold);color:var(--ink-deep)}
+  .btn.solid{background:var(--gold);color:var(--ink-deep)}
+  .btn.solid:hover{background:var(--gold-soft)}
+  .btn.ghost{border-color:rgba(243,234,214,.3);color:var(--parchment-dim)}
+  .btn.ghost:hover{background:rgba(243,234,214,.1);color:var(--parchment)}
+  .btn:disabled{opacity:.3;pointer-events:none}
+  .btn-row{display:flex;gap:12px;margin-top:22px;flex-wrap:wrap}
+
+  .podglad{
+    margin-top:20px;width:100%;min-height:220px;max-height:340px;overflow:auto;
+    background:rgba(15,15,24,.6);border:1px solid rgba(243,234,214,.2);border-radius:3px;
+    color:var(--parchment);font-family:'JetBrains Mono',monospace;font-size:11.5px;
+    line-height:1.5;padding:14px;white-space:pre;display:none;
+  }
+  .podglad.on{display:block}
+  .ok-flash{color:#8fc7b5;font-family:'JetBrains Mono',monospace;font-size:12px;margin-left:10px;display:none}
+  .ok-flash.on{display:inline}
+
 </style>
 </head>
 <body>
+
+<!-- ====== MENU ====== -->
+<div class="ekran on" id="ekran-menu">
+  <div class="menu-glowne">
+    <div class="menu-tytul">Narzędzia</div>
+    <div class="menu-sub">Pod Wielkim Dachem Nieba</div>
+    <div class="menu-kafle">
+      <button class="kafel" onclick="pokazEkran('edytor')">
+        <span class="iko">🗺️</span>
+        <span><span class="nm">Edytor miejscowości</span>
+        <span class="ds">Kreator krok po kroku: miejscowość, pisarze, tomiki i wiersze. Tworzy gotowy plik dane.json.</span></span>
+      </button>
+      <button class="kafel" onclick="pokazEkran('scalarka')">
+        <span class="iko">🧩</span>
+        <span><span class="nm">Scalarka plików</span>
+        <span class="ds">Łączy kilka zgłoszeń jednej miejscowości w jeden plik. Przydaje się, gdy dochodzi nowy pisarz.</span></span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ====== EDYTOR MIEJSCOWOŚCI ====== -->
+<div class="ekran" id="ekran-edytor">
+  <div class="pasek-powrotu"><button class="btn-powrot" onclick="pokazEkran('menu')">← narzędzia</button></div>
+
 <div class="wrap">
 
   <div class="head">
@@ -227,7 +503,59 @@
 
 </div>
 
+
+</div>
+
+<!-- ====== SCALARKA ====== -->
+<div class="ekran" id="ekran-scalarka">
+  <div class="pasek-powrotu"><button class="btn-powrot" onclick="pokazEkran('menu')">← narzędzia</button></div>
+
+<div class="wrap">
+
+  <div class="title">Scalarka plików</div>
+  <div class="sub">Pod Wielkim Dachem Nieba · łączenie zgłoszeń w jeden dane.json</div>
+
+  <div class="drop" id="drop" onclick="document.getElementById('pliki').click()">
+    <div class="big">🧩</div>
+    <div>Kliknij lub przeciągnij tu pliki JSON</div>
+    <div class="hint">możesz wrzucić kilka naraz · pełne miejscowości i fragmenty z artystami</div>
+  </div>
+  <input type="file" id="pliki" accept=".json" multiple style="display:none">
+
+  <div class="lista" id="lista"></div>
+
+  <div class="podsum pusty" id="podsum"></div>
+  <div class="ostrzez" id="ostrzez"></div>
+
+  <div class="btn-row" id="akcje" style="display:none">
+    <button class="btn solid" onclick="pobierz()">⬇ Pobierz dane.json</button>
+    <button class="btn ghost" onclick="kopiuj()">Kopiuj <span class="ok-flash" id="ok">skopiowano ✓</span></button>
+    <button class="btn ghost" onclick="podgladToggle()">Podgląd</button>
+    <button class="btn ghost" onclick="wyczysc()">Wyczyść</button>
+  </div>
+
+  <div class="podglad" id="podglad"></div>
+
+</div>
+
+
+</div>
+
 <script>
+/* ===================== PRZEŁĄCZANIE EKRANÓW ===================== */
+let mapaZainicjowana = false;
+function pokazEkran(nazwa){
+  document.querySelectorAll('.ekran').forEach(e=>e.classList.remove('on'));
+  document.getElementById('ekran-'+nazwa).classList.add('on');
+  window.scrollTo({top:0});
+  // mapa Leaflet musi się przeliczyć, gdy pojawia się po ukryciu
+  if(nazwa === 'edytor'){
+    if(!mapaZainicjowana){ initMapaM(); mapaZainicjowana = true; }
+    setTimeout(()=>{ if(mapaM) mapaM.invalidateSize(); }, 80);
+  }
+}
+
+
 /* =========================================================
    MODEL DANYCH — trzymamy stan kreatora, na końcu składamy JSON
    ========================================================= */
@@ -727,8 +1055,204 @@ function val(id){ return document.getElementById(id).value; }
 function setVal(id,v){ const el=document.getElementById(id); if(el) el.value=v||''; }
 function esc(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
-/* START */
-initMapaM();
+/* START — mapa startuje przy wejściu w edytor */
+
+
+
+/* =========================================================
+   STAN
+   ========================================================= */
+let wczytane = [];     // { nazwa, typ:'miejscowosc'|'artysta'|'blad', dane, opis }
+
+/* =========================================================
+   WCZYTYWANIE
+   ========================================================= */
+document.getElementById('pliki').addEventListener('change', e=>{
+  [...e.target.files].forEach(czytajPlik);
+  e.target.value = '';
+});
+const drop = document.getElementById('drop');
+['dragover','dragenter'].forEach(ev=> drop.addEventListener(ev, e=>{e.preventDefault(); drop.style.borderColor='var(--gold)';}));
+['dragleave','drop'].forEach(ev=> drop.addEventListener(ev, e=>{e.preventDefault(); drop.style.borderColor='';}));
+drop.addEventListener('drop', e=>{
+  [...e.dataTransfer.files].filter(f=>f.name.endsWith('.json')).forEach(czytajPlik);
+});
+
+function czytajPlik(plik){
+  const r = new FileReader();
+  r.onload = ()=>{
+    let obj = null, typ = 'blad', opis = '';
+    try{
+      obj = JSON.parse(r.result);
+      const rozpoznanie = rozpoznaj(obj);
+      typ = rozpoznanie.typ;
+      opis = rozpoznanie.opis;
+    }catch(err){
+      opis = 'to nie jest poprawny plik JSON';
+    }
+    wczytane.push({ nazwa: plik.name, typ, dane: obj, opis });
+    odswiez();
+  };
+  r.readAsText(plik);
+}
+
+/* rozpoznaje, czy plik to pełna miejscowość, czy sam artysta */
+function rozpoznaj(obj){
+  if(!obj || typeof obj !== 'object') return { typ:'blad', opis:'pusty albo nieznany format' };
+
+  // pełna miejscowość: ma nazwę i listę artystów
+  if(obj.nazwa && Array.isArray(obj.artysci)){
+    const ilu = obj.artysci.length;
+    const wierszy = policzWiersze(obj.artysci);
+    return { typ:'miejscowosc', opis:`miejscowość · ${ilu} ${ilu===1?'pisarz':'pisarzy'} · ${wierszy} ${odmianaWierszy(wierszy)}` };
+  }
+  // fragment: sam artysta
+  if(obj.imie_nazwisko){
+    const wierszy = policzWiersze([obj]);
+    return { typ:'artysta', opis:`pisarz: ${obj.imie_nazwisko} · ${wierszy} ${odmianaWierszy(wierszy)}` };
+  }
+  // lista artystów bez miejscowości
+  if(Array.isArray(obj) && obj.length && obj[0].imie_nazwisko){
+    const wierszy = policzWiersze(obj);
+    return { typ:'artysci', opis:`${obj.length} pisarzy · ${wierszy} ${odmianaWierszy(wierszy)}` };
+  }
+  return { typ:'blad', opis:'nie rozpoznaję — brak nazwy miejscowości ani pisarza' };
+}
+
+function policzWiersze(artysci){
+  return artysci.reduce((suma,a)=>{
+    const zTomikow = (a.tomiki||[]).reduce((s,t)=> s + (t.wiersze||[]).length, 0);
+    return suma + zTomikow + (a.dziela||[]).length;
+  }, 0);
+}
+function odmianaWierszy(n){
+  if(n === 1) return 'wiersz';
+  if(n % 10 >= 2 && n % 10 <= 4 && !(n % 100 >= 12 && n % 100 <= 14)) return 'wiersze';
+  return 'wierszy';
+}
+
+/* =========================================================
+   SCALANIE
+   ========================================================= */
+function scal(){
+  const dobre = wczytane.filter(p=>p.typ !== 'blad');
+  if(!dobre.length) return null;
+
+  // podstawa: pierwsza pełna miejscowość
+  const bazowa = dobre.find(p=>p.typ === 'miejscowosc');
+  if(!bazowa) return { brakMiejscowosci:true };
+
+  const wynik = JSON.parse(JSON.stringify(bazowa.dane));   // kopia, nie ruszamy oryginału
+  if(!Array.isArray(wynik.artysci)) wynik.artysci = [];
+
+  const duble = [];
+  dobre.forEach(p=>{
+    if(p === bazowa) return;
+    let doDodania = [];
+    if(p.typ === 'miejscowosc') doDodania = p.dane.artysci || [];
+    else if(p.typ === 'artysta') doDodania = [p.dane];
+    else if(p.typ === 'artysci') doDodania = p.dane;
+
+    doDodania.forEach(a=>{
+      const juzJest = wynik.artysci.find(x =>
+        (x.slug && a.slug && x.slug === a.slug) ||
+        (x.imie_nazwisko === a.imie_nazwisko)
+      );
+      if(juzJest){ duble.push(a.imie_nazwisko || a.slug); return; }
+      wynik.artysci.push(a);
+    });
+  });
+
+  return { wynik, duble };
+}
+
+/* =========================================================
+   WIDOK
+   ========================================================= */
+function odswiez(){
+  const lista = document.getElementById('lista');
+  lista.innerHTML = '';
+  wczytane.forEach((p,i)=>{
+    const el = document.createElement('div');
+    el.className = 'plik' + (p.typ === 'blad' ? ' zly' : '');
+    const iko = p.typ === 'miejscowosc' ? '🏘️' : p.typ === 'blad' ? '⚠️' : '👤';
+    el.innerHTML = `<span class="iko">${iko}</span>
+      <span class="info"><div class="nm">${esc(p.nazwa)}</div><div class="op">${esc(p.opis)}</div></span>
+      <button class="usun" onclick="usun(${i})" title="Usuń z listy">✕</button>`;
+    lista.appendChild(el);
+  });
+
+  const podsum = document.getElementById('podsum');
+  const ostrzez = document.getElementById('ostrzez');
+  const akcje = document.getElementById('akcje');
+  ostrzez.classList.remove('on');
+
+  if(!wczytane.length){
+    podsum.classList.add('pusty');
+    akcje.style.display = 'none';
+    document.getElementById('podglad').classList.remove('on');
+    return;
+  }
+
+  const s = scal();
+  if(!s || s.brakMiejscowosci){
+    podsum.classList.add('pusty');
+    akcje.style.display = 'none';
+    ostrzez.textContent = 'Dorzuć plik pełnej miejscowości — sam pisarz nie wystarczy, żeby złożyć dane.json.';
+    ostrzez.classList.add('on');
+    return;
+  }
+
+  const ilu = s.wynik.artysci.length;
+  const wierszy = policzWiersze(s.wynik.artysci);
+  podsum.classList.remove('pusty');
+  podsum.innerHTML = `Po scaleniu: <b>${esc(s.wynik.nazwa)}</b> · <b>${ilu}</b> ${ilu===1?'pisarz':'pisarzy'} · <b>${wierszy}</b> ${odmianaWierszy(wierszy)}<br>
+    ${s.wynik.artysci.map(a=>'· ' + esc(a.imie_nazwisko||a.slug)).join('<br>')}`;
+  akcje.style.display = 'flex';
+
+  if(s.duble.length){
+    ostrzez.innerHTML = `Pominięto powtórzonych pisarzy: <b>${s.duble.map(esc).join(', ')}</b> — byli już w pliku bazowym.`;
+    ostrzez.classList.add('on');
+  }
+
+  const pg = document.getElementById('podglad');
+  if(pg.classList.contains('on')) pg.textContent = JSON.stringify(s.wynik, null, 2);
+}
+
+function usun(i){ wczytane.splice(i,1); odswiez(); }
+function wyczysc(){ wczytane = []; document.getElementById('podglad').classList.remove('on'); odswiez(); }
+
+function podgladToggle(){
+  const pg = document.getElementById('podglad');
+  pg.classList.toggle('on');
+  if(pg.classList.contains('on')){
+    const s = scal();
+    if(s && s.wynik) pg.textContent = JSON.stringify(s.wynik, null, 2);
+  }
+}
+
+function pobierz(){
+  const s = scal();
+  if(!s || !s.wynik) return;
+  const blob = new Blob([JSON.stringify(s.wynik, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'dane.json';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function kopiuj(){
+  const s = scal();
+  if(!s || !s.wynik) return;
+  navigator.clipboard.writeText(JSON.stringify(s.wynik, null, 2)).then(()=>{
+    const ok = document.getElementById('ok');
+    ok.classList.add('on');
+    setTimeout(()=> ok.classList.remove('on'), 1800);
+  });
+}
+
+
 </script>
 </body>
 </html>
