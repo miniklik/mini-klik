@@ -270,6 +270,21 @@
   }
 
 
+  /* wspólne miejsce tomiku */
+  .miejsce-tomiku{
+    margin-top:6px;padding:12px 14px;border-radius:3px;
+    background:rgba(201,162,39,.06);border:1px solid rgba(201,162,39,.22);
+  }
+  .tomik-hint{
+    font-size:12.5px;line-height:1.55;color:var(--parchment-dim);opacity:.75;margin:2px 0 10px;
+  }
+  .miejsce-z-tomiku{
+    margin-top:14px;padding:11px 14px;border-radius:3px;
+    background:rgba(135,87,201,.12);border:1px solid rgba(154,109,215,.4);
+    font-size:12.5px;line-height:1.55;color:#c9b3e8;
+  }
+  .miejsce-z-tomiku b{color:var(--parchment)}
+
 /* ===================== MENU GŁÓWNE ===================== */
   .menu-glowne{max-width:640px;margin:0 auto;padding:60px 24px;text-align:center}
   .menu-tytul{font-family:'Fraunces',serif;font-weight:600;font-size:28px;color:var(--parchment);margin-bottom:6px}
@@ -738,7 +753,7 @@ function renderTworczosc(){
 /* --- TOMIK --- */
 function dodajTomik(artId){
   const a = model.artysci.find(x=>x._id===artId);
-  a.tomiki.push({ _id:nowyId(), tytul:'', okladka:'', wiersze:[] });
+  a.tomiki.push({ _id:nowyId(), tytul:'', okladka:'', miejsce:null, wiersze:[] });
   renderTworczosc();
 }
 function usunTomik(artId,tomId){
@@ -768,12 +783,24 @@ function blokTomiku(a,t,ti){
         <input type="text" value="${esc(t.okladka)}" oninput="setTomik('${a._id}','${t._id}','okladka',this.value)" placeholder="np. cisza-po-drodze.jpg">
       </div>
     </div>
+    <div class="miejsce-tomiku">
+      <label style="margin-top:14px">Wspólne miejsce dla całego tomiku <span class="opt">— opcjonalnie</span></label>
+      <div class="tomik-hint">
+        Przy dużych tomikach nie musisz klikać punktu przy każdym wierszu.
+        Ustaw jedno miejsce dla całego tomiku — wszystkie jego wiersze pojawią się w tym punkcie.
+      </div>
+      <div id="mt-wrap-${t._id}">
+        <button class="btn mini" id="mt-btn-${t._id}" onclick="wlaczMiejsceTomiku('${a._id}','${t._id}')">📍 Dodaj tomik na mapie</button>
+      </div>
+    </div>
     <label style="margin-top:14px">Wiersze w tomiku</label>
     <div id="tw-${t._id}"></div>
     <div class="add-line">
       <button class="btn mini" onclick="dodajWierszTomiku('${a._id}','${t._id}')">➕ Dodaj wiersz do tomiku</button>
     </div>
   `;
+  // wspólne miejsce tomiku — odtwórz, jeśli już ustawione
+  if(t.miejsce) setTimeout(()=> renderMiejsceTomiku(a._id, t._id), 0);
   // wiersze tomiku
   setTimeout(()=>{
     const cont = el.querySelector('#tw-'+t._id);
@@ -783,6 +810,82 @@ function blokTomiku(a,t,ti){
   },0);
   return el;
 }
+/* ---------- WSPÓLNE MIEJSCE TOMIKU ---------- */
+const mapyTomikow = {};
+
+function wlaczMiejsceTomiku(artId, tomId){
+  const a = model.artysci.find(x=>x._id===artId);
+  const t = a.tomiki.find(x=>x._id===tomId);
+  if(!t.miejsce) t.miejsce = { nazwa:'', lat:null, lng:null };
+  renderMiejsceTomiku(artId, tomId);
+}
+
+function usunMiejsceTomiku(artId, tomId){
+  const a = model.artysci.find(x=>x._id===artId);
+  const t = a.tomiki.find(x=>x._id===tomId);
+  t.miejsce = null;
+  delete mapyTomikow[tomId];
+  renderTworczosc();     // odśwież całość — wracają mapy przy wierszach
+}
+
+function renderMiejsceTomiku(artId, tomId){
+  const a = model.artysci.find(x=>x._id===artId);
+  const t = a.tomiki.find(x=>x._id===tomId);
+  const wrap = document.getElementById('mt-wrap-'+tomId);
+  if(!wrap || !t.miejsce) return;
+
+  wrap.innerHTML = `
+    <div style="display:flex;gap:8px;align-items:center;margin:8px 0">
+      <input type="text" value="${esc(t.miejsce.nazwa)}" placeholder="nazwa miejsca (np. Zalew)"
+             oninput="setMiejsceTomiku('${artId}','${tomId}',this.value)"
+             style="flex:1;padding:6px 9px;font-size:13px">
+      <button class="btn mini danger" onclick="usunMiejsceTomiku('${artId}','${tomId}')">Usuń miejsce</button>
+    </div>
+    <div class="picker" id="mtmap-${tomId}" style="height:220px"></div>
+    <div class="coord-line ${t.miejsce.lat?'':'empty'}" id="mtc-${tomId}">
+      ${t.miejsce.lat ? 'Punkt: '+t.miejsce.lat+', '+t.miejsce.lng : 'Kliknij na mapie, aby ustawić miejsce tomiku'}
+    </div>`;
+
+  setTimeout(()=>{
+    const el = document.getElementById('mtmap-'+tomId);
+    if(!el || mapyTomikow[tomId]) return;
+    const centrum = (model.lat && model.lng) ? [model.lat, model.lng] : [51.19,23.16];
+    const map = L.map('mtmap-'+tomId, { attributionControl:false }).setView(centrum, 13);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18}).addTo(map);
+    let marker = null;
+    if(t.miejsce.lat){
+      marker = L.circleMarker([t.miejsce.lat,t.miejsce.lng],
+        {radius:9,color:'#c9a227',fillColor:'#8757c9',fillOpacity:.9,weight:3}).addTo(map);
+      map.setView([t.miejsce.lat,t.miejsce.lng], 14);
+    }
+    map.on('click', e=>{
+      t.miejsce.lat = +e.latlng.lat.toFixed(5);
+      t.miejsce.lng = +e.latlng.lng.toFixed(5);
+      if(marker) marker.setLatLng(e.latlng);
+      else marker = L.circleMarker(e.latlng,
+        {radius:9,color:'#c9a227',fillColor:'#8757c9',fillOpacity:.9,weight:3}).addTo(map);
+      const c = document.getElementById('mtc-'+tomId);
+      c.textContent = `Punkt: ${t.miejsce.lat}, ${t.miejsce.lng}`;
+      c.classList.remove('empty');
+      // punkt tomiku ustawiony → chowamy mapy przy wierszach
+      renderTworczosc();
+    });
+    mapyTomikow[tomId] = map;
+    setTimeout(()=>map.invalidateSize(),40);
+  },0);
+}
+
+function setMiejsceTomiku(artId, tomId, wartosc){
+  const a = model.artysci.find(x=>x._id===artId);
+  const t = a.tomiki.find(x=>x._id===tomId);
+  if(t.miejsce) t.miejsce.nazwa = wartosc;
+}
+
+/* czy tomik ma już ustawiony wspólny punkt? */
+function tomikMaMiejsce(t){
+  return !!(t.miejsce && t.miejsce.lat != null && t.miejsce.lng != null);
+}
+
 function dodajWierszTomiku(artId,tomId){
   const a = model.artysci.find(x=>x._id===artId);
   const t = a.tomiki.find(x=>x._id===tomId);
@@ -814,6 +917,7 @@ function nowyWiersz(){
 
 /* --- BLOK WIERSZA (wspólny dla tomiku i luźnych) --- */
 function blokWiersza(a, t, w, wi){
+  const tomikZMiejscem = (t && tomikMaMiejsce(t)) ? t : null;
   const el = document.createElement('div');
   el.className = 'sub-block nested';
   const usunFn = t
@@ -841,15 +945,20 @@ function blokWiersza(a, t, w, wi){
     <label>Źródło publikacji <span class="opt">— opcjonalnie</span></label>
     <input type="text" value="${esc(w.zrodlo)}" oninput="setW('${w._id}','zrodlo',this.value)" placeholder="np. tomik „Cisza po drodze”, 2012">
 
+    ${tomikZMiejscem ? `
+    <div class="miejsce-z-tomiku">
+      📍 Ten wiersz dziedziczy miejsce tomiku${tomikZMiejscem.miejsce.nazwa ? ': <b>'+esc(tomikZMiejscem.miejsce.nazwa)+'</b>' : ''}.
+      Usuń miejsce tomiku, jeśli chcesz ustawiać punkty osobno dla każdego wiersza.
+    </div>` : `
     <label style="margin-top:14px">Miejsca związane z wierszem (fioletowe kropki)</label>
     <div class="miejsca-lista" id="mj-${w._id}"></div>
     <div class="map-box">
       <div class="picker" id="pickw-${w._id}" style="height:220px"></div>
       <div class="coord-line" id="coordw-${w._id}">Kliknij na mapie, aby dodać miejsce tego wiersza</div>
-    </div>
+    </div>`}
   `;
-  // po wstawieniu do DOM: lista miejsc + mapka
-  setTimeout(()=> initMapaWiersza(w), 0);
+  // mapka wiersza tylko wtedy, gdy tomik nie ma wspólnego punktu
+  if(!tomikZMiejscem) setTimeout(()=> initMapaWiersza(w), 0);
   return el;
 }
 function setW(id,pole,wart){
@@ -942,12 +1051,19 @@ function zbudujObiekt(){
         bio: a.bio || ''
       };
       if(a.tomiki && a.tomiki.length){
-        wynik.tomiki = a.tomiki.map(t=>({
-          slug: slug(t.tytul),
-          tytul: t.tytul,
-          okladka: t.okladka ? t.okladka : null,
-          wiersze: (t.wiersze||[]).map(mapWiersz)
-        }));
+        wynik.tomiki = a.tomiki.map(t=>{
+          const tom = {
+            slug: slug(t.tytul),
+            tytul: t.tytul,
+            okladka: t.okladka ? t.okladka : null,
+            wiersze: (t.wiersze||[]).map(mapWiersz)
+          };
+          // wspólne miejsce tomiku — tylko jeśli ustawione
+          if(t.miejsce && t.miejsce.lat != null && t.miejsce.lng != null){
+            tom.miejsce = { nazwa: t.miejsce.nazwa||'', lat: t.miejsce.lat, lng: t.miejsce.lng };
+          }
+          return tom;
+        });
       }
       if(a.dziela && a.dziela.length){
         wynik.dziela = a.dziela.map(mapWiersz);
@@ -1026,6 +1142,7 @@ function wczytajDoModelu(obj){
       bio: a.bio||'',
       tomiki: (a.tomiki||[]).map(t=>({
         _id: nowyId(), tytul: t.tytul||'', okladka: t.okladka||'',
+        miejsce: t.miejsce ? { nazwa:t.miejsce.nazwa||'', lat:t.miejsce.lat, lng:t.miejsce.lng } : null,
         wiersze: (t.wiersze||[]).map(wczytajWiersz)
       })),
       dziela: (a.dziela||[]).map(wczytajWiersz)
