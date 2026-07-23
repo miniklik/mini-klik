@@ -200,6 +200,8 @@
   .tomik-ile{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--gold-soft);letter-spacing:.04em}
 
   .works-list{display:flex;flex-direction:column;border-top:1px solid rgba(243,234,214,.14)}
+  /* .works-list ma display:flex na sztywno, więc samo .hidden by nie zadziałało */
+  .works-list.hidden, .tomiki-grid.hidden{display:none}
   .work-row{
     display:flex;justify-content:space-between;align-items:center;gap:12px;
     padding:16px 4px;border-bottom:1px solid rgba(243,234,214,.14);
@@ -692,6 +694,48 @@
       <div class="works-list" id="a-works"></div>
       <div class="pusta-zakladka" id="a-brak-wierszy">Nie ma tu jeszcze wierszy spoza tomików.</div>
     </div>
+    <div class="tab-panel" id="a-tab-utwor">
+      <div class="poza-strefa" id="poza-strefa">⚠ Odszedłeś od tego miejsca — wiersz dokończy się i zamknie</div>
+      <div class="poem-topbar">
+        <button class="btn" id="btn-czytaj" onclick="czytajWiersz()">📖 Czytaj</button>
+        <button class="btn ghost" id="btn-audio" onclick="odtworzAudioAutora()">🎧 Audio autora</button>
+      </div>
+      <div class="poem-body" id="p-body"></div>
+
+      <div class="akcje-wiersza">
+        <button class="akcja" id="btn-serce" onclick="polubWiersz(stan.slug, this)" title="Polub ten wiersz">
+          <span class="iko">❤️</span><span class="licznik">0</span>
+        </button>
+        <button class="akcja" id="btn-komentarz" onclick="otworzKomentarze(stan.slug)" title="Komentarze">
+          <span class="iko">💬</span><span class="etyk">kom.</span>
+        </button>
+        <button class="akcja" id="btn-ulubione" onclick="przelaczUlubione(stan.slug, this)" title="Dodaj do ulubionych">
+          <span class="iko">⭐</span>
+        </button>
+        <button class="akcja" id="btn-udostepnij" onclick="udostepnijWiersz(stan.slug)" title="Udostępnij">
+          <span class="iko">🔗</span>
+        </button>
+      </div>
+
+      <div class="komentarze" id="komentarze">
+        <div class="kom-form">
+          <input type="text" id="kom-nick" maxlength="25" placeholder="Twoje imię lub nick">
+          <div class="kom-pole">
+            <textarea id="kom-tekst" maxlength="50" rows="2"
+                      placeholder="Napisz krótko, co czujesz…"
+                      oninput="odswiezLicznikZnakow()"></textarea>
+            <span class="kom-licznik" id="kom-licznik">0/50</span>
+          </div>
+          <button class="btn" id="kom-wyslij" onclick="wyslijKomentarz(stan.slug)">wyślij</button>
+        </div>
+        <div class="kom-lista" id="kom-lista"></div>
+      </div>
+
+      <div class="poem-nav">
+        <button class="btn ghost" id="btn-prev" onclick="poprzedniWiersz()">← Poprzedni</button>
+        <button class="btn ghost" id="btn-next" onclick="nastepnyWiersz()">Kolejny →</button>
+      </div>
+    </div>
   </div>
 
   <div class="panel" id="panel-tomik">
@@ -713,48 +757,6 @@
     <div class="wybor-lista" id="wybor-lista"></div>
   </div>
 
-  <div class="panel" id="panel-poem">
-    <div class="poza-strefa" id="poza-strefa">⚠ Odszedłeś od tego miejsca — wiersz dokończy się i zamknie</div>
-    <div class="poem-topbar">
-      <button class="btn" id="btn-czytaj" onclick="czytajWiersz()">📖 Czytaj</button>
-      <button class="btn ghost" id="btn-audio" onclick="odtworzAudioAutora()">🎧 Audio autora</button>
-    </div>
-    <div class="poem-body" id="p-body"></div>
-
-    <div class="akcje-wiersza">
-      <button class="akcja" id="btn-serce" onclick="polubWiersz(stan.slug, this)" title="Polub ten wiersz">
-        <span class="iko">❤️</span><span class="licznik">0</span>
-      </button>
-      <button class="akcja" id="btn-komentarz" onclick="otworzKomentarze(stan.slug)" title="Komentarze">
-        <span class="iko">💬</span><span class="etyk">kom.</span>
-      </button>
-      <button class="akcja" id="btn-ulubione" onclick="przelaczUlubione(stan.slug, this)" title="Dodaj do ulubionych">
-        <span class="iko">⭐</span>
-      </button>
-      <button class="akcja" id="btn-udostepnij" onclick="udostepnijWiersz(stan.slug)" title="Udostępnij">
-        <span class="iko">🔗</span>
-      </button>
-    </div>
-
-    <div class="komentarze" id="komentarze">
-      <div class="kom-form">
-        <input type="text" id="kom-nick" maxlength="25" placeholder="Twoje imię lub nick">
-        <div class="kom-pole">
-          <textarea id="kom-tekst" maxlength="50" rows="2"
-                    placeholder="Napisz krótko, co czujesz…"
-                    oninput="odswiezLicznikZnakow()"></textarea>
-          <span class="kom-licznik" id="kom-licznik">0/50</span>
-        </div>
-        <button class="btn" id="kom-wyslij" onclick="wyslijKomentarz(stan.slug)">wyślij</button>
-      </div>
-      <div class="kom-lista" id="kom-lista"></div>
-    </div>
-
-    <div class="poem-nav">
-      <button class="btn ghost" id="btn-prev" onclick="poprzedniWiersz()">← Poprzedni</button>
-      <button class="btn ghost" id="btn-next" onclick="nastepnyWiersz()">Kolejny →</button>
-    </div>
-  </div>
 </div>
 
 <div id="toast"></div>
@@ -1106,7 +1108,7 @@ function render(){
       eyebrow:'autor',
       title:a.imie_nazwisko, sub:a.lata
     });
-    resetTabs('panel-author');
+    pokazZakladke(zakladkaPisarza);
   }
   if(stan.panel === 'ulubione'){
     pokazPanel('ulubione');
@@ -1139,8 +1141,20 @@ function render(){
   }
   if(stan.panel === 'poem'){
     const w = dane.wiersze[stan.slug];
-    zatrzymajDzwiek();   // ucisz lektora/audio przy wejściu w nowy wiersz
-    pokazPanel('poem');
+    zatrzymajDzwiek();
+    const autorSlug = znajdzAutoraWiersza(stan.slug);
+    const a = autorSlug ? dane.artysci[autorSlug] : null;
+
+    // wiersz pokazujemy WEWNĄTRZ panelu pisarza, żeby menu zakładek zostało widoczne
+    if(a && !trybSpaceru){
+      pokazPanel('author');
+      renderAuthor(autorSlug, a);              // wypełnij zakładki pisarza
+      pokazZakladke('a-tab-utwor');            // …i przełącz na treść wiersza
+    } else {
+      pokazPanel('author');
+      pokazZakladke('a-tab-utwor');
+    }
+
     document.getElementById('p-body').textContent = w.tresc;
     ustawPrzyciskiWiersza();
     ustawAkcjeWiersza(stan.slug);
@@ -1149,12 +1163,8 @@ function render(){
       title:w.tytul, sub:`${w.data_powstania} · ${w.zrodlo}`
     });
     if(trybSpaceru){
-      // W SPACERZE: mapa zostaje jak jest (brązowe kropki + wędrowiec na środku)
       ustawTrybKola('home');
     } else {
-      // POZA SPACEREM: zwykły widok — kropki autora, wycentrowanie na wierszu
-      const autorSlug = znajdzAutoraWiersza(stan.slug);
-      const a = autorSlug ? dane.artysci[autorSlug] : null;
       ustawTrybKola('detail');
       rysujMiejscowosci();
       if(a) rysujWierszeAutora(a);
@@ -1165,7 +1175,7 @@ function render(){
   poprzedniPanel = stan.panel;
 }
 function wejdzWMiejscowosc(slug){ przejdz({ panel:'village', slug }); }
-function wejdzWAutora(slug){ przejdz({ panel:'author', slug }); }
+function wejdzWAutora(slug){ zakladkaPisarza = 'a-tab-bio'; przejdz({ panel:'author', slug }); }
 function wejdzWTomik(autor, slug){ przejdz({ panel:'tomik', autor, slug }); }
 function wejdzWWiersz(slug){ przejdz({ panel:'poem', slug }); }
 /* wszystkie wiersze ze WSZYSTKICH autorów, które mają pozycję na mapie
@@ -2289,13 +2299,34 @@ function renderTomik(a, t){
 }
 
 /* ============ ZAKŁADKI ============ */
+/* pokazuje wskazaną zakładkę w panelu pisarza (także tę bez własnego przycisku) */
+function pokazZakladke(id){
+  const panel = document.getElementById('panel-author');
+  panel.querySelectorAll('.tab-panel').forEach(p=>p.classList.toggle('active', p.id === id));
+  panel.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('active', b.dataset.tab === id));
+}
+
+let zakladkaPisarza = 'a-tab-bio';   // ostatnio otwarta zakładka w profilu pisarza
 function switchTab(btn){
   const group = btn.parentElement;
+  const panel = group.parentElement;
+  // jeśli czytamy wiersz, a klikamy zakładkę pisarza — wróć do jego profilu
+  if(panel.id === 'panel-author' && stan.panel === 'poem'){
+    const autorSlug = znajdzAutoraWiersza(stan.slug);
+    if(autorSlug){
+      zatrzymajDzwiek();
+      zakladkaPisarza = btn.dataset.tab;
+      stan = { panel:'author', slug:autorSlug };
+      render();
+      return;
+    }
+  }
   group.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
-  const panel = group.parentElement;
   panel.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
   document.getElementById(btn.dataset.tab).classList.add('active');
+  // zapamiętaj zakładkę pisarza — powrót z wiersza ma tu wrócić
+  if(panel.id === 'panel-author') zakladkaPisarza = btn.dataset.tab;
 }
 function resetTabs(panelId){
   const panel = document.getElementById(panelId);
