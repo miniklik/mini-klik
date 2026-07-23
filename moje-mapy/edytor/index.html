@@ -1,151 +1,4 @@
 <!DOCTYPE html>
-<!--
-═══════════════════════════════════════════════════════════════════════════════
-  INSTRUKCJA DLA CLAUDE  (ten komentarz jest niewidoczny w przeglądarce)
-  ─────────────────────────────────────────────────────────────────────────────
-  Cześć Claude! Jeśli użytkownik wkleił Ci ten plik, to znaczy, że chce Twojej
-  pomocy przy tworzeniu danych do projektu „Pod Wielkim Dachem Nieba" —
-  interaktywnej mapy poezji regionalnej. Poniżej masz wszystko, czego potrzebujesz.
-
-  ── CO ROBIMY ──
-  Użytkownik wkleja Ci surowe materiały (wiersze, biografie, dane artysty),
-  a Ty składasz z nich fragment pliku dane.json o strukturze opisanej niżej.
-  Pracujecie FRAGMENT PO FRAGMENCIE — zwykle jeden artysta albo jeden tomik na raz.
-
-  ── PODZIAŁ PRACY (bardzo ważne) ──
-  TY (Claude) wypełniasz:
-    • tytuły i treść wierszy (przepisujesz z tego, co wkleja użytkownik)
-    • slug — tworzysz sam z nazwy/tytułu: małe litery, polskie znaki zamieniasz
-      (ą→a ć→c ę→e ł→l ń→n ó→o ś→s ź→z ż→z), spacje i znaki → myślniki.
-      Przykłady: „Nad zalewem" → nad-zalewem ; „Halina Wierzbicka" → halina-wierzbicka
-    • imie_nazwisko, lata, bio — jeśli użytkownik je poda
-    • data_powstania, zrodlo — jeśli poda; jeśli nie poda → wstaw ""
-    • strukturę: rozpoznajesz, czy wiersz jest w tomiku, czy luźny (spoza tomików)
-
-  ZOSTAWIASZ JAKO null (bo nie masz jak tego wiedzieć — użytkownik uzupełni sam):
-    • lat, lng przy miejscowości → null
-    • lat, lng przy KAŻDYM miejscu wiersza → null
-    • zdjecie (miejscowość, artysta) → null
-    • okladka (tomik) → null
-    • audio (wiersz) → null
-
-  MIEJSCA W WIERSZU (pole "miejsca"):
-    • Jeśli z treści wiersza wynika, JAKIE miejsca są wspomniane (zalew, rynek,
-      aleja, most…), zaproponuj wpisy z "nazwa" i lat/lng = null.
-    • Jeśli nie wiadomo — zostaw "miejsca": [] (pusta lista).
-    • Pole "typ" zostawiaj "".
-
-  ── ZASADY ──
-  1. Zawsze zwracaj POPRAWNY JSON (sprawdzone przecinki i nawiasy).
-  2. NIE WYMYŚLAJ dat, źródeł, miejsc ani biografii. Czego użytkownik nie poda —
-     zostaw puste ("", null albo []).
-  3. Slug rób sam — to Twoja robota.
-  4. Jeśli czegoś brakuje albo coś jest niejasne (np. nie wiesz, czy wiersz jest
-     w tomiku) — NAPISZ DO UŻYTKOWNIKA i poproś o brakującą informację, np.:
-     „Podaj datę powstania tego wiersza" albo „Czy ten wiersz należy do tomiku,
-     czy jest luźny?"
-  5. Gdy fragment jest kompletny — oddaj gotowy JSON i NAPISZ użytkownikowi
-     podsumowanie, np.:
-     „Tomik gotowy. Z Twojej strony zostaje jeszcze: ustaw położenie miejscowości
-      i wierszy na mapie (lat/lng) oraz dodaj zdjęcia i nagrania (nazwy plików)."
-
-  ── STRUKTURA (trzymaj się co do pola) ──
-
-  CAŁA MIEJSCOWOŚĆ:
-  {
-    "slug": "siedliszcze",
-    "nazwa": "Siedliszcze",
-    "podtytul": "gmina Siedliszcze · powiat chełmski · lubelskie",
-    "opis": "Krótki opis miejscowości…",
-    "lat": null,
-    "lng": null,
-    "zdjecie": null,
-    "artysci": [ …artyści… ]
-  }
-
-  ARTYSTA (ma dwa OPCJONALNE pola: "tomiki" i "dziela" = luźne wiersze;
-  może mieć jedno, drugie albo oba):
-  {
-    "slug": "halina-wierzbicka",
-    "imie_nazwisko": "Halina Wierzbicka",
-    "lata": "1932–2011",
-    "zdjecie": null,
-    "bio": "Życiorys i opis twórczości…",
-    "tomiki": [ …tomiki… ],
-    "dziela": [ …luźne wiersze spoza tomików… ]
-  }
-  • tylko luźne wiersze → daj samo "dziela", pomiń "tomiki"
-  • tylko tomiki → daj samo "tomiki", pomiń "dziela"
-
-  TOMIK:
-  {
-    "slug": "cisza-po-drodze",
-    "tytul": "Cisza po drodze",
-    "okladka": null,
-    "wiersze": [ …wiersze tego tomiku… ]
-  }
-
-  WIERSZ (identyczny w tomiku i w luźnych):
-  {
-    "slug": "nad-zalewem",
-    "tytul": "Nad zalewem",
-    "tresc": "Pierwsza linijka\nDruga linijka\n\nNowa strofa po pustej linii",
-    "data_powstania": "1987",
-    "zrodlo": "tomik „Cisza po drodze", 2012",
-    "audio": null,
-    "miejsca": [
-      { "nazwa": "Zalew", "typ": "", "lat": null, "lng": null }
-    ]
-  }
-  • Treść wiersza: nowe linijki jako \n, pusta linia między strofami jako \n\n.
-    Zachowaj podział wersów dokładnie jak w oryginale.
-
-  ── PEŁNY PRZYKŁAD (jeden artysta z tomikiem i luźnym wierszem) ──
-  {
-    "slug": "halina-wierzbicka",
-    "imie_nazwisko": "Halina Wierzbicka",
-    "lata": "1932–2011",
-    "zdjecie": null,
-    "bio": "Urodzona w Siedliszczu, pisała o zalewie i codzienności miasteczka.",
-    "tomiki": [
-      {
-        "slug": "cisza-po-drodze",
-        "tytul": "Cisza po drodze",
-        "okladka": null,
-        "wiersze": [
-          {
-            "slug": "nad-zalewem",
-            "tytul": "Nad zalewem",
-            "tresc": "Woda tu inaczej milczy niż w mieście,\nrozkłada się płasko pod ciężarem nieba.",
-            "data_powstania": "1987",
-            "zrodlo": "tomik „Cisza po drodze", 2012",
-            "audio": null,
-            "miejsca": [
-              { "nazwa": "Zalew Majdan Zahorodyński", "typ": "", "lat": null, "lng": null }
-            ]
-          }
-        ]
-      }
-    ],
-    "dziela": [
-      {
-        "slug": "z-biuletynu",
-        "tytul": "Wiersz z biuletynu",
-        "tresc": "Ten wiersz nie trafił do żadnej książki,\nzostał na łamach gminnej gazetki.",
-        "data_powstania": "1995",
-        "zrodlo": "Biuletyn Gminy Siedliszcze, 1995",
-        "audio": null,
-        "miejsca": []
-      }
-    ]
-  }
-
-  ── JAK ODDAWAĆ WYNIK ──
-  Oddawaj gotowy fragment JSON w bloku kodu, żeby użytkownik mógł go skopiować.
-  Użytkownik wklei go potem do edytora (przycisk „Wczytaj istniejący dane.json")
-  albo bezpośrednio do pliku dane.json na GitHubie.
-═══════════════════════════════════════════════════════════════════════════════
--->
 <html lang="pl">
 <head>
 <meta charset="UTF-8">
@@ -263,27 +116,23 @@
   .instr code{background:rgba(15,15,24,.6);padding:2px 7px;border-radius:2px;font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--gold-soft)}
   .ok-flash{color:#8fc7b5;font-family:'JetBrains Mono',monospace;font-size:12px;margin-left:10px}
 
-  .hidden{display:none!important}
-  @media(max-width:640px){
-    .row2,.row3{grid-template-columns:1fr}
-    .wrap{padding:18px 16px 70px}
-  }
-
-
-  /* wspólne miejsce tomiku */
   .miejsce-tomiku{
     margin-top:6px;padding:12px 14px;border-radius:3px;
     background:rgba(201,162,39,.06);border:1px solid rgba(201,162,39,.22);
   }
-  .tomik-hint{
-    font-size:12.5px;line-height:1.55;color:var(--parchment-dim);opacity:.75;margin:2px 0 10px;
-  }
+  .tomik-hint{font-size:12.5px;line-height:1.55;color:var(--parchment-dim);opacity:.75;margin:2px 0 10px}
   .miejsce-z-tomiku{
     margin-top:14px;padding:11px 14px;border-radius:3px;
     background:rgba(135,87,201,.12);border:1px solid rgba(154,109,215,.4);
     font-size:12.5px;line-height:1.55;color:#c9b3e8;
   }
   .miejsce-z-tomiku b{color:var(--parchment)}
+  .hidden{display:none!important}
+  @media(max-width:640px){
+    .row2,.row3{grid-template-columns:1fr}
+    .wrap{padding:18px 16px 70px}
+  }
+
 
 /* ===================== MENU GŁÓWNE ===================== */
   .menu-glowne{max-width:640px;margin:0 auto;padding:60px 24px;text-align:center}
@@ -390,7 +239,6 @@ h1,h2{font-family:'Fraunces',serif;font-weight:600;letter-spacing:.01em}
 </head>
 <body>
 
-<!-- ====== MENU ====== -->
 <div class="ekran on" id="ekran-menu">
   <div class="menu-glowne">
     <div class="menu-tytul">Narzędzia</div>
@@ -410,7 +258,6 @@ h1,h2{font-family:'Fraunces',serif;font-weight:600;letter-spacing:.01em}
   </div>
 </div>
 
-<!-- ====== EDYTOR MIEJSCOWOŚCI ====== -->
 <div class="ekran" id="ekran-edytor">
   <div class="pasek-powrotu"><button class="btn-powrot" onclick="pokazEkran('menu')">← narzędzia</button></div>
 
@@ -521,7 +368,6 @@ h1,h2{font-family:'Fraunces',serif;font-weight:600;letter-spacing:.01em}
 
 </div>
 
-<!-- ====== SCALARKA ====== -->
 <div class="ekran" id="ekran-scalarka">
   <div class="pasek-powrotu"><button class="btn-powrot" onclick="pokazEkran('menu')">← narzędzia</button></div>
 
@@ -563,7 +409,6 @@ function pokazEkran(nazwa){
   document.querySelectorAll('.ekran').forEach(e=>e.classList.remove('on'));
   document.getElementById('ekran-'+nazwa).classList.add('on');
   window.scrollTo({top:0});
-  // mapa Leaflet musi się przeliczyć, gdy pojawia się po ukryciu
   if(nazwa === 'edytor'){
     if(!mapaZainicjowana){ initMapaM(); mapaZainicjowana = true; }
     setTimeout(()=>{ if(mapaM) mapaM.invalidateSize(); }, 80);
@@ -790,7 +635,7 @@ function blokTomiku(a,t,ti){
         Ustaw jedno miejsce dla całego tomiku — wszystkie jego wiersze pojawią się w tym punkcie.
       </div>
       <div id="mt-wrap-${t._id}">
-        <button class="btn mini" id="mt-btn-${t._id}" onclick="wlaczMiejsceTomiku('${a._id}','${t._id}')">📍 Dodaj tomik na mapie</button>
+        <button class="btn mini" onclick="wlaczMiejsceTomiku('${a._id}','${t._id}')">📍 Dodaj tomik na mapie</button>
       </div>
     </div>
     <label style="margin-top:14px">Wiersze w tomiku</label>
@@ -799,7 +644,6 @@ function blokTomiku(a,t,ti){
       <button class="btn mini" onclick="dodajWierszTomiku('${a._id}','${t._id}')">➕ Dodaj wiersz do tomiku</button>
     </div>
   `;
-  // wspólne miejsce tomiku — odtwórz, jeśli już ustawione
   if(t.miejsce) setTimeout(()=> renderMiejsceTomiku(a._id, t._id), 0);
   // wiersze tomiku
   setTimeout(()=>{
@@ -813,6 +657,10 @@ function blokTomiku(a,t,ti){
 /* ---------- WSPÓLNE MIEJSCE TOMIKU ---------- */
 const mapyTomikow = {};
 
+function tomikMaMiejsce(t){
+  return !!(t && t.miejsce && t.miejsce.lat != null && t.miejsce.lng != null);
+}
+
 function wlaczMiejsceTomiku(artId, tomId){
   const a = model.artysci.find(x=>x._id===artId);
   const t = a.tomiki.find(x=>x._id===tomId);
@@ -825,7 +673,7 @@ function usunMiejsceTomiku(artId, tomId){
   const t = a.tomiki.find(x=>x._id===tomId);
   t.miejsce = null;
   delete mapyTomikow[tomId];
-  renderTworczosc();     // odśwież całość — wracają mapy przy wierszach
+  renderTworczosc();
 }
 
 function renderMiejsceTomiku(artId, tomId){
@@ -867,7 +715,6 @@ function renderMiejsceTomiku(artId, tomId){
       const c = document.getElementById('mtc-'+tomId);
       c.textContent = `Punkt: ${t.miejsce.lat}, ${t.miejsce.lng}`;
       c.classList.remove('empty');
-      // punkt tomiku ustawiony → chowamy mapy przy wierszach
       renderTworczosc();
     });
     mapyTomikow[tomId] = map;
@@ -879,11 +726,6 @@ function setMiejsceTomiku(artId, tomId, wartosc){
   const a = model.artysci.find(x=>x._id===artId);
   const t = a.tomiki.find(x=>x._id===tomId);
   if(t.miejsce) t.miejsce.nazwa = wartosc;
-}
-
-/* czy tomik ma już ustawiony wspólny punkt? */
-function tomikMaMiejsce(t){
-  return !!(t.miejsce && t.miejsce.lat != null && t.miejsce.lng != null);
 }
 
 function dodajWierszTomiku(artId,tomId){
@@ -957,7 +799,6 @@ function blokWiersza(a, t, w, wi){
       <div class="coord-line" id="coordw-${w._id}">Kliknij na mapie, aby dodać miejsce tego wiersza</div>
     </div>`}
   `;
-  // mapka wiersza tylko wtedy, gdy tomik nie ma wspólnego punktu
   if(!tomikZMiejscem) setTimeout(()=> initMapaWiersza(w), 0);
   return el;
 }
@@ -1058,7 +899,6 @@ function zbudujObiekt(){
             okladka: t.okladka ? t.okladka : null,
             wiersze: (t.wiersze||[]).map(mapWiersz)
           };
-          // wspólne miejsce tomiku — tylko jeśli ustawione
           if(t.miejsce && t.miejsce.lat != null && t.miejsce.lng != null){
             tom.miejsce = { nazwa: t.miejsce.nazwa||'', lat: t.miejsce.lat, lng: t.miejsce.lng };
           }
