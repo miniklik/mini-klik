@@ -130,6 +130,12 @@
     width:12px;height:12px;background:#9a6dd7;border:2px solid var(--lead);
     box-shadow:0 0 0 5px rgba(154,109,215,.28);
   }
+  /* kropka całego tomiku — większa, ze złotą obwódką */
+  .pin.poem.tomik{
+    width:17px;height:17px;background:#8757c9;
+    border:2px solid var(--gold);
+    box-shadow:0 0 0 6px rgba(154,109,215,.3), 0 0 0 7px rgba(201,162,39,.25);
+  }
   .tt-mapa{
     background:rgba(15,15,24,.85)!important;border:1px solid var(--gold)!important;color:var(--parchment)!important;
     font-family:'JetBrains Mono',monospace!important;font-size:10px!important;letter-spacing:.04em!important;
@@ -717,7 +723,7 @@
         <div class="kom-form">
           <input type="text" id="kom-nick" maxlength="25" placeholder="Twoje imię lub nick">
           <div class="kom-pole">
-            <textarea id="kom-tekst" maxlength="200" rows="2"
+            <textarea id="kom-tekst" maxlength="200" rows="3"
                       placeholder="Napisz krótko, co czujesz…"
                       oninput="odswiezLicznikZnakow()"></textarea>
             <span class="kom-licznik" id="kom-licznik">0/200</span>
@@ -847,6 +853,7 @@ async function wczytajDane(){
           slug: t.slug,
           tytul: t.tytul,
           okladka: t.okladka ? `dane/${slug}/${t.okladka}` : null,
+          miejsce: (t.miejsce && t.miejsce.lat != null && t.miejsce.lng != null) ? t.miejsce : null,
           wiersze: (t.wiersze||[]).map(dodajWiersz)
         }));
         // luźne wiersze (spoza tomików)
@@ -893,7 +900,14 @@ function ikonaMiejscowosci(){
     iconSize: [16,16], iconAnchor: [8,8]
   });
 }
-function ikonaWiersza(){
+function ikonaWiersza(tomik){
+  if(tomik){
+    return L.divIcon({
+      className: '',
+      html: `<div class="pin poem tomik"></div>`,
+      iconSize: [17,17], iconAnchor: [8,8]
+    });
+  }
   return L.divIcon({
     className: '',
     html: `<div class="pin poem"></div>`,
@@ -928,7 +942,20 @@ function pozycjaWiersza(w){
 /* pokaż fioletowe kropki wszystkich wierszy danego autora */
 function rysujWierszeAutora(a){
   warstwaWierszy.clearLayers();
+
+  // tomiki z własnym miejscem — jedna kropka na cały tomik
+  (a.tomiki||[]).forEach(t=>{
+    if(!t.miejsce) return;
+    const marker = L.marker([t.miejsce.lat, t.miejsce.lng], { icon: ikonaWiersza(true) }).addTo(warstwaWierszy);
+    const ile = t.wiersze.length;
+    marker.bindTooltip(`📖 ${t.tytul} · ${ile} ${ile===1?'wiersz':'wierszy'}`,
+                       { direction:'top', offset:[0,-8], className:'tt-mapa' });
+    marker.on('click', ()=> otworzTomikWZakladce(a.slug, t.slug));
+  });
+
+  // wiersze z własnymi miejscami (te spoza tomików z punktem)
   wszystkieWierszeArtysty(a).forEach(slug=>{
+    if(wierszWTomikuZMiejscem(a, slug)) return;   // pominięty — ma kropkę tomiku
     const w = dane.wiersze[slug];
     const poz = pozycjaWiersza(w);
     if(!poz) return;
@@ -938,12 +965,28 @@ function rysujWierszeAutora(a){
   });
 }
 
+/* czy wiersz należy do tomiku, który ma własne miejsce na mapie? */
+function wierszWTomikuZMiejscem(a, slug){
+  return (a.tomiki||[]).some(t => t.miejsce && t.wiersze.includes(slug));
+}
+
 function ukryjWiersze(){
   if(warstwaWierszy) warstwaWierszy.clearLayers();
 }
 
 /* spokojne wycentrowanie nad kropką wiersza — bez zmiany przybliżenia */
-function centrujNadWierszem(w){
+function centrujNadWierszem(w, slug){
+  // jeśli wiersz należy do tomiku z własnym miejscem — centruj na punkcie tomiku
+  if(slug){
+    for(const as of Object.keys(dane.artysci)){
+      for(const t of (dane.artysci[as].tomiki||[])){
+        if(t.miejsce && t.wiersze.includes(slug)){
+          mapa.panTo([t.miejsce.lat, t.miejsce.lng], { animate:true, duration:1.1 });
+          return;
+        }
+      }
+    }
+  }
   const poz = pozycjaWiersza(w);
   if(poz) mapa.panTo(poz, { animate:true, duration:1.1 });
 }
@@ -1172,7 +1215,7 @@ function render(){
       rysujMiejscowosci();
       if(a) rysujWierszeAutora(a);
       ustawZdjecie(null);
-      centrujNadWierszem(w);
+      centrujNadWierszem(w, stan.slug);
     }
   }
   poprzedniPanel = stan.panel;
@@ -1185,8 +1228,21 @@ function wejdzWWiersz(slug){ przejdz({ panel:'poem', slug }); }
    (potrzebne w trybie spaceru — tam nie ma podziału na autorów) */
 function wszystkieWierszeZPozycja(){
   const lista = [];
+  // mapa: slug wiersza → miejsce tomiku (jeśli tomik ma własny punkt)
+  const zTomiku = {};
+  Object.keys(dane.artysci).forEach(as=>{
+    (dane.artysci[as].tomiki||[]).forEach(t=>{
+      if(t.miejsce) t.wiersze.forEach(ws=>{ zTomiku[ws] = t.miejsce; });
+    });
+  });
+
   Object.keys(dane.wiersze).forEach(slug=>{
     const w = dane.wiersze[slug];
+    const m = zTomiku[slug];
+    if(m){
+      lista.push({ slug, w, lat:m.lat, lng:m.lng });   // punkt tomiku
+      return;
+    }
     const poz = pozycjaWiersza(w);
     if(poz) lista.push({ slug, w, lat:poz[0], lng:poz[1] });
   });
