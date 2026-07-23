@@ -202,6 +202,7 @@
   .works-list{display:flex;flex-direction:column;border-top:1px solid rgba(243,234,214,.14)}
   /* .works-list ma display:flex na sztywno, więc samo .hidden by nie zadziałało */
   .works-list.hidden, .tomiki-grid.hidden{display:none}
+  .utwor-w-tomiku.hidden, .sciezka-tomik.hidden{display:none}
   .work-row{
     display:flex;justify-content:space-between;align-items:center;gap:12px;
     padding:16px 4px;border-bottom:1px solid rgba(243,234,214,.14);
@@ -687,14 +688,7 @@
         </div>
         <div class="tomiki-grid" id="a-tomiki"></div>
         <div class="works-list hidden" id="a-tomik-wiersze"></div>
-      </div>
-      <div class="pusta-zakladka" id="a-brak-tomikow">Ten twórca nie ma tu jeszcze żadnego tomiku.</div>
-    </div>
-    <div class="tab-panel" id="a-tab-wiersze">
-      <div class="works-list" id="a-works"></div>
-      <div class="pusta-zakladka" id="a-brak-wierszy">Nie ma tu jeszcze wierszy spoza tomików.</div>
-    </div>
-    <div class="tab-panel" id="a-tab-utwor">
+        <div class="utwor-w-tomiku hidden" id="a-utwor">
       <div class="poza-strefa" id="poza-strefa">⚠ Odszedłeś od tego miejsca — wiersz dokończy się i zamknie</div>
       <div class="poem-topbar">
         <button class="btn" id="btn-czytaj" onclick="czytajWiersz()">📖 Czytaj</button>
@@ -735,6 +729,13 @@
         <button class="btn ghost" id="btn-prev" onclick="poprzedniWiersz()">← Poprzedni</button>
         <button class="btn ghost" id="btn-next" onclick="nastepnyWiersz()">Kolejny →</button>
       </div>
+        </div>
+      </div>
+      <div class="pusta-zakladka" id="a-brak-tomikow">Ten twórca nie ma tu jeszcze żadnego tomiku.</div>
+    </div>
+    <div class="tab-panel" id="a-tab-wiersze">
+      <div class="works-list" id="a-works"></div>
+      <div class="pusta-zakladka" id="a-brak-wierszy">Nie ma tu jeszcze wierszy spoza tomików.</div>
     </div>
   </div>
 
@@ -1145,14 +1146,14 @@ function render(){
     const autorSlug = znajdzAutoraWiersza(stan.slug);
     const a = autorSlug ? dane.artysci[autorSlug] : null;
 
-    // wiersz pokazujemy WEWNĄTRZ panelu pisarza, żeby menu zakładek zostało widoczne
     if(a && !trybSpaceru){
       pokazPanel('author');
-      renderAuthor(autorSlug, a);              // wypełnij zakładki pisarza
-      pokazZakladke('a-tab-utwor');            // …i przełącz na treść wiersza
+      renderAuthor(autorSlug, a);
+      pokazUtworWZakladce(a, stan.slug);       // wiersz w Twórczości albo w Wierszach
     } else {
       pokazPanel('author');
-      pokazZakladke('a-tab-utwor');
+      pokazZakladke('a-tab-wiersze');
+      document.getElementById('a-utwor').classList.remove('hidden');
     }
 
     document.getElementById('p-body').textContent = w.tresc;
@@ -2169,6 +2170,11 @@ function renderAuthor(slug, a){
     `<span class="meta">Związek z miejscowością:</span> ${m ? m.nazwa : '—'}`;
 
   // --- ZAKŁADKA „TWÓRCZOŚĆ": tomiki ---
+  // schowaj widok wiersza i przywróć listy
+  const utwor = document.getElementById('a-utwor');
+  if(utwor) utwor.classList.add('hidden');
+  document.getElementById('a-works').classList.remove('hidden');
+
   otwartyTomik = null;                                   // reset ścieżki
   document.getElementById('a-tomiki').classList.remove('hidden');
   document.getElementById('a-tomik-wiersze').classList.add('hidden');
@@ -2299,6 +2305,38 @@ function renderTomik(a, t){
 }
 
 /* ============ ZAKŁADKI ============ */
+/* pokazuje wiersz wewnątrz właściwej zakładki: Twórczość (jeśli z tomiku) albo Wiersze (jeśli luźny) */
+function pokazUtworWZakladce(a, slug){
+  const utwor = document.getElementById('a-utwor');
+  const tomikZWierszem = (a.tomiki||[]).find(t => t.wiersze.includes(slug));
+
+  if(tomikZWierszem){
+    // wiersz z tomiku → zakładka Twórczość, pod ścieżką Tomiki | Wiersze
+    pokazZakladke('a-tab-works');
+    otworzTomikWZakladce(a.slug, tomikZWierszem.slug);   // ustawi ścieżkę i listę
+    document.getElementById('a-tomik-wiersze').classList.add('hidden');
+    document.getElementById('a-tomiki').classList.add('hidden');
+    document.getElementById('a-tomiki-sekcja').appendChild(utwor);
+    document.getElementById('krok-wiersze').classList.remove('active');
+    document.getElementById('krok-wiersze').onclick = ()=> wrocDoWierszyTomiku(a.slug, tomikZWierszem.slug);
+  } else {
+    // wiersz luźny → zakładka Wiersze (bez zmian w jej działaniu)
+    pokazZakladke('a-tab-wiersze');
+    document.getElementById('a-works').classList.add('hidden');
+    document.getElementById('a-brak-wierszy').style.display = 'none';
+    document.getElementById('a-tab-wiersze').appendChild(utwor);
+  }
+  utwor.classList.remove('hidden');
+}
+
+/* powrót z wiersza do listy wierszy tomiku */
+function wrocDoWierszyTomiku(autorSlug, tomikSlug){
+  document.getElementById('a-utwor').classList.add('hidden');
+  zatrzymajDzwiek();
+  stan = { panel:'author', slug:autorSlug, tomik:tomikSlug };
+  render();
+}
+
 /* pokazuje wskazaną zakładkę w panelu pisarza (także tę bez własnego przycisku) */
 function pokazZakladke(id){
   const panel = document.getElementById('panel-author');
