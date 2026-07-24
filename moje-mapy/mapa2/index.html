@@ -3,732 +3,511 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Edytor — Pod Wielkim Dachem Nieba</title>
+<title>Instrukcja mapy · mini-klik.pl</title>
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Literata:ital,wght@0,400;0,500;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+
 <style>
-  :root{
-    --ink:#1b2340; --ink-deep:#12172c; --lead:#0f0f18;
-    --parchment:#f3ead6; --parchment-dim:#e8dcc1;
-    --gold:#c9a227; --gold-soft:#e4c96a;
-    --ruby:#a33b3b; --sapphire:#2e5090; --emerald:#2f6d5b; --ink-text:#2a2318;
-  }
-  *{box-sizing:border-box}
-  html,body{margin:0;padding:0}
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{min-height:100%;overflow-x:hidden}
   body{
-    background:radial-gradient(ellipse at 50% -10%, #232c52 0%, var(--ink) 45%, var(--ink-deep) 100%);
-    color:var(--parchment); font-family:'Literata',serif; min-height:100vh;
+    font-family:'Space Grotesk',system-ui,sans-serif;
+    background:radial-gradient(ellipse at 20% 0%,#1a0f2e 0%,#0a0a14 50%,#000 100%);
+    color:#e8e8ea;
+    min-height:100vh;
+    padding:32px 24px 90px;
+    position:relative;
   }
-  h1,h2,h3,.display{font-family:'Fraunces',serif;font-weight:600;letter-spacing:.01em}
-  .mono{font-family:'JetBrains Mono',monospace;letter-spacing:.05em}
-  button{font-family:inherit;cursor:pointer}
 
-  .wrap{max-width:860px;margin:0 auto;padding:26px 24px 90px}
-
-  /* nagłówek */
-  .head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:8px;flex-wrap:wrap}
-  .head .title{font-size:24px;color:var(--parchment)}
-  .head .sub{font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--gold-soft);margin-top:4px}
-  .load-btn{
-    border:1px solid rgba(243,234,214,.3);color:var(--parchment-dim);background:none;
-    padding:8px 14px;border-radius:2px;font-family:'JetBrains Mono',monospace;font-size:11px;
-    letter-spacing:.05em;text-transform:uppercase;transition:border-color .2s,background .2s;
+  body::before{
+    content:'';position:fixed;inset:0;pointer-events:none;
+    background-image:
+      radial-gradient(1px 1px at 23% 14%,#fff,transparent),
+      radial-gradient(1px 1px at 67% 28%,#fff,transparent),
+      radial-gradient(1px 1px at 41% 52%,#fff,transparent),
+      radial-gradient(2px 2px at 89% 71%,#ffd9a3,transparent),
+      radial-gradient(1px 1px at 12% 84%,#fff,transparent),
+      radial-gradient(1px 1px at 76% 91%,#fff,transparent),
+      radial-gradient(1px 1px at 55% 8%,#a3d9ff,transparent),
+      radial-gradient(1px 1px at 33% 39%,#fff,transparent),
+      radial-gradient(2px 2px at 8% 47%,#ff9a3d,transparent),
+      radial-gradient(1px 1px at 92% 35%,#fff,transparent);
+    opacity:0.7;
+    animation:twinkle 4s ease-in-out infinite;
   }
-  .load-btn:hover{border-color:var(--gold-soft);background:rgba(201,162,39,.1);color:var(--parchment)}
+  @keyframes twinkle{0%,100%{opacity:0.7}50%{opacity:0.4}}
 
-  /* pasek kroków */
-  .steps{display:flex;gap:6px;margin:18px 0 26px;flex-wrap:wrap}
-  .step-chip{
-    flex:1;min-width:120px;padding:10px 12px;border:1px solid rgba(243,234,214,.16);border-radius:3px;
-    font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.04em;text-transform:uppercase;
-    color:var(--parchment-dim);text-align:center;transition:all .2s;
+  body::after{
+    content:'';position:fixed;top:-200px;left:50%;transform:translateX(-50%);
+    width:800px;height:600px;
+    background:radial-gradient(ellipse,rgba(255,154,61,0.15) 0%,transparent 60%);
+    pointer-events:none;
   }
-  .step-chip.active{border-color:var(--gold);color:var(--gold-soft);background:rgba(201,162,39,.08)}
-  .step-chip.done{border-color:rgba(47,109,91,.5);color:#8fc7b5}
 
-  /* karty sekcji */
-  .card{
-    background:rgba(243,234,214,.04);border:1px solid rgba(243,234,214,.14);
-    border-radius:4px;padding:22px;margin-bottom:18px;
+  .wrapper{position:relative;z-index:2;max-width:900px;width:100%;margin:0 auto;
+    min-height:100vh;display:flex;align-items:center;justify-content:center}
+
+  /* ===== przycisk wstecz ===== */
+  .btn-wstecz{
+    position:fixed;top:22px;left:22px;z-index:20;
+    display:none;align-items:center;justify-content:center;
+    width:46px;height:46px;padding:0;
+    background:rgba(255,154,61,0.08);border:1px solid rgba(255,154,61,0.35);
+    border-radius:10px;cursor:pointer;backdrop-filter:blur(6px);
+    transition:background .2s, border-color .2s, transform .2s;
   }
-  .card h2{font-size:19px;color:var(--parchment);margin:0 0 4px}
-  .card .hint{color:var(--parchment-dim);font-size:13px;line-height:1.55;margin:0 0 18px}
+  .btn-wstecz.widoczny{display:flex}
+  .btn-wstecz:hover{background:rgba(255,154,61,0.18);border-color:#ff9a3d;transform:translateX(-2px)}
+  .btn-wstecz svg{width:22px;height:22px;color:#ff9a3d}
 
-  label{display:block;font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.05em;
-    text-transform:uppercase;color:var(--gold-soft);margin:14px 0 6px}
-  label .opt{color:var(--parchment-dim);text-transform:none;letter-spacing:0;opacity:.6;font-size:10px}
-  input[type=text], textarea{
-    width:100%;background:rgba(15,15,24,.5);border:1px solid rgba(243,234,214,.2);
-    border-radius:2px;color:var(--parchment);font-family:'Literata',serif;font-size:15px;
-    padding:10px 12px;transition:border-color .2s;
+  /* ===== system ekranów ===== */
+  .ekran{display:none;text-align:center;flex-direction:column;align-items:center;width:100%}
+  .ekran.active{display:flex;animation:fadeInUp .6s cubic-bezier(0.2,0.9,0.3,1) both}
+  @keyframes fadeInUp{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:translateY(0)}}
+
+  .ikona-strony{
+    font-size:72px;line-height:1;margin-bottom:16px;display:inline-block;
+    filter:drop-shadow(0 4px 16px rgba(255,154,61,0.5));
+    animation:floatIcon 3s ease-in-out infinite;
   }
-  input[type=text]:focus, textarea:focus{outline:none;border-color:var(--gold)}
-  textarea{resize:vertical;min-height:120px;line-height:1.6}
-  .row2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
-  .row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
-  .filehint{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--parchment-dim);opacity:.6;margin-top:5px}
+  @keyframes floatIcon{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
 
-  /* mapa do klikania */
-  .map-box{margin-top:8px}
-  .picker{width:100%;height:300px;border-radius:3px;border:2px solid var(--gold);overflow:hidden}
-  .picker .leaflet-container{background:var(--ink-deep)}
-  .coord-line{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--gold-soft);margin-top:8px;letter-spacing:.04em}
-  .coord-line.empty{color:var(--ruby)}
+  h1{
+    font-size:40px;font-weight:700;letter-spacing:-1px;line-height:1.1;
+    background:linear-gradient(180deg,#ff9a3d 0%,#e87a1d 70%,#a04510 100%);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+    text-shadow:0 0 80px rgba(255,154,61,0.4);
+    margin-bottom:14px;
+  }
 
-  /* przyciski akcji */
+  .tagline{
+    color:#888;font-size:13px;letter-spacing:3px;text-transform:uppercase;
+    font-family:'JetBrains Mono',monospace;margin-bottom:28px;
+  }
+
+  .line{width:60px;height:2px;background:#ff9a3d;margin:22px auto}
+
+  p.tekst{
+    font-size:15.5px;line-height:1.75;color:#c8c8ce;margin-bottom:18px;max-width:520px;
+  }
+  p.tekst b{color:#ff9a3d;font-weight:700}
+
+  .hosting-linia{
+    font-family:'JetBrains Mono',monospace;font-size:12.5px;color:#999;
+    line-height:1.8;margin:20px 0 32px;padding:14px 18px;
+    border:1px solid rgba(255,154,61,0.2);border-radius:10px;
+    background:rgba(255,154,61,0.04);max-width:520px;
+  }
+  .hosting-linia b{color:#ff9a3d;font-weight:700}
+
+  /* ===== przycisk start ===== */
   .btn{
-    border:1px solid var(--gold);color:var(--gold-soft);background:none;
-    padding:11px 20px;border-radius:2px;font-family:'JetBrains Mono',monospace;
-    font-size:12px;letter-spacing:.06em;text-transform:uppercase;transition:background .2s,color .2s;
+    font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:700;letter-spacing:2px;
+    text-transform:uppercase;color:#0a0a14;background:linear-gradient(180deg,#ffb35f,#ff9a3d);
+    border:none;border-radius:10px;padding:16px 38px;cursor:pointer;
+    box-shadow:0 10px 30px rgba(255,154,61,0.35);
+    transition:transform .2s, box-shadow .2s;
   }
-  .btn:hover{background:var(--gold);color:var(--ink-deep)}
-  .btn.solid{background:var(--gold);color:var(--ink-deep)}
-  .btn.solid:hover{background:var(--gold-soft)}
-  .btn.ghost{border-color:rgba(243,234,214,.3);color:var(--parchment-dim)}
-  .btn.ghost:hover{background:rgba(243,234,214,.1);color:var(--parchment)}
-  .btn.mini{padding:7px 12px;font-size:10px}
-  .btn.danger{border-color:rgba(163,59,59,.5);color:#d98a8a}
-  .btn.danger:hover{background:var(--ruby);color:var(--parchment)}
+  .btn:hover{transform:translateY(-3px);box-shadow:0 14px 38px rgba(255,154,61,0.5)}
+  .btn:active{transform:translateY(0)}
 
-  .nav-row{display:flex;justify-content:space-between;gap:12px;margin-top:24px;flex-wrap:wrap}
-
-  /* podelementy: artysta / tomik / wiersz */
-  .sub-block{
-    border:1px solid rgba(243,234,214,.16);border-radius:3px;padding:16px;margin:12px 0;
-    background:rgba(15,15,24,.25);
+  /* ============ DRZEWO STRUKTURY ============ */
+  .drzewo-naglowek{
+    font-size:15px;color:#aaa;margin-bottom:6px;
   }
-  .sub-block .sub-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:4px}
-  .sub-block .sub-head .nm{font-family:'Fraunces',serif;font-size:16px;color:var(--parchment)}
-  .sub-block.nested{background:rgba(15,15,24,.4);border-color:rgba(201,162,39,.25);margin-left:6px}
-  .tag{font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:.06em;text-transform:uppercase;
-    color:var(--gold-soft);border:1px solid rgba(201,162,39,.4);border-radius:10px;padding:2px 8px}
-  .add-line{margin-top:10px;display:flex;gap:10px;flex-wrap:wrap}
-  .empty-note{color:var(--parchment-dim);opacity:.6;font-size:13px;font-style:italic;padding:6px 0}
-  .slug-preview{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--emerald);margin-top:4px;opacity:.8}
-
-  /* ekran generowania */
-  .out-area{width:100%;min-height:280px;background:rgba(15,15,24,.6);border:1px solid rgba(243,234,214,.2);
-    border-radius:3px;color:var(--parchment);font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1.5;padding:14px;white-space:pre;overflow:auto}
-  .instr{background:rgba(201,162,39,.08);border:1px solid rgba(201,162,39,.3);border-radius:3px;padding:16px;margin-top:16px;line-height:1.7;font-size:14px}
-  .instr code{background:rgba(15,15,24,.6);padding:2px 7px;border-radius:2px;font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--gold-soft)}
-  .ok-flash{color:#8fc7b5;font-family:'JetBrains Mono',monospace;font-size:12px;margin-left:10px}
-
-  .hidden{display:none!important}
-  @media(max-width:640px){
-    .row2,.row3{grid-template-columns:1fr}
-    .wrap{padding:18px 16px 70px}
+  .drzewo-naglowek b{color:#ff9a3d}
+  .drzewo-hint{
+    font-family:'JetBrains Mono',monospace;font-size:11px;color:#666;
+    letter-spacing:1px;margin-bottom:28px;
   }
+
+  .tree-scena{width:100%;overflow-x:auto;padding:30px 6px 6px;text-align:center;position:relative}
+  .tree-lines{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;overflow:visible}
+  .tree-lines path{fill:none;stroke:rgba(255,154,61,.45);stroke-width:2}
+
+  .tree-lines{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;overflow:visible}
+  .tree-lines path{fill:none;stroke:rgba(255,154,61,.45);stroke-width:2}
+
+  .branch{display:inline-flex;flex-direction:column;align-items:center;position:relative}
+  .prosta-kreska{width:2px;height:34px;background:rgba(255,154,61,.45)}
+  .dane-json-kotwica{position:relative;display:inline-flex}
+  .bok-galaz-lewo{
+    position:absolute;top:50%;right:100%;transform:translateY(-50%);
+    display:flex;align-items:center;gap:0;padding-right:0;
+  }
+  .pozioma-kreska{width:34px;height:2px;background:rgba(255,154,61,.45)}
+  .children-row{display:flex;flex-direction:row;align-items:flex-start;gap:22px;margin-top:34px}
+
+  .node{
+    font-family:inherit;color:#e8e8ea;text-align:center;cursor:pointer;
+    background:linear-gradient(180deg,rgba(40,40,55,0.7) 0%,rgba(20,20,30,0.85) 100%);
+    border:1px solid rgba(255,154,61,0.28);border-radius:12px;
+    padding:14px 14px 12px;min-width:118px;
+    display:inline-flex;flex-direction:column;align-items:center;gap:4px;
+    transition:transform .2s, border-color .2s, background .2s, box-shadow .2s;
+    white-space:nowrap;position:relative;z-index:2;
+  }
+  .node .n-ikona{font-size:26px;filter:drop-shadow(0 3px 8px rgba(255,154,61,.35))}
+  .node .n-nazwa{font-family:'JetBrains Mono',monospace;font-size:11.5px;font-weight:700}
+  .node .n-tag{
+    font-family:'JetBrains Mono',monospace;font-size:8.5px;letter-spacing:.5px;
+    color:#a3d9ff;text-transform:uppercase;margin-top:1px;
+  }
+  .node:hover{transform:translateY(-3px) scale(1.03);border-color:#ff9a3d;box-shadow:0 10px 26px rgba(255,154,61,.25)}
+  .node.wybrany{border-color:#ff9a3d;background:rgba(255,154,61,0.14);box-shadow:0 0 0 3px rgba(255,154,61,.18)}
+
+  .node-root{border-color:rgba(255,154,61,.6);background:rgba(255,154,61,0.1)}
+  .node-root .n-nazwa{font-size:13px}
+  .node-opcja{opacity:.75;border-style:dashed}
+
+  /* ===== panel opisu (dół ekranu) ===== */
+  .opis-panel{
+    position:fixed;left:0;right:0;bottom:0;z-index:30;
+    display:flex;justify-content:center;
+    transform:translateY(120%);transition:transform .35s cubic-bezier(.2,.9,.3,1);
+    padding:0 16px 18px;
+  }
+  .opis-panel.widoczny{transform:translateY(0)}
+  .opis-karta{
+    max-width:560px;width:100%;position:relative;
+    background:linear-gradient(180deg,rgba(30,26,42,0.97),rgba(12,10,20,0.98));
+    border:1px solid rgba(255,154,61,0.4);border-radius:16px;
+    padding:18px 44px 18px 20px;
+    box-shadow:0 -10px 40px rgba(0,0,0,.5), 0 0 0 1px rgba(255,154,61,.05);
+    backdrop-filter:blur(10px);
+    text-align:left;
+  }
+  .opis-glowka{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+  .opis-ikona{font-size:22px}
+  .opis-tytul{font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:700;color:#ff9a3d}
+  .opis-tekst{font-size:13.5px;line-height:1.6;color:#c8c8ce}
+  .opis-zamknij{
+    position:absolute;top:12px;right:12px;background:none;border:none;
+    color:#888;font-size:16px;cursor:pointer;width:26px;height:26px;border-radius:6px;
+    transition:color .2s, background .2s;
+  }
+  .opis-zamknij:hover{color:#ff9a3d;background:rgba(255,154,61,.1)}
+
+  @media (max-width:600px){
+    h1{font-size:30px}
+    .ikona-strony{font-size:56px}
+    .node{min-width:78px;padding:9px 6px 7px}
+    .node .n-ikona{font-size:19px}
+    .node .n-nazwa{font-size:9px}
+    .node .n-tag{font-size:7px}
+    .children-row{gap:10px;margin-top:24px}
+    .tree-scena{padding-top:24px}
+  }
+
+  /* ===== blok "dalej" pod drzewem ===== */
+  .dalej-blok{margin-top:40px;display:flex;flex-direction:column;align-items:center;gap:16px}
+  .dalej-tekst{font-size:14.5px;color:#aaa;max-width:460px}
+
+  /* ===== ekran 3: dodawanie pisarza ===== */
+  .krok3-tresc{max-width:560px;width:100%;text-align:left}
+  .tekst--left{text-align:left;max-width:none}
+  .hint--left{text-align:left;margin-top:-6px;margin-bottom:20px}
+
+  .link-formularz{
+    color:#ff9a3d;font-weight:700;text-decoration:none;
+    border-bottom:1px dashed rgba(255,154,61,.6);
+    transition:color .2s, border-color .2s;
+  }
+  .link-formularz:hover{color:#ffb35f;border-color:#ffb35f}
+
+  .uwaga-karta{
+    font-size:13.5px;line-height:1.65;color:#d8d8de;
+    background:rgba(255,154,61,0.06);border:1px solid rgba(255,154,61,0.25);
+    border-radius:10px;padding:14px 16px;margin:18px 0;
+  }
+  .uwaga-karta b{color:#ff9a3d}
+  .uwaga-karta--wazne{
+    background:rgba(255,90,90,0.07);border-color:rgba(255,120,90,0.35);
+  }
+  .uwaga-karta--wazne b{color:#ff8a6a}
+  .uwaga-karta--przyklad{
+    background:rgba(163,217,255,0.06);border-color:rgba(163,217,255,0.3);
+  }
+  .uwaga-karta--przyklad b{color:#a3d9ff}
+  .uwaga-karta code{
+    font-family:'JetBrains Mono',monospace;font-size:12.5px;
+    background:rgba(255,255,255,0.08);color:#ffd9a3;
+    padding:2px 6px;border-radius:5px;
+  }
+
+  .kod-etykieta{
+    font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:1px;
+    color:#888;text-transform:uppercase;margin:22px 0 6px;
+  }
+  .kod-blok{
+    font-family:'JetBrains Mono',monospace;font-size:13.5px;line-height:1.7;
+    color:#a3d9ff;background:rgba(10,10,20,0.7);border:1px solid rgba(163,217,255,.2);
+    border-radius:10px;padding:16px 20px;overflow-x:auto;white-space:pre;
+  }
+
+  /* ===== przykładowe pola formularza (wzorowane na edytorze) ===== */
+  .przyklad-etykieta-sekcji{
+    font-family:'JetBrains Mono',monospace;font-size:11.5px;letter-spacing:1.5px;
+    color:#777;text-transform:uppercase;margin:26px 0 14px;
+  }
+  .przyklad-pole{margin-bottom:16px}
+  .przyklad-etykieta{
+    font-family:'JetBrains Mono',monospace;font-size:11.5px;font-weight:700;letter-spacing:1px;
+    text-transform:uppercase;color:#ff9a3d;margin-bottom:7px;
+  }
+  .przyklad-input{
+    font-family:'Space Grotesk',system-ui,sans-serif;font-size:15px;color:#777;
+    background:rgba(255,255,255,0.02);border:1px solid rgba(255,154,61,0.22);
+    border-radius:9px;padding:13px 16px;
+  }
+  .przyklad-koncowka{color:#ff9a3d;font-weight:700}
 </style>
 </head>
 <body>
-<div class="wrap">
 
-  <div class="head">
-    <div>
-      <div class="title display">Edytor miejscowości</div>
-      <div class="sub">Pod Wielkim Dachem Nieba · kreator pliku dane.json</div>
+<button class="btn-wstecz" id="btn-wstecz" onclick="wstecz()" aria-label="wstecz">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M15.5 4.5 L7 12 L15.5 19.5"/></svg>
+</button>
+
+<div class="wrapper">
+
+  <!-- ===== EKRAN 1 — powitanie ===== -->
+  <section class="ekran active" data-ekran="1">
+    <span class="ikona-strony">📖</span>
+    <h1>Instrukcja mapy</h1>
+    <div class="tagline">Jak dodawać dane i wystawić stronę w świat</div>
+    <div class="line"></div>
+
+    <p class="tekst">
+      Ta animacja pokaże Ci krok po kroku, jak zbudowana jest cała strona —
+      jakie foldery i pliki są jej potrzebne, gdzie wstawiać zdjęcia, teksty
+      wierszy i dane artystów, oraz jak to wszystko się ze sobą łączy.
+    </p>
+
+    <div class="hosting-linia">
+      — plik po pliku możesz wrzucić ją na <b>GitHub</b> (jako darmowy hosting stron),
+      na <b>Netlify</b> (przeciągnij i upuść folder), albo na <b>własny hosting</b>
     </div>
-    <div>
-      <input type="file" id="file-load" accept=".json" class="hidden">
-      <button class="load-btn" onclick="document.getElementById('file-load').click()">📂 Wczytaj istniejący dane.json</button>
+
+    <button class="btn" onclick="idzDoEkranu(2)">Zaczynamy →</button>
+  </section>
+
+  <!-- ===== EKRAN 2 — całe drzewo struktury ===== -->
+  <section class="ekran" data-ekran="2">
+    <div class="drzewo-naglowek">Tak wygląda folder <b>poezja</b>:</div>
+    <div class="drzewo-hint">kliknij, żeby go podejrzeć</div>
+
+    <div class="tree-scena">
+      <svg class="tree-lines" id="tree-lines"></svg>
+      <div class="branch" id="b-poezja">
+        <button class="node node-root t-node" onclick="pokazOpis(this)"
+          data-i="📁" data-t="poezja" data-d="Główny folder Twojej mapy — tu ląduje wszystko. To właśnie ten folder wrzucasz na hosting.">
+          <span class="n-ikona">📁</span><span class="n-nazwa">poezja</span>
+        </button>
+
+        <div class="prosta-kreska"></div>
+
+        <div class="children-row">
+          <div class="branch">
+            <button class="node t-node" id="col-1" onclick="pokazOpis(this)"
+              data-i="📄" data-t="index.html" data-d="Główny plik programu — to jest sama mapa, którą otwiera przeglądarka.">
+              <span class="n-ikona">📄</span><span class="n-nazwa">index.html</span>
+            </button>
+          </div>
+          <div class="branch">
+            <button class="node t-node" id="col-2" onclick="pokazOpis(this)"
+              data-i="🗂️" data-t="miejscowosci.json" data-d="Lista wszystkich miejscowości (ich „slugów”) — program czyta ją jako pierwszą, żeby wiedzieć, jakie foldery otworzyć w środku folderu dane.">
+              <span class="n-ikona">🗂️</span><span class="n-nazwa">miejscowosci.json</span>
+            </button>
+          </div>
+          <div class="branch">
+            <button class="node t-node" id="col-3" onclick="pokazOpis(this)"
+              data-i="📁" data-t="dane" data-d="Tu mieszkają dane wszystkich miejscowości — każda ma swój własny podfolder, nazwany jej „slugiem” z pliku miejscowosci.json.">
+              <span class="n-ikona">📁</span><span class="n-nazwa">dane</span>
+            </button>
+
+            <div class="prosta-kreska"></div>
+
+            <button class="node t-node" id="node-chelm" onclick="pokazOpis(this)"
+              data-i="📁" data-t="np. chelm" data-d="Przykład jednego folderu miejscowości. Nazwa folderu to „slug” wpisany w miejscowosci.json — bez polskich znaków i spacji (np. „chelm”). Każda kolejna miejscowość to kolejny taki folder obok tego.">
+              <span class="n-ikona">📁</span><span class="n-nazwa">chełm</span><span class="n-tag">przykład</span>
+            </button>
+
+            <div class="prosta-kreska"></div>
+
+            <div class="dane-json-kotwica">
+              <button class="node t-node" onclick="pokazOpis(this)"
+                data-i="📄" data-t="dane.json" data-d="Wszystkie treści tej jednej miejscowości: jej opis, lista artystów, ich tomiki i wiersze. W polach „zdjecie”, „okladka” i „audio” wpisujesz dokładną nazwę pliku, który leży obok — w tym samym folderze.">
+                <span class="n-ikona">📄</span><span class="n-nazwa">dane.json</span>
+              </button>
+              <div class="bok-galaz-lewo">
+                <button class="node node-opcja t-node" id="node-audio" onclick="pokazOpis(this)"
+                  data-i="🎵" data-t="audio (opcjonalnie)" data-d="Nagrania audio wierszy — nieobowiązkowe, też leżą bezpośrednio w tym folderze, obok dane.json. Nazwę pliku wpisujesz w polu „audio” w dane.json, np. „wiersz1.mp3”.">
+                  <span class="n-ikona">🎵</span><span class="n-nazwa">audio</span><span class="n-tag">opcjonalnie</span>
+                </button>
+                <button class="node t-node" id="node-zdjecia" onclick="pokazOpis(this)"
+                  data-i="🖼️" data-t="zdjęcia" data-d="Pliki zdjęć — miejscowości, artystów i okładek tomików — leżą bezpośrednio w tym folderze, obok dane.json. Dokładną nazwę pliku wpisujesz w polu „zdjecie”/„okladka” w dane.json, np. „chelm.jpg”.">
+                  <span class="n-ikona">🖼️</span><span class="n-nazwa">zdjęcia</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
-  </div>
 
-  <div class="steps">
-    <div class="step-chip active" data-s="0">1 · Miejscowość</div>
-    <div class="step-chip" data-s="1">2 · Artyści</div>
-    <div class="step-chip" data-s="2">3 · Twórczość</div>
-    <div class="step-chip" data-s="3">4 · Generuj</div>
-  </div>
+    <div class="dalej-blok">
+      <div class="dalej-tekst">Zobacz, w jaki sposób dodaje się kolejnych poetów do mapy</div>
+      <button class="btn" onclick="idzDoEkranu(3)">Dalej →</button>
+    </div>
+  </section>
 
-  <!-- ====== KROK 1: MIEJSCOWOŚĆ ====== -->
-  <div class="step-panel" id="panel-0">
-    <div class="card">
-      <h2>Miejscowość</h2>
-      <p class="hint">Kliknij na mapie miejsce, gdzie leży miejscowość (żółta kropka) — współrzędne zapiszą się same. Potem uzupełnij dane.</p>
+  <!-- ===== EKRAN 3 — jak dodać pisarza / miejscowość ===== -->
+  <section class="ekran" data-ekran="3">
+    <div class="drzewo-naglowek">Jak dodać kolejnego pisarza</div>
+    <div class="drzewo-hint">krok po kroku</div>
 
-      <label>Nazwa miejscowości</label>
-      <input type="text" id="m-nazwa" oninput="odswiezSlugM()" placeholder="np. Siedliszcze">
-      <div class="slug-preview" id="m-slug-prev"></div>
+    <div class="krok3-tresc">
+      <p class="tekst tekst--left">
+        Aby dodać pisarza, wejdź na nasz
+        <a class="link-formularz" href="https://mini-klik.pl/moje-mapy/edytor/" target="_blank" rel="noopener">formularz zgłoszeniowy</a>
+        i uzupełnij go dokładnie — zwróć uwagę, jak chcesz nazwać zdjęcie
+        lub nagranie wiersza. Potem <b>dokładnie z tą samą nazwą</b> wrzucasz
+        plik .jpg lub audio do folderu z nazwą tej miejscowości.
+      </p>
 
-      <div class="row3">
-        <div><label>Gmina</label><input type="text" id="m-gmina" placeholder="Siedliszcze"></div>
-        <div><label>Powiat</label><input type="text" id="m-powiat" placeholder="chełmski"></div>
-        <div><label>Województwo</label><input type="text" id="m-woj" placeholder="lubelskie"></div>
+      <div class="przyklad-etykieta-sekcji">_ Przykład</div>
+
+      <div class="przyklad-pole">
+        <div class="przyklad-etykieta">Nazwa miejscowości</div>
+        <div class="przyklad-input">np. Siedliszcze</div>
       </div>
 
-      <label>Nazwa pliku zdjęcia <span class="opt">— opcjonalnie, wrzucisz je do folderu img/</span></label>
-      <input type="text" id="m-zdjecie" placeholder="np. siedliszcze.jpg">
-      <div class="filehint">wpisz samą nazwę pliku; trafi do <span class="mono">img/</span> w folderze miejscowości</div>
-
-      <label>Opis miejscowości</label>
-      <textarea id="m-opis" placeholder="Krótki opis miejscowości…"></textarea>
-
-      <div class="map-box">
-        <label>Punkt na mapie (żółta kropka miejscowości)</label>
-        <div class="picker" id="pick-m"></div>
-        <div class="coord-line empty" id="coord-m">Kliknij na mapie, aby ustawić punkt</div>
+      <div class="przyklad-pole">
+        <div class="przyklad-etykieta">Nazwa pliku zdjęcia — opcjonalnie</div>
+        <div class="przyklad-input">np. halina-wierzbicka<span class="przyklad-koncowka">.jpg</span></div>
       </div>
-    </div>
-    <div class="nav-row">
-      <span></span>
-      <button class="btn solid" onclick="idzDo(1)">Dalej: artyści →</button>
-    </div>
-  </div>
 
-  <!-- ====== KROK 2: ARTYŚCI ====== -->
-  <div class="step-panel hidden" id="panel-1">
-    <div class="card">
-      <h2>Artyści</h2>
-      <p class="hint">Dodaj poetów związanych z tą miejscowością. Możesz dodać kilku. Wiersze i tomiki dodasz w następnym kroku.</p>
-      <div id="artysci-lista"></div>
-      <div class="add-line">
-        <button class="btn mini" onclick="dodajArtyste()">➕ Dodaj artystę</button>
+      <div class="przyklad-pole">
+        <div class="przyklad-etykieta">Nazwa pliku audio — opcjonalnie</div>
+        <div class="przyklad-input">np. nad-zalewem<span class="przyklad-koncowka">.mp3</span></div>
       </div>
-    </div>
-    <div class="nav-row">
-      <button class="btn ghost" onclick="idzDo(0)">← Wstecz</button>
-      <button class="btn solid" onclick="idzDo(2)">Dalej: twórczość →</button>
-    </div>
-  </div>
 
-  <!-- ====== KROK 3: TWÓRCZOŚĆ ====== -->
-  <div class="step-panel hidden" id="panel-2">
-    <div class="card">
-      <h2>Twórczość</h2>
-      <p class="hint">Dla każdego artysty dodaj tomiki (z okładką i wierszami) oraz/lub luźne wiersze spoza tomików. Przy każdym wierszu kliknij na mapie miejsce z nim związane (fioletowa kropka).</p>
-      <div id="tworczosc-lista"></div>
+      <div class="hint hint--left">zawsze dopisz końcówkę pliku (.jpg, .mp3) — bez niej program nie znajdzie pliku</div>
     </div>
-    <div class="nav-row">
-      <button class="btn ghost" onclick="idzDo(1)">← Wstecz</button>
-      <button class="btn solid" onclick="idzDo(3)">Dalej: generuj →</button>
-    </div>
-  </div>
-
-  <!-- ====== KROK 4: GENERUJ ====== -->
-  <div class="step-panel hidden" id="panel-3">
-    <div class="card">
-      <h2>Gotowy plik dane.json</h2>
-      <p class="hint">Sprawdź, pobierz plik i wrzuć go na GitHub. Poniżej instrukcja, gdzie dokładnie.</p>
-      <div class="nav-row" style="margin-top:0;margin-bottom:14px">
-        <button class="btn solid" onclick="pobierzJSON()">⬇ Pobierz dane.json</button>
-        <button class="btn ghost" onclick="kopiujJSON()">Kopiuj do schowka <span class="ok-flash hidden" id="kopiuj-ok">skopiowano ✓</span></button>
-      </div>
-      <div class="out-area" id="out-json"></div>
-      <div class="instr" id="instr-box"></div>
-    </div>
-    <div class="nav-row">
-      <button class="btn ghost" onclick="idzDo(2)">← Wstecz</button>
-      <span></span>
-    </div>
-  </div>
+  </section>
 
 </div>
 
+<div class="opis-panel" id="opis-panel">
+  <div class="opis-karta">
+    <button class="opis-zamknij" onclick="zamknijOpis()" aria-label="zamknij">✕</button>
+    <div class="opis-glowka">
+      <span class="opis-ikona" id="opis-ikona"></span>
+      <span class="opis-tytul" id="opis-tytul"></span>
+    </div>
+    <p class="opis-tekst" id="opis-tekst"></p>
+  </div>
+</div>
+
 <script>
-/* =========================================================
-   MODEL DANYCH — trzymamy stan kreatora, na końcu składamy JSON
-   ========================================================= */
-let model = {
-  slug:'', nazwa:'', gmina:'', powiat:'', woj:'', zdjecie:'', opis:'',
-  lat:null, lng:null,
-  artysci: []   // {slug, imie_nazwisko, lata, zdjecie, bio, tomiki:[], dziela:[]}
-};
-// tomik: {slug, tytul, okladka, wiersze:[wiersz]}
-// wiersz: {slug, tytul, tresc, data_powstania, zrodlo, audio, miejsca:[{nazwa,typ,lat,lng}]}
+  let aktualnyEkran = 1;
 
-let idSeq = 1;
-const nowyId = ()=> 'x'+(idSeq++);
-
-/* =========================================================
-   SLUGIFIKACJA — polskie znaki → ascii, spacje → myślniki
-   ========================================================= */
-function slug(s){
-  if(!s) return '';
-  const map={'ą':'a','ć':'c','ę':'e','ł':'l','ń':'n','ó':'o','ś':'s','ź':'z','ż':'z',
-             'Ą':'a','Ć':'c','Ę':'e','Ł':'l','Ń':'n','Ó':'o','Ś':'s','Ź':'z','Ż':'z'};
-  return s.split('').map(c=>map[c]||c).join('')
-    .toLowerCase().trim()
-    .replace(/[^a-z0-9]+/g,'-')
-    .replace(/^-+|-+$/g,'');
-}
-function odswiezSlugM(){
-  const n = document.getElementById('m-nazwa').value;
-  const s = slug(n);
-  document.getElementById('m-slug-prev').textContent = s ? `slug / folder: ${s}` : '';
-}
-
-/* =========================================================
-   NAWIGACJA KROKÓW
-   ========================================================= */
-let krok = 0;
-function idzDo(nr){
-  // zapisz dane bieżącego kroku do modelu
-  if(krok===0) zapiszKrok0();
-  // krok 1 i 2 zapisują się na bieżąco przez inputy
-  krok = nr;
-  document.querySelectorAll('.step-panel').forEach((p,i)=>p.classList.toggle('hidden', i!==nr));
-  document.querySelectorAll('.step-chip').forEach((c,i)=>{
-    c.classList.toggle('active', i===nr);
-    c.classList.toggle('done', i<nr);
-  });
-  if(nr===1) renderArtysci();
-  if(nr===2) renderTworczosc();
-  if(nr===3) generuj();
-  window.scrollTo({top:0,behavior:'smooth'});
-  setTimeout(()=>{ if(nr===0) mapaM.invalidateSize(); }, 60);
-}
-
-/* =========================================================
-   KROK 1 — MIEJSCOWOŚĆ
-   ========================================================= */
-let mapaM, markerM;
-function initMapaM(){
-  mapaM = L.map('pick-m', { attributionControl:false }).setView([51.19, 23.16], 12);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18}).addTo(mapaM);
-  mapaM.on('click', e=>{
-    ustawMarkerM(e.latlng.lat, e.latlng.lng);
-  });
-}
-function ustawMarkerM(lat,lng){
-  model.lat = +lat.toFixed(5); model.lng = +lng.toFixed(5);
-  if(markerM) markerM.setLatLng([lat,lng]);
-  else markerM = L.marker([lat,lng]).addTo(mapaM);
-  document.getElementById('coord-m').textContent = `Punkt: ${model.lat}, ${model.lng}`;
-  document.getElementById('coord-m').classList.remove('empty');
-}
-function zapiszKrok0(){
-  model.nazwa = val('m-nazwa');
-  model.slug = slug(model.nazwa);
-  model.gmina = val('m-gmina');
-  model.powiat = val('m-powiat');
-  model.woj = val('m-woj');
-  model.zdjecie = val('m-zdjecie').trim();
-  model.opis = val('m-opis');
-}
-
-/* =========================================================
-   KROK 2 — ARTYŚCI
-   ========================================================= */
-function dodajArtyste(){
-  model.artysci.push({
-    _id: nowyId(), imie_nazwisko:'', lata:'', zdjecie:'', bio:'',
-    tomiki:[], dziela:[]
-  });
-  renderArtysci();
-}
-function usunArtyste(id){
-  model.artysci = model.artysci.filter(a=>a._id!==id);
-  renderArtysci();
-}
-function renderArtysci(){
-  const box = document.getElementById('artysci-lista');
-  box.innerHTML = '';
-  if(!model.artysci.length){
-    box.innerHTML = '<div class="empty-note">Brak artystów. Kliknij „Dodaj artystę”.</div>';
-    return;
-  }
-  model.artysci.forEach((a,idx)=>{
-    const el = document.createElement('div');
-    el.className = 'sub-block';
-    el.innerHTML = `
-      <div class="sub-head">
-        <span class="nm">Artysta ${idx+1}${a.imie_nazwisko?': '+a.imie_nazwisko:''}</span>
-        <button class="btn mini danger" onclick="usunArtyste('${a._id}')">Usuń</button>
-      </div>
-      <label>Imię i nazwisko</label>
-      <input type="text" value="${esc(a.imie_nazwisko)}" oninput="setArt('${a._id}','imie_nazwisko',this.value); this.closest('.sub-block').querySelector('.slug-preview').textContent = artSlugPrev(this.value)">
-      <div class="slug-preview">${a.imie_nazwisko?('slug: '+slug(a.imie_nazwisko)):''}</div>
-      <div class="row2">
-        <div>
-          <label>Lata życia / urodzenia</label>
-          <input type="text" value="${esc(a.lata)}" oninput="setArt('${a._id}','lata',this.value)" placeholder="np. 1932–2011 albo ur. 1978">
-        </div>
-        <div>
-          <label>Nazwa pliku zdjęcia <span class="opt">— opcjonalnie</span></label>
-          <input type="text" value="${esc(a.zdjecie)}" oninput="setArt('${a._id}','zdjecie',this.value)" placeholder="np. halina-wierzbicka.jpg">
-        </div>
-      </div>
-      <label>Biografia</label>
-      <textarea oninput="setArt('${a._id}','bio',this.value)" placeholder="Życiorys i opis twórczości…">${esc(a.bio)}</textarea>
-    `;
-    box.appendChild(el);
-  });
-}
-function artSlugPrev(v){ return v ? ('slug: '+slug(v)) : ''; }
-function setArt(id,pole,wart){
-  const a = model.artysci.find(x=>x._id===id); if(a) a[pole]=wart;
-}
-
-/* =========================================================
-   KROK 3 — TWÓRCZOŚĆ (tomiki + luźne wiersze)
-   ========================================================= */
-function renderTworczosc(){
-  const box = document.getElementById('tworczosc-lista');
-  box.innerHTML = '';
-  if(!model.artysci.length){
-    box.innerHTML = '<div class="empty-note">Najpierw dodaj artystów w kroku 2.</div>';
-    return;
-  }
-  model.artysci.forEach(a=>{
-    const wrap = document.createElement('div');
-    wrap.className = 'sub-block';
-    wrap.innerHTML = `<div class="sub-head"><span class="nm">${esc(a.imie_nazwisko)||'(artysta bez nazwiska)'}</span></div>`;
-
-    // --- TOMIKI ---
-    const tomikiBox = document.createElement('div');
-    (a.tomiki||[]).forEach((t,ti)=>{
-      tomikiBox.appendChild(blokTomiku(a,t,ti));
+  function idzDoEkranu(n){
+    aktualnyEkran = n;
+    document.querySelectorAll('.ekran').forEach(e=>{
+      e.classList.toggle('active', Number(e.dataset.ekran) === n);
     });
-    wrap.appendChild(tomikiBox);
-    const addTomik = document.createElement('div');
-    addTomik.className='add-line';
-    addTomik.innerHTML = `<button class="btn mini" onclick="dodajTomik('${a._id}')">➕ Dodaj tomik</button>`;
-    wrap.appendChild(addTomik);
+    document.getElementById('btn-wstecz').classList.toggle('widoczny', n > 1);
+    zamknijOpis();
+    window.scrollTo({top:0, behavior:'smooth'});
+    if(n === 2) setTimeout(rysujLinie, 50);
+  }
 
-    // --- LUŹNE WIERSZE ---
-    const luzneNagl = document.createElement('label');
-    luzneNagl.textContent = 'Wiersze spoza tomików';
-    luzneNagl.style.marginTop='18px';
-    wrap.appendChild(luzneNagl);
-    const luzneBox = document.createElement('div');
-    (a.dziela||[]).forEach((w,wi)=>{
-      luzneBox.appendChild(blokWiersza(a, null, w, wi));
+  function wstecz(){
+    if(aktualnyEkran > 1) idzDoEkranu(aktualnyEkran - 1);
+  }
+
+  function pokazOpis(btn){
+    document.getElementById('opis-ikona').textContent = btn.dataset.i;
+    document.getElementById('opis-tytul').textContent = btn.dataset.t;
+    document.getElementById('opis-tekst').textContent = btn.dataset.d;
+    document.getElementById('opis-panel').classList.add('widoczny');
+    document.querySelectorAll('.node').forEach(n=>n.classList.remove('wybrany'));
+    btn.classList.add('wybrany');
+  }
+
+  function rysujLinie(){
+    const scena = document.querySelector('.tree-scena');
+    const svg = document.getElementById('tree-lines');
+    if(!scena || !svg) return;
+    const sceneBox = scena.getBoundingClientRect();
+    svg.setAttribute('width', scena.scrollWidth);
+    svg.setAttribute('height', scena.scrollHeight);
+    svg.innerHTML = '';
+
+    document.querySelectorAll('.branch').forEach(branch=>{
+      const node = branch.querySelector(':scope > .t-node');
+      const row = branch.querySelector(':scope > .children-row');
+      if(!node || !row) return;
+      const nb = node.getBoundingClientRect();
+      const parentX = nb.left + nb.width/2 - sceneBox.left + scena.scrollLeft;
+      const parentY = nb.bottom - sceneBox.top + scena.scrollTop;
+
+      row.querySelectorAll(':scope > .branch').forEach(child=>{
+        const cnode = child.querySelector(':scope > .t-node');
+        if(!cnode) return;
+        const cb = cnode.getBoundingClientRect();
+        const childX = cb.left + cb.width/2 - sceneBox.left + scena.scrollLeft;
+        const childY = cb.top - sceneBox.top + scena.scrollTop;
+        const midY = parentY + (childY - parentY) / 2;
+        const path = document.createElementNS('http://www.w3.org/2000/svg','path');
+        path.setAttribute('d', `M ${parentX} ${parentY} L ${parentX} ${midY} L ${childX} ${midY} L ${childX} ${childY}`);
+        svg.appendChild(path);
+      });
     });
-    wrap.appendChild(luzneBox);
-    const addLuzny = document.createElement('div');
-    addLuzny.className='add-line';
-    addLuzny.innerHTML = `<button class="btn mini" onclick="dodajLuznyWiersz('${a._id}')">➕ Dodaj luźny wiersz</button>`;
-    wrap.appendChild(addLuzny);
 
-    box.appendChild(wrap);
-  });
-}
-
-/* --- TOMIK --- */
-function dodajTomik(artId){
-  const a = model.artysci.find(x=>x._id===artId);
-  a.tomiki.push({ _id:nowyId(), tytul:'', okladka:'', wiersze:[] });
-  renderTworczosc();
-}
-function usunTomik(artId,tomId){
-  const a = model.artysci.find(x=>x._id===artId);
-  a.tomiki = a.tomiki.filter(t=>t._id!==tomId);
-  renderTworczosc();
-}
-function setTomik(artId,tomId,pole,wart){
-  const a = model.artysci.find(x=>x._id===artId);
-  const t = a.tomiki.find(x=>x._id===tomId); if(t) t[pole]=wart;
-}
-function blokTomiku(a,t,ti){
-  const el = document.createElement('div');
-  el.className = 'sub-block nested';
-  el.innerHTML = `
-    <div class="sub-head">
-      <span class="nm">📖 Tomik ${ti+1}${t.tytul?': '+esc(t.tytul):''} <span class="tag">tomik</span></span>
-      <button class="btn mini danger" onclick="usunTomik('${a._id}','${t._id}')">Usuń tomik</button>
-    </div>
-    <div class="row2">
-      <div>
-        <label>Tytuł tomiku</label>
-        <input type="text" value="${esc(t.tytul)}" oninput="setTomik('${a._id}','${t._id}','tytul',this.value)" placeholder="np. Cisza po drodze">
-      </div>
-      <div>
-        <label>Nazwa pliku okładki <span class="opt">— opcjonalnie</span></label>
-        <input type="text" value="${esc(t.okladka)}" oninput="setTomik('${a._id}','${t._id}','okladka',this.value)" placeholder="np. cisza-po-drodze.jpg">
-      </div>
-    </div>
-    <label style="margin-top:14px">Wiersze w tomiku</label>
-    <div id="tw-${t._id}"></div>
-    <div class="add-line">
-      <button class="btn mini" onclick="dodajWierszTomiku('${a._id}','${t._id}')">➕ Dodaj wiersz do tomiku</button>
-    </div>
-  `;
-  // wiersze tomiku
-  setTimeout(()=>{
-    const cont = el.querySelector('#tw-'+t._id);
-    if(cont){
-      (t.wiersze||[]).forEach((w,wi)=> cont.appendChild(blokWiersza(a,t,w,wi)));
+    // dodatkowa linia: chełm -> audio
+    const chelm = document.getElementById('node-chelm');
+    const audio = document.getElementById('node-audio');
+    if(chelm && audio){
+      const pb = chelm.getBoundingClientRect();
+      const ab = audio.getBoundingClientRect();
+      const parentX = pb.left + pb.width/2 - sceneBox.left + scena.scrollLeft;
+      const parentY = pb.bottom - sceneBox.top + scena.scrollTop;
+      const childX = ab.left + ab.width/2 - sceneBox.left + scena.scrollLeft;
+      const childY = ab.top - sceneBox.top + scena.scrollTop;
+      const midY = parentY + (childY - parentY) / 2;
+      const path = document.createElementNS('http://www.w3.org/2000/svg','path');
+      path.setAttribute('d', `M ${parentX} ${parentY} L ${parentX} ${midY} L ${childX} ${midY} L ${childX} ${childY}`);
+      svg.appendChild(path);
     }
-  },0);
-  return el;
-}
-function dodajWierszTomiku(artId,tomId){
-  const a = model.artysci.find(x=>x._id===artId);
-  const t = a.tomiki.find(x=>x._id===tomId);
-  t.wiersze.push(nowyWiersz());
-  renderTworczosc();
-}
-function usunWierszTomiku(artId,tomId,wId){
-  const a = model.artysci.find(x=>x._id===artId);
-  const t = a.tomiki.find(x=>x._id===tomId);
-  t.wiersze = t.wiersze.filter(w=>w._id!==wId);
-  renderTworczosc();
-}
 
-/* --- LUŹNY WIERSZ --- */
-function dodajLuznyWiersz(artId){
-  const a = model.artysci.find(x=>x._id===artId);
-  a.dziela.push(nowyWiersz());
-  renderTworczosc();
-}
-function usunLuznyWiersz(artId,wId){
-  const a = model.artysci.find(x=>x._id===artId);
-  a.dziela = a.dziela.filter(w=>w._id!==wId);
-  renderTworczosc();
-}
-
-function nowyWiersz(){
-  return { _id:nowyId(), tytul:'', tresc:'', data_powstania:'', zrodlo:'', audio:'', miejsca:[] };
-}
-
-/* --- BLOK WIERSZA (wspólny dla tomiku i luźnych) --- */
-function blokWiersza(a, t, w, wi){
-  const el = document.createElement('div');
-  el.className = 'sub-block nested';
-  const usunFn = t
-    ? `usunWierszTomiku('${a._id}','${t._id}','${w._id}')`
-    : `usunLuznyWiersz('${a._id}','${w._id}')`;
-  el.innerHTML = `
-    <div class="sub-head">
-      <span class="nm">Wiersz ${wi+1}${w.tytul?': '+esc(w.tytul):''}</span>
-      <button class="btn mini danger" onclick="${usunFn}">Usuń</button>
-    </div>
-    <label>Tytuł wiersza</label>
-    <input type="text" value="${esc(w.tytul)}" oninput="setW('${w._id}','tytul',this.value)" placeholder="np. Nad zalewem">
-    <label>Treść wiersza</label>
-    <textarea oninput="setW('${w._id}','tresc',this.value)" placeholder="Treść wiersza…">${esc(w.tresc)}</textarea>
-    <div class="row2">
-      <div>
-        <label>Data powstania <span class="opt">— opcjonalnie</span></label>
-        <input type="text" value="${esc(w.data_powstania)}" oninput="setW('${w._id}','data_powstania',this.value)" placeholder="np. 1987">
-      </div>
-      <div>
-        <label>Nazwa pliku audio <span class="opt">— opcjonalnie</span></label>
-        <input type="text" value="${esc(w.audio)}" oninput="setW('${w._id}','audio',this.value)" placeholder="np. nad-zalewem.mp3">
-      </div>
-    </div>
-    <label>Źródło publikacji <span class="opt">— opcjonalnie</span></label>
-    <input type="text" value="${esc(w.zrodlo)}" oninput="setW('${w._id}','zrodlo',this.value)" placeholder="np. tomik „Cisza po drodze”, 2012">
-
-    <label style="margin-top:14px">Miejsca związane z wierszem (fioletowe kropki)</label>
-    <div class="miejsca-lista" id="mj-${w._id}"></div>
-    <div class="map-box">
-      <div class="picker" id="pickw-${w._id}" style="height:220px"></div>
-      <div class="coord-line" id="coordw-${w._id}">Kliknij na mapie, aby dodać miejsce tego wiersza</div>
-    </div>
-  `;
-  // po wstawieniu do DOM: lista miejsc + mapka
-  setTimeout(()=> initMapaWiersza(w), 0);
-  return el;
-}
-function setW(id,pole,wart){
-  const w = znajdzWiersz(id); if(w) w[pole]=wart;
-}
-function znajdzWiersz(id){
-  for(const a of model.artysci){
-    for(const t of (a.tomiki||[])){ const f=t.wiersze.find(x=>x._id===id); if(f) return f; }
-    const f=(a.dziela||[]).find(x=>x._id===id); if(f) return f;
-  }
-  return null;
-}
-
-/* mapka wiersza: klik = dodanie kolejnego miejsca; lista miejsc pod spodem */
-const mapyWierszy = {};
-function initMapaWiersza(w){
-  const cont = document.getElementById('pickw-'+w._id);
-  if(!cont || mapyWierszy[w._id]) { odswiezMiejsca(w); return; }
-  const centrum = (model.lat && model.lng) ? [model.lat, model.lng] : [51.19,23.16];
-  const map = L.map('pickw-'+w._id, { attributionControl:false }).setView(centrum, 13);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18}).addTo(map);
-  const warstwa = L.layerGroup().addTo(map);
-  mapyWierszy[w._id] = { map, warstwa };
-  map.on('click', e=>{
-    const nazwa = prompt('Nazwa miejsca (np. „Zalew”, „Rynek”). Możesz zostawić puste:','') || '';
-    w.miejsca.push({ nazwa: nazwa.trim(), typ:'', lat:+e.latlng.lat.toFixed(5), lng:+e.latlng.lng.toFixed(5) });
-    odswiezMiejsca(w);
-  });
-  setTimeout(()=>map.invalidateSize(),40);
-  odswiezMiejsca(w);
-}
-function odswiezMiejsca(w){
-  const box = document.getElementById('mj-'+w._id);
-  const mo = mapyWierszy[w._id];
-  if(mo){
-    mo.warstwa.clearLayers();
-    w.miejsca.forEach(mi=>{
-      L.circleMarker([mi.lat,mi.lng],{radius:7,color:'#9a6dd7',fillColor:'#9a6dd7',fillOpacity:.9,weight:2}).addTo(mo.warstwa);
-    });
-  }
-  if(box){
-    if(!w.miejsca.length){ box.innerHTML = '<div class="empty-note" style="padding:4px 0">Brak miejsc — kliknij na mapie poniżej.</div>'; return; }
-    box.innerHTML = w.miejsca.map((mi,i)=>`
-      <div style="display:flex;gap:8px;align-items:center;margin:6px 0">
-        <span class="mono" style="font-size:11px;color:var(--gold-soft)">${mi.lat}, ${mi.lng}</span>
-        <input type="text" value="${esc(mi.nazwa)}" oninput="setMiejsce('${w._id}',${i},this.value)" placeholder="nazwa miejsca" style="flex:1;padding:5px 8px;font-size:13px">
-        <button class="btn mini danger" onclick="usunMiejsce('${w._id}',${i})">✕</button>
-      </div>`).join('');
-  }
-}
-function setMiejsce(wId,idx,wart){ const w=znajdzWiersz(wId); if(w&&w.miejsca[idx]) w.miejsca[idx].nazwa=wart; }
-function usunMiejsce(wId,idx){ const w=znajdzWiersz(wId); if(w){ w.miejsca.splice(idx,1); odswiezMiejsca(w);} }
-
-/* =========================================================
-   KROK 4 — GENEROWANIE JSON (czysty, bez pól _id)
-   ========================================================= */
-function zbudujObiekt(){
-  zapiszKrok0();
-  const podtytul = [
-    model.gmina?('gmina '+model.gmina):'',
-    model.powiat?('powiat '+model.powiat):'',
-    model.woj
-  ].filter(Boolean).join(' · ');
-
-  const mapWiersz = (w)=>({
-    slug: slug(w.tytul),
-    tytul: w.tytul,
-    tresc: w.tresc,
-    data_powstania: w.data_powstania || '',
-    zrodlo: w.zrodlo || '',
-    audio: w.audio ? w.audio.trim() : null,
-    miejsca: (w.miejsca||[]).map(mi=>({
-      nazwa: mi.nazwa||'', typ: mi.typ||'', lat: mi.lat, lng: mi.lng
-    }))
-  });
-
-  const obj = {
-    slug: model.slug,
-    nazwa: model.nazwa,
-    podtytul: podtytul,
-    opis: model.opis,
-    lat: model.lat, lng: model.lng,
-    zdjecie: model.zdjecie ? model.zdjecie : null,
-    artysci: model.artysci.map(a=>{
-      const wynik = {
-        slug: slug(a.imie_nazwisko),
-        imie_nazwisko: a.imie_nazwisko,
-        lata: a.lata || '',
-        zdjecie: a.zdjecie ? a.zdjecie : null,
-        bio: a.bio || ''
-      };
-      if(a.tomiki && a.tomiki.length){
-        wynik.tomiki = a.tomiki.map(t=>({
-          slug: slug(t.tytul),
-          tytul: t.tytul,
-          okladka: t.okladka ? t.okladka : null,
-          wiersze: (t.wiersze||[]).map(mapWiersz)
-        }));
-      }
-      if(a.dziela && a.dziela.length){
-        wynik.dziela = a.dziela.map(mapWiersz);
-      }
-      return wynik;
-    })
-  };
-  return obj;
-}
-function generuj(){
-  const obj = zbudujObiekt();
-  document.getElementById('out-json').textContent = JSON.stringify(obj, null, 2);
-  const s = obj.slug || 'nazwa-miejscowosci';
-  document.getElementById('instr-box').innerHTML = `
-    <b>Co zrobić z tym plikiem:</b><br>
-    1. Kliknij <b>Pobierz dane.json</b> powyżej.<br>
-    2. Na GitHubie utwórz plik <code>dane/${s}/dane.json</code> i wklej/wgraj pobraną zawartość.<br>
-    3. Zdjęcia wrzuć do <code>dane/${s}/img/</code>, a nagrania do <code>dane/${s}/audio/</code> (pod nazwami, które wpisałeś).<br>
-    4. Dopisz <code>"${s}"</code> do pliku <code>miejscowosci.json</code>.<br>
-    5. Commit — miejscowość pojawi się na mapie.`;
-}
-function pobierzJSON(){
-  const obj = zbudujObiekt();
-  const blob = new Blob([JSON.stringify(obj,null,2)], {type:'application/json'});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url; a.download = 'dane.json';
-  a.click();
-  URL.revokeObjectURL(url);
-}
-function kopiujJSON(){
-  const obj = zbudujObiekt();
-  navigator.clipboard.writeText(JSON.stringify(obj,null,2)).then(()=>{
-    const ok = document.getElementById('kopiuj-ok');
-    ok.classList.remove('hidden');
-    setTimeout(()=>ok.classList.add('hidden'), 1800);
-  });
-}
-
-/* =========================================================
-   WCZYTANIE ISTNIEJĄCEGO dane.json DO EDYCJI
-   ========================================================= */
-document.getElementById('file-load').addEventListener('change', function(ev){
-  const plik = ev.target.files[0];
-  if(!plik) return;
-  const r = new FileReader();
-  r.onload = ()=>{
-    try{
-      const obj = JSON.parse(r.result);
-      wczytajDoModelu(obj);
-      alert('Wczytano miejscowość: '+(obj.nazwa||'?')+'. Możesz teraz edytować i wygenerować na nowo.');
-    }catch(e){
-      alert('Nie udało się wczytać pliku — czy to poprawny dane.json?');
+    // dodatkowa linia: chełm -> zdjęcia
+    const zdjecia = document.getElementById('node-zdjecia');
+    if(chelm && zdjecia){
+      const pb = chelm.getBoundingClientRect();
+      const zb = zdjecia.getBoundingClientRect();
+      const parentX = pb.left + pb.width/2 - sceneBox.left + scena.scrollLeft;
+      const parentY = pb.bottom - sceneBox.top + scena.scrollTop;
+      const childX = zb.left + zb.width/2 - sceneBox.left + scena.scrollLeft;
+      const childY = zb.top - sceneBox.top + scena.scrollTop;
+      const midY = parentY + (childY - parentY) / 2;
+      const path = document.createElementNS('http://www.w3.org/2000/svg','path');
+      path.setAttribute('d', `M ${parentX} ${parentY} L ${parentX} ${midY} L ${childX} ${midY} L ${childX} ${childY}`);
+      svg.appendChild(path);
     }
-  };
-  r.readAsText(plik);
-  ev.target.value=''; // pozwól wczytać ten sam plik ponownie
-});
-function wczytajDoModelu(obj){
-  // rozbij podtytuł „gmina X · powiat Y · woj” z powrotem na pola (najlepszy wysiłek)
-  let gmina='', powiat='', woj='';
-  (obj.podtytul||'').split('·').map(s=>s.trim()).forEach(cz=>{
-    if(/^gmina /i.test(cz)) gmina = cz.replace(/^gmina /i,'');
-    else if(/^powiat /i.test(cz)) powiat = cz.replace(/^powiat /i,'');
-    else if(cz) woj = cz;
-  });
-  model = {
-    slug: obj.slug||'', nazwa: obj.nazwa||'', gmina, powiat, woj,
-    zdjecie: obj.zdjecie||'', opis: obj.opis||'',
-    lat: obj.lat??null, lng: obj.lng??null,
-    artysci: (obj.artysci||[]).map(a=>({
-      _id: nowyId(),
-      imie_nazwisko: a.imie_nazwisko||'',
-      lata: a.lata||'',
-      zdjecie: a.zdjecie||'',
-      bio: a.bio||'',
-      tomiki: (a.tomiki||[]).map(t=>({
-        _id: nowyId(), tytul: t.tytul||'', okladka: t.okladka||'',
-        wiersze: (t.wiersze||[]).map(wczytajWiersz)
-      })),
-      dziela: (a.dziela||[]).map(wczytajWiersz)
-    }))
-  };
-  // odśwież pola kroku 1
-  setVal('m-nazwa',model.nazwa); odswiezSlugM();
-  setVal('m-gmina',model.gmina); setVal('m-powiat',model.powiat); setVal('m-woj',model.woj);
-  setVal('m-zdjecie',model.zdjecie); setVal('m-opis',model.opis);
-  if(model.lat && model.lng){ setTimeout(()=>ustawMarkerM(model.lat,model.lng),80); mapaM.setView([model.lat,model.lng],13); }
-  idzDo(0);
-}
-function wczytajWiersz(w){
-  return {
-    _id: nowyId(), tytul: w.tytul||'', tresc: w.tresc||'',
-    data_powstania: w.data_powstania||'', zrodlo: w.zrodlo||'',
-    audio: w.audio||'', miejsca: (w.miejsca||[]).map(mi=>({
-      nazwa: mi.nazwa||'', typ: mi.typ||'', lat: mi.lat, lng: mi.lng
-    }))
-  };
-}
+  }
+  window.addEventListener('load', rysujLinie);
+  window.addEventListener('resize', rysujLinie);
 
-/* =========================================================
-   NARZĘDZIA
-   ========================================================= */
-function val(id){ return document.getElementById(id).value; }
-function setVal(id,v){ const el=document.getElementById(id); if(el) el.value=v||''; }
-function esc(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
-
-/* START */
-initMapaM();
+  function zamknijOpis(){
+    document.getElementById('opis-panel').classList.remove('widoczny');
+    document.querySelectorAll('.node').forEach(n=>n.classList.remove('wybrany'));
+  }
 </script>
+
 </body>
 </html>
