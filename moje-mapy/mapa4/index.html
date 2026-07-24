@@ -626,7 +626,7 @@
     <button id="btn-back" class="btn-back" onclick="goBack()" aria-label="wstecz">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M15.5 4.5 L7 12 L15.5 19.5"/></svg>
     </button>
-    <button onclick="goHome()">cała mapa</button>
+    <button id="btn-cala-mapa" onclick="goHome()">cała mapa</button>
   </div>
 </div>
 
@@ -1357,6 +1357,7 @@ function wlaczSpacer(){
   document.getElementById('luk-tekst').textContent = 'koniec';
   document.getElementById('spacer-info').classList.remove('hidden');
   document.getElementById('tryby-sluchania').classList.remove('hidden');
+  document.getElementById('btn-cala-mapa').disabled = true;
 
   // tryb spaceru = tylko mapa: chowamy zdjęcie i jego przełącznik
   ustawZdjecie(null);
@@ -1411,6 +1412,7 @@ function wylaczSpacer(){
   document.getElementById('poza-strefa').classList.remove('on');
   mapa.setMinZoom(0);               // znowu można oddalać dowolnie
   zatrzymajGps();
+  document.getElementById('btn-cala-mapa').disabled = false;
   goHome();                         // wracamy do zwykłego przeglądania
 }
 
@@ -1866,7 +1868,13 @@ function sprawdzKolejke(){
     }
     return;
   }
-  odtworzZKolejki(dostepne[0]);
+  // priorytet: najpierw wiersze z nagraniem audio autora, dopiero potem te czytane lektorem
+  const posortowane = [...dostepne].sort((a, b)=>{
+    const maAudioA = (dane.wiersze[a] && dane.wiersze[a].audio) ? 0 : 1;
+    const maAudioB = (dane.wiersze[b] && dane.wiersze[b].audio) ? 0 : 1;
+    return maAudioA - maAudioB;
+  });
+  odtworzZKolejki(posortowane[0]);
 }
 
 function odtworzZKolejki(slug){
