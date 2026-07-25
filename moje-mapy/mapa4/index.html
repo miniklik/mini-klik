@@ -835,60 +835,105 @@
    dane.miejscowosci[], dane.artysci{slug}, dane.wiersze{slug}. */
 let dane = { miejscowosci: [], artysci: {}, wiersze: {} };
 
-async function wczytajDane(){
-  // 1. spis miejscowości
-  const spis = await fetch('miejscowosci.json').then(r=>r.json());
-  // 2. dla każdej miejscowości pobierz jej samodzielny plik i rozłóż na płaską strukturę
-  for(const slug of spis){
-    try{
-      const m = await fetch(`dane/${slug}/dane.json`).then(r=>r.json());
-      // miejscowość (z listą slugów artystów zamiast pełnych obiektów)
-      dane.miejscowosci.push({
-        slug: m.slug,
-        nazwa: m.nazwa,
-        podtytul: m.podtytul,
-        opis: m.opis,
-        lat: m.lat, lng: m.lng,
-        zdjecie: m.zdjecie ? `dane/${slug}/${m.zdjecie}` : null,
-        artysci: (m.artysci||[]).map(a=>a.slug)
-      });
-      // artyści + wiersze do słowników globalnych
-      (m.artysci||[]).forEach(a=>{
-        // funkcja pomocnicza: wrzuć wiersz do globalnego słownika, zwróć jego slug
-        const dodajWiersz = (w)=>{
-          dane.wiersze[w.slug] = {
-            tytul: w.tytul,
-            tresc: w.tresc,
-            data_powstania: w.data_powstania,
-            zrodlo: w.zrodlo,
-            audio: w.audio ? `dane/${slug}/${w.audio}` : null,
-            miejsca: w.miejsca || []
-          };
-          return w.slug;
-        };
-        // tomiki: każdy ma okładkę i listę slugów swoich wierszy
-        const tomiki = (a.tomiki||[]).map(t=>({
-          slug: t.slug,
-          tytul: t.tytul,
-          okladka: t.okladka ? `dane/${slug}/${t.okladka}` : null,
-          miejsce: (t.miejsce && t.miejsce.lat != null && t.miejsce.lng != null) ? t.miejsce : null,
-          wiersze: (t.wiersze||[]).map(dodajWiersz)
-        }));
-        // luźne wiersze (spoza tomików)
-        const dziela = (a.dziela||[]).map(dodajWiersz);
+/* Zwraca właściwą ścieżkę do pliku: jeśli w danych jest już pełny link (http/https) —
+   np. wklejony bezpośredni link do zdjęcia lub mp3 z zewnętrznego serwisu — używa go
+   bez zmian. W przeciwnym razie traktuje wartość jak nazwę pliku leżącego lokalnie,
+   obok dane.json (jak dotychczas). */
+function sciezkaPliku(baseUrl, slug, plik){
+  if(!plik) return null;
+  if(/^https?:\/\//i.test(plik)) return plik;      // gotowy link zewnętrzny — bez zmian
+  return `${baseUrl}dane/${slug}/${plik}`;          // nazwa pliku lokalnego — jak dotychczas
+}
 
-        dane.artysci[a.slug] = {
-          imie_nazwisko: a.imie_nazwisko,
-          lata: a.lata,
-          zdjecie: a.zdjecie ? `dane/${slug}/${a.zdjecie}` : null,
-          bio: a.bio,
-          miejscowosc: m.slug,
-          tomiki: tomiki,
-          dziela: dziela
-        };
-      });
+/* Wczytuje jedną miejscowość i dokłada ją do globalnych struktur dane.*
+   baseUrl = '' dla własnych miejscowości (pliki lokalne, względne ścieżki)
+   baseUrl = 'https://adres-partnera.pl/' dla miejscowości z cudzej, zaprzyjaźnionej strony —
+   wtedy wszystkie ścieżki (dane.json, zdjęcia, audio, okładki) są dociągane z JEGO adresu,
+   nic nie jest kopiowane ani zapisywane u nas. */
+async function wczytajMiejscowosc(slug, baseUrl){
+  const m = await fetch(`${baseUrl}dane/${slug}/dane.json`).then(r=>r.json());
+  // miejscowość (z listą slugów artystów zamiast pełnych obiektów)
+  dane.miejscowosci.push({
+    slug: m.slug,
+    nazwa: m.nazwa,
+    podtytul: m.podtytul,
+    opis: m.opis,
+    lat: m.lat, lng: m.lng,
+    zdjecie: sciezkaPliku(baseUrl, slug, m.zdjecie),
+    artysci: (m.artysci||[]).map(a=>a.slug),
+    zewnetrzna: !!baseUrl                 // przydatne np. do oznaczenia kropki "z sieci" na mapie
+  });
+  // artyści + wiersze do słowników globalnych
+  (m.artysci||[]).forEach(a=>{
+    // funkcja pomocnicza: wrzuć wiersz do globalnego słownika, zwróć jego slug
+    const dodajWiersz = (w)=>{
+      dane.wiersze[w.slug] = {
+        tytul: w.tytul,
+        tresc: w.tresc,
+        data_powstania: w.data_powstania,
+        zrodlo: w.zrodlo,
+        audio: sciezkaPliku(baseUrl, slug, w.audio),
+        miejsca: w.miejsca || []
+      };
+      return w.slug;
+    };
+    // tomiki: każdy ma okładkę i listę slugów swoich wierszy
+    const tomiki = (a.tomiki||[]).map(t=>({
+      slug: t.slug,
+      tytul: t.tytul,
+      okladka: sciezkaPliku(baseUrl, slug, t.okladka),
+      miejsce: (t.miejsce && t.miejsce.lat != null && t.miejsce.lng != null) ? t.miejsce : null,
+      wiersze: (t.wiersze||[]).map(dodajWiersz)
+    }));
+    // luźne wiersze (spoza tomików)
+    const dziela = (a.dziela||[]).map(dodajWiersz);
+
+    dane.artysci[a.slug] = {
+      imie_nazwisko: a.imie_nazwisko,
+      lata: a.lata,
+      zdjecie: sciezkaPliku(baseUrl, slug, a.zdjecie),
+      bio: a.bio,
+      miejscowosc: m.slug,
+      tomiki: tomiki,
+      dziela: dziela
+    };
+  });
+}
+
+async function wczytajDane(){
+  // 1. spis miejscowości — wspiera stary format (płaska lista) i nowy ({lokalne, partnerzy})
+  const spisSurowy = await fetch('miejscowosci.json').then(r=>r.json());
+  const spis = Array.isArray(spisSurowy)
+    ? { lokalne: spisSurowy, partnerzy: [] }
+    : { lokalne: spisSurowy.lokalne || [], partnerzy: spisSurowy.partnerzy || [] };
+
+  // 2a. własne miejscowości — pliki leżą u nas
+  for(const slug of spis.lokalne){
+    try{
+      await wczytajMiejscowosc(slug, '');
     }catch(e){
       console.error(`Nie udało się wczytać danych miejscowości: ${slug}`, e);
+    }
+  }
+
+  // 2b. miejscowości partnerów — wczytywane w locie z ich własnych adresów,
+  // nic nie jest u nas kopiowane; jeden padający partner nie blokuje reszty mapy
+  for(const adresPartnera of spis.partnerzy){
+    try{
+      const baza = adresPartnera.endsWith('/') ? adresPartnera : adresPartnera + '/';
+      const spisPartneraSurowy = await fetch(`${baza}miejscowosci.json`).then(r=>r.json());
+      const lokalnePartnera = Array.isArray(spisPartneraSurowy)
+        ? spisPartneraSurowy
+        : (spisPartneraSurowy.lokalne || []);
+      for(const slug of lokalnePartnera){
+        try{
+          await wczytajMiejscowosc(slug, baza);
+        }catch(e){
+          console.error(`Nie udało się wczytać miejscowości partnera ${baza}: ${slug}`, e);
+        }
+      }
+    }catch(e){
+      console.error(`Nie udało się połączyć z partnerem: ${adresPartnera}`, e);
     }
   }
 }
