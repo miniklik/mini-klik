@@ -366,23 +366,15 @@
   }
   .spacer-info b{color:#d89a5c;font-weight:400}
 
-  /* blok opiekuna miejscowości — pod mapą, pokazywany tylko przy widoku miejscowości */
-  .opiekun-box{
-    max-width:520px;margin:16px auto 0;padding:12px 18px;
-    border:1px solid rgba(201,162,39,.25);border-radius:var(--r-md);
-    background:rgba(201,162,39,.05);text-align:center;
+  /* opiekun miejscowości — mały napis wzdłuż linii, tylko przy widoku miejscowości */
+  .opiekun-linia{
+    font-family:'JetBrains Mono',monospace;font-size:11.5px;
+    color:var(--parchment-dim);opacity:.8;margin-bottom:6px;
   }
-  .opiekun-label{
-    font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.12em;
-    text-transform:uppercase;color:var(--gold-soft);opacity:.85;margin-bottom:5px;
-  }
-  .opiekun-dane{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:center;gap:4px 14px}
-  .opiekun-imie{font-size:15px;color:var(--parchment);font-weight:500}
-  .opiekun-kontakt{
-    font-family:'JetBrains Mono',monospace;font-size:12.5px;color:var(--parchment-dim);
-  }
-  .opiekun-kontakt a{color:var(--gold-soft);text-decoration:none;border-bottom:1px dashed rgba(201,162,39,.4)}
-  .opiekun-kontakt a:hover{color:var(--parchment)}
+  .opiekun-linia #opiekun-imie{color:var(--parchment);}
+  .opiekun-linia #opiekun-kontakt{margin-left:10px;}
+  .opiekun-linia a{color:var(--gold-soft);text-decoration:none;}
+  .opiekun-linia a:hover{text-decoration:underline;}
 
   /* lista wyboru, gdy w zasięgu jest kilka wierszy */
   .wybor-lista{display:flex;flex-direction:column;gap:10px;margin-top:6px}
@@ -689,13 +681,6 @@
     <div class="tryby-sluchania hidden" id="tryby-sluchania">
       <button class="tryb-btn" id="tryb-kolejno" onclick="toggleCzytanieKolejne()">🎧 czytaj kolejno</button>
     </div>
-    <div class="opiekun-box" id="opiekun-box" style="display:none">
-      <div class="opiekun-label">Opiekun miejscowości</div>
-      <div class="opiekun-dane">
-        <span class="opiekun-imie" id="opiekun-imie"></span>
-        <span class="opiekun-kontakt" id="opiekun-kontakt"></span>
-      </div>
-    </div>
   </div>
 </div>
 
@@ -704,6 +689,7 @@
 
 <!-- ====== TREŚĆ ====== -->
 <div class="content">
+  <div class="opiekun-linia" id="opiekun-box" style="display:none"><span id="opiekun-imie"></span><span id="opiekun-kontakt"></span></div>
   <div class="divider"></div>
 
   <div class="panel active" id="panel-home">
@@ -2358,21 +2344,22 @@ function ustawPrzyciskiWiersza(){
 function renderVillage(m){
   document.getElementById('v-desc').textContent = m.opis;
 
-  // opiekun miejscowości — pokazywany tylko jeśli podano
+  // opiekun miejscowości — mały napis w jednej linii, tylko jeśli podano
   const box = document.getElementById('opiekun-box');
   const op = m.opiekun;
   if(op && (op.imie || op.kontakt)){
-    document.getElementById('opiekun-imie').textContent = op.imie || '';
+    const imieEl = document.getElementById('opiekun-imie');
+    imieEl.textContent = 'Opiekun: ' + (op.imie || '');
     const kontaktEl = document.getElementById('opiekun-kontakt');
     const k = (op.kontakt || '').trim();
     if(k){
       // rozpoznaj: e-mail (jest @) -> mailto, sam telefon (cyfry) -> tel, inaczej zwykły tekst
       if(/@/.test(k)){
-        kontaktEl.innerHTML = `<a href="mailto:${k}">${k}</a>`;
+        kontaktEl.innerHTML = `— <a href="mailto:${k}">${k}</a>`;
       } else if(/^[+()\d\s-]{6,}$/.test(k)){
-        kontaktEl.innerHTML = `<a href="tel:${k.replace(/\s/g,'')}">${k}</a>`;
+        kontaktEl.innerHTML = `— <a href="tel:${k.replace(/\s/g,'')}">${k}</a>`;
       } else {
-        kontaktEl.textContent = k;
+        kontaktEl.textContent = '— ' + k;
       }
     } else {
       kontaktEl.textContent = '';
