@@ -73,7 +73,8 @@
 
   /* mapa do klikania */
   .map-box{margin-top:8px}
-  .picker{width:100%;height:300px;border-radius:3px;border:2px solid var(--gold);overflow:hidden}
+  .opiekun-sekcja{margin-top:14px;padding-top:14px;border-top:1px dashed rgba(201,162,39,.2)}
+  .opiekun-sekcja input{margin-bottom:8px}  .picker{width:100%;height:300px;border-radius:3px;border:2px solid var(--gold);overflow:hidden}
   .picker .leaflet-container{background:var(--ink-deep)}
   .coord-line{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--gold-soft);margin-top:8px;letter-spacing:.04em}
   .coord-line.empty{color:var(--ruby)}
@@ -304,6 +305,13 @@ h1,h2{font-family:'Fraunces',serif;font-weight:600;letter-spacing:.01em}
       <label>Opis miejscowości</label>
       <textarea id="m-opis" placeholder="Krótki opis miejscowości…"></textarea>
 
+      <div class="opiekun-sekcja">
+        <label>Opiekun miejscowości <span class="opt">— osoba lub instytucja odpowiedzialna za tę miejscowość</span></label>
+        <input type="text" id="m-opiekun-imie" placeholder="np. Biblioteka Publiczna w Siedliszczu / Jan Kowalski">
+        <input type="text" id="m-opiekun-kontakt" placeholder="e-mail lub telefon, np. biblioteka@siedliszcze.pl">
+        <div class="filehint">te dane zobaczą inni po kliknięciu w Twoją miejscowość na mapie — to do nich będą zgłaszać nowych poetów</div>
+      </div>
+
       <div class="map-box">
         <label>Punkt na mapie (żółta kropka miejscowości)</label>
         <div class="picker" id="pick-m"></div>
@@ -421,6 +429,7 @@ function pokazEkran(nazwa){
    ========================================================= */
 let model = {
   slug:'', nazwa:'', gmina:'', powiat:'', woj:'', zdjecie:'', opis:'',
+  opiekun_imie:'', opiekun_kontakt:'',
   lat:null, lng:null,
   artysci: []   // {slug, imie_nazwisko, lata, zdjecie, bio, tomiki:[], dziela:[]}
 };
@@ -495,6 +504,8 @@ function zapiszKrok0(){
   model.woj = val('m-woj');
   model.zdjecie = val('m-zdjecie').trim();
   model.opis = val('m-opis');
+  model.opiekun_imie = val('m-opiekun-imie').trim();
+  model.opiekun_kontakt = val('m-opiekun-kontakt').trim();
 }
 
 /* =========================================================
@@ -904,6 +915,9 @@ function zbudujObiekt(){
     opis: model.opis,
     lat: model.lat, lng: model.lng,
     zdjecie: model.zdjecie ? model.zdjecie : null,
+    opiekun: (model.opiekun_imie || model.opiekun_kontakt)
+      ? { imie: model.opiekun_imie || '', kontakt: model.opiekun_kontakt || '' }
+      : null,
     artysci: model.artysci.map(a=>{
       const wynik = {
         slug: slug(a.imie_nazwisko),
@@ -994,6 +1008,8 @@ function wczytajDoModelu(obj){
   model = {
     slug: obj.slug||'', nazwa: obj.nazwa||'', gmina, powiat, woj,
     zdjecie: obj.zdjecie||'', opis: obj.opis||'',
+    opiekun_imie: (obj.opiekun && obj.opiekun.imie) || '',
+    opiekun_kontakt: (obj.opiekun && obj.opiekun.kontakt) || '',
     lat: obj.lat??null, lng: obj.lng??null,
     artysci: (obj.artysci||[]).map(a=>({
       _id: nowyId(),
@@ -1013,6 +1029,7 @@ function wczytajDoModelu(obj){
   setVal('m-nazwa',model.nazwa); odswiezSlugM();
   setVal('m-gmina',model.gmina); setVal('m-powiat',model.powiat); setVal('m-woj',model.woj);
   setVal('m-zdjecie',model.zdjecie); setVal('m-opis',model.opis);
+  setVal('m-opiekun-imie',model.opiekun_imie); setVal('m-opiekun-kontakt',model.opiekun_kontakt);
   if(model.lat && model.lng){ setTimeout(()=>ustawMarkerM(model.lat,model.lng),80); mapaM.setView([model.lat,model.lng],13); }
   idzDo(0);
 }
