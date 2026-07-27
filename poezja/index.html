@@ -295,7 +295,7 @@
   .intro-line{
     position:absolute;left:0;right:0;top:0;
     font-family:'Literata',serif;font-style:italic;
-    color:var(--gold-soft);font-size:clamp(18px,3.4vw,22px);line-height:1.5;
+    color:var(--gold-soft);font-size:clamp(15px,3.4vw,20px);line-height:1.5;
     opacity:0;
   }
   /* każdy napis wyłania się i znika po kolei */
@@ -367,9 +367,34 @@
   .spacer-info b{color:#d89a5c;font-weight:400}
   .spacer-info.hidden{display:none}
 
+  /* ===================== WYSZUKIWARKA (ekran home) ===================== */
+  .szukaj-blok{max-width:520px;margin:0 auto;padding:8px 0 4px}
+  .szukaj-pole-wrap{
+    position:relative;display:flex;align-items:center;gap:10px;
+    background:rgba(255,255,255,.03);border:1px solid rgba(201,162,39,.28);
+    border-radius:var(--r-lg);padding:0 16px;transition:border-color .25s var(--ease);
+  }
+  .szukaj-pole-wrap:focus-within{border-color:rgba(201,162,39,.6)}
+  .szukaj-lupa{font-size:16px;opacity:.6;flex-shrink:0}
+  /* stack: cień (podpowiedź) i input nałożone idealnie na siebie */
+  .szukaj-stack{position:relative;flex:1;height:52px}
+  .szukaj-cien,.szukaj-input{
+    position:absolute;inset:0;width:100%;height:52px;
+    font-family:'Literata',serif;font-size:17px;line-height:52px;
+    padding:0;border:0;margin:0;background:transparent;
+    letter-spacing:normal;white-space:pre;overflow:hidden;
+  }
+  .szukaj-cien{color:var(--parchment-dim);opacity:.45;pointer-events:none;z-index:1}
+  .szukaj-input{color:var(--parchment);z-index:2;outline:none}
+  .szukaj-input::placeholder{color:var(--parchment-dim);opacity:.5;font-style:italic}
+  .szukaj-wynik-info{
+    text-align:center;margin-top:10px;min-height:16px;
+    font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.05em;
+    color:var(--gold-soft);opacity:.75;
+  }
+
   /* opiekun miejscowości — zawartość zakładki "Kontakt" */
-  .opiekun-panel{padding:4px 0}
-  .opiekun-naglowek{
+  .opiekun-panel{padding:4px 0}  .opiekun-naglowek{
     font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.1em;
     text-transform:uppercase;color:var(--gold-soft);opacity:.85;margin-bottom:8px;
   }
@@ -694,6 +719,19 @@
   <div class="divider"></div>
 
   <div class="panel active" id="panel-home">
+    <div class="szukaj-blok">
+      <div class="szukaj-pole-wrap">
+        <span class="szukaj-lupa">🔍</span>
+        <div class="szukaj-stack">
+          <div class="szukaj-cien" id="szukaj-cien" aria-hidden="true"></div>
+          <input type="text" id="szukaj-input" class="szukaj-input"
+                 placeholder="Szukaj miejscowości lub pisarza…"
+                 autocomplete="off" spellcheck="false"
+                 oninput="szukajOnInput()" onkeydown="szukajOnKey(event)">
+        </div>
+      </div>
+      <div class="szukaj-wynik-info" id="szukaj-wynik-info"></div>
+    </div>
   </div>
 
   <div class="panel" id="panel-village">
@@ -1343,6 +1381,92 @@ function render(){
   }
   poprzedniPanel = stan.panel;
 }
+/* ===================== WYSZUKIWARKA (inline autocomplete) ===================== */
+let szukajPodpowiedz = null;   // {slug, nazwa, typ:'miejscowosc'|'autor'} — aktualnie podpowiadany wynik
+
+// usuwa polskie znaki i sprowadza do małych liter — żeby "lodz" znajdowało "Łódź"
+function normalizujTekst(s){
+  return (s||'').toLowerCase()
+    .replace(/ą/g,'a').replace(/ć/g,'c').replace(/ę/g,'e').replace(/ł/g,'l')
+    .replace(/ń/g,'n').replace(/ó/g,'o').replace(/ś/g,'s').replace(/ż/g,'z').replace(/ź/g,'z');
+}
+
+// zbiera wszystkie wpisy (miejscowości + pisarze) do przeszukania
+function zbierzWpisyDoSzukania(){
+  const wpisy = [];
+  dane.miejscowosci.forEach(m=>{
+    wpisy.push({ slug:m.slug, nazwa:m.nazwa, typ:'miejscowosc' });
+  });
+  Object.keys(dane.artysci).forEach(slug=>{
+    wpisy.push({ slug, nazwa:dane.artysci[slug].imie_nazwisko, typ:'autor' });
+  });
+  return wpisy;
+}
+
+function szukajOnInput(){
+  const input = document.getElementById('szukaj-input');
+  const cien = document.getElementById('szukaj-cien');
+  const info = document.getElementById('szukaj-wynik-info');
+  const wpisane = input.value;
+  szukajPodpowiedz = null;
+  cien.textContent = '';
+  info.textContent = '';
+
+  // autouzupełnianie startuje dopiero od 3 liter
+  if(wpisane.trim().length < 3){ return; }
+
+  const szukaneNorm = normalizujTekst(wpisane);
+  // znajdź PIERWSZY wpis, którego nazwa zaczyna się od wpisanego tekstu
+  const wpisy = zbierzWpisyDoSzukania();
+  const trafienie = wpisy.find(w => normalizujTekst(w.nazwa).startsWith(szukaneNorm));
+
+  if(trafienie){
+    szukajPodpowiedz = trafienie;
+    // cień pokazuje PEŁNĄ oryginalną nazwę (z polskimi znakami i wielkością liter),
+    // ale początek zastępujemy dokładnie tym, co użytkownik wpisał — żeby litery idealnie
+    // nałożyły się na jego tekst na wierzchu (input przykrywa tę część)
+    const reszta = trafienie.nazwa.slice(wpisane.length);
+    cien.textContent = wpisane + reszta;
+    // gdyby wpisany tekst nie zgadzał się wielkością/znakami z oryginałem (np. "lod" vs "Łódź"),
+    // input na wierzchu i tak pokazuje to, co user wpisał; cień pod spodem tylko dopisuje resztę
+    const etykietaTyp = trafienie.typ === 'miejscowosc' ? 'miejscowość' : 'pisarz';
+    info.textContent = `↵ ${trafienie.nazwa} · ${etykietaTyp}`;
+  }
+}
+
+function szukajOnKey(e){
+  // Enter lub strzałka w prawo — zatwierdź podpowiedź
+  if((e.key === 'Enter' || e.key === 'ArrowRight') && szukajPodpowiedz){
+    // przy strzałce w prawo: zatwierdzaj tylko gdy kursor jest na końcu tekstu
+    if(e.key === 'ArrowRight'){
+      const input = e.target;
+      if(input.selectionStart !== input.value.length) return;  // pozwól normalnie ruszać kursorem
+    }
+    e.preventDefault();
+    zatwierdzSzukanie();
+  } else if(e.key === 'Escape'){
+    e.target.value = '';
+    szukajOnInput();
+  }
+}
+
+function zatwierdzSzukanie(){
+  if(!szukajPodpowiedz) return;
+  const cel = szukajPodpowiedz;
+  // wyczyść pole
+  document.getElementById('szukaj-input').value = '';
+  document.getElementById('szukaj-cien').textContent = '';
+  document.getElementById('szukaj-wynik-info').textContent = '';
+  document.getElementById('szukaj-input').blur();
+  szukajPodpowiedz = null;
+  // przejdź do celu
+  if(cel.typ === 'miejscowosc'){
+    wejdzWMiejscowosc(cel.slug);
+  } else {
+    wejdzWAutora(cel.slug);
+  }
+}
+
 function wejdzWMiejscowosc(slug){ przejdz({ panel:'village', slug }); }
 function wejdzWAutora(slug){ zakladkaPisarza = 'a-tab-bio'; przejdz({ panel:'author', slug }); }
 function wejdzWTomik(autor, slug){ przejdz({ panel:'tomik', autor, slug }); }
