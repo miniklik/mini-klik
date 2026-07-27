@@ -295,7 +295,7 @@
   .intro-line{
     position:absolute;left:0;right:0;top:0;
     font-family:'Literata',serif;font-style:italic;
-    color:var(--gold-soft);font-size:clamp(15px,3.4vw,20px);line-height:1.5;
+    color:var(--gold-soft);font-size:clamp(18px,3.4vw,22px);line-height:1.5;
     opacity:0;
   }
   /* każdy napis wyłania się i znika po kolei */
@@ -390,8 +390,10 @@
   .szukaj-wynik-info{
     text-align:center;margin-top:10px;min-height:16px;
     font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.05em;
-    color:var(--gold-soft);opacity:.75;
   }
+  .szukaj-wynik-rzad{padding:3px 0;color:var(--parchment-dim);opacity:.85}
+  .szukaj-wynik-nazwa{color:var(--gold-soft)}
+  .szukaj-wynik-typ{opacity:.6}
 
   /* opiekun miejscowości — zawartość zakładki "Kontakt" */
   .opiekun-panel{padding:4px 0}  .opiekun-naglowek{
@@ -1410,27 +1412,35 @@ function szukajOnInput(){
   const wpisane = input.value;
   szukajPodpowiedz = null;
   cien.textContent = '';
-  info.textContent = '';
+  info.innerHTML = '';
 
-  // autouzupełnianie startuje dopiero od 3 liter
+  // szukanie startuje dopiero od 3 liter
   if(wpisane.trim().length < 3){ return; }
 
-  const szukaneNorm = normalizujTekst(wpisane);
-  // znajdź PIERWSZY wpis, którego nazwa zaczyna się od wpisanego tekstu
+  const szukaneNorm = normalizujTekst(wpisane.trim());
   const wpisy = zbierzWpisyDoSzukania();
-  const trafienie = wpisy.find(w => normalizujTekst(w.nazwa).startsWith(szukaneNorm));
 
-  if(trafienie){
-    szukajPodpowiedz = trafienie;
-    // cień pokazuje PEŁNĄ oryginalną nazwę (z polskimi znakami i wielkością liter),
-    // ale początek zastępujemy dokładnie tym, co użytkownik wpisał — żeby litery idealnie
-    // nałożyły się na jego tekst na wierzchu (input przykrywa tę część)
-    const reszta = trafienie.nazwa.slice(wpisane.length);
+  // --- 1. CIEŃ (autouzupełnianie) — tylko dopasowanie od POCZĄTKU pełnej nazwy ---
+  const trafienieOdPoczatku = wpisy.find(w => normalizujTekst(w.nazwa).startsWith(szukaneNorm));
+  if(trafienieOdPoczatku){
+    szukajPodpowiedz = trafienieOdPoczatku;
+    const reszta = trafienieOdPoczatku.nazwa.slice(wpisane.length);
     cien.textContent = wpisane + reszta;
-    // gdyby wpisany tekst nie zgadzał się wielkością/znakami z oryginałem (np. "lod" vs "Łódź"),
-    // input na wierzchu i tak pokazuje to, co user wpisał; cień pod spodem tylko dopisuje resztę
-    const etykietaTyp = trafienie.typ === 'miejscowosc' ? 'miejscowość' : 'pisarz';
-    info.textContent = `↵ ${trafienie.nazwa} · ${etykietaTyp}`;
+  }
+
+  // --- 2. LISTA NA DOLE (tylko do patrzenia) — dopasowanie po początku KTÓREGOKOLWIEK słowa ---
+  // np. "wie" znajdzie "Halina Wierzbicka" (drugie słowo), ale NIE złapie środka słowa
+  const pasujace = wpisy.filter(w => {
+    const slowa = normalizujTekst(w.nazwa).split(/\s+/);
+    return slowa.some(slowo => slowo.startsWith(szukaneNorm));
+  });
+
+  if(pasujace.length){
+    const doPokazania = pasujace.slice(0, 5);   // maksymalnie 5 linijek
+    info.innerHTML = doPokazania.map(w=>{
+      const typ = w.typ === 'miejscowosc' ? 'miejscowość' : 'pisarz';
+      return `<div class="szukaj-wynik-rzad"><span class="szukaj-wynik-nazwa">${w.nazwa}</span> · <span class="szukaj-wynik-typ">${typ}</span></div>`;
+    }).join('');
   }
 }
 
