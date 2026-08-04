@@ -2654,12 +2654,12 @@ function odtworzWierszTomiku(){
     try{ mapa.flyTo([miejsce.lat, miejsce.lng], 15, { duration:1.2 }); }catch(e){}
   }
 
-  // WAŻNE (wzór z audio-przewodnika): odpalamy dźwięk DOPIERO po krótkim opóźnieniu,
-  // żeby flyTo zdążył ruszyć i nie przerwał świeżo uruchomionego lektora
+  // audio jeśli jest, w przeciwnym razie lektor (jak w trybie spaceru)
+  // MAŁE OPÓŹNIENIE: start mowy dokładnie w momencie startu animacji mapy (flyTo)
+  // potrafi zdezorientować silnik speechSynthesis w Chrome i wywołać fałszywy błąd
+  // po kilku słowach — dajemy mapie chwilę na "ruszenie" zanim zaczniemy mówić.
   tomikTimer = setTimeout(()=>{
     tomikTimer = null;
-    if(!tomikGra) return;
-    // audio jeśli jest, w przeciwnym razie lektor (jak w trybie spaceru)
     if(w.audio){
       tomikAudioEl = new Audio(w.audio);
       tomikAudioEl.onended = ()=> poWierszuTomiku();
@@ -2668,10 +2668,14 @@ function odtworzWierszTomiku(){
     } else {
       czytajLektoremTomik(w);
     }
-  }, 600);
+  }, 250);
 }
 
+let tomikProby = 0;          // licznik ponowień tego samego wiersza po błędzie lektora
+let _tomikKeepAlive = null;  // timer podtrzymujący silnik mowy przy dłuższych tekstach
+
 function czytajLektoremTomik(w){
+  if(!tomikGra) return;
   if(!('speechSynthesis' in window)){ poWierszuTomiku(); return; }
   try{ speechSynthesis.cancel(); }catch(e){}
   if(!_glosyZaladowane) _wybierzGlosPolski();
@@ -2682,9 +2686,34 @@ function czytajLektoremTomik(w){
   lektor.lang = 'pl-PL';
   if(_glosPolski) lektor.voice = _glosPolski;
   lektor.rate = 0.9;
-  lektor.onend = ()=> poWierszuTomiku();
-  lektor.onerror = ()=> poWierszuTomiku();
+  lektor.onend = ()=>{ tomikProby = 0; poWierszuTomiku(); };
+  lektor.onerror = (e)=>{
+    if(!tomikGra) return;   // to było celowe zatrzymanie (np. przycisk stop) — nic więcej nie rób
+    // Chrome potrafi rzucić fałszywy błąd ('interrupted'/'canceled') w trakcie
+    // normalnego czytania, zwłaszcza gdy w tle dzieje się animacja mapy.
+    // Zamiast natychmiast skakać do następnego wiersza — spróbuj ten sam raz jeszcze.
+    if(tomikProby < 2){
+      tomikProby++;
+      tomikTimer = setTimeout(()=> czytajLektoremTomik(w), 400);
+    } else {
+      tomikProby = 0;
+      poWierszuTomiku();
+    }
+  };
   speechSynthesis.speak(lektor);
+  utrzymajLektoraTomikuPrzyZyciu();
+}
+
+// Chrome ma osobny, stary bug: dłuższe teksty do syntezatora mowy potrafi
+// samoistnie "uciąć" po ok. 15 sekundach. Cykliczny pause()/resume() to obejście.
+function utrzymajLektoraTomikuPrzyZyciu(){
+  if(_tomikKeepAlive) clearInterval(_tomikKeepAlive);
+  _tomikKeepAlive = setInterval(()=>{
+    if(!tomikGra || !window.speechSynthesis || !speechSynthesis.speaking){
+      clearInterval(_tomikKeepAlive); _tomikKeepAlive = null; return;
+    }
+    try{ speechSynthesis.pause(); speechSynthesis.resume(); }catch(e){}
+  }, 10000);
 }
 
 function poWierszuTomiku(){
@@ -2700,6 +2729,8 @@ function zatrzymajOdtwarzanieTomiku(){
   if(tomikTimer){ clearTimeout(tomikTimer); tomikTimer = null; }
   if(tomikAudioEl){ try{ tomikAudioEl.pause(); }catch(e){} tomikAudioEl = null; }
   try{ if(window.speechSynthesis) speechSynthesis.cancel(); }catch(e){}
+  if(_tomikKeepAlive){ clearInterval(_tomikKeepAlive); _tomikKeepAlive = null; }
+  tomikProby = 0;
   tomikKolejka = [];
   tomikIndex = 0;
   const btn = document.getElementById('tomik-play');
