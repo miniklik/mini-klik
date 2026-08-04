@@ -2654,15 +2654,21 @@ function odtworzWierszTomiku(){
     try{ mapa.flyTo([miejsce.lat, miejsce.lng], 15, { duration:1.2 }); }catch(e){}
   }
 
-  // audio jeśli jest, w przeciwnym razie lektor (jak w trybie spaceru)
-  if(w.audio){
-    tomikAudioEl = new Audio(w.audio);
-    tomikAudioEl.onended = ()=> poWierszuTomiku();
-    tomikAudioEl.onerror = ()=> czytajLektoremTomik(w);
-    tomikAudioEl.play().catch(()=> czytajLektoremTomik(w));
-  } else {
-    czytajLektoremTomik(w);
-  }
+  // WAŻNE (wzór z audio-przewodnika): odpalamy dźwięk DOPIERO po krótkim opóźnieniu,
+  // żeby flyTo zdążył ruszyć i nie przerwał świeżo uruchomionego lektora
+  tomikTimer = setTimeout(()=>{
+    tomikTimer = null;
+    if(!tomikGra) return;
+    // audio jeśli jest, w przeciwnym razie lektor (jak w trybie spaceru)
+    if(w.audio){
+      tomikAudioEl = new Audio(w.audio);
+      tomikAudioEl.onended = ()=> poWierszuTomiku();
+      tomikAudioEl.onerror = ()=> czytajLektoremTomik(w);
+      tomikAudioEl.play().catch(()=> czytajLektoremTomik(w));
+    } else {
+      czytajLektoremTomik(w);
+    }
+  }, 600);
 }
 
 function czytajLektoremTomik(w){
