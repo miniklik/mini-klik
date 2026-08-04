@@ -2669,13 +2669,16 @@ function czytajLektoremTomik(w){
   if(!('speechSynthesis' in window)){ poWierszuTomiku(); return; }
   try{ speechSynthesis.cancel(); }catch(e){}
   if(!_glosyZaladowane) _wybierzGlosPolski();
-  const u = new SpeechSynthesisUtterance(w.tresc || w.tytul || '');
-  u.lang = 'pl-PL';
-  if(_glosPolski) u.voice = _glosPolski;
-  u.rate = 0.9;
-  u.onend = ()=> poWierszuTomiku();
-  u.onerror = ()=> poWierszuTomiku();
-  speechSynthesis.speak(u);
+  // WAŻNE: trzymamy referencję w zmiennej globalnej (lektor) — tak samo jak działające
+  // czytajWiersz(). Lokalna zmienna bywa usuwana przez garbage collector w trakcie mówienia,
+  // co ucina wiersz po kilku słowach (ten błąd występował tylko w pokazie tomiku).
+  lektor = new SpeechSynthesisUtterance(w.tresc || w.tytul || '');
+  lektor.lang = 'pl-PL';
+  if(_glosPolski) lektor.voice = _glosPolski;
+  lektor.rate = 0.9;
+  lektor.onend = ()=> poWierszuTomiku();
+  lektor.onerror = ()=> poWierszuTomiku();
+  speechSynthesis.speak(lektor);
 }
 
 function poWierszuTomiku(){
