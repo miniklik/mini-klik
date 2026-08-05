@@ -721,6 +721,7 @@
     <div class="map-hint" id="ctx-hint"></div>
     <div class="tryby-sluchania hidden" id="tryby-sluchania">
       <button class="tryb-btn" id="tryb-kolejno" onclick="toggleCzytanieKolejne()">🎧 czytaj kolejno</button>
+      <button class="tryb-btn" id="tryb-wygaszacz" onclick="toggleWygaszaczRecznie()">🌙 wygaszacz</button>
     </div>
   </div>
 </div>
@@ -1652,6 +1653,8 @@ function wylaczSpacer(){
   if(wygaszaczAktywny) wylaczWygaszacz();
   trybSluchania = 'wybor';
   document.getElementById('tryb-kolejno').classList.remove('active');
+  const btnW0 = document.getElementById('tryb-wygaszacz');
+  if(btnW0) btnW0.classList.remove('active');
   if(warstwaTerenu){ warstwaTerenu.clearLayers(); }
   aktywnyWierszSpacer = null;
   czekamNaKoniec = false;
@@ -1985,6 +1988,8 @@ function wlaczWygaszacz(){
   wygaszaczMatrixKurtyna(1100, ()=>{
     wygaszaczAktywny = true;
     ov.classList.add('aktywny');
+    const btnW = document.getElementById('tryb-wygaszacz');
+    if(btnW) btnW.classList.add('active');
     _wygaszaczOdswiez();
     _wygaszaczInterval = setInterval(_wygaszaczOdswiez, 30000);
   });
@@ -1994,15 +1999,12 @@ function wylaczWygaszacz(){
   const ov = document.getElementById('wygaszaczEkranu');
   wygaszaczAktywny = false;
   if(ov) ov.classList.remove('aktywny');
+  const btnW = document.getElementById('tryb-wygaszacz');
+  if(btnW) btnW.classList.remove('active');
   wygaszaczAnulujOdblokuj();
   if(_wygaszaczInterval){ clearInterval(_wygaszaczInterval); _wygaszaczInterval = null; }
-  // wyjście z wygaszacza kończy czytanie kolejne — wracamy do listy
-  if(trybSluchania === 'kolejno' && trybSpaceru){
-    trybSluchania = 'wybor';
-    document.getElementById('tryb-kolejno').classList.remove('active');
-    zatrzymajKolejke();
-    odswiezTeren();
-  }
+  // wygaszacz jest teraz niezależny od „czytaj kolejno" — wyłączenie go
+  // (np. odblokowanie ekranu) NIE przerywa czytania, jeśli akurat leci
 }
 
 function wygaszaczStartOdblokuj(e){
@@ -2053,25 +2055,27 @@ let przerwaTimer = null;
 
 function toggleCzytanieKolejne(){
   if(trybSluchania === 'kolejno'){
-    // wyłączamy — wracamy do listy
+    // wyłączamy — wracamy do listy (wygaszacz, jeśli jest włączony, zostaje jak był — to osobny przycisk)
     trybSluchania = 'wybor';
     document.getElementById('tryb-kolejno').classList.remove('active');
     zatrzymajKolejke();
-    if(wygaszaczAktywny){
-      wygaszaczAktywny = false;
-      document.getElementById('wygaszaczEkranu').classList.remove('aktywny');
-      wygaszaczAnulujOdblokuj();
-      if(_wygaszaczInterval){ clearInterval(_wygaszaczInterval); _wygaszaczInterval = null; }
-    }
     odswiezTeren();                  // pokaż listę z powrotem
     toast('Wybieraj wiersze z listy');
   } else {
-    // włączamy — komunikat, potem wygaszacz, w tle rusza kolejka
+    // włączamy — samo czytanie po kolei, bez ruszania wygaszaczem
     trybSluchania = 'kolejno';
     document.getElementById('tryb-kolejno').classList.add('active');
     zatrzymajDzwiek();
     aktywnyWierszSpacer = null;
     odswiezTeren();                  // lista zostaje widoczna
+  }
+}
+
+/* osobny przycisk: wygaszacz ekranu (oszczędzanie baterii) — niezależny od czytania kolejnego */
+function toggleWygaszaczRecznie(){
+  if(wygaszaczAktywny){
+    wylaczWygaszacz();
+  } else {
     pokazKomunikatOszczedzania();
   }
 }
@@ -2082,8 +2086,7 @@ function pokazKomunikatOszczedzania(){
   okno.classList.add('on');
   setTimeout(()=>{
     okno.classList.remove('on');
-    // wygaszacz tylko jeśli nadal jesteśmy w trybie kolejnym
-    if(trybSluchania === 'kolejno' && trybSpaceru) wlaczWygaszacz();
+    if(trybSpaceru && !wygaszaczAktywny) wlaczWygaszacz();
   }, 3000);
 }
 
