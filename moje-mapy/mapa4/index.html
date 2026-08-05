@@ -295,7 +295,7 @@
   .intro-line{
     position:absolute;left:0;right:0;top:0;
     font-family:'Literata',serif;font-style:italic;
-    color:var(--gold-soft);font-size:clamp(15px,3.4vw,20px);line-height:1.5;
+    color:var(--gold-soft);font-size:clamp(18px,3.4vw,22px);line-height:1.5;
     opacity:0;
   }
   /* każdy napis wyłania się i znika po kolei */
@@ -538,18 +538,6 @@
   .krok-sciezki:hover{opacity:.9;color:var(--gold-soft)}
   .krok-sciezki.active{color:var(--gold-soft);opacity:1;cursor:default}
   .krok-sciezki.hidden{display:none}
-  /* przycisk odsłuchania całego tomiku — w rzędzie Tomiki/Wiersze */
-  .tomik-play{
-    margin-left:auto;background:rgba(201,162,39,.12);border:1px solid rgba(201,162,39,.35);
-    color:var(--gold-soft);font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.05em;
-    padding:5px 12px;border-radius:var(--r-md);cursor:pointer;
-    transition:background .25s var(--ease),border-color .25s var(--ease);white-space:nowrap;
-  }
-  .tomik-play:hover{background:rgba(201,162,39,.2);border-color:rgba(201,162,39,.55)}
-  .tomik-play.gra{background:rgba(163,59,59,.18);border-color:rgba(163,59,59,.5);color:#e0a3a3}
-  .tomik-play.hidden{display:none}
-  /* wiersz aktualnie odtwarzany w pokazie tomiku */
-  #a-tomik-wiersze .work-row.gra-teraz{background:rgba(201,162,39,.1);border-left:2px solid var(--gold-soft)}
 
   .pusta-zakladka{
     display:none;color:var(--parchment-dim);opacity:.5;font-style:italic;
@@ -566,6 +554,18 @@
     font-family:'JetBrains Mono',monospace;font-size:10px;
     color:var(--gold-soft);opacity:.75;margin-left:10px;
   }
+  /* przycisk odsłuchania całego tomiku — w rzędzie Tomiki/Wiersze */
+  .tomik-play{
+    margin-left:auto;background:rgba(201,162,39,.12);border:1px solid rgba(201,162,39,.35);
+    color:var(--gold-soft);font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.05em;
+    padding:5px 12px;border-radius:var(--r-md);cursor:pointer;
+    transition:background .25s var(--ease),border-color .25s var(--ease);white-space:nowrap;
+  }
+  .tomik-play:hover{background:rgba(201,162,39,.2);border-color:rgba(201,162,39,.55)}
+  .tomik-play.gra{background:rgba(163,59,59,.18);border-color:rgba(163,59,59,.5);color:#e0a3a3}
+  .tomik-play.hidden{display:none}
+  /* wiersz aktualnie odtwarzany w pokazie tomiku */
+  #a-tomik-wiersze .work-row.gra-teraz{background:rgba(201,162,39,.1);border-left:2px solid var(--gold-soft)}
   .work-row .usun-ulub{
     background:none;border:none;color:var(--parchment-dim);opacity:.4;
     font-size:15px;padding:0 4px;transition:opacity .25s var(--ease),color .25s var(--ease);
@@ -772,7 +772,7 @@
     <div class="tabs">
       <button class="tab-btn active" data-tab="a-tab-bio" onclick="switchTab(this)">Biografia</button>
       <button class="tab-btn" data-tab="a-tab-works" onclick="switchTab(this)">Twórczość</button>
-      <button class="tab-btn" data-tab="a-tab-wiersze" onclick="switchTab(this)">Wiersze</button>
+      <button class="tab-btn" data-tab="a-tab-wiersze" onclick="switchTab(this)">Luzem</button>
     </div>
     <div class="tab-panel active" id="a-tab-bio">
       <div class="prose"><p id="a-bio"></p><p id="a-link"></p></div>
@@ -782,8 +782,8 @@
         <div class="sciezka-tomik">
           <button class="krok-sciezki active" id="krok-tomiki" onclick="wrocDoTomikow()">Tomiki</button>
           <button class="krok-sciezki hidden" id="krok-wiersze">Wiersze</button>
-          <button class="tomik-play hidden" id="tomik-play" onclick="przelaczOdtwarzanieTomiku()" title="Odsłuchaj cały tomik">
-            <span id="tomik-play-tresc">▶ Start</span>
+          <button class="tomik-play hidden" id="tomik-play" onclick="przelaczOdtwarzanieTomiku()" title="Odsłuchaj cały tomik (audio)">
+            <span id="tomik-play-tresc">▶ Audio</span>
           </button>
         </div>
         <div class="tomiki-grid" id="a-tomiki"></div>
@@ -1601,7 +1601,7 @@ function wlaczSpacer(){
   document.body.classList.add('spacer');
   const luk = document.getElementById('luk-spacer');
   luk.classList.add('on');
-  document.getElementById('luk-tekst').textContent = 'koniec';
+  document.getElementById('luk-tekst').textContent = 'Exit';
   document.getElementById('spacer-info').classList.remove('hidden');
   document.getElementById('tryby-sluchania').classList.remove('hidden');
   document.getElementById('btn-cala-mapa').disabled = true;
@@ -2554,9 +2554,6 @@ function renderAuthor(slug, a){
   document.getElementById('a-works').classList.remove('hidden');
 
   otwartyTomik = null;                                   // reset ścieżki
-  zatrzymajOdtwarzanieTomiku();                          // zatrzymaj pokaz, jeśli grał
-  const btnTomikPlay = document.getElementById('tomik-play');
-  if(btnTomikPlay){ btnTomikPlay.classList.add('hidden'); }   // przycisk widoczny dopiero po wyborze tomiku
   document.getElementById('a-tomiki').classList.remove('hidden');
   document.getElementById('a-tomik-wiersze').classList.add('hidden');
   document.getElementById('krok-tomiki').classList.add('active');
@@ -2606,148 +2603,6 @@ function renderAuthor(slug, a){
 /* ---------- TOMIK WEWNĄTRZ ZAKŁADKI „TWÓRCZOŚĆ" ---------- */
 let otwartyTomik = null;      // slug tomiku pokazanego w zakładce
 
-/* ===================== ODSŁUCHANIE CAŁEGO TOMIKU ===================== */
-// odtwarza wiersze otwartego tomiku po kolei: audio (jeśli jest) albo lektor,
-// z płynnym przelotem mapy nad kropką każdego wiersza
-let tomikGra = false;
-let tomikKolejka = [];        // sluggi wierszy do odtworzenia
-let tomikIndex = 0;
-let tomikAudioEl = null;
-let tomikTimer = null;
-
-function przelaczOdtwarzanieTomiku(){
-  if(tomikGra){ zatrzymajOdtwarzanieTomiku(); }
-  else { startTomik(); }
-}
-
-function startTomik(){
-  const a = dane.artysci[stan.slug] || (znajdzAutoraWiersza(stan.slug) && dane.artysci[znajdzAutoraWiersza(stan.slug)]);
-  if(!otwartyTomik || !a) return;
-  const t = (a.tomiki||[]).find(x=>x.slug===otwartyTomik);
-  if(!t || !t.wiersze || !t.wiersze.length) return;
-
-  // zatrzymaj wszelki inny dźwięk (np. wcześniej otwarty wiersz)
-  zatrzymajDzwiek();
-
-  tomikKolejka = t.wiersze.slice();
-  tomikIndex = 0;
-  tomikGra = true;
-  const btn = document.getElementById('tomik-play');
-  if(btn){ btn.classList.add('gra'); document.getElementById('tomik-play-tresc').textContent = '⏸'; }
-  odtworzWierszTomiku();
-}
-
-function odtworzWierszTomiku(){
-  if(!tomikGra) return;
-  if(tomikIndex >= tomikKolejka.length){ zatrzymajOdtwarzanieTomiku(); return; }
-
-  const slug = tomikKolejka[tomikIndex];
-  const w = dane.wiersze[slug];
-  if(!w){ tomikIndex++; odtworzWierszTomiku(); return; }
-
-  // podświetl aktualnie grający wiersz na liście
-  podswietlWierszTomiku(slug);
-
-  // przelot mapy nad kropkę wiersza (jeśli ma przypisane miejsce)
-  const miejsce = (w.miejsca && w.miejsca.length) ? w.miejsca.find(m=>m.lat!=null && m.lng!=null) : null;
-  if(miejsce && typeof mapa !== 'undefined' && mapa){
-    try{ mapa.flyTo([miejsce.lat, miejsce.lng], 15, { duration:1.2 }); }catch(e){}
-  }
-
-  // audio jeśli jest, w przeciwnym razie lektor (jak w trybie spaceru)
-  // MAŁE OPÓŹNIENIE: start mowy dokładnie w momencie startu animacji mapy (flyTo)
-  // potrafi zdezorientować silnik speechSynthesis w Chrome i wywołać fałszywy błąd
-  // po kilku słowach — dajemy mapie chwilę na "ruszenie" zanim zaczniemy mówić.
-  tomikTimer = setTimeout(()=>{
-    tomikTimer = null;
-    if(w.audio){
-      tomikAudioEl = new Audio(w.audio);
-      tomikAudioEl.onended = ()=> poWierszuTomiku();
-      tomikAudioEl.onerror = ()=> czytajLektoremTomik(w);
-      tomikAudioEl.play().catch(()=> czytajLektoremTomik(w));
-    } else {
-      czytajLektoremTomik(w);
-    }
-  }, 250);
-}
-
-let tomikProby = 0;          // licznik ponowień tego samego wiersza po błędzie lektora
-let _tomikKeepAlive = null;  // timer podtrzymujący silnik mowy przy dłuższych tekstach
-
-function czytajLektoremTomik(w){
-  if(!tomikGra) return;
-  if(!('speechSynthesis' in window)){ poWierszuTomiku(); return; }
-  try{ speechSynthesis.cancel(); }catch(e){}
-  if(!_glosyZaladowane) _wybierzGlosPolski();
-  // WAŻNE: trzymamy referencję w zmiennej globalnej (lektor) — tak samo jak działające
-  // czytajWiersz(). Lokalna zmienna bywa usuwana przez garbage collector w trakcie mówienia,
-  // co ucina wiersz po kilku słowach (ten błąd występował tylko w pokazie tomiku).
-  lektor = new SpeechSynthesisUtterance(w.tresc || w.tytul || '');
-  lektor.lang = 'pl-PL';
-  if(_glosPolski) lektor.voice = _glosPolski;
-  lektor.rate = 0.9;
-  lektor.onend = ()=>{ tomikProby = 0; poWierszuTomiku(); };
-  lektor.onerror = (e)=>{
-    if(!tomikGra) return;   // to było celowe zatrzymanie (np. przycisk stop) — nic więcej nie rób
-    // Chrome potrafi rzucić fałszywy błąd ('interrupted'/'canceled') w trakcie
-    // normalnego czytania, zwłaszcza gdy w tle dzieje się animacja mapy.
-    // Zamiast natychmiast skakać do następnego wiersza — spróbuj ten sam raz jeszcze.
-    if(tomikProby < 2){
-      tomikProby++;
-      tomikTimer = setTimeout(()=> czytajLektoremTomik(w), 400);
-    } else {
-      tomikProby = 0;
-      poWierszuTomiku();
-    }
-  };
-  speechSynthesis.speak(lektor);
-  utrzymajLektoraTomikuPrzyZyciu();
-}
-
-// Chrome ma osobny, stary bug: dłuższe teksty do syntezatora mowy potrafi
-// samoistnie "uciąć" po ok. 15 sekundach. Cykliczny pause()/resume() to obejście.
-function utrzymajLektoraTomikuPrzyZyciu(){
-  if(_tomikKeepAlive) clearInterval(_tomikKeepAlive);
-  _tomikKeepAlive = setInterval(()=>{
-    if(!tomikGra || !window.speechSynthesis || !speechSynthesis.speaking){
-      clearInterval(_tomikKeepAlive); _tomikKeepAlive = null; return;
-    }
-    try{ speechSynthesis.pause(); speechSynthesis.resume(); }catch(e){}
-  }, 10000);
-}
-
-function poWierszuTomiku(){
-  if(!tomikGra) return;
-  tomikAudioEl = null;
-  tomikIndex++;
-  // krótka przerwa między wierszami, potem następny
-  tomikTimer = setTimeout(()=>{ tomikTimer = null; odtworzWierszTomiku(); }, 1800);
-}
-
-function zatrzymajOdtwarzanieTomiku(){
-  tomikGra = false;
-  if(tomikTimer){ clearTimeout(tomikTimer); tomikTimer = null; }
-  if(tomikAudioEl){ try{ tomikAudioEl.pause(); }catch(e){} tomikAudioEl = null; }
-  try{ if(window.speechSynthesis) speechSynthesis.cancel(); }catch(e){}
-  if(_tomikKeepAlive){ clearInterval(_tomikKeepAlive); _tomikKeepAlive = null; }
-  tomikProby = 0;
-  tomikKolejka = [];
-  tomikIndex = 0;
-  const btn = document.getElementById('tomik-play');
-  if(btn){ btn.classList.remove('gra'); const tr = document.getElementById('tomik-play-tresc'); if(tr) tr.textContent = '▶ Start'; }
-  // zdejmij podświetlenie
-  document.querySelectorAll('#a-tomik-wiersze .work-row.gra-teraz').forEach(r=>r.classList.remove('gra-teraz'));
-}
-
-function podswietlWierszTomiku(slug){
-  const lista = document.getElementById('a-tomik-wiersze');
-  if(!lista) return;
-  const rzedy = [...lista.querySelectorAll('.work-row')];
-  rzedy.forEach(r=>r.classList.remove('gra-teraz'));
-  const idx = tomikKolejka.indexOf(slug);
-  if(idx >= 0 && rzedy[idx]) rzedy[idx].classList.add('gra-teraz');
-}
-
 function otworzTomikWZakladce(autorSlug, tomikSlug){
   const a = dane.artysci[autorSlug];
   if(!a) return;
@@ -2765,6 +2620,7 @@ function otworzTomikWZakladce(autorSlug, tomikSlug){
     const w = dane.wiersze[ws];
     const row = document.createElement('button');
     row.className = 'work-row';
+    row.dataset.slug = ws;
     row.onclick = ()=> wejdzWWiersz(ws);
     row.innerHTML = `<span class="wt">${w.tytul}</span><span class="wy">${w.data_powstania}</span>`;
     lista.appendChild(row);
@@ -2776,10 +2632,13 @@ function otworzTomikWZakladce(autorSlug, tomikSlug){
   kw.classList.remove('hidden');
   kw.classList.add('active');
 
-  // przycisk „odsłuchaj cały tomik" — pokaż i zresetuj do stanu „Start"
+  // przycisk „odsłuchaj cały tomik (audio)" — tylko jeśli choć jeden wiersz ma nagranie
   zatrzymajOdtwarzanieTomiku();   // gdyby coś grało z poprzedniego tomiku
   const btnPlay = document.getElementById('tomik-play');
-  if(btnPlay){ btnPlay.classList.remove('hidden'); }
+  if(btnPlay){
+    const maAudio = t.wiersze.some(ws => dane.wiersze[ws] && dane.wiersze[ws].audio);
+    btnPlay.classList.toggle('hidden', !maAudio);
+  }
 
   // okładka tomiku na kole (z przełącznikiem zdjęcie/mapa)
   ustawZdjecie({ zdjecie: t.okladka }, `okładka: ${t.tytul}`);
@@ -2790,8 +2649,8 @@ function otworzTomikWZakladce(autorSlug, tomikSlug){
 function wrocDoTomikow(){
   otwartyTomik = null;
   zatrzymajOdtwarzanieTomiku();   // zatrzymaj pokaz, jeśli grał
-  const btnPlay = document.getElementById('tomik-play');
-  if(btnPlay){ btnPlay.classList.add('hidden'); }
+  const btnPlay0 = document.getElementById('tomik-play');
+  if(btnPlay0){ btnPlay0.classList.add('hidden'); }
   if(stan.panel === 'author') delete stan.tomik;
   // schowaj otwarty wiersz, jeśli był
   const utwor = document.getElementById('a-utwor');
@@ -2820,6 +2679,93 @@ function wrocDoTomikow(){
     ustawZdjecie(a, `portret: ${a.imie_nazwisko}`);
     rysujWierszeAutora(a);
   }
+}
+
+/* ===================== ODSŁUCHANIE CAŁEGO TOMIKU — TYLKO AUDIO ===================== */
+// odtwarza po kolei wyłącznie te wiersze tomiku, które mają przypisany plik audio.
+// Wiersze bez audio są pomijane (bez czytania lektorem) — z lekkim przelotem mapy
+// nad kropką każdego odtwarzanego wiersza.
+let tomikGra = false;
+let tomikKolejka = [];        // sluggi wierszy Z AUDIO do odtworzenia
+let tomikIndex = 0;
+let tomikAudioEl = null;
+let tomikTimer = null;
+
+function przelaczOdtwarzanieTomiku(){
+  if(tomikGra){ zatrzymajOdtwarzanieTomiku(); }
+  else { startTomik(); }
+}
+
+function startTomik(){
+  const a = dane.artysci[stan.slug] || (znajdzAutoraWiersza(stan.slug) && dane.artysci[znajdzAutoraWiersza(stan.slug)]);
+  if(!otwartyTomik || !a) return;
+  const t = (a.tomiki||[]).find(x=>x.slug===otwartyTomik);
+  if(!t || !t.wiersze || !t.wiersze.length) return;
+
+  tomikKolejka = t.wiersze.filter(ws => dane.wiersze[ws] && dane.wiersze[ws].audio);
+  if(!tomikKolejka.length) return;   // nic do odtworzenia — żadnego audio w tym tomiku
+
+  // zatrzymaj wszelki inny dźwięk (np. wcześniej otwarty wiersz)
+  zatrzymajDzwiek();
+
+  tomikIndex = 0;
+  tomikGra = true;
+  const btn = document.getElementById('tomik-play');
+  if(btn){ btn.classList.add('gra'); document.getElementById('tomik-play-tresc').textContent = '⏸ Stop'; }
+  odtworzWierszTomiku();
+}
+
+function odtworzWierszTomiku(){
+  if(!tomikGra) return;
+  if(tomikIndex >= tomikKolejka.length){ zatrzymajOdtwarzanieTomiku(); return; }
+
+  const slug = tomikKolejka[tomikIndex];
+  const w = dane.wiersze[slug];
+  if(!w || !w.audio){ tomikIndex++; odtworzWierszTomiku(); return; }
+
+  // podświetl aktualnie grający wiersz na liście
+  podswietlWierszTomiku(slug);
+
+  // przelot mapy nad kropkę wiersza (jeśli ma przypisane miejsce)
+  const miejsce = (w.miejsca && w.miejsca.length) ? w.miejsca.find(m=>m.lat!=null && m.lng!=null) : null;
+  if(miejsce && typeof mapa !== 'undefined' && mapa){
+    try{ mapa.flyTo([miejsce.lat, miejsce.lng], 15, { duration:1.2 }); }catch(e){}
+  }
+
+  tomikAudioEl = new Audio(w.audio);
+  tomikAudioEl.onended = ()=> poWierszuTomiku();
+  tomikAudioEl.onerror = ()=> poWierszuTomiku();   // uszkodzony/brakujący plik — po prostu leć dalej
+  tomikAudioEl.play().catch(()=> poWierszuTomiku());
+}
+
+function poWierszuTomiku(){
+  if(!tomikGra) return;
+  tomikAudioEl = null;
+  tomikIndex++;
+  // krótka przerwa między wierszami, potem następny
+  tomikTimer = setTimeout(()=>{ tomikTimer = null; odtworzWierszTomiku(); }, 900);
+}
+
+function zatrzymajOdtwarzanieTomiku(){
+  tomikGra = false;
+  if(tomikTimer){ clearTimeout(tomikTimer); tomikTimer = null; }
+  if(tomikAudioEl){ try{ tomikAudioEl.pause(); }catch(e){} tomikAudioEl = null; }
+  tomikKolejka = [];
+  tomikIndex = 0;
+  const btn = document.getElementById('tomik-play');
+  if(btn){ btn.classList.remove('gra'); const tr = document.getElementById('tomik-play-tresc'); if(tr) tr.textContent = '▶ Audio'; }
+  // zdejmij podświetlenie
+  document.querySelectorAll('#a-tomik-wiersze .work-row.gra-teraz').forEach(r=>r.classList.remove('gra-teraz'));
+}
+
+/* podświetla wiersz po jego slugu (dataset.slug), nie po pozycji w kolejce —
+   bo lista pokazuje WSZYSTKIE wiersze tomiku, a kolejka gra tylko te z audio */
+function podswietlWierszTomiku(slug){
+  const lista = document.getElementById('a-tomik-wiersze');
+  if(!lista) return;
+  lista.querySelectorAll('.work-row').forEach(r=>r.classList.remove('gra-teraz'));
+  const row = lista.querySelector(`.work-row[data-slug="${slug}"]`);
+  if(row) row.classList.add('gra-teraz');
 }
 
 /* kropki wierszy jednego tomiku */
