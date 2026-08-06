@@ -361,6 +361,17 @@
   .spacer-info b{color:#d89a5c;font-weight:400}
   .spacer-info.hidden{display:none}
 
+  /* ===================== MAPA W TLE ===================== */
+  #leaflet-map-bg{display:none;position:fixed;inset:0;z-index:0;background:var(--ink-deep)}
+  body.fullmap-on #leaflet-map-bg{display:block}
+  body.fullmap-on{background:transparent}
+  body.fullmap-on .topbar,
+  body.fullmap-on #fullmap-bar,
+  body.fullmap-on .stage,
+  body.fullmap-on .content{position:relative;z-index:10}
+  #btn-fullmap:hover{border-color:#e4c96a;background:rgba(201,162,39,.1);color:#f3ead6}
+  #btn-fullmap.on{border-color:#c9a227;background:rgba(201,162,39,.18);color:#e4c96a}
+
   /* ===================== WYSZUKIWARKA (ekran home) ===================== */
   .szukaj-blok{max-width:520px;margin:0 auto;padding:8px 0 4px}
   .szukaj-pole-wrap{
@@ -653,6 +664,8 @@
 </head>
 <body>
 
+<div id="leaflet-map-bg"></div>
+
 <!-- ====== INTRO ====== -->
 <div id="intro" onclick="zamknijIntro()">
   <div class="intro-inner">
@@ -677,6 +690,14 @@
     </button>
     <button id="btn-cala-mapa" onclick="goHome()">cała mapa</button>
   </div>
+</div>
+
+<div id="fullmap-bar" style="max-width:1000px;margin:0 auto;padding:2px 28px 0;display:flex;justify-content:flex-end">
+  <button id="btn-fullmap" onclick="toggleFullMap()" style="
+    background:none;border:1px solid rgba(243,234,214,.25);color:var(--parchment-dim);
+    padding:5px 12px;border-radius:6px;font-family:'JetBrains Mono',monospace;font-size:13px;
+    letter-spacing:.04em;cursor:pointer;transition:border-color .25s,background .25s,color .25s;
+  " aria-label="Pokaż mapę w tle" title="Mapa w tle">⟷</button>
 </div>
 
 <!-- ====== NAGŁÓWEK: koło mapy (duże na start / małe w miejscowości) ====== -->
@@ -1080,6 +1101,9 @@ function initMapa(){
   warstwaMiejscowosci = L.layerGroup().addTo(mapa);
   warstwaWierszy = L.layerGroup().addTo(mapa);
   rysujMiejscowosci();
+  mapa.on('moveend zoomend', function(){
+    if(fullMapOn && fullMapInstance) fullMapInstance.setView(mapa.getCenter(), mapa.getZoom(), {animate:false});
+  });
 }
 
 function rysujMiejscowosci(){
@@ -1288,6 +1312,7 @@ function render(){
   // łuk „ulubione" świeci tylko wtedy, gdy jesteśmy w tym panelu
   const lu = document.getElementById('luk-ulubione');
   if(lu) lu.classList.toggle('on', stan.panel === 'ulubione');
+  if(stan.panel !== 'home' && fullMapOn) wylaczFullMap();
   if(stan.panel === 'home'){
     pokazPanel('home');
     ustawZdjecie(null);
@@ -2861,6 +2886,33 @@ function resetTabs(panelId){
   const panel = document.getElementById(panelId);
   panel.querySelectorAll('.tab-btn').forEach((b,i)=>b.classList.toggle('active', i===0));
   panel.querySelectorAll('.tab-panel').forEach((p,i)=>p.classList.toggle('active', i===0));
+}
+
+/* ============ MAPA W TLE (⟷) ============ */
+let fullMapOn = false;
+let fullMapInstance = null;
+
+function toggleFullMap(){
+  if(stan.panel !== 'home') goHome();
+  fullMapOn = !fullMapOn;
+  document.body.classList.toggle('fullmap-on', fullMapOn);
+  document.getElementById('btn-fullmap').classList.toggle('on', fullMapOn);
+  if(fullMapOn && !fullMapInstance){
+    fullMapInstance = L.map('leaflet-map-bg', {
+      zoomControl:false, attributionControl:false, scrollWheelZoom:true, dragging:true
+    }).setView(mapa.getCenter(), mapa.getZoom());
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom:18}).addTo(fullMapInstance);
+  }
+  if(fullMapOn && fullMapInstance){
+    fullMapInstance.invalidateSize();
+    fullMapInstance.setView(mapa.getCenter(), mapa.getZoom(), {animate:false});
+  }
+}
+function wylaczFullMap(){
+  if(!fullMapOn) return;
+  fullMapOn = false;
+  document.body.classList.remove('fullmap-on');
+  document.getElementById('btn-fullmap').classList.remove('on');
 }
 
 /* ============ START ============ */
