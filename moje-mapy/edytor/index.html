@@ -250,11 +250,6 @@ h1,h2{font-family:'Fraunces',serif;font-weight:600;letter-spacing:.01em}
         <span><span class="nm">Edytor miejscowości</span>
         <span class="ds">Kreator krok po kroku: miejscowość, pisarze, tomiki i wiersze. Tworzy gotowy plik dane.json.</span></span>
       </button>
-      <button class="kafel" onclick="pokazEkran('scalarka')">
-        <span class="iko">🧩</span>
-        <span><span class="nm">Scalarka plików</span>
-        <span class="ds">Łączy kilka zgłoszeń jednej miejscowości w jeden plik. Przydaje się, gdy dochodzi nowy pisarz.</span></span>
-      </button>
     </div>
   </div>
 </div>
@@ -376,40 +371,6 @@ h1,h2{font-family:'Fraunces',serif;font-weight:600;letter-spacing:.01em}
 
 </div>
 
-<div class="ekran" id="ekran-scalarka">
-  <div class="pasek-powrotu"><button class="btn-powrot" onclick="pokazEkran('menu')">← narzędzia</button></div>
-
-<div class="wrap">
-
-  <div class="title">Scalarka plików</div>
-  <div class="sub">Pod Wielkim Dachem Nieba · łączenie zgłoszeń w jeden dane.json</div>
-
-  <div class="drop" id="drop" onclick="document.getElementById('pliki').click()">
-    <div class="big">🧩</div>
-    <div>Kliknij lub przeciągnij tu pliki JSON</div>
-    <div class="hint">możesz wrzucić kilka naraz · pełne miejscowości i fragmenty z artystami</div>
-  </div>
-  <input type="file" id="pliki" accept=".json" multiple style="display:none">
-
-  <div class="lista" id="lista"></div>
-
-  <div class="podsum pusty" id="podsum"></div>
-  <div class="ostrzez" id="ostrzez"></div>
-
-  <div class="btn-row" id="akcje" style="display:none">
-    <button class="btn solid" onclick="pobierz()">⬇ Pobierz dane.json</button>
-    <button class="btn ghost" onclick="kopiuj()">Kopiuj <span class="ok-flash" id="ok">skopiowano ✓</span></button>
-    <button class="btn ghost" onclick="podgladToggle()">Podgląd</button>
-    <button class="btn ghost" onclick="wyczysc()">Wyczyść</button>
-  </div>
-
-  <div class="podglad" id="podglad"></div>
-
-</div>
-
-
-</div>
-
 <script>
 /* ===================== PRZEŁĄCZANIE EKRANÓW ===================== */
 let mapaZainicjowana = false;
@@ -513,7 +474,7 @@ function zapiszKrok0(){
    ========================================================= */
 function dodajArtyste(){
   model.artysci.push({
-    _id: nowyId(), imie_nazwisko:'', lata:'', zdjecie:'', bio:'',
+    _id: nowyId(), imie_nazwisko:'', pochodzenie:'', lata:'', zdjecie:'', bio:'',
     tomiki:[], dziela:[]
   });
   renderArtysci();
@@ -537,8 +498,16 @@ function renderArtysci(){
         <span class="nm">Artysta ${idx+1}${a.imie_nazwisko?': '+a.imie_nazwisko:''}</span>
         <button class="btn mini danger" onclick="usunArtyste('${a._id}')">Usuń</button>
       </div>
-      <label>Imię i nazwisko</label>
-      <input type="text" value="${esc(a.imie_nazwisko)}" oninput="setArt('${a._id}','imie_nazwisko',this.value); this.closest('.sub-block').querySelector('.slug-preview').textContent = artSlugPrev(this.value)">
+      <div class="row2">
+        <div>
+          <label>Imię i nazwisko</label>
+          <input type="text" value="${esc(a.imie_nazwisko)}" oninput="setArt('${a._id}','imie_nazwisko',this.value); this.closest('.sub-block').querySelector('.slug-preview').textContent = artSlugPrev(this.value)">
+        </div>
+        <div>
+          <label>Miejsce pochodzenia <span class="opt">— opcjonalnie</span></label>
+          <input type="text" value="${esc(a.pochodzenie||'')}" oninput="setArt('${a._id}','pochodzenie',this.value)" placeholder="np. ur. Kraków">
+        </div>
+      </div>
       <div class="slug-preview">${a.imie_nazwisko?('slug: '+slug(a.imie_nazwisko)):''}</div>
       <div class="row2">
         <div>
@@ -922,6 +891,7 @@ function zbudujObiekt(){
       const wynik = {
         slug: slug(a.imie_nazwisko),
         imie_nazwisko: a.imie_nazwisko,
+        pochodzenie: a.pochodzenie || '',
         lata: a.lata || '',
         zdjecie: a.zdjecie ? a.zdjecie : null,
         bio: a.bio || ''
@@ -1014,6 +984,7 @@ function wczytajDoModelu(obj){
     artysci: (obj.artysci||[]).map(a=>({
       _id: nowyId(),
       imie_nazwisko: a.imie_nazwisko||'',
+      pochodzenie: a.pochodzenie||'',
       lata: a.lata||'',
       zdjecie: a.zdjecie||'',
       bio: a.bio||'',
@@ -1051,201 +1022,6 @@ function setVal(id,v){ const el=document.getElementById(id); if(el) el.value=v||
 function esc(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
 /* START — mapa startuje przy wejściu w edytor */
-
-
-
-/* =========================================================
-   STAN
-   ========================================================= */
-let wczytane = [];     // { nazwa, typ:'miejscowosc'|'artysta'|'blad', dane, opis }
-
-/* =========================================================
-   WCZYTYWANIE
-   ========================================================= */
-document.getElementById('pliki').addEventListener('change', e=>{
-  [...e.target.files].forEach(czytajPlik);
-  e.target.value = '';
-});
-const drop = document.getElementById('drop');
-['dragover','dragenter'].forEach(ev=> drop.addEventListener(ev, e=>{e.preventDefault(); drop.style.borderColor='var(--gold)';}));
-['dragleave','drop'].forEach(ev=> drop.addEventListener(ev, e=>{e.preventDefault(); drop.style.borderColor='';}));
-drop.addEventListener('drop', e=>{
-  [...e.dataTransfer.files].filter(f=>f.name.endsWith('.json')).forEach(czytajPlik);
-});
-
-function czytajPlik(plik){
-  const r = new FileReader();
-  r.onload = ()=>{
-    let obj = null, typ = 'blad', opis = '';
-    try{
-      obj = JSON.parse(r.result);
-      const rozpoznanie = rozpoznaj(obj);
-      typ = rozpoznanie.typ;
-      opis = rozpoznanie.opis;
-    }catch(err){
-      opis = 'to nie jest poprawny plik JSON';
-    }
-    wczytane.push({ nazwa: plik.name, typ, dane: obj, opis });
-    odswiez();
-  };
-  r.readAsText(plik);
-}
-
-/* rozpoznaje, czy plik to pełna miejscowość, czy sam artysta */
-function rozpoznaj(obj){
-  if(!obj || typeof obj !== 'object') return { typ:'blad', opis:'pusty albo nieznany format' };
-
-  // pełna miejscowość: ma nazwę i listę artystów
-  if(obj.nazwa && Array.isArray(obj.artysci)){
-    const ilu = obj.artysci.length;
-    const wierszy = policzWiersze(obj.artysci);
-    return { typ:'miejscowosc', opis:`miejscowość · ${ilu} ${ilu===1?'pisarz':'pisarzy'} · ${wierszy} ${odmianaWierszy(wierszy)}` };
-  }
-  // fragment: sam artysta
-  if(obj.imie_nazwisko){
-    const wierszy = policzWiersze([obj]);
-    return { typ:'artysta', opis:`pisarz: ${obj.imie_nazwisko} · ${wierszy} ${odmianaWierszy(wierszy)}` };
-  }
-  // lista artystów bez miejscowości
-  if(Array.isArray(obj) && obj.length && obj[0].imie_nazwisko){
-    const wierszy = policzWiersze(obj);
-    return { typ:'artysci', opis:`${obj.length} pisarzy · ${wierszy} ${odmianaWierszy(wierszy)}` };
-  }
-  return { typ:'blad', opis:'nie rozpoznaję — brak nazwy miejscowości ani pisarza' };
-}
-
-function policzWiersze(artysci){
-  return artysci.reduce((suma,a)=>{
-    const zTomikow = (a.tomiki||[]).reduce((s,t)=> s + (t.wiersze||[]).length, 0);
-    return suma + zTomikow + (a.dziela||[]).length;
-  }, 0);
-}
-function odmianaWierszy(n){
-  if(n === 1) return 'wiersz';
-  if(n % 10 >= 2 && n % 10 <= 4 && !(n % 100 >= 12 && n % 100 <= 14)) return 'wiersze';
-  return 'wierszy';
-}
-
-/* =========================================================
-   SCALANIE
-   ========================================================= */
-function scal(){
-  const dobre = wczytane.filter(p=>p.typ !== 'blad');
-  if(!dobre.length) return null;
-
-  // podstawa: pierwsza pełna miejscowość
-  const bazowa = dobre.find(p=>p.typ === 'miejscowosc');
-  if(!bazowa) return { brakMiejscowosci:true };
-
-  const wynik = JSON.parse(JSON.stringify(bazowa.dane));   // kopia, nie ruszamy oryginału
-  if(!Array.isArray(wynik.artysci)) wynik.artysci = [];
-
-  const duble = [];
-  dobre.forEach(p=>{
-    if(p === bazowa) return;
-    let doDodania = [];
-    if(p.typ === 'miejscowosc') doDodania = p.dane.artysci || [];
-    else if(p.typ === 'artysta') doDodania = [p.dane];
-    else if(p.typ === 'artysci') doDodania = p.dane;
-
-    doDodania.forEach(a=>{
-      const juzJest = wynik.artysci.find(x =>
-        (x.slug && a.slug && x.slug === a.slug) ||
-        (x.imie_nazwisko === a.imie_nazwisko)
-      );
-      if(juzJest){ duble.push(a.imie_nazwisko || a.slug); return; }
-      wynik.artysci.push(a);
-    });
-  });
-
-  return { wynik, duble };
-}
-
-/* =========================================================
-   WIDOK
-   ========================================================= */
-function odswiez(){
-  const lista = document.getElementById('lista');
-  lista.innerHTML = '';
-  wczytane.forEach((p,i)=>{
-    const el = document.createElement('div');
-    el.className = 'plik' + (p.typ === 'blad' ? ' zly' : '');
-    const iko = p.typ === 'miejscowosc' ? '🏘️' : p.typ === 'blad' ? '⚠️' : '👤';
-    el.innerHTML = `<span class="iko">${iko}</span>
-      <span class="info"><div class="nm">${esc(p.nazwa)}</div><div class="op">${esc(p.opis)}</div></span>
-      <button class="usun" onclick="usun(${i})" title="Usuń z listy">✕</button>`;
-    lista.appendChild(el);
-  });
-
-  const podsum = document.getElementById('podsum');
-  const ostrzez = document.getElementById('ostrzez');
-  const akcje = document.getElementById('akcje');
-  ostrzez.classList.remove('on');
-
-  if(!wczytane.length){
-    podsum.classList.add('pusty');
-    akcje.style.display = 'none';
-    document.getElementById('podglad').classList.remove('on');
-    return;
-  }
-
-  const s = scal();
-  if(!s || s.brakMiejscowosci){
-    podsum.classList.add('pusty');
-    akcje.style.display = 'none';
-    ostrzez.textContent = 'Dorzuć plik pełnej miejscowości — sam pisarz nie wystarczy, żeby złożyć dane.json.';
-    ostrzez.classList.add('on');
-    return;
-  }
-
-  const ilu = s.wynik.artysci.length;
-  const wierszy = policzWiersze(s.wynik.artysci);
-  podsum.classList.remove('pusty');
-  podsum.innerHTML = `Po scaleniu: <b>${esc(s.wynik.nazwa)}</b> · <b>${ilu}</b> ${ilu===1?'pisarz':'pisarzy'} · <b>${wierszy}</b> ${odmianaWierszy(wierszy)}<br>
-    ${s.wynik.artysci.map(a=>'· ' + esc(a.imie_nazwisko||a.slug)).join('<br>')}`;
-  akcje.style.display = 'flex';
-
-  if(s.duble.length){
-    ostrzez.innerHTML = `Pominięto powtórzonych pisarzy: <b>${s.duble.map(esc).join(', ')}</b> — byli już w pliku bazowym.`;
-    ostrzez.classList.add('on');
-  }
-
-  const pg = document.getElementById('podglad');
-  if(pg.classList.contains('on')) pg.textContent = JSON.stringify(s.wynik, null, 2);
-}
-
-function usun(i){ wczytane.splice(i,1); odswiez(); }
-function wyczysc(){ wczytane = []; document.getElementById('podglad').classList.remove('on'); odswiez(); }
-
-function podgladToggle(){
-  const pg = document.getElementById('podglad');
-  pg.classList.toggle('on');
-  if(pg.classList.contains('on')){
-    const s = scal();
-    if(s && s.wynik) pg.textContent = JSON.stringify(s.wynik, null, 2);
-  }
-}
-
-function pobierz(){
-  const s = scal();
-  if(!s || !s.wynik) return;
-  const blob = new Blob([JSON.stringify(s.wynik, null, 2)], {type:'application/json'});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url; a.download = 'dane.json';
-  a.click();
-  URL.revokeObjectURL(url);
-}
-
-function kopiuj(){
-  const s = scal();
-  if(!s || !s.wynik) return;
-  navigator.clipboard.writeText(JSON.stringify(s.wynik, null, 2)).then(()=>{
-    const ok = document.getElementById('ok');
-    ok.classList.add('on');
-    setTimeout(()=> ok.classList.remove('on'), 1800);
-  });
-}
 
 
 </script>
