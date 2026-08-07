@@ -96,6 +96,53 @@
   #leaflet-map{width:100%;height:100%;background:var(--ink-deep)}
   .leaflet-control-container{display:none}
 
+  /* pełnoekranowa warstwa mapy — aktywna tylko na ekranie głównym */
+  #map-layer{
+    position:fixed;inset:0;z-index:0;display:none;
+    transition:clip-path .08s ease-out;
+  }
+  #map-layer #leaflet-map{width:100%;height:100%}
+  /* gdy mapa jest w warstwie pełnoekranowej, UI musi być na wierzchu */
+  body.home-map .topbar{position:relative;z-index:20}
+  body.home-map .stage{position:relative;z-index:15}
+  body.home-map .content{position:relative;z-index:15}
+  /* medalion w trybie pełnoekranowym: przezroczysty środek, mapa prześwituje z warstwy pod spodem */
+  body.home-map .med-circle{background:transparent}
+
+  /* ===================== SUWAK ROZMIARU MAPY ===================== */
+  .suwak-dock{
+    position:relative;z-index:20;
+    max-width:400px;margin:0 auto;padding:4px 28px 0;
+  }
+  .suwak-dock.hidden{display:none}
+  .suwak-mapy{display:flex;align-items:center;gap:14px;justify-content:center}
+  .suwak-mapy .suwak-iko{font-size:16px;opacity:.5;flex-shrink:0;line-height:1;color:var(--gold-soft)}
+  .suwak-mapy .suwak-iko.duzy{font-size:22px}
+  .suwak-mapy input[type=range]{
+    flex:1;-webkit-appearance:none;appearance:none;
+    height:4px;background:rgba(201,162,39,.3);border-radius:2px;outline:none;cursor:pointer;
+  }
+  .suwak-mapy input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none;appearance:none;width:22px;height:22px;border-radius:50%;
+    background:var(--gold);border:3px solid var(--lead);
+    box-shadow:0 0 0 4px rgba(201,162,39,.25);cursor:grab;transition:box-shadow .2s var(--ease);
+  }
+  .suwak-mapy input[type=range]::-webkit-slider-thumb:hover{box-shadow:0 0 0 7px rgba(201,162,39,.3)}
+  .suwak-mapy input[type=range]::-moz-range-thumb{
+    width:22px;height:22px;border-radius:50%;border:3px solid var(--lead);
+    background:var(--gold);box-shadow:0 0 0 4px rgba(201,162,39,.25);cursor:grab;
+  }
+  .suwak-mapy input[type=range]::-moz-range-track{
+    height:4px;background:rgba(201,162,39,.3);border-radius:2px;border:none;
+  }
+  .suwak-etykieta{
+    text-align:center;margin-top:4px;
+    font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.06em;
+    color:var(--parchment-dim);opacity:.45;text-transform:uppercase;
+    transition:opacity .3s var(--ease);
+  }
+  .suwak-etykieta.hidden{opacity:0}
+
   /* warstwa zdjęcia nad mapą (tylko w trybie detail) */
   .med-photo{
     position:absolute;inset:0;border-radius:50%;overflow:hidden;z-index:500;
@@ -360,17 +407,6 @@
   }
   .spacer-info b{color:#d89a5c;font-weight:400}
   .spacer-info.hidden{display:none}
-
-  /* ===================== MAPA W TLE ===================== */
-  #leaflet-map-bg{display:none;position:fixed;inset:0;z-index:0;background:var(--ink-deep)}
-  body.fullmap-on #leaflet-map-bg{display:block}
-  body.fullmap-on{background:transparent}
-  body.fullmap-on .topbar,
-  body.fullmap-on #fullmap-bar,
-  body.fullmap-on .stage,
-  body.fullmap-on .content{position:relative;z-index:10}
-  #btn-fullmap:hover{border-color:#e4c96a;background:rgba(201,162,39,.1);color:#f3ead6}
-  #btn-fullmap.on{border-color:#c9a227;background:rgba(201,162,39,.18);color:#e4c96a}
 
   /* ===================== WYSZUKIWARKA (ekran home) ===================== */
   .szukaj-blok{max-width:520px;margin:0 auto;padding:8px 0 4px}
@@ -664,7 +700,8 @@
 </head>
 <body>
 
-<div id="leaflet-map-bg"></div>
+<!-- ====== WARSTWA PEŁNOEKRANOWEJ MAPY (pod całym UI) ====== -->
+<div id="map-layer"></div>
 
 <!-- ====== INTRO ====== -->
 <div id="intro" onclick="zamknijIntro()">
@@ -690,14 +727,6 @@
     </button>
     <button id="btn-cala-mapa" onclick="goHome()">cała mapa</button>
   </div>
-</div>
-
-<div id="fullmap-bar" style="max-width:1000px;margin:0 auto;padding:2px 28px 0;display:flex;justify-content:flex-end">
-  <button id="btn-fullmap" onclick="toggleFullMap()" style="
-    background:none;border:1px solid rgba(243,234,214,.25);color:var(--parchment-dim);
-    padding:5px 12px;border-radius:6px;font-family:'JetBrains Mono',monospace;font-size:13px;
-    letter-spacing:.04em;cursor:pointer;transition:border-color .25s,background .25s,color .25s;
-  " aria-label="Pokaż mapę w tle" title="Mapa w tle">⟷</button>
 </div>
 
 <!-- ====== NAGŁÓWEK: koło mapy (duże na start / małe w miejscowości) ====== -->
@@ -739,6 +768,17 @@
       <button class="tryb-btn" id="tryb-wygaszacz" onclick="toggleWygaszaczRecznie()">🌙 wygaszacz</button>
     </div>
   </div>
+</div>
+
+<!-- suwak powiększania mapy (tylko ekran główny) -->
+<div class="suwak-dock hidden" id="suwak-dock">
+  <div class="suwak-mapy">
+    <span class="suwak-iko">🔍</span>
+    <input type="range" id="suwak-range" min="0" max="100" value="0"
+           oninput="suwakZmiana(this.value)">
+    <span class="suwak-iko duzy">🔍</span>
+  </div>
+  <div class="suwak-etykieta" id="suwak-etykieta">powiększ mapę</div>
 </div>
 
 <div class="spacer-info hidden" id="spacer-info"></div>
@@ -1101,9 +1141,6 @@ function initMapa(){
   warstwaMiejscowosci = L.layerGroup().addTo(mapa);
   warstwaWierszy = L.layerGroup().addTo(mapa);
   rysujMiejscowosci();
-  mapa.on('moveend zoomend', function(){
-    if(fullMapOn && fullMapInstance) fullMapInstance.setView(mapa.getCenter(), mapa.getZoom(), {animate:false});
-  });
 }
 
 function rysujMiejscowosci(){
@@ -1303,6 +1340,8 @@ function goHome(){
 let poprzedniPanel = null;
 
 function render(){
+  // opuszczamy ekran główny — wróć mapę do medalionu
+  if(stan.panel !== 'home' && _homeMapActive) wylaczHomeMap();
   // wychodząc z wiersza gdziekolwiek indziej — ucisz dźwięk
   if(poprzedniPanel === 'poem' && stan.panel !== 'poem') zatrzymajDzwiek();
   // jeśli grał pokaz całego tomiku, a opuszczamy widok autora — zatrzymaj go
@@ -1312,7 +1351,6 @@ function render(){
   // łuk „ulubione" świeci tylko wtedy, gdy jesteśmy w tym panelu
   const lu = document.getElementById('luk-ulubione');
   if(lu) lu.classList.toggle('on', stan.panel === 'ulubione');
-  if(stan.panel !== 'home' && fullMapOn) wylaczFullMap();
   if(stan.panel === 'home'){
     pokazPanel('home');
     ustawZdjecie(null);
@@ -1323,6 +1361,8 @@ function render(){
       title:'Miejsca, z których wyrosły wiersze',
       lede:'Kliknij złoty punkt na mapie, aby wejść do miejscowości i poznać jej poetów.'
     });
+    // pełnoekranowa mapa z clip-path — włącz po animacji wejścia
+    setTimeout(wlaczHomeMap, 700);
   }
   if(stan.panel === 'village'){
     const m = dane.miejscowosci.find(x=>x.slug===stan.slug);
@@ -1618,6 +1658,7 @@ function wlaczSpacer(){
   }
   if(!navigator.geolocation){ toast('Twoje urządzenie nie udostępnia lokalizacji.'); return; }
   trybSpaceru = true;
+  if(_homeMapActive) wylaczHomeMap();
   document.body.classList.add('spacer');
   const luk = document.getElementById('luk-spacer');
   luk.classList.add('on');
@@ -2888,32 +2929,93 @@ function resetTabs(panelId){
   panel.querySelectorAll('.tab-panel').forEach((p,i)=>p.classList.toggle('active', i===0));
 }
 
-/* ============ MAPA W TLE (⟷) ============ */
-let fullMapOn = false;
-let fullMapInstance = null;
+/* ============ PEŁNOEKRANOWA MAPA (clip-path) — tylko ekran główny ============ */
+let _homeMapActive = false;
 
-function toggleFullMap(){
-  if(stan.panel !== 'home') goHome();
-  fullMapOn = !fullMapOn;
-  document.body.classList.toggle('fullmap-on', fullMapOn);
-  document.getElementById('btn-fullmap').classList.toggle('on', fullMapOn);
-  if(fullMapOn && !fullMapInstance){
-    fullMapInstance = L.map('leaflet-map-bg', {
-      zoomControl:false, attributionControl:false, scrollWheelZoom:true, dragging:true
-    }).setView(mapa.getCenter(), mapa.getZoom());
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom:18}).addTo(fullMapInstance);
-  }
-  if(fullMapOn && fullMapInstance){
-    fullMapInstance.invalidateSize();
-    fullMapInstance.setView(mapa.getCenter(), mapa.getZoom(), {animate:false});
-  }
+/* przenieś mapę do pełnoekranowej warstwy, ustaw clip-path na kółko medalionu */
+function wlaczHomeMap(){
+  if(_homeMapActive) return;
+  _homeMapActive = true;
+  const mapEl = document.getElementById('leaflet-map');
+  const layer = document.getElementById('map-layer');
+  layer.appendChild(mapEl);
+  layer.style.display = 'block';
+  document.body.classList.add('home-map');
+  document.getElementById('suwak-dock').classList.remove('hidden');
+  document.getElementById('suwak-range').value = 0;
+  document.getElementById('suwak-etykieta').classList.remove('hidden');
+  // ustaw clip po chwili — poczekaj aż medalion się wyrenderuje
+  requestAnimationFrame(()=> requestAnimationFrame(()=>{
+    ustawClip(0);
+    if(mapa) mapa.invalidateSize({ animate:false });
+  }));
 }
-function wylaczFullMap(){
-  if(!fullMapOn) return;
-  fullMapOn = false;
-  document.body.classList.remove('fullmap-on');
-  document.getElementById('btn-fullmap').classList.remove('on');
+
+/* przenieś mapę z powrotem do medalionu, wyłącz clip-path */
+function wylaczHomeMap(){
+  if(!_homeMapActive) return;
+  _homeMapActive = false;
+  const mapEl = document.getElementById('leaflet-map');
+  const medCircle = document.querySelector('.med-circle');
+  medCircle.appendChild(mapEl);
+  const layer = document.getElementById('map-layer');
+  layer.style.display = 'none';
+  layer.style.clipPath = '';
+  document.body.classList.remove('home-map');
+  document.getElementById('suwak-dock').classList.add('hidden');
+  document.getElementById('suwak-range').value = 0;
+  // przywróć widoczność ramy
+  const frame = document.querySelector('.med-frame');
+  if(frame) frame.style.opacity = '';
+  const circle = document.querySelector('.med-circle');
+  if(circle){ circle.style.opacity = ''; circle.style.boxShadow = ''; }
+  setTimeout(()=>{
+    if(mapa) mapa.invalidateSize({ animate:false });
+  }, 100);
 }
+
+/* oblicz clip-path: okrąg wyśrodkowany na medalionie */
+function ustawClip(procent){
+  const med = document.querySelector('.medallion');
+  const rect = med.getBoundingClientRect();
+  const cx = rect.left + rect.width / 2;
+  const cy = rect.top + rect.height / 2;
+  const rMin = rect.width / 2;
+  const rMax = Math.hypot(window.innerWidth, window.innerHeight);
+  const r = rMin + (rMax - rMin) * (procent / 100);
+  document.getElementById('map-layer').style.clipPath =
+    `circle(${r}px at ${cx}px ${cy}px)`;
+}
+
+/* suwak */
+function suwakZmiana(val){
+  if(!_homeMapActive) return;
+  const v = parseFloat(val);
+  ustawClip(v);
+  // rama dekoracyjna blaknie gdy mapa wychodzi poza kółko
+  const frame = document.querySelector('.med-frame');
+  const circle = document.querySelector('.med-circle');
+  if(v > 10){
+    const fade = Math.max(0, 1 - (v - 10) / 35);
+    if(frame) frame.style.opacity = fade * 0.55;
+    if(circle){
+      circle.style.opacity = fade;
+      circle.style.boxShadow = fade < 0.1 ? 'none' : '';
+    }
+  } else {
+    if(frame) frame.style.opacity = '';
+    if(circle){ circle.style.opacity = ''; circle.style.boxShadow = ''; }
+  }
+  document.getElementById('suwak-etykieta').classList.toggle('hidden', v > 5);
+}
+
+/* aktualizuj clip po resize okna */
+window.addEventListener('resize', ()=>{
+  if(_homeMapActive){
+    const v = parseFloat(document.getElementById('suwak-range').value);
+    ustawClip(v);
+  }
+});
 
 /* ============ START ============ */
 async function startApp(){
