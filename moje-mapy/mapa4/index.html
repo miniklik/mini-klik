@@ -96,53 +96,6 @@
   #leaflet-map{width:100%;height:100%;background:var(--ink-deep)}
   .leaflet-control-container{display:none}
 
-  /* pełnoekranowa warstwa mapy — aktywna tylko na ekranie głównym */
-  #map-layer{
-    position:fixed;inset:0;z-index:0;display:none;
-    transition:clip-path .08s ease-out;
-  }
-  #map-layer #leaflet-map{width:100%;height:100%}
-  /* gdy mapa jest w warstwie pełnoekranowej, UI musi być na wierzchu */
-  body.home-map .topbar{position:relative;z-index:20}
-  body.home-map .stage{position:relative;z-index:15}
-  body.home-map .content{position:relative;z-index:15}
-  /* medalion w trybie pełnoekranowym: przezroczysty środek, mapa prześwituje z warstwy pod spodem */
-  body.home-map .med-circle{background:transparent}
-
-  /* ===================== SUWAK ROZMIARU MAPY ===================== */
-  .suwak-dock{
-    position:relative;z-index:20;
-    max-width:400px;margin:0 auto;padding:4px 28px 0;
-  }
-  .suwak-dock.hidden{display:none}
-  .suwak-mapy{display:flex;align-items:center;gap:14px;justify-content:center}
-  .suwak-mapy .suwak-iko{font-size:16px;opacity:.5;flex-shrink:0;line-height:1;color:var(--gold-soft)}
-  .suwak-mapy .suwak-iko.duzy{font-size:22px}
-  .suwak-mapy input[type=range]{
-    flex:1;-webkit-appearance:none;appearance:none;
-    height:4px;background:rgba(201,162,39,.3);border-radius:2px;outline:none;cursor:pointer;
-  }
-  .suwak-mapy input[type=range]::-webkit-slider-thumb{
-    -webkit-appearance:none;appearance:none;width:22px;height:22px;border-radius:50%;
-    background:var(--gold);border:3px solid var(--lead);
-    box-shadow:0 0 0 4px rgba(201,162,39,.25);cursor:grab;transition:box-shadow .2s var(--ease);
-  }
-  .suwak-mapy input[type=range]::-webkit-slider-thumb:hover{box-shadow:0 0 0 7px rgba(201,162,39,.3)}
-  .suwak-mapy input[type=range]::-moz-range-thumb{
-    width:22px;height:22px;border-radius:50%;border:3px solid var(--lead);
-    background:var(--gold);box-shadow:0 0 0 4px rgba(201,162,39,.25);cursor:grab;
-  }
-  .suwak-mapy input[type=range]::-moz-range-track{
-    height:4px;background:rgba(201,162,39,.3);border-radius:2px;border:none;
-  }
-  .suwak-etykieta{
-    text-align:center;margin-top:4px;
-    font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.06em;
-    color:var(--parchment-dim);opacity:.45;text-transform:uppercase;
-    transition:opacity .3s var(--ease);
-  }
-  .suwak-etykieta.hidden{opacity:0}
-
   /* warstwa zdjęcia nad mapą (tylko w trybie detail) */
   .med-photo{
     position:absolute;inset:0;border-radius:50%;overflow:hidden;z-index:500;
@@ -301,6 +254,49 @@
     color:var(--parchment-dim);opacity:.35;
     font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:.03em;
     white-space:nowrap;
+  }
+
+  /* ===================== TRYB PEŁNOEKRANOWEJ MAPY ===================== */
+  body.mapa-full .medallion{
+    position:fixed!important;inset:0!important;
+    width:100%!important;height:100%!important;
+    border-radius:0!important;z-index:1!important;
+    margin:0!important;
+    animation:mapExpand .6s cubic-bezier(.4,0,.2,1) forwards;
+  }
+  body.mapa-full .med-circle{
+    border-radius:0!important;border:none!important;
+    box-shadow:none!important;
+  }
+  body.mapa-full .med-frame,
+  body.mapa-full .luk-spacer,
+  body.mapa-full .luk-ulubione,
+  body.mapa-full .luk-foto,
+  body.mapa-full .attrib-kolo{
+    opacity:0!important;pointer-events:none!important;
+    transition:opacity .3s ease!important;
+  }
+  body.mapa-full .topbar{position:fixed;top:0;left:0;right:0;z-index:100;
+    background:linear-gradient(180deg,rgba(15,15,24,.85) 0%,transparent 100%);
+    padding-bottom:28px;
+  }
+  body.mapa-full .stage-context{display:none!important}
+  body.mapa-full #btn-fullmap{
+    opacity:1!important;background:var(--gold)!important;color:var(--lead)!important;
+    border-color:var(--gold)!important;
+  }
+  /* animacja otwarcia: koło → pełny ekran */
+  @keyframes mapExpand{
+    from{clip-path:circle(35% at 50% 45%)}
+    to{clip-path:circle(150% at 50% 50%)}
+  }
+  /* animacja zamknięcia */
+  body.mapa-closing .medallion{
+    animation:mapCollapse .5s cubic-bezier(.4,0,.2,1) forwards!important;
+  }
+  @keyframes mapCollapse{
+    from{clip-path:circle(150% at 50% 50%)}
+    to{clip-path:circle(35% at 50% 45%)}
   }
 
   @media(max-width:720px){
@@ -700,9 +696,6 @@
 </head>
 <body>
 
-<!-- ====== WARSTWA PEŁNOEKRANOWEJ MAPY (pod całym UI) ====== -->
-<div id="map-layer"></div>
-
 <!-- ====== INTRO ====== -->
 <div id="intro" onclick="zamknijIntro()">
   <div class="intro-inner">
@@ -725,7 +718,10 @@
     <button id="btn-back" class="btn-back" onclick="goBack()" aria-label="wstecz">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M15.5 4.5 L7 12 L15.5 19.5"/></svg>
     </button>
-    <button id="btn-cala-mapa" onclick="goHome()">cała mapa</button>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:4px">
+      <button id="btn-cala-mapa" onclick="goHome()">cała mapa</button>
+      <button id="btn-fullmap" onclick="toggleFullMap()" title="Pełny ekran mapy" style="background:none;border:1px solid rgba(243,234,214,.2);color:var(--parchment);padding:2px 10px;border-radius:4px;font-size:12px;cursor:pointer;opacity:.5;line-height:1">⛶</button>
+    </div>
   </div>
 </div>
 
@@ -759,26 +755,15 @@
   </div>
   <div class="stage-context">
     <div class="eyebrow" id="ctx-eyebrow"></div>
-    <h2 id="ctx-title">Miejsca, z których wyrosły wiersze</h2>
+    <h2 id="ctx-title"></h2>
     <div class="sub" id="ctx-sub"></div>
-    <p class="lede" id="ctx-lede">Kliknij złoty punkt na mapie, aby wejść do miejscowości i poznać jej poetów.</p>
+    <p class="lede" id="ctx-lede"></p>
     <div class="map-hint" id="ctx-hint"></div>
     <div class="tryby-sluchania hidden" id="tryby-sluchania">
       <button class="tryb-btn" id="tryb-kolejno" onclick="toggleCzytanieKolejne()">🎧 czytaj kolejno</button>
       <button class="tryb-btn" id="tryb-wygaszacz" onclick="toggleWygaszaczRecznie()">🌙 wygaszacz</button>
     </div>
   </div>
-</div>
-
-<!-- suwak powiększania mapy (tylko ekran główny) -->
-<div class="suwak-dock hidden" id="suwak-dock">
-  <div class="suwak-mapy">
-    <span class="suwak-iko">🔍</span>
-    <input type="range" id="suwak-range" min="0" max="100" value="0"
-           oninput="suwakZmiana(this.value)">
-    <span class="suwak-iko duzy">🔍</span>
-  </div>
-  <div class="suwak-etykieta" id="suwak-etykieta">powiększ mapę</div>
 </div>
 
 <div class="spacer-info hidden" id="spacer-info"></div>
@@ -1310,6 +1295,7 @@ function strefa(panel){
   return null;   // 'home', 'ulubione' itp. — bez grupowania
 }
 function przejdz(nowyStan){
+  wylaczFullMap();
   const obecnaStrefa = strefa(stan.panel);
   const docelowaStrefa = strefa(nowyStan.panel);
   if(obecnaStrefa !== null && obecnaStrefa === docelowaStrefa){
@@ -1340,8 +1326,6 @@ function goHome(){
 let poprzedniPanel = null;
 
 function render(){
-  // opuszczamy ekran główny — wróć mapę do medalionu
-  if(stan.panel !== 'home' && _homeMapActive) wylaczHomeMap();
   // wychodząc z wiersza gdziekolwiek indziej — ucisz dźwięk
   if(poprzedniPanel === 'poem' && stan.panel !== 'poem') zatrzymajDzwiek();
   // jeśli grał pokaz całego tomiku, a opuszczamy widok autora — zatrzymaj go
@@ -1358,11 +1342,9 @@ function render(){
     ukryjWiersze();
     ustawTrybKola('home', { lat:51.20, lng:23.215, zoom:12 });   // DUŻE koło + płynny odlot
     ustawKontekst({
-      title:'Miejsca, z których wyrosły wiersze',
-      lede:'Kliknij złoty punkt na mapie, aby wejść do miejscowości i poznać jej poetów.'
+      title:'',
+      lede:''
     });
-    // pełnoekranowa mapa z clip-path — włącz po animacji wejścia
-    setTimeout(wlaczHomeMap, 700);
   }
   if(stan.panel === 'village'){
     const m = dane.miejscowosci.find(x=>x.slug===stan.slug);
@@ -1658,7 +1640,7 @@ function wlaczSpacer(){
   }
   if(!navigator.geolocation){ toast('Twoje urządzenie nie udostępnia lokalizacji.'); return; }
   trybSpaceru = true;
-  if(_homeMapActive) wylaczHomeMap();
+  wylaczFullMap();
   document.body.classList.add('spacer');
   const luk = document.getElementById('luk-spacer');
   luk.classList.add('on');
@@ -2929,93 +2911,39 @@ function resetTabs(panelId){
   panel.querySelectorAll('.tab-panel').forEach((p,i)=>p.classList.toggle('active', i===0));
 }
 
-/* ============ PEŁNOEKRANOWA MAPA (clip-path) — tylko ekran główny ============ */
-let _homeMapActive = false;
+/* ============ TRYB PEŁNOEKRANOWEJ MAPY ============ */
+let _fullMap = false;
+let _fullMapAnimating = false;
 
-/* przenieś mapę do pełnoekranowej warstwy, ustaw clip-path na kółko medalionu */
-function wlaczHomeMap(){
-  if(_homeMapActive) return;
-  _homeMapActive = true;
-  const mapEl = document.getElementById('leaflet-map');
-  const layer = document.getElementById('map-layer');
-  layer.appendChild(mapEl);
-  layer.style.display = 'block';
-  document.body.classList.add('home-map');
-  document.getElementById('suwak-dock').classList.remove('hidden');
-  document.getElementById('suwak-range').value = 0;
-  document.getElementById('suwak-etykieta').classList.remove('hidden');
-  // ustaw clip po chwili — poczekaj aż medalion się wyrenderuje
-  requestAnimationFrame(()=> requestAnimationFrame(()=>{
-    ustawClip(0);
-    if(mapa) mapa.invalidateSize({ animate:false });
-  }));
-}
+function toggleFullMap(){
+  if(_fullMapAnimating) return;
+  if(stan.panel !== 'home'){ goHome(); return; }
 
-/* przenieś mapę z powrotem do medalionu, wyłącz clip-path */
-function wylaczHomeMap(){
-  if(!_homeMapActive) return;
-  _homeMapActive = false;
-  const mapEl = document.getElementById('leaflet-map');
-  const medCircle = document.querySelector('.med-circle');
-  medCircle.appendChild(mapEl);
-  const layer = document.getElementById('map-layer');
-  layer.style.display = 'none';
-  layer.style.clipPath = '';
-  document.body.classList.remove('home-map');
-  document.getElementById('suwak-dock').classList.add('hidden');
-  document.getElementById('suwak-range').value = 0;
-  // przywróć widoczność ramy
-  const frame = document.querySelector('.med-frame');
-  if(frame) frame.style.opacity = '';
-  const circle = document.querySelector('.med-circle');
-  if(circle){ circle.style.opacity = ''; circle.style.boxShadow = ''; }
-  setTimeout(()=>{
-    if(mapa) mapa.invalidateSize({ animate:false });
-  }, 100);
-}
-
-/* oblicz clip-path: okrąg wyśrodkowany na medalionie */
-function ustawClip(procent){
-  const med = document.querySelector('.medallion');
-  const rect = med.getBoundingClientRect();
-  const cx = rect.left + rect.width / 2;
-  const cy = rect.top + rect.height / 2;
-  const rMin = rect.width / 2;
-  const rMax = Math.hypot(window.innerWidth, window.innerHeight);
-  const r = rMin + (rMax - rMin) * (procent / 100);
-  document.getElementById('map-layer').style.clipPath =
-    `circle(${r}px at ${cx}px ${cy}px)`;
-}
-
-/* suwak */
-function suwakZmiana(val){
-  if(!_homeMapActive) return;
-  const v = parseFloat(val);
-  ustawClip(v);
-  // rama dekoracyjna blaknie gdy mapa wychodzi poza kółko
-  const frame = document.querySelector('.med-frame');
-  const circle = document.querySelector('.med-circle');
-  if(v > 10){
-    const fade = Math.max(0, 1 - (v - 10) / 35);
-    if(frame) frame.style.opacity = fade * 0.55;
-    if(circle){
-      circle.style.opacity = fade;
-      circle.style.boxShadow = fade < 0.1 ? 'none' : '';
-    }
+  if(!_fullMap){
+    // OTWIERANIE
+    _fullMap = true;
+    document.body.classList.add('mapa-full');
+    setTimeout(()=>{ if(mapa) mapa.invalidateSize({ animate:false }); }, 50);
   } else {
-    if(frame) frame.style.opacity = '';
-    if(circle){ circle.style.opacity = ''; circle.style.boxShadow = ''; }
+    // ZAMYKANIE z animacją
+    _fullMapAnimating = true;
+    document.body.classList.add('mapa-closing');
+    setTimeout(()=>{
+      document.body.classList.remove('mapa-full','mapa-closing');
+      _fullMap = false;
+      _fullMapAnimating = false;
+      setTimeout(()=>{ if(mapa) mapa.invalidateSize({ animate:false }); }, 50);
+    }, 500);
   }
-  document.getElementById('suwak-etykieta').classList.toggle('hidden', v > 5);
 }
 
-/* aktualizuj clip po resize okna */
-window.addEventListener('resize', ()=>{
-  if(_homeMapActive){
-    const v = parseFloat(document.getElementById('suwak-range').value);
-    ustawClip(v);
-  }
-});
+function wylaczFullMap(){
+  if(!_fullMap) return;
+  document.body.classList.remove('mapa-full','mapa-closing');
+  _fullMap = false;
+  _fullMapAnimating = false;
+  setTimeout(()=>{ if(mapa) mapa.invalidateSize({ animate:false }); }, 50);
+}
 
 /* ============ START ============ */
 async function startApp(){
