@@ -8,6 +8,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Literata:ital,wght@0,400;0,500;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <style>
@@ -50,7 +51,6 @@
   }
   .brand{display:flex;flex-direction:column;gap:2px}
   .brand .display{font-size:22px;color:var(--parchment)}
-  .brand .display a:hover{color:var(--gold-soft)!important}
   .brand .meta{color:var(--gold-soft)}
   .crumbs{display:flex;align-items:center;gap:8px}
   #btn-cala-mapa{position:relative}
@@ -173,9 +173,10 @@
     border:5px solid var(--gold);
     box-shadow:0 0 0 1px var(--lead), 0 18px 50px -10px rgba(0,0,0,.6), inset 0 0 40px rgba(0,0,0,.5);
     background:linear-gradient(150deg,var(--sapphire),var(--emerald));
-    display:none;
+    display:block;opacity:0;pointer-events:none;
+    transition:opacity .8s ease;
   }
-  .med-photo.show{display:block;animation:fadeIn .3s ease}
+  .med-photo.show{opacity:1;pointer-events:auto;cursor:pointer}
   .med-photo .ph-fallback{
     position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
     color:var(--parchment);font-family:'JetBrains Mono',monospace;font-size:11px;
@@ -326,6 +327,247 @@
     font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:.03em;
     white-space:nowrap;
   }
+
+  /* ===================== HAMBURGER MENU (tylko desktop) ===================== */
+  .hamburger-btn{display:none}
+  @media(min-width:721px){
+    .hamburger-btn{
+      display:flex;align-items:center;justify-content:center;
+      width:42px;height:42px;padding:0;margin-right:12px;flex-shrink:0;
+      background:none;border:1px solid rgba(243,234,214,.25);border-radius:var(--r-sm);
+      color:var(--parchment);cursor:pointer;
+      transition:border-color .25s var(--ease),background .25s var(--ease);
+    }
+    .hamburger-btn:hover{border-color:var(--gold-soft);background:rgba(201,162,39,.1)}
+    .hamburger-btn svg{width:20px;height:20px}
+  }
+  /* overlay */
+  .hm-overlay{
+    position:fixed;inset:0;z-index:9000;
+    background:rgba(0,0,0,.5);backdrop-filter:blur(3px);
+    opacity:0;pointer-events:none;
+    transition:opacity .3s var(--ease);
+  }
+  .hm-overlay.open{opacity:1;pointer-events:auto}
+  /* panel menu — oryginalny styl */
+  .hm-panel{
+    position:fixed;top:0;left:0;bottom:0;z-index:9001;
+    width:min(360px,85vw);
+    background:linear-gradient(180deg,#1b2340 0%,#12172c 100%);
+    border-right:2px solid rgba(201,162,39,.3);
+    box-shadow:4px 0 30px rgba(0,0,0,.5);
+    transform:translateX(-100%);
+    transition:transform .35s var(--ease);
+    display:flex;flex-direction:column;
+    overflow-y:auto;
+  }
+  .hm-overlay.open .hm-panel{transform:translateX(0)}
+  .hm-header{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:22px 24px 16px;border-bottom:1px solid rgba(201,162,39,.2);
+  }
+  .hm-header .hm-title{
+    font-family:'Fraunces',serif;font-size:18px;color:var(--parchment);
+  }
+  .hm-close{
+    width:36px;height:36px;display:flex;align-items:center;justify-content:center;
+    background:none;border:1px solid rgba(243,234,214,.2);border-radius:var(--r-sm);
+    color:var(--parchment);cursor:pointer;font-size:18px;
+    transition:border-color .2s,background .2s;
+  }
+  .hm-close:hover{border-color:var(--gold-soft);background:rgba(201,162,39,.1)}
+  .hm-nav{list-style:none;margin:0;padding:12px 0;flex:1}
+  .hm-nav li{margin:0;position:relative}
+  .hm-nav a, .hm-nav button{
+    display:flex;align-items:center;gap:14px;width:100%;
+    padding:14px 24px;text-align:left;
+    background:none;border:none;color:var(--parchment);
+    font-family:'Literata',serif;font-size:15px;
+    cursor:pointer;text-decoration:none;
+    transition:background .2s var(--ease),color .2s var(--ease);
+  }
+  .hm-nav a:hover, .hm-nav button:hover{
+    background:rgba(201,162,39,.08);color:var(--gold-soft);
+  }
+  .hm-nav .hm-iko{font-size:20px;width:28px;text-align:center;flex-shrink:0}
+  .hm-nav .hm-sep{
+    height:1px;margin:8px 24px;
+    background:linear-gradient(90deg,transparent,rgba(201,162,39,.25),transparent);
+  }
+  /* strzałka aktywnego punktu */
+  .hm-nav li.active::after{
+    content:'';position:absolute;right:-1px;top:50%;transform:translateY(-50%);
+    width:0;height:0;
+    border-top:8px solid transparent;border-bottom:8px solid transparent;
+    border-right:8px solid #161c36;
+    filter:drop-shadow(-2px 0 3px rgba(201,162,39,.4));
+  }
+  .hm-nav li.active a, .hm-nav li.active button{
+    color:var(--gold-soft);
+    background:rgba(201,162,39,.1);
+  }
+  .hm-footer{
+    padding:16px 24px;border-top:1px solid rgba(201,162,39,.15);
+    font-family:'JetBrains Mono',monospace;font-size:10px;
+    color:var(--parchment-dim);opacity:.4;letter-spacing:.04em;
+  }
+  /* licznik wejść w hamburgerze */
+  .hm-licznik{
+    margin:8px auto 14px;width:fit-content;
+    background:linear-gradient(180deg,rgba(40,40,55,0.5) 0%,rgba(20,20,30,0.6) 100%);
+    border:1px solid rgba(201,162,39,0.3);
+    border-radius:10px;padding:8px 14px;
+    font-family:'JetBrains Mono',monospace;
+    transition:border-color .3s var(--ease);
+  }
+  .hm-licznik:hover{border-color:rgba(201,162,39,0.55)}
+  .hm-licznik-row{
+    display:flex;align-items:center;justify-content:space-between;
+    gap:12px;line-height:1.2;
+  }
+  .hm-licznik-label{
+    font-size:9px;color:#888;letter-spacing:1px;
+    font-weight:700;text-transform:uppercase;
+  }
+  .hm-licznik-value{
+    font-size:12px;color:var(--gold-soft);font-weight:700;
+    min-width:24px;text-align:right;
+  }
+  .hm-licznik-divider{
+    height:1px;margin:4px 0;
+    background:linear-gradient(90deg,transparent,rgba(201,162,39,0.25),transparent);
+  }
+
+  /* panel treści — wysuwa się obok menu */
+  .hm-content{
+    position:fixed;top:0;bottom:0;z-index:9000;
+    left:min(360px,85vw);
+    width:calc(100vw - 2 * min(360px,85vw) - 30px);
+    background:linear-gradient(180deg,#161c36 0%,#10152a 100%);
+    box-shadow:none;
+    transform:translateX(-200%);
+    transition:transform .35s var(--ease);
+    display:flex;flex-direction:column;
+    overflow-y:auto;
+  }
+  .hm-content.open{transform:translateX(0)}
+  .hm-content-header{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:22px 24px 16px;border-bottom:1px solid rgba(201,162,39,.15);
+  }
+  .hm-content-title{
+    font-family:'Fraunces',serif;font-size:20px;color:var(--parchment);
+  }
+  .hm-content-body{
+    padding:24px;flex:1;
+    font-family:'Literata',serif;font-size:15px;line-height:1.7;
+    color:var(--parchment-dim);
+  }
+  .hm-content-body h3{
+    font-family:'Fraunces',serif;font-size:17px;color:var(--parchment);
+    margin:0 0 10px;
+  }
+  .hm-content-body h4{
+    font-family:'Fraunces',serif;font-size:15px;color:var(--gold-soft);
+    margin:20px 0 8px;font-style:italic;font-weight:500;
+    display:flex;align-items:center;gap:8px;
+  }
+  .hm-content-body h4::before{
+    content:'→';color:var(--gold);font-style:normal;
+  }
+  .hm-content-body p{margin:0 0 14px}
+  /* scena 3D w O projekcie */
+  #siec3d-wrap{
+    position:relative;width:100%;height:320px;margin:20px 0;
+    border:1px solid rgba(201,162,39,.2);border-radius:12px;
+    background:radial-gradient(ellipse at 50% 40%,#232c52 0%,#12172c 80%);
+    overflow:hidden;
+  }
+  #siec3d-canvas{width:100%;height:100%;display:block;cursor:grab}
+  #siec3d-canvas:active{cursor:grabbing}
+  .siec3d-podpis{
+    position:absolute;bottom:14px;left:0;right:0;text-align:center;
+    font-family:'Fraunces',serif;font-style:italic;font-size:14px;
+    color:var(--gold-soft);text-shadow:0 0 12px rgba(201,162,39,.3);
+    pointer-events:none;
+  }
+  .siec3d-hint{
+    position:absolute;top:12px;left:0;right:0;text-align:center;
+    font-family:'JetBrains Mono',monospace;font-size:10px;
+    color:var(--parchment-dim);opacity:.4;letter-spacing:.05em;
+    pointer-events:none;
+  }
+
+  /* panel prawy — karty zespołu */
+  .hm-right{
+    position:fixed;top:0;bottom:0;right:0;z-index:9000;
+    width:min(360px,85vw);
+    background:linear-gradient(180deg,#161c36 0%,#10152a 100%);
+    border-left:2px solid rgba(201,162,39,.3);
+    transform:translateX(100%);
+    transition:transform 2s var(--ease);
+    overflow-y:hidden;
+    padding:24px 20px;
+    display:flex;flex-direction:column;gap:20px;
+  }
+  .hm-right.open{transform:translateX(0)}
+
+  .hm-karta{
+    border:1px solid rgba(201,162,39,.25);
+    border-radius:var(--r-md);
+    overflow:hidden;
+    background:rgba(15,15,24,.5);
+    opacity:0;transform:translateY(20px);
+    transition:opacity .8s var(--ease),transform .8s var(--ease);
+  }
+  .hm-right.open .hm-karta{opacity:1;transform:translateY(0)}
+  .hm-right.open .hm-karta[data-karta="1"]{transition-delay:0s}
+  .hm-right.open .hm-karta[data-karta="2"]{transition-delay:1s}
+  /* naprzemienne: 1 prawo — 2 lewo */
+  .hm-karta[data-karta="1"] .hm-karta-foto{margin-left:auto;margin-right:0}
+  .hm-karta[data-karta="2"] .hm-karta-foto{margin-right:auto;margin-left:0}
+  .hm-karta-foto{
+    width:66%;height:180px;
+    background:rgba(15,15,24,.8);
+    border-bottom:2px solid rgba(201,162,39,.3);
+    display:flex;align-items:center;justify-content:center;
+    position:relative;
+    overflow:hidden;
+  }
+  .hm-karta-foto img{
+    width:100%;height:100%;object-fit:cover;
+  }
+  .hm-karta-foto .placeholder{
+    font-size:48px;opacity:.3;
+  }
+  /* neonowa ramka na zdjęciu */
+  .hm-karta-foto::after{
+    content:'';position:absolute;inset:8px;
+    border:2px solid rgba(201,162,39,.4);border-radius:var(--r-sm);
+    box-shadow:0 0 12px rgba(201,162,39,.2), inset 0 0 12px rgba(201,162,39,.1);
+    pointer-events:none;
+  }
+  .hm-karta-info{
+    padding:16px;
+    display:flex;flex-direction:column;gap:8px;
+    border-top:1px solid rgba(201,162,39,.15);
+  }
+  .hm-karta-info .hm-ki-name{
+    font-family:'Literata',serif;font-size:16px;font-style:italic;color:var(--parchment);
+  }
+  .hm-karta-info .hm-ki-role{
+    font-family:'Literata',serif;font-size:14px;font-style:italic;
+    color:var(--gold-soft);opacity:.8;
+  }
+  .hm-karta-info .hm-ki-contact{
+    font-family:'Literata',serif;font-size:14px;font-style:italic;
+    color:var(--parchment-dim);
+  }
+  .hm-karta-info .hm-ki-link a{
+    font-family:'Literata',serif;font-size:14px;font-style:italic;
+    color:var(--gold);text-decoration:none;
+  }
+  .hm-karta-info .hm-ki-link a:hover{text-decoration:underline}
 
   @media(max-width:720px){
     .stage.mode-detail{flex-direction:column;align-items:center;gap:16px}
@@ -720,6 +962,18 @@
   .okno .okno-hint{color:var(--gold-soft);font-size:13.5px;margin-bottom:22px}
   .okno .btn{width:100%}
 
+
+  /* plansza Cloudflare */
+  .cf-overlay{position:fixed;inset:0;z-index:9600;background:rgba(20,22,28,.78);backdrop-filter:blur(4px);opacity:0;pointer-events:none;transition:opacity .3s ease;display:flex;align-items:center;justify-content:center;padding:20px}
+  .cf-overlay.on{opacity:1;pointer-events:auto}
+  .cf-plansza{position:relative;width:min(760px,94vw);max-height:86vh;overflow-y:auto;background:linear-gradient(180deg,#1b2340 0%,#12172c 100%);border:1px solid rgba(201,162,39,.4);border-radius:18px;box-shadow:0 20px 60px rgba(0,0,0,.6);transform:translateY(30px) scale(.98);transition:transform .35s cubic-bezier(.2,.9,.3,1);padding:30px 32px 34px}
+  .cf-overlay.on .cf-plansza{transform:translateY(0) scale(1)}
+  .cf-x{position:absolute;top:16px;right:16px;width:36px;height:36px;display:flex;align-items:center;justify-content:center;background:none;border:1px solid rgba(243,234,214,.2);border-radius:8px;color:var(--parchment);cursor:pointer;font-size:16px;transition:all .2s ease;z-index:2}
+  .cf-x:hover{border-color:var(--gold);background:rgba(201,162,39,.1)}
+  .cf-plansza h3{font-family:'Fraunces',serif}
+  .cf-plansza p{font-family:'Literata',serif;font-size:15px;line-height:1.7;color:var(--parchment-dim);margin:0 0 12px}
+  .cf-plansza b{color:var(--parchment)}
+  .cf-plansza code{font-family:'JetBrains Mono',monospace;font-size:13px;background:rgba(0,0,0,.3);padding:2px 6px;border-radius:4px;color:var(--gold-soft)}
 </style>
 </head>
 <body>
@@ -737,10 +991,91 @@
   </div>
 </div>
 
+<!-- ====== PANEL BOCZNY (hamburger, tylko desktop) ====== -->
+<div class="hm-overlay" id="hm-overlay" onclick="zamknijMenu()">
+  <nav class="hm-panel" onclick="event.stopPropagation()">
+    <div class="hm-header">
+      <span class="hm-title">Wierszarium</span>
+      <button class="hm-close" onclick="zamknijMenu()" aria-label="zamknij">✕</button>
+    </div>
+    <ul class="hm-nav" id="hm-nav">
+      <li data-sekcja="o-projekcie"><a href="#" onclick="event.preventDefault();otworzSekcje('o-projekcie')"><span class="hm-iko">📖</span> O projekcie</a></li>
+      <li data-sekcja="pobierz"><a href="#" onclick="event.preventDefault();otworzSekcje('pobierz')"><span class="hm-iko">⬇️</span> Pobierz program</a></li>
+      <li data-sekcja="formularz"><a href="https://wierszarium.github.io/formularz/" target="_blank"><span class="hm-iko">📝</span> Formularz zgłoszeniowy</a></li>
+      <li data-sekcja="edytor-zdjec"><a href="https://wierszarium.github.io/edytor/" target="_blank"><span class="hm-iko">🖼️</span> Edytor zdjęć</a></li>
+      <li><div class="hm-sep"></div></li>
+      <li data-sekcja="jak-to-dziala"><a href="#" onclick="event.preventDefault();otworzSekcje('jak-to-dziala')"><span class="hm-iko">❓</span> Jak to działa</a></li>
+      <li data-sekcja="kontakt"><a href="#" onclick="event.preventDefault();otworzSekcje('kontakt')"><span class="hm-iko">✉️</span> Kontakt</a></li>
+      <li data-sekcja="wierszownik"><a href="https://wierszarium.github.io/wierszownik/" target="_blank"><span class="hm-iko">✍️</span> Wierszownik</a></li>
+      <li><div class="hm-sep"></div></li>
+      <li data-sekcja="kawa"><a href="#" onclick="event.preventDefault();otworzSekcje('kawa')"><span class="hm-iko">☕</span> Postaw kawę</a></li>
+      <li><button onclick="udostepnij()"><span class="hm-iko">🔗</span> <span class="hm-share-text">Udostępnij / zaproś znajomych</span></button></li>
+    </ul>
+    <div class="hm-licznik" id="hm-licznik" title="Statystyki odwiedzin">
+      <div class="hm-licznik-row">
+        <span class="hm-licznik-label">Dziś</span>
+        <span class="hm-licznik-value" id="stats-today">—</span>
+      </div>
+      <div class="hm-licznik-divider"></div>
+      <div class="hm-licznik-row">
+        <span class="hm-licznik-label">Łącznie</span>
+        <span class="hm-licznik-value" id="stats-total">—</span>
+      </div>
+    </div>
+    <div class="hm-footer">Pod Wielkim Dachem Nieba · wierszarium.pl</div>
+  </nav>
+
+  <!-- panel treści — wysuwa się obok menu -->
+  <div class="hm-content" id="hm-content" onclick="event.stopPropagation()">
+    <div class="hm-content-header">
+      <span class="hm-content-title" id="hm-content-title"></span>
+    </div>
+    <div class="hm-content-body" id="hm-content-body"></div>
+  </div>
+
+  <!-- panel prawy — karty zespołu -->
+  <div class="hm-right" id="hm-right" onclick="event.stopPropagation()">
+    <!-- treść: karty zespołu -->
+    <div id="hm-right-karty">
+      <div style="text-align:center;padding-bottom:8px">
+        <span style="font-family:'Fraunces',serif;font-size:22px;color:var(--gold-soft);text-shadow:0 0 10px rgba(201,162,39,.4),0 0 25px rgba(201,162,39,.15);letter-spacing:.03em;font-style:italic">Poznajmy się !!!</span>
+      </div>
+      <div class="hm-karta" data-karta="1">
+        <div class="hm-karta-foto"><span class="placeholder">👤</span></div>
+        <div class="hm-karta-info">
+          <div class="hm-ki-name">Imię i nazwisko (pseudo)</div>
+          <div class="hm-ki-role">Stanowisko w projekcie</div>
+          <div class="hm-ki-contact">kontakt@email.pl</div>
+          <div class="hm-ki-link"><a href="#">🔗 Link do poezji</a></div>
+        </div>
+      </div>
+      <div class="hm-karta" data-karta="2">
+        <div class="hm-karta-foto"><span class="placeholder">👤</span></div>
+        <div class="hm-karta-info">
+          <div class="hm-ki-name">Imię i nazwisko (pseudo)</div>
+          <div class="hm-ki-role">Stanowisko w projekcie</div>
+          <div class="hm-ki-contact">kontakt@email.pl</div>
+          <div class="hm-ki-link"><a href="#">🔗 Link do poezji</a></div>
+        </div>
+      </div>
+    </div>
+    <!-- treść: podpowiedzi -->
+    <div id="hm-right-hint" style="display:none;min-height:100%;flex-direction:column;align-items:center;justify-content:center;padding:30px;text-align:center">
+      <div id="hm-right-hint-text" style="font-family:'Fraunces',serif;font-size:20px;color:var(--gold-soft);text-shadow:0 0 10px rgba(201,162,39,.3);line-height:1.5;font-style:italic"></div>
+    </div>
+  </div>
+
+</div>
+
 <div class="topbar">
-  <div class="brand">
-    <div class="display"><a href="https://www.wierszarium.pl" target="_blank" style="color:inherit;text-decoration:none">www.wierszarium.pl</a></div>
-    <div class="meta">mapa poezji regionalnej</div>
+  <div style="display:flex;align-items:center">
+    <button class="hamburger-btn" onclick="otworzMenu()" aria-label="menu">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg>
+    </button>
+    <div class="brand">
+      <div class="display">Pod Wielkim Dachem Nieba</div>
+      <div class="meta">mapa poezji regionalnej</div>
+    </div>
   </div>
   <div class="crumbs">
     <button id="btn-back" class="btn-back" onclick="goBack()" aria-label="wstecz">
@@ -754,7 +1089,7 @@
 <div class="stage mode-home" id="stage">
   <div class="medallion">
     <div class="med-circle"><div id="leaflet-map"></div></div>
-    <div class="med-photo" id="med-photo">
+    <div class="med-photo" id="med-photo" onclick="if(zdjeciePokazane)toggleFoto()">
       <div class="ph-fallback" id="ph-fallback">tu pojawi się zdjęcie miejscowości</div>
     </div>
     <div class="med-frame"></div>
@@ -984,7 +1319,7 @@
                   nie masz pewności — nic się nie zepsuje.
    ======================================================================== */
 const ADRES_SIECI  = 'https://www.wierszarium.pl/siec.json';
-const ADRES_WLASNY = '';
+const ADRES_WLASNY = 'https://www.wierszarium.pl/';
 
 let dane = { miejscowosci: [], artysci: {}, wiersze: {} };
 
@@ -1262,11 +1597,14 @@ function ustawTrybKola(tryb, przelotDo){
 
 /* ============ PRZEŁĄCZNIK MAPA / ZDJĘCIE ============ */
 let zdjeciePokazane = false;
+let _autoFotoTimer = null;
 
 function ustawZdjecie(obiekt, etykietaFallback){
   const photo = document.getElementById('med-photo');
   const fallback = document.getElementById('ph-fallback');
   const toggle = document.getElementById('luk-foto');
+  // anuluj poprzedni timer auto-pokazania (np. gdy klikasz inną miejscowość)
+  if(_autoFotoTimer){ clearTimeout(_autoFotoTimer); _autoFotoTimer = null; }
   zdjeciePokazane = false;
   photo.classList.remove('show');
   if(obiekt && obiekt.zdjecie){
@@ -1274,6 +1612,11 @@ function ustawZdjecie(obiekt, etykietaFallback){
     photo.style.backgroundSize = 'cover';
     photo.style.backgroundPosition = 'center';
     fallback.style.display = 'none';
+    // AUTO: po 5 s samo płynnie pokaż zdjęcie (raz, tylko jeśli nikt nie kliknął wcześniej)
+    _autoFotoTimer = setTimeout(()=>{
+      if(!zdjeciePokazane){ toggleFoto(); }
+      _autoFotoTimer = null;
+    }, 5000);
   } else {
     photo.style.backgroundImage = '';
     fallback.style.display = 'flex';
@@ -1287,6 +1630,8 @@ function ustawZdjecie(obiekt, etykietaFallback){
 function toggleFoto(){
   const photo = document.getElementById('med-photo');
   const toggle = document.getElementById('luk-foto');
+  // ręczne kliknięcie anuluje oczekujący auto-timer
+  if(_autoFotoTimer){ clearTimeout(_autoFotoTimer); _autoFotoTimer = null; }
   zdjeciePokazane = !zdjeciePokazane;
   photo.classList.toggle('show', zdjeciePokazane);
   toggle.classList.toggle('on', zdjeciePokazane);
@@ -2937,6 +3282,391 @@ function resetTabs(panelId){
   panel.querySelectorAll('.tab-panel').forEach((p,i)=>p.classList.toggle('active', i===0));
 }
 
+/* ============ HAMBURGER MENU — DWUPANELOWY ============ */
+const hmTresci = {
+  'o-projekcie': {
+    title: 'O projekcie',
+    body: '<h3>Pod Wielkim Dachem Nieba</h3>'
+      + '<p>To interaktywna mapa poezji regionalnej. Każda miejscowość ma na mapie swój punkt, a po kliknięciu otwierają się lokalni poeci, ich wiersze, zdjęcia, a nawet nagrania audio.</p>'
+      + '<div id="siec3d-wrap"><canvas id="siec3d-canvas"></canvas><div class="siec3d-podpis">Wszyscy równi — wiersze krążą w obie strony</div><div class="siec3d-hint">przeciągnij myszką, aby obrócić</div></div>'
+      + '<h4>Dla kogo to jest</h4>'
+      + '<p>Stworzone z myślą głównie o regionalnych bibliotekach oraz o osobach, które od lat zajmują się poezją w swojej miejscowości. Ale dołączyć może każdy — i to całkowicie za darmo.</p>'
+      + '<h4>Jak to działa</h4>'
+      + '<p>Każdy trzyma swoje wiersze i zdjęcia u siebie, na własnym hostingu. Nikt nikomu niczego nie przesyła ani nie kopiuje. A mimo to wszystkie mapy widzą się nawzajem — wystarczy jeden kod QR, żeby dostać się do poezji z całej sieci, nie tylko jednego miasta.</p>'
+      + '<h4>Intuicyjny system zgłoszeń</h4>'
+      + '<p>Prosty panel zgłoszeniowy. Administrator miejscowości (np. biblioteka) może sam dopisywać nowych poetów prosto ze zgłoszeń od mieszkańców. Zero grzebania w kodzie — wpisujesz, klikasz, gotowe.</p>'
+      + '<h4>Każdy jest u siebie gospodarzem</h4>'
+      + '<p>Gdy dołączysz, dostajesz własną mapę swojej miejscowości i to Ty nią zarządzasz — sam przyjmujesz zgłoszenia lokalnych poetów. My tylko dodajemy Cię do wspólnej sieci, a dalej żyjesz własnym życiem.</p>'
+      + '<h4>Możesz najpierw przetestować na spokojnie</h4>'
+      + '<p>Pobierasz aplikację, wgrywasz swoich artystów, testujesz prywatnie, rozpowszechniasz swój kod QR. A jeśli zechcesz dołączyć do wspólnoty — wystarczy trzymać się kilku prostych zasad nazewnictwa miejscowości i już jesteś w sieci.</p>'
+  },
+  'pobierz': {
+    title: 'Pobierz program',
+    body: '<p>Pobierz program i postaw własną mapę poezji swojej okolicy. Plik zapisze się jako <b>index.html</b> — to gotowy program, który wgrywasz na własny hosting. Nazwa musi pozostać <b>index.html</b>, inaczej strona się nie otworzy.</p>'
+      + '<p><button onclick="pobierzProgram(this)" style="background:var(--gold);color:var(--lead);border:none;padding:12px 24px;border-radius:8px;font-family:inherit;font-size:15px;cursor:pointer;font-weight:500">⬇️ Pobierz program</button></p>'
+      + '<p style="font-size:13px;opacity:.6">Po pobraniu zajrzyj do „Jak to działa", żeby zobaczyć krok po kroku, co dalej.</p>'
+      + '<div style="margin-top:22px;padding-top:18px;border-top:1px solid rgba(201,162,39,.2)"></div>'
+      + '<p>To testowy, kompletny przykład — tak ma wyglądać cała strona. Pobierz, wrzuć na swój hosting lub Netlify i zobacz jak działa. Zajrzyj do folderów, podmień dane na swoje, wstaw własnych poetów i opublikuj w tej samej formie.</p>'
+      + '<p><a href="https://wierszarium.github.io/program.html/wierszarium-przyklad.zip" style="display:inline-block;background:transparent;color:var(--gold);border:1.5px solid var(--gold);padding:11px 22px;border-radius:8px;font-size:15px;font-weight:500;text-decoration:none">📦 Pobierz przykład (ZIP)</a></p>'
+      + '<div style="margin-top:30px;padding-top:22px;border-top:2px solid rgba(201,162,39,.3)"></div>'
+      + '<p>Potrzebujesz miejsca w internecie na swoją mapę? Pokażemy Ci, jak założyć <b>darmowy hosting na Cloudflare</b> — krok po kroku.</p>'
+      + '<p><button onclick="otworzCloudflare()" style="background:var(--gold);color:var(--lead);border:none;padding:12px 24px;border-radius:8px;font-family:inherit;font-size:15px;cursor:pointer;font-weight:500">☁️ Załóż darmowy hosting na Cloudflare</button></p>'
+  },
+  'edytor-zdjec': {
+    title: 'Edytor zdjęć',
+    body: '<p>Narzędzie do przygotowania zdjęć poetów i okładek tomików w odpowiednim formacie.</p><p style="font-size:13px;opacity:.6">Wkrótce dostępny.</p>'
+  },
+  'jak-to-dziala': {
+    title: 'Jak to działa',
+    body: '<h3>Krok po kroku</h3><p>1. Wypełnij formularz zgłoszeniowy — dodaj miejscowość, poetów i ich wiersze — <span onclick="pokazPodpowiedz(\'Wygenerowany plik musi mieć nazwę dane.json. Zanim wybierzesz nazwę miejscowości, sprawdź w wyszukiwarce na górze, czy nie jest już zajęta przez inną stronę w sieci. Jeśli jest — wybierz inną, np. z dopiskiem regionu. — Obejrzyj filmik\')" style="color:#e04040;cursor:pointer;font-size:20px;font-weight:bold" title="Kliknij po więcej informacji">❓</span></p><p>2. Dopasuj swoje zdjęcia — użyj Edytor zdjęć — <span onclick="pokazPodpowiedz(\'Dopasuj swoje zdjęcia. Uważaj przy zapisie — wpisz tylko dokładną nazwę, a końcówka .jpg doda się automatycznie\')" style="color:#e04040;cursor:pointer;font-size:20px;font-weight:bold" title="Kliknij po więcej informacji">❓</span></p><p style="margin:16px 0;padding:14px 16px;background:rgba(201,162,39,.06);border-left:3px solid rgba(201,162,39,.4);border-radius:0 8px 8px 0;font-size:14px;line-height:1.7">Na tym etapie możesz wysłać formularz zgłoszeniowy oraz zdjęcia lub mp3 do najbliższego administratora w Twojej miejscowości i poprosić o dołączenie swoich wierszy.<br><br>Jeśli sam chcesz zostać administratorem lub po prostu mieć większą kontrolę nad swoimi dziełami — załóż własną darmową stronę i wrzucaj tam swoje wiersze. Przejdź do punktu 3 i kolejnych.</p><p>3. Pobierz program ze strony — <span onclick="pokazPodpowiedz(\'Pamiętaj! Program główny musi mieć zawsze nazwę index.html\')" style="color:#e04040;cursor:pointer;font-size:20px;font-weight:bold" title="Kliknij po więcej informacji">❓</span></p><p>4. Załóż darmowe konto na GitHub — <span onclick="pokazPodpowiedz(\'Ta platforma jest naprawdę dobra — robisz raz swoją stronę, wrzucasz plik dane.json do Twojej miejscowości. Możesz go ciągle edytować, dodawać nowe wiersze, a nawet nowe miejscowości. Otwórz link w nowej karcie i postępuj dalej, jak założyć swoje konto na GitHub. — Obejrzyj filmik\')" style="color:#e04040;cursor:pointer;font-size:20px;font-weight:bold" title="Kliknij po więcej informacji">❓</span></p><p>5. Dodaj foldery i pliki na GitHub</p>' + '<pre style="font-family:JetBrains Mono,monospace;font-size:13px;line-height:1.6;color:var(--parchment);text-align:left;background:rgba(0,0,0,.3);border:1px solid rgba(201,162,39,.25);border-radius:8px;padding:14px 16px;margin:14px 0;white-space:pre;overflow-x:auto">' + '<span style="color:var(--gold-soft)">wierszarium/</span>          <span style="color:#888780">&larr; nazwa twojego repozytorium</span>\n' + '\u251c\u2500\u2500 index.html\n' + '\u251c\u2500\u2500 miejscowosci.json\n' + '\u2514\u2500\u2500 dane/\n' + '    \u2514\u2500\u2500 <span style="color:var(--gold-soft)">twoja-miejscowosc/</span>\n' + '        \u251c\u2500\u2500 dane.json\n' + '        \u251c\u2500\u2500 zdjecia.jpg\n' + '        \u2514\u2500\u2500 audio.mp3</pre>'
+      + '<p>6. Kolizja slug — <span onclick="pokazPodpowiedz(\'Zanim zaczniesz tworzyć swoją miejscowość z wierszami, sprawdź czy taka miejscowość nie jest już dodana do bazy — użyj wyszukiwarki na dole ekranu. Jeśli miejscowość już istnieje, w jej opisie znajdziesz informację, kto jest administratorem strony o tej nazwie. Najprościej będzie wtedy wypełnić formularz zgłoszeniowy ze swoimi wierszami i wysłać go do tego administratora z prośbą o dodanie.\')" style="color:#e04040;cursor:pointer;font-size:20px;font-weight:bold" title="Kliknij po więcej informacji">❓</span></p>'
+  },
+  'kontakt': {
+    title: 'Kontakt',
+    body: '<p>Masz pytania, pomysły, chcesz zgłosić miejscowość albo dołączyć do sieci? Napisz.</p>'
+      + '<p>✉️ <a href="mailto:wierszarium@wp.pl" style="color:var(--gold);font-size:17px;font-weight:500">wierszarium@wp.pl</a></p>'
+      + '<p style="font-size:14px;opacity:.7">Na ten adres możesz też wysłać swój plik dane.json wraz ze zdjęciami i nagraniami, jeśli chcesz dołączyć wiersze do istniejącej miejscowości.</p>'
+  },
+  'kawa': {
+    title: 'Postaw kawę',
+    body: '<p>Wierszarium jest darmowe i otwarte dla wszystkich. Jeśli podoba Ci się projekt i chcesz wesprzeć jego rozwój, możesz postawić mi wirtualną kawę. Każde wsparcie pomaga utrzymać stronę i rozwijać nowe funkcje.</p>'
+      + '<p><a href="https://buycoffee.to/mini-klik" target="_blank" style="display:inline-block;background:var(--gold);color:var(--lead);padding:12px 24px;border-radius:8px;font-size:15px;font-weight:500;text-decoration:none">☕ Postaw kawę</a></p>'
+  }
+};
+
+let _aktywnaSekcja = null;
+let _rightTimeout = null;
+
+function otworzMenu(){
+  document.getElementById('hm-overlay').classList.add('open');
+  licznikWejsc();
+}
+function zamknijMenu(){
+  document.getElementById('hm-overlay').classList.remove('open');
+  zamknijTresc();
+}
+function zamknijTresc(){
+  document.getElementById('hm-content').classList.remove('open');
+  document.getElementById('hm-right').classList.remove('open');
+  document.querySelectorAll('#hm-nav li').forEach(li => li.classList.remove('active'));
+  _aktywnaSekcja = null;
+  if(_rightTimeout){ clearTimeout(_rightTimeout); _rightTimeout = null; }
+  zatrzymajSiec3D();
+}
+
+function otworzSekcje(id){
+  const dane = hmTresci[id];
+  if(!dane) return;
+
+  if(_aktywnaSekcja === id){ zamknijTresc(); return; }
+
+  _aktywnaSekcja = id;
+
+  document.querySelectorAll('#hm-nav li').forEach(li => {
+    li.classList.toggle('active', li.dataset.sekcja === id);
+  });
+
+  document.getElementById('hm-content-title').textContent = dane.title;
+  document.getElementById('hm-content-body').innerHTML = dane.body;
+  document.getElementById('hm-content').classList.add('open');
+
+  // prawy panel — kontekstowy do sekcji
+  document.getElementById('hm-right').classList.remove('open');
+  resetPrawyPanel();
+  if(_rightTimeout) clearTimeout(_rightTimeout);
+  if(id === 'o-projekcie'){
+    pokazKarty();
+    uruchomSiec3D();
+    _rightTimeout = setTimeout(()=>{
+      document.getElementById('hm-right').classList.add('open');
+    }, 1000);
+  }
+}
+
+
+/* ===== PLANSZA CLOUDFLARE ===== */
+function otworzCloudflare(){
+  document.getElementById('cf-tresc').innerHTML =
+      '<h3 style="font-family:Fraunces,serif;font-size:24px;color:var(--gold-soft);margin-bottom:6px">☁️ Darmowy hosting Cloudflare</h3>'
+      + '<p style="font-size:13px;opacity:.6;margin-bottom:16px">twoja strona w internecie · na zawsze</p>'
+      + '<p>Zrobiłeś mapę i chcesz, żeby <b>działała w internecie pod własnym linkiem</b>? Założysz sobie darmowe miejsce na <b>Cloudflare</b> — jednej z największych firm internetu — i wrzucisz tam swój plik w kilka minut.</p>'
+      + '<p>Bez płacenia, bez umów, bez znajomości programowania. Przeprowadzimy Cię <b>krok po kroku</b>, dokładnie tak, jak sami to przeszliśmy.</p>'
+      + '<div style="margin:18px 0;padding:14px 16px;background:rgba(201,162,39,.06);border-left:3px solid rgba(201,162,39,.4);border-radius:0 8px 8px 0;font-size:14px;line-height:1.7">🌍 <b>Ciekawostka:</b> Twoją mapę może otworzyć tysiąc osób, milion osób — i nic się nie stanie. Oglądanie stron z plikami jest na Cloudflare <b>nielimitowane i darmowe</b>. Cloudflare zarabia na wielkich firmach, a małych twórców wozi za darmo.</div>'
+      + '<p style="font-family:Fraunces,serif;font-size:18px;color:var(--gold-soft);margin:22px 0 4px">Jak to zrobić — krok po kroku</p>'
+      + '<p style="font-size:13px;opacity:.6;margin-bottom:14px">Cała droga od zera do żywej strony. Zajmie kilka minut.</p>'
+      + '<p><b>1. Załóż darmowe konto.</b> Wejdź na stronę rejestracji Cloudflare (przycisk na dole). Wpisz <b>e-mail</b> i wymyśl <b>hasło</b>. Zaznacz „Potwierdź, że jesteś człowiekiem" i kliknij <b>Sign up</b>.<br><span style="font-size:13px;opacity:.75">💡 Nie musisz zaznaczać zgody na reklamy. Karty płatniczej też nie podajesz — to naprawdę darmowe.</span></p>'
+      + '<p><b>2. Potwierdź e-mail.</b> Cloudflare wyśle Ci maila. Znajdź wiadomość i kliknij pomarańczowy przycisk <b>Verify your email</b>.<br><span style="font-size:13px;opacity:.75">⚠️ Sprawdź folder SPAM! Mail od Cloudflare lubi tam wpaść.</span></p>'
+      + '<p><b>3. Przeklik powitalny.</b> Cloudflare zada kilka pytań — nie mają znaczenia. Najprościej: <b>Personal</b> → <b>Developer / Engineer</b> → <b>1 (myself)</b>. Gdy pojawi się ekran „How would you like to get started?", w prawym <b>dolnym</b> rogu kliknij mały napis <b>Skip →</b>.<br><span style="font-size:13px;opacity:.75">💡 „Skip" to mały napis na samym dole, łatwo go przeoczyć.</span></p>'
+      + '<p><b>4. Wejdź w „Workers &amp; Pages".</b> Na środku panelu kliknij kafelek <b>Workers and Pages</b> (albo <b>Start building</b>). Wybierz <b>Create application</b>, potem <b>Upload your static files</b> (żółta ikona folderu).</p>'
+      + '<p><b>5. Wrzuć swój plik albo folder.</b> Pojawi się pole „Drag in or click to upload". Przeciągnij tam swój <code>index.html</code> — albo cały folder mapy.<br><span style="font-size:13px;opacity:.75">⚠️ Plik główny musi nazywać się dokładnie <code>index.html</code>. Mapę ze zdjęciami wrzuć jako cały folder naraz.</span></p>'
+      + '<p><b>6. Kliknij „Deploy" — i gotowe!</b> Cloudflare nada projektowi nazwę — możesz ją zmienić albo zostawić. Kliknij niebieski <b>Deploy</b>. Po chwili dostajesz <b>swój link</b>, np. <code>twoja-nazwa.workers.dev</code>. Kliknij <b>Visit</b> — Twoja strona żyje w internecie! 🎉</p>'
+      + '<div style="margin:18px 0;padding:14px 16px;background:rgba(201,162,39,.06);border-left:3px solid rgba(201,162,39,.4);border-radius:0 8px 8px 0;font-size:14px;line-height:1.7"><b>Co możesz tam wrzucać:</b> strony i mapy (HTML), zdjęcia (JPG, PNG, GIF, panoramy 360°), audio (MP3, WAV), dokumenty (PDF). Jedyna granica: jeden plik do <b>25 MB</b>. Długie filmy lepiej wrzucać na YouTube i wklejać jako link.</div>'
+      + '<p style="margin-top:20px"><a href="https://dash.cloudflare.com/sign-up" target="_blank" rel="noopener" style="display:inline-block;background:var(--gold);color:var(--lead);padding:12px 24px;border-radius:8px;font-size:15px;font-weight:500;text-decoration:none;margin:4px 4px">☁️ Załóż darmowe konto →</a> <a href="https://dash.cloudflare.com/?to=/:account/workers-and-pages" target="_blank" rel="noopener" style="display:inline-block;background:transparent;color:var(--gold);border:1.5px solid var(--gold);padding:11px 22px;border-radius:8px;font-size:15px;font-weight:500;text-decoration:none;margin:4px 4px">📤 Przejdź do wrzucania</a></p>'
+      + '<p style="font-size:13px;opacity:.6">Pierwszy przycisk — gdy zakładasz konto. Drugi — gdy masz już konto i chcesz wrzucić plik.</p>';
+  document.getElementById('cf-overlay').classList.add('on');
+}
+function zamknijCloudflare(){
+  document.getElementById('cf-overlay').classList.remove('on');
+}
+
+function pokazPodpowiedz(tekst){
+  document.getElementById('hm-right-karty').style.display = 'none';
+  const hint = document.getElementById('hm-right-hint');
+  hint.style.display = 'flex';
+  document.getElementById('hm-right-hint-text').textContent = tekst;
+  document.getElementById('hm-right').classList.add('open');
+}
+
+/* wersja HTML — dla podpowiedzi z formatowaniem (schemat folderów itp.) */
+function pokazPodpowiedzHTML(html){
+  document.getElementById('hm-right-karty').style.display = 'none';
+  const hint = document.getElementById('hm-right-hint');
+  hint.style.display = 'flex';
+  document.getElementById('hm-right-hint-text').innerHTML = html;
+  document.getElementById('hm-right').classList.add('open');
+}
+
+/* schemat folderów jako klikalny HTML z monospace drzewkiem */
+const schematFolderow =
+  'W tym kroku zrób dokładny schemat folderów i plików — możesz je potem modyfikować, zmieniać, dodawać nowe.'
+  + '<pre style="font-family:\'JetBrains Mono\',monospace;font-size:13px;line-height:1.6;color:var(--parchment);text-align:left;background:rgba(0,0,0,.3);border:1px solid rgba(201,162,39,.25);border-radius:8px;padding:14px 16px;margin:16px 0;white-space:pre;overflow-x:auto">'
+  + 'index.html\n'
+  + 'miejscowosci.json\n'
+  + 'dane/\n'
+  + '  <span style="color:var(--gold-soft)">twoja-miejscowosc/</span>\n'
+  + '    dane.json\n'
+  + '    1.jpg\n'
+  + '    2.jpg\n'
+  + '    nazwa.mp3</pre>'
+  + '<span style="font-size:14px">Obejrzyj filmik</span>';
+
+function pokazKarty(){
+  document.getElementById('hm-right-karty').style.display = '';
+  document.getElementById('hm-right-hint').style.display = 'none';
+}
+
+function resetPrawyPanel(){
+  document.getElementById('hm-right-karty').style.display = '';
+  document.getElementById('hm-right-hint').style.display = 'none';
+}
+
+/* ============ SIEĆ 3D (O projekcie) ============ */
+let _siec3d = null;
+
+function uruchomSiec3D(){
+  const canvas = document.getElementById('siec3d-canvas');
+  if(!canvas || typeof THREE === 'undefined') return;
+  zatrzymajSiec3D();  // gdyby już działała
+
+  const wrap = document.getElementById('siec3d-wrap');
+  const W = wrap.clientWidth, H = wrap.clientHeight;
+
+  const scena = new THREE.Scene();
+  const kamera = new THREE.PerspectiveCamera(50, W/H, 0.1, 1000);
+  kamera.position.z = 8;
+
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias:true, alpha:true });
+  renderer.setSize(W, H);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+  const grupa = new THREE.Group();
+  scena.add(grupa);
+
+  const pozycje = [
+    new THREE.Vector3( 2.2,  2.2,  2.2),
+    new THREE.Vector3( 2.2, -2.2, -2.2),
+    new THREE.Vector3(-2.2,  2.2, -2.2),
+    new THREE.Vector3(-2.2, -2.2,  2.2),
+  ];
+  const nazwy = ['Twoja strona', 'Biblioteka', 'Poeta', 'Stowarzyszenie'];
+  const zloto = 0xc9a227, zlotoJasne = 0xe4c96a;
+
+  const wezly = [];
+  pozycje.forEach((p, i)=>{
+    const kula = new THREE.Mesh(new THREE.SphereGeometry(0.5, 32, 32), new THREE.MeshBasicMaterial({ color:0x1b2340 }));
+    kula.position.copy(p); grupa.add(kula);
+    const obw = new THREE.Mesh(new THREE.SphereGeometry(0.52, 20, 20), new THREE.MeshBasicMaterial({ color:zloto, wireframe:true, transparent:true, opacity:0.5 }));
+    obw.position.copy(p); grupa.add(obw);
+    const posw = new THREE.Mesh(new THREE.SphereGeometry(0.75, 24, 24), new THREE.MeshBasicMaterial({ color:zlotoJasne, transparent:true, opacity:0.08 }));
+    posw.position.copy(p); grupa.add(posw);
+    wezly.push({ posw, faza:i });
+    const label = siec3dEtykieta(nazwy[i]);
+    label.position.copy(p.clone().multiplyScalar(1.28));
+    grupa.add(label);
+  });
+
+  const pary = [];
+  for(let a=0; a<pozycje.length; a++){
+    for(let b=a+1; b<pozycje.length; b++){
+      const geo = new THREE.BufferGeometry().setFromPoints([pozycje[a], pozycje[b]]);
+      grupa.add(new THREE.Line(geo, new THREE.LineBasicMaterial({ color:zloto, transparent:true, opacity:0.3 })));
+      pary.push([a, b]);
+    }
+  }
+
+  const kropki = [];
+  pary.forEach(([a, b], idx)=>{
+    kropki.push(siec3dKropka(grupa, a, b, idx*0.3, zlotoJasne));
+    kropki.push(siec3dKropka(grupa, b, a, idx*0.3+1.5, zlotoJasne));
+  });
+
+  let obracam = false, poprzX = 0, poprzY = 0;
+  let rotX = 0.3, rotY = 0.5, autoObrot = true;
+
+  const onDown = e=>{ obracam = true; autoObrot = false; poprzX = e.clientX; poprzY = e.clientY; };
+  const onMove = e=>{ if(!obracam) return; rotY += (e.clientX-poprzX)*0.008; rotX += (e.clientY-poprzY)*0.008; poprzX = e.clientX; poprzY = e.clientY; };
+  const onUp = ()=> obracam = false;
+  canvas.addEventListener('mousedown', onDown);
+  window.addEventListener('mousemove', onMove);
+  window.addEventListener('mouseup', onUp);
+
+  let czas = 0, ramka = null;
+  function petla(){
+    ramka = requestAnimationFrame(petla);
+    czas += 0.016;
+    if(autoObrot) rotY += 0.002;
+    grupa.rotation.x += (rotX - grupa.rotation.x)*0.1;
+    grupa.rotation.y += (rotY - grupa.rotation.y)*0.1;
+    wezly.forEach(w=> w.posw.scale.setScalar(1 + Math.sin(czas*1.5 + w.faza)*0.08));
+    kropki.forEach(k=>{ k.t += k.predkosc*0.016; if(k.t>1) k.t-=1; k.mesh.position.lerpVectors(pozycje[k.od], pozycje[k.do], k.t); });
+    renderer.render(scena, kamera);
+  }
+  petla();
+
+  _siec3d = { renderer, scena, stop(){
+    if(ramka) cancelAnimationFrame(ramka);
+    canvas.removeEventListener('mousedown', onDown);
+    window.removeEventListener('mousemove', onMove);
+    window.removeEventListener('mouseup', onUp);
+    renderer.dispose();
+  }};
+}
+
+function siec3dKropka(grupa, od, doW, offset, kolor){
+  const m = new THREE.Mesh(new THREE.SphereGeometry(0.09, 12, 12), new THREE.MeshBasicMaterial({ color:kolor }));
+  grupa.add(m);
+  return { mesh:m, od, do:doW, t:offset%1, predkosc:0.15 + Math.random()*0.05 };
+}
+
+function siec3dEtykieta(tekst){
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
+  canvas.width = 256; canvas.height = 64;
+  ctx.font = 'italic 28px Georgia';
+  ctx.fillStyle = '#f3ead6'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.shadowColor = 'rgba(0,0,0,0.8)'; ctx.shadowBlur = 6;
+  ctx.fillText(tekst, 128, 32);
+  const tex = new THREE.CanvasTexture(canvas);
+  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map:tex, transparent:true }));
+  sprite.scale.set(2.2, 0.55, 1);
+  return sprite;
+}
+
+function zatrzymajSiec3D(){
+  if(_siec3d){ _siec3d.stop(); _siec3d = null; }
+}
+
+/* ============ POBIERANIE PROGRAMU ============ */
+async function pobierzProgram(btn){
+  const url = 'https://wierszarium.github.io/program.html/index.html';
+  const oryg = btn.textContent;
+  btn.textContent = '⏳ Pobieranie...';
+  btn.disabled = true;
+  try{
+    const res = await fetch(url, { cache:'no-store' });
+    if(!res.ok) throw new Error('fetch');
+    const tekst = await res.text();
+    const blob = new Blob([tekst], { type:'text/html' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'index.html';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(link.href);
+    btn.textContent = '✓ Pobrano!';
+    setTimeout(()=>{ btn.textContent = oryg; btn.disabled = false; }, 2500);
+  }catch(e){
+    // gdyby fetch nie przeszedł — otwórz w nowej karcie jako plan B
+    btn.textContent = oryg;
+    btn.disabled = false;
+    window.open(url, '_blank');
+    toast('Otwieram program w nowej karcie — zapisz go: Ctrl+S');
+  }
+}
+
+/* ============ LICZNIK WEJŚĆ (hamburger) ============ */
+let _licznikGotowy = false;
+async function licznikWejsc(){
+  if(_licznikGotowy) return;   // raz na sesję strony
+  const todayEl = document.getElementById('stats-today');
+  const totalEl = document.getElementById('stats-total');
+  if(!todayEl || !totalEl || !db){ return; }
+  _licznikGotowy = true;
+  try{
+    const today = new Date().toISOString().split('T')[0];
+    const docTotal = db.collection('liczniki').doc('wejscia-total');
+    const docToday = db.collection('liczniki').doc('wejscia-' + today);
+    // zwiększ raz na sesję
+    let policzone = false;
+    try{ policzone = sessionStorage.getItem('wdn_counted'); }catch(e){}
+    if(!policzone){
+      await Promise.all([
+        docTotal.set({ count: firebase.firestore.FieldValue.increment(1) }, { merge:true }),
+        docToday.set({ count: firebase.firestore.FieldValue.increment(1) }, { merge:true })
+      ]);
+      try{ sessionStorage.setItem('wdn_counted','1'); }catch(e){}
+    }
+    const [snapTotal, snapToday] = await Promise.all([docTotal.get(), docToday.get()]);
+    const total = snapTotal.exists ? (snapTotal.data().count || 0) : 0;
+    const dzis  = snapToday.exists ? (snapToday.data().count || 0) : 0;
+    todayEl.textContent = dzis.toLocaleString('pl-PL');
+    totalEl.textContent = total.toLocaleString('pl-PL');
+  }catch(e){
+    console.warn('Licznik niedostępny:', e);
+    todayEl.textContent = '—';
+    totalEl.textContent = '—';
+  }
+}
+
+function udostepnij(){
+  const btn = document.querySelector('#hm-nav button[onclick*="udostepnij"]');
+  udostepnijStrone(btn);
+}
+
+async function udostepnijStrone(link){
+  const url = window.location.href;
+  const textEl = link ? link.querySelector('.hm-share-text') : null;
+  const original = textEl ? textEl.textContent : '';
+
+  // Na telefonie: natywne okno "Udostępnij"
+  if(navigator.share){
+    try{
+      await navigator.share({ title: document.title, url });
+      return;
+    }catch(err){
+      if(err && err.name === 'AbortError') return;
+    }
+  }
+  // Desktop: kopiowanie do schowka
+  try{
+    await navigator.clipboard.writeText(url);
+  }catch(err){
+    const ta = document.createElement('textarea');
+    ta.value = url; ta.style.position='fixed'; ta.style.opacity='0';
+    document.body.appendChild(ta); ta.select();
+    try{ document.execCommand('copy'); }catch(e){}
+    document.body.removeChild(ta);
+  }
+  // Potwierdzenie na przycisku
+  if(textEl){
+    textEl.textContent = '✓ Skopiowano link';
+    setTimeout(()=>{ textEl.textContent = original; }, 2500);
+  } else {
+    toast('✓ Skopiowano link — wyślij znajomym!');
+  }
+}
+
 /* ============ TRYB PEŁNOEKRANOWEJ MAPY ============ */
 let _fullMap = false;
 let _fullMapAnimating = false;
@@ -2987,5 +3717,14 @@ async function startApp(){
 }
 startApp();
 </script>
+
+<!-- ===== PLANSZA CLOUDFLARE ===== -->
+<div class="cf-overlay" id="cf-overlay" onclick="zamknijCloudflare()">
+  <div class="cf-plansza" onclick="event.stopPropagation()">
+    <button class="cf-x" onclick="zamknijCloudflare()" aria-label="zamknij">✕</button>
+    <div id="cf-tresc"></div>
+  </div>
+</div>
+
 </body>
 </html>
