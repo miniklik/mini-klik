@@ -372,13 +372,15 @@
   }
   .item-shape svg { display: block; width: 100%; height: 100%; }
 
-  /* ========== ANIMACJE ========== */
-  @keyframes anim-pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.15); } }
-  @keyframes anim-fly   { 0%,100% { transform: translateX(0); } 50% { transform: translateX(40px); } }
-  @keyframes anim-bounce{ 0%,100% { transform: translateY(0); } 50% { transform: translateY(-30px); } }
-  @keyframes anim-spin  { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+  /* ========== ANIMACJE ==========
+     keyframes budują transform na bazie CSS custom properties --i-scale/--i-rotate,
+     które JS ustawia razem z suwakami. Dzięki temu animacja nie kasuje skali/obrotu. */
+  @keyframes anim-pulse { 0%,100% { transform: scale(var(--i-scale,1)) rotate(var(--i-rotate,0deg)); } 50% { transform: scale(calc(var(--i-scale,1) * 1.15)) rotate(var(--i-rotate,0deg)); } }
+  @keyframes anim-fly   { 0%,100% { transform: scale(var(--i-scale,1)) rotate(var(--i-rotate,0deg)) translateX(0); } 50% { transform: scale(var(--i-scale,1)) rotate(var(--i-rotate,0deg)) translateX(40px); } }
+  @keyframes anim-bounce{ 0%,100% { transform: scale(var(--i-scale,1)) rotate(var(--i-rotate,0deg)) translateY(0); } 50% { transform: scale(var(--i-scale,1)) rotate(var(--i-rotate,0deg)) translateY(-30px); } }
+  @keyframes anim-spin  { from { transform: scale(var(--i-scale,1)) rotate(var(--i-rotate,0deg)); } to { transform: scale(var(--i-scale,1)) rotate(calc(var(--i-rotate,0deg) + 360deg)); } }
   @keyframes anim-fade  { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
-  @keyframes anim-shake { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-8px); } 75% { transform: translateX(8px); } }
+  @keyframes anim-shake { 0%,100% { transform: scale(var(--i-scale,1)) rotate(var(--i-rotate,0deg)) translateX(0); } 25% { transform: scale(var(--i-scale,1)) rotate(var(--i-rotate,0deg)) translateX(-8px); } 75% { transform: scale(var(--i-scale,1)) rotate(var(--i-rotate,0deg)) translateX(8px); } }
   @keyframes anim-rainbow { 0%{filter:hue-rotate(0)} 100%{filter:hue-rotate(360deg)} }
 
   .anim-pulse   { animation: anim-pulse 1.5s ease-in-out infinite; }
@@ -735,7 +737,7 @@
     outline-offset: 4px;
   }
 
-  /* ========== PRZYCISKI SCENICZNE (6 stylów) ========== */
+  /* ========== PRZYCISKI SCENICZNE (11 stylów) ========== */
   /* item-button to wewnętrzny element przycisku — używany TYLKO w edytorze.
      W eksporcie te same style są wstrzykiwane jako CSS w wynikowym HTML. */
   .item-button {
@@ -852,6 +854,77 @@
     /* Kanciasta krawędź — bez antyaliasingu efekt pixelowy */
     image-rendering: pixelated;
   }
+
+  /* 7) GHOST — cienki obrys, minimalistyczna strzałka, bez wypełnienia */
+  .btn-style-ghost {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    padding: 0;
+    background: transparent;
+    border: 1.5px solid rgba(255,255,255,0.35);
+    color: #ffffff;
+    font-size: 20px;
+  }
+  .btn-style-ghost::after { content: '→'; }
+  .btn-style-ghost .item-button-label { display: none; }
+
+  /* 8) RING — pierścień "postępu" wokół strzałki (czysty CSS, bez SVG) */
+  .btn-style-ring {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    padding: 0;
+    color: #ffffff;
+    font-size: 20px;
+    background:
+      radial-gradient(circle, #1c1c26 0 62%, transparent 63%),
+      conic-gradient(#4dd4ff 0deg 216deg, rgba(255,255,255,0.16) 216deg 360deg);
+  }
+  .btn-style-ring::after { content: '›'; }
+  .btn-style-ring .item-button-label { display: none; }
+
+  /* 9) GLASS — szklana pigułka (glassmorphism) */
+  .btn-style-glass {
+    padding: 11px 24px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.08);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    border: 1px solid rgba(255,255,255,0.25);
+    color: #ffffff;
+    font-size: 15px;
+  }
+  .btn-style-glass::after { content: '→'; font-size: 14px; }
+
+  /* 10) NUDGE — delikatny, powtarzający się impuls przyciągający wzrok */
+  @keyframes btn-nudge { 0%,100% { transform: translateX(0); } 50% { transform: translateX(5px); } }
+  .btn-style-nudge {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    padding: 0;
+    background: linear-gradient(180deg, #ff9a3d, #e87a1d);
+    border: 2px solid #c66818;
+    color: #ffffff;
+    font-size: 20px;
+    animation: btn-nudge 1.8s ease-in-out infinite;
+  }
+  .btn-style-nudge::after { content: '→'; }
+  .btn-style-nudge .item-button-label { display: none; }
+
+  /* 11) SPLIT — pasek akcentu z boku + tekst + strzałka */
+  .btn-style-split {
+    padding: 12px 20px 12px 16px;
+    border-radius: 8px;
+    background: #1c1c26;
+    border: none;
+    border-left: 5px solid #4dd4ff;
+    color: #ffffff;
+    font-size: 15px;
+    font-weight: 600;
+  }
+  .btn-style-split::after { content: '›'; font-size: 20px; color: #4dd4ff; margin-left: 4px; }
 
   /* ========== GALERIA PRZYCISKÓW W PANELU PRZEJŚĆ (prawy panel) ========== */
   .button-gallery {
@@ -1640,7 +1713,7 @@ const BG_PRESETS = [
   { name:'Peach',   value:'linear-gradient(135deg, #ffecd2, #fcb69f)' }
 ];
 
-// 6 stylów scenicznych przycisków. defaultText to to, co pojawia się na nim
+// 11 stylów scenicznych przycisków. defaultText to to, co pojawia się na nim
 // po dodaniu — można edytować podwójnym klikiem (jak każdy tekst).
 // hasInternalText = false oznacza że przycisk nie pokazuje tekstu (np. sama strzałka).
 const BUTTON_STYLES = [
@@ -1655,7 +1728,17 @@ const BUTTON_STYLES = [
   // 5) Dwie strzałki » ("przewiń dalej") — z opcjonalnym tekstem
   { id: 'double',  defaultText: 'Dalej',   hasInternalText: true },
   // 6) Pixel-art 3D — retro, z cieniem
-  { id: 'pixel',   defaultText: 'PRESS',   hasInternalText: true }
+  { id: 'pixel',   defaultText: 'PRESS',   hasInternalText: true },
+  // 7) Ghost — cienki obrys, minimalistyczna strzałka
+  { id: 'ghost',   defaultText: '',        hasInternalText: false },
+  // 8) Ring — pierścień "postępu" wokół strzałki
+  { id: 'ring',    defaultText: '',        hasInternalText: false },
+  // 9) Glass — szklana pigułka (glassmorphism) z tekstem
+  { id: 'glass',   defaultText: 'Dalej',   hasInternalText: true },
+  // 10) Nudge — delikatny, powtarzający się impuls (przyciąga wzrok)
+  { id: 'nudge',   defaultText: '',        hasInternalText: false },
+  // 11) Split — pasek akcentu z boku + tekst + strzałka
+  { id: 'split',   defaultText: 'Dalej',   hasInternalText: true }
 ];
 
 const scene = document.getElementById('scene');
@@ -1944,7 +2027,7 @@ function render() {
         inner.appendChild(play);
       }
     } else if (item.type === 'button') {
-      // Sceniczny przycisk - 6 stylów. Tekst edytowalny przez dwuklik.
+      // Sceniczny przycisk - 11 stylów. Tekst edytowalny przez dwuklik.
       const styleId = item.buttonStyle || 'classic';
       inner.className = 'item-button btn-style-' + styleId;
       const def = BUTTON_STYLES.find(s => s.id === styleId);
@@ -1987,7 +2070,7 @@ function render() {
 
     el.style.left = item.x + 'px';
     el.style.top = item.y + 'px';
-    el.style.transform = `scale(${item.scale}) rotate(${item.rotate}deg)`;
+    applyTransform(el, item);
 
     scene.appendChild(el);
     attachItemEvents(el, item);
@@ -2031,7 +2114,11 @@ function clientToScene(clientX, clientY) {
 }
 
 function applyTransform(el, item) {
-  el.style.transform = `scale(${item.scale}) rotate(${item.rotate}deg)`;
+  // Zapisz skalę/obrót jako CSS custom properties — @keyframes animacji czytają
+  // te zmienne, dzięki czemu animacja nie nadpisuje na sztywno rozmiaru/obrotu.
+  el.style.setProperty('--i-scale', item.scale);
+  el.style.setProperty('--i-rotate', item.rotate + 'deg');
+  el.style.transform = `scale(var(--i-scale)) rotate(var(--i-rotate))`;
 }
 
 function flushOp() {
@@ -2069,6 +2156,20 @@ function endOp() {
   op.el.classList.remove('dragging');
   try { op.el.releasePointerCapture(op.pointerId); } catch(e) {}
   activeOp = null;
+
+  // Tryb przejść + CZYSTY KLIK (bez przeciągnięcia) → wybierz cel przejścia.
+  if (op.transitionsPick && !op.pickMoved) {
+    op.item.x = op.startItemX;
+    op.item.y = op.startItemY;
+    op.el.style.left = op.startItemX + 'px';
+    op.el.style.top  = op.startItemY + 'px';
+    state.transitionsPickItem = op.item.id;
+    toast('Teraz kliknij numer poziomu (na pasku poziomów), do którego ma prowadzić ten obiekt');
+    render();
+    document.querySelectorAll('#pages-list .page-btn').forEach(b => b.classList.add('goto-target'));
+    return;
+  }
+
   // jednorazowy refresh wartości w prawym panelu (skala/obrót)
   if (op.kind !== 'drag') renderProps();
   // Snapshot do historii po każdym puszczeniu
@@ -2091,6 +2192,11 @@ window.addEventListener('pointermove', (e) => {
     }
     activeOp.pendingX = nx;
     activeOp.pendingY = ny;
+    // W trybie przejść: jeśli pointer przesunął się o więcej niż kilka px = przeciąganie
+    if (activeOp.transitionsPick && !activeOp.pickMoved) {
+      const dx = p.x - activeOp.startX, dy = p.y - activeOp.startY;
+      if (dx * dx + dy * dy > 16) activeOp.pickMoved = true;
+    }
   } else if (activeOp.kind === 'resize') {
     const dx = p.x - activeOp.startX;
     activeOp.item.scale = Math.max(0.2, Math.min(5, activeOp.startScale + dx / 100));
@@ -2139,15 +2245,32 @@ function attachItemEvents(el, item) {
     if (e.target.classList.contains('handle')) return;          // resize/rotate/delete obsługiwane osobno
     if (el.firstChild && el.firstChild.isContentEditable) return; // edytowanie tekstu — nie ruszaj
 
-    // === TRYB PRZEJŚĆ: klik w obiekt = wybierz cel ===
+    // === TRYB PRZEJŚĆ: klik w obiekt = wybierz cel, PRZECIĄGNIĘCIE = przesuń obiekt ===
+    // Startujemy zwykłą operację "drag" i dopiero na puszczeniu (endOp) sprawdzamy,
+    // czy pointer się poruszył. Bez ruchu = kliknięcie = wybór celu. Z ruchem = przesunięcie.
     if (state.transitionsMode) {
       e.stopPropagation();
-      state.transitionsPickItem = item.id;
-      state.selectedId = item.id;
-      toast('Teraz kliknij numer poziomu (na pasku poziomów), do którego ma prowadzić ten obiekt');
-      render();
-      // Podświetl pasek poziomów (visual cue)
-      document.querySelectorAll('#pages-list .page-btn').forEach(b => b.classList.add('goto-target'));
+      if (state.wrapEditMode) setWrapEditMode(false);
+      if (state.selectedId !== item.id) {
+        const prev = scene.querySelector('.scene-item.selected');
+        if (prev) prev.classList.remove('selected');
+        state.selectedId = item.id;
+        el.classList.add('selected');
+      }
+      el.setPointerCapture(e.pointerId);
+      el.classList.add('dragging');
+      const p = clientToScene(e.clientX, e.clientY);
+      activeOp = {
+        kind: 'drag',
+        el, item,
+        pointerId: e.pointerId,
+        startX: p.x, startY: p.y,
+        startItemX: item.x, startItemY: item.y,
+        pendingX: item.x, pendingY: item.y,
+        rafScheduled: false,
+        transitionsPick: true,
+        pickMoved: false
+      };
       return;
     }
 
@@ -2840,7 +2963,7 @@ function renderProps() {
       const lbl = inner.querySelector('.item-button-label');
       if (lbl) lbl.textContent = item.content;
     }
-    el.style.transform = `scale(${item.scale}) rotate(${item.rotate}deg)`;
+    applyTransform(el, item);
   }
 
   // bindowanie
@@ -3594,7 +3717,7 @@ function parseYoutubeId(url) {
 }
 
 // Renderuje panel po prawej, gdy włączony jest tryb przejść.
-// Pokazuje galerię 6 stylów przycisków + instrukcję.
+// Pokazuje galerię 11 stylów przycisków + instrukcję.
 function renderTransitionsPanel() {
   const c = document.getElementById('props-content');
   // Mini-podgląd przycisku w galerii — pokazuje style w pomniejszeniu
@@ -4309,12 +4432,12 @@ function buildExportHTML(title, useEmbeddedImages = false) {
   snapshotCurrentDrawing();
 
   const animCSS = `
-    @keyframes anim-pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.15); } }
-    @keyframes anim-fly   { 0%,100% { transform: translateX(0); } 50% { transform: translateX(40px); } }
-    @keyframes anim-bounce{ 0%,100% { transform: translateY(0); } 50% { transform: translateY(-30px); } }
-    @keyframes anim-spin  { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+    @keyframes anim-pulse { 0%,100% { transform: scale(var(--i-scale,1)) rotate(var(--i-rotate,0deg)); } 50% { transform: scale(calc(var(--i-scale,1) * 1.15)) rotate(var(--i-rotate,0deg)); } }
+    @keyframes anim-fly   { 0%,100% { transform: scale(var(--i-scale,1)) rotate(var(--i-rotate,0deg)) translateX(0); } 50% { transform: scale(var(--i-scale,1)) rotate(var(--i-rotate,0deg)) translateX(40px); } }
+    @keyframes anim-bounce{ 0%,100% { transform: scale(var(--i-scale,1)) rotate(var(--i-rotate,0deg)) translateY(0); } 50% { transform: scale(var(--i-scale,1)) rotate(var(--i-rotate,0deg)) translateY(-30px); } }
+    @keyframes anim-spin  { from { transform: scale(var(--i-scale,1)) rotate(var(--i-rotate,0deg)); } to { transform: scale(var(--i-scale,1)) rotate(calc(var(--i-rotate,0deg) + 360deg)); } }
     @keyframes anim-fade  { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
-    @keyframes anim-shake { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-8px); } 75% { transform: translateX(8px); } }
+    @keyframes anim-shake { 0%,100% { transform: scale(var(--i-scale,1)) rotate(var(--i-rotate,0deg)) translateX(0); } 25% { transform: scale(var(--i-scale,1)) rotate(var(--i-rotate,0deg)) translateX(-8px); } 75% { transform: scale(var(--i-scale,1)) rotate(var(--i-rotate,0deg)) translateX(8px); } }
     @keyframes anim-rainbow { 0%{filter:hue-rotate(0)} 100%{filter:hue-rotate(360deg)} }
     .anim-pulse   { animation: anim-pulse 1.5s ease-in-out infinite; }
     .anim-fly     { animation: anim-fly 2s ease-in-out infinite; }
@@ -4352,7 +4475,7 @@ function buildExportHTML(title, useEmbeddedImages = false) {
     .frame-ornate::before { top: -0.4em; left: -0.2em; }
     .frame-ornate::after  { bottom: -0.4em; right: -0.2em; }
 
-    /* PRZYCISKI SCENICZNE (6 stylów) — identyczne jak w edytorze */
+    /* PRZYCISKI SCENICZNE (11 stylów) — identyczne jak w edytorze */
     .item-button {
       display: inline-flex; align-items: center; justify-content: center;
       gap: 8px; user-select: none; white-space: nowrap;
@@ -4406,9 +4529,80 @@ function buildExportHTML(title, useEmbeddedImages = false) {
       box-shadow: 4px 0 0 #b91c1c, 0 4px 0 #b91c1c, 4px 4px 0 #7f1d1d, 8px 4px 0 #7f1d1d, 4px 8px 0 #7f1d1d;
       image-rendering: pixelated;
     }
-    /* Hover dla wszystkich stylów - lekkie podświetlenie */
+    .btn-style-ghost {
+      width: 60px; height: 60px; border-radius: 50%; padding: 0;
+      background: transparent; border: 1.5px solid rgba(255,255,255,0.35);
+      color: #fff; font-size: 20px;
+    }
+    .btn-style-ghost::after { content: '→'; }
+    .btn-style-ghost .item-button-label { display: none; }
+    .btn-style-ring {
+      width: 64px; height: 64px; border-radius: 50%; padding: 0;
+      color: #fff; font-size: 20px;
+      background: radial-gradient(circle, #1c1c26 0 62%, transparent 63%),
+                  conic-gradient(#4dd4ff 0deg 216deg, rgba(255,255,255,0.16) 216deg 360deg);
+    }
+    .btn-style-ring::after { content: '›'; }
+    .btn-style-ring .item-button-label { display: none; }
+    .btn-style-glass {
+      padding: 11px 24px; border-radius: 999px;
+      background: rgba(255,255,255,0.08);
+      backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+      border: 1px solid rgba(255,255,255,0.25); color: #fff; font-size: 15px;
+    }
+    .btn-style-glass::after { content: '→'; font-size: 14px; }
+    @keyframes btn-nudge { 0%,100% { transform: translateX(0); } 50% { transform: translateX(5px); } }
+    .btn-style-nudge {
+      width: 56px; height: 56px; border-radius: 50%; padding: 0;
+      background: linear-gradient(180deg, #ff9a3d, #e87a1d);
+      border: 2px solid #c66818; color: #fff; font-size: 20px;
+      animation: btn-nudge 1.8s ease-in-out infinite;
+    }
+    .btn-style-nudge::after { content: '→'; }
+    .btn-style-nudge .item-button-label { display: none; }
+    .btn-style-split {
+      padding: 12px 20px 12px 16px; border-radius: 8px;
+      background: #1c1c26; border: none; border-left: 5px solid #4dd4ff;
+      color: #fff; font-size: 15px; font-weight: 600;
+    }
+    .btn-style-split::after { content: '›'; font-size: 20px; color: #4dd4ff; margin-left: 4px; }
+    /* Feedback interakcji — hover I active dla wszystkich stylów (starych i nowych) */
+    [data-goto] .item-button, [data-link] .item-button {
+      transition: transform 0.15s ease, filter 0.15s ease, background 0.15s ease,
+                  border-color 0.15s ease, border-left-width 0.15s ease;
+    }
     [data-goto] .item-button:hover,
-    [data-link] .item-button:hover { filter: brightness(1.15); transform: scale(1.02); transition: all 0.15s; }
+    [data-link] .item-button:hover { filter: brightness(1.15); transform: scale(1.02); }
+    [data-goto] .item-button:active,
+    [data-link] .item-button:active { filter: brightness(0.9); transform: scale(0.95); }
+    [data-goto] .btn-style-ghost:hover, [data-link] .btn-style-ghost:hover {
+      filter: none; border-color: #ff9a3d; color: #ff9a3d; transform: translateX(4px);
+    }
+    [data-goto] .btn-style-ghost:active, [data-link] .btn-style-ghost:active {
+      transform: translateX(2px) scale(0.92);
+    }
+    [data-goto] .btn-style-nudge:hover, [data-link] .btn-style-nudge:hover {
+      animation-play-state: paused;
+    }
+    [data-goto] .btn-style-nudge:active, [data-link] .btn-style-nudge:active {
+      transform: scale(0.9);
+    }
+    [data-goto] .btn-style-split:hover, [data-link] .btn-style-split:hover {
+      filter: none; background: #242433; border-left-width: 8px; transform: none;
+    }
+    [data-goto] .btn-style-split:hover::after, [data-link] .btn-style-split:hover::after {
+      transform: translateX(3px);
+    }
+    [data-goto] .btn-style-split::after, [data-link] .btn-style-split::after {
+      display: inline-block; transition: transform 0.15s ease;
+    }
+    [data-goto] .btn-style-split:active, [data-link] .btn-style-split:active {
+      transform: scale(0.96);
+    }
+    [data-goto] .btn-style-pixel:active, [data-link] .btn-style-pixel:active {
+      transform: translate(4px, 4px);
+      box-shadow: 0 0 0 #7f1d1d;
+    }
   `.trim();
 
   // Wymiary sceny — z CSS variables (ustawiane przez applyCanvasFormat lub custom wymiary).
@@ -4433,7 +4627,10 @@ function buildExportHTML(title, useEmbeddedImages = false) {
 
     const itemsHTML = page.items.map(item => {
       const animClass = item.animation ? 'anim-' + item.animation : '';
-      const transform = `scale(${item.scale}) rotate(${item.rotate}deg)`;
+      // Skala/obrót jako CSS custom properties — @keyframes w eksporcie czytają je,
+      // więc animacja nie kasuje ustawień rozmiaru/skali/przechylenia obiektu.
+      const transformVars = `--i-scale:${item.scale};--i-rotate:${item.rotate}deg;`;
+      const transform = `scale(var(--i-scale)) rotate(var(--i-rotate))`;
       const xPct = (item.x / w * 100).toFixed(2);
       const yPct = (item.y / h * 100).toFixed(2);
 
@@ -4513,7 +4710,7 @@ function buildExportHTML(title, useEmbeddedImages = false) {
         inner = `<div class="frame-wrap ${fs.className}" style="${fs.style}">${inner}</div>`;
       }
 
-      return `<div class="item ${animClass}"${attrsStr} style="left:${xPct}%;top:${yPct}%;transform:${transform};${cursorStyle}">${inner}</div>`;
+      return `<div class="item ${animClass}"${attrsStr} style="left:${xPct}%;top:${yPct}%;${transformVars}transform:${transform};${cursorStyle}">${inner}</div>`;
     }).join('\n');
 
     const drawing = page.drawingDataUrl
