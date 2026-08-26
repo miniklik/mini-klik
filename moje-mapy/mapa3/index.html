@@ -27,6 +27,7 @@ body{font-family:'EB Garamond',serif;color:var(--tekst);background:var(--bg);tra
 .leaflet-control-attribution{background:rgba(14,21,48,.7)!important;color:var(--tekst-cichy)!important;font-size:10px}
 body.dzien .leaflet-control-attribution{background:rgba(255,247,230,.85)!important;color:#6b4a2e!important}
 .leaflet-control-attribution a{color:var(--akcent)!important}
+.leaflet-control-attribution svg,.leaflet-control-attribution a[href*="leaflet"]{display:none!important}
 .leaflet-bar a{background:var(--karta)!important;color:var(--akcent)!important;border-color:var(--obw)!important}
 
 /* ════ TOOLTIP'Y ════ */
@@ -643,13 +644,11 @@ body.dzien #nagrywanieBox{background:rgba(0,0,0,.03)}
 
 <div class="matrix-tlo" id="matrixTlo">
   <canvas id="matrixCanvas"></canvas>
-  <button class="zamknij" id="infoDzwiek" onclick="przelaczDzwiekInfo()" style="position:absolute;top:16px;right:60px;z-index:2;background:rgba(0,0,0,.4);border-color:#2fff6a55;color:#5dffa0">🔊</button>
   <button class="zamknij" id="matrixZamknij" onclick="zamknijInfo()" style="position:absolute;top:16px;right:16px;z-index:2;background:rgba(0,0,0,.4);border-color:#2fff6a55;color:#5dffa0">✕</button>
   <div class="matrix-karta">
-    <div class="kropki-postep" id="infoKropki"></div>
     <div class="matrix-tekst" id="infoTekst"></div>
     <div class="matrix-ikony" id="infoIkony"></div>
-    <button class="btn" id="infoBtn" onclick="infoDalej()">Dalej</button>
+    <button class="btn" id="infoBtn" onclick="infoDalej()" style="display:none">Dalej</button>
   </div>
   <button class="btn-udostepnij" id="btnUdostepnijApp" onclick="udostepnijAplikacje()">Udostępnij aplikację</button>
   <a href="../../" class="btn-powrot-mk" id="btnPowrotMK">← powrót do mini-klik</a>
@@ -1998,22 +1997,17 @@ async function zglosKropke(id){
 }
 
 const INFO_KROKI=[
-"Mapa,\nwspomnień.",
-"Wybierz czy chcesz publikować\nna ogólnej, startowej mapie —\na może wolisz stworzyć\nwłasną?",
-"Po prostu kliknij\n„Zostaw wspomnienie”\ni wybierz dowolny punkt\nna mapie.",
-"Zaufaj swojej wyobraźni —\nnasz program możesz wykorzystać\nw różny, ciekawy sposób.\nPowodzenia!"
+"Mapa,\nwspomnień."
 ];
-const INFO_IKONY=["🗺️","🤝","","🎉"];
+const INFO_IKONY=["🗺️"];
 const INFO_WIDGET={
-0:'<img class="info-img" id="infoObrazek" src="img/intro.jpg" alt="Mapa Wspomnień">',
-2:'<div class="info-demo"><div class="info-demo-btn">Zostaw wspomnienie</div><div class="info-demo-tap">👆</div></div>'
+0:'<img class="info-img" id="infoObrazek" src="img/intro.jpg" alt="Mapa Wspomnień">'
 };
 let infoKrok=0,matrixAnimId=null,matrixResizeFn=null;
 
 function otworzInfo(){
   infoKrok=0;
   document.getElementById('matrixTlo').classList.add('poka');
-  document.getElementById('infoDzwiek').textContent=dzwiekWlaczony?'🔊':'🔇';
   document.getElementById('demoZamknij').style.display='flex';
   pokazKrokInfo();
   startMatrix();
@@ -2311,27 +2305,19 @@ function uruchomDemoDodawanie(){
 
 function pokazKrokInfo(){
   demoCzWyczysc();
-  if(infoKrok===1){uruchomDemoCzestotliwosc();return;}
-  if(infoKrok===2){uruchomDemoDodawanie();return;}
   const tekstEl=document.getElementById('infoTekst');
   const btnEl=document.getElementById('infoBtn');
   const udBtn=document.getElementById('btnUdostepnijApp');
-  tekstEl.textContent=INFO_KROKI[infoKrok];
+  tekstEl.textContent='';
+  tekstEl.style.display='none';
   tekstEl.classList.remove('znika');
   btnEl.classList.remove('pojawia-sie','poj');
-  btnEl.style.display=(infoKrok===0)?'none':'';
-  btnEl.textContent=(infoKrok===INFO_KROKI.length-1)?'Koniec':'Dalej';
-  if(infoKrok===0){
-    udBtn.classList.remove('poj');
-    udBtn.classList.add('pojawia-sie');
-    udBtn.style.display='none';
-  }else{
-    udBtn.classList.remove('pojawia-sie');
-    udBtn.classList.add('poj');
-    udBtn.style.display='';
-  }
+  btnEl.style.display='none';
+  udBtn.classList.remove('pojawia-sie');
+  udBtn.classList.add('poj');
+  udBtn.style.display='';
   const kr=document.getElementById('infoKropki');
-  kr.innerHTML=INFO_KROKI.map((_,i)=>'<div class="kropka-postep'+(i<=infoKrok?' akt':'')+'"></div>').join('');
+  if(kr) kr.innerHTML='';
   const ik=document.getElementById('infoIkony');
   ik.innerHTML=INFO_WIDGET[infoKrok]||('<span class="ikony-emoji">'+(INFO_IKONY[infoKrok]||'')+'</span>');
   ik.classList.remove('poj');
@@ -2341,7 +2327,6 @@ function pokazKrokInfo(){
     const img=document.getElementById('infoObrazek');
     if(img)requestAnimationFrame(()=>requestAnimationFrame(()=>img.classList.add('jasno')));
   }
-  czytajAktualnyKrokInfo();
 }
 function pokazPrzyciskKontynuuj(){
   if(infoKrok!==0)return;
@@ -2393,21 +2378,9 @@ async function udostepnijAplikacje(){
 }
 function czytajAktualnyKrokInfo(){
   try{speechSynthesis.cancel();}catch(e){}
-  if(infoKrok===0){
-    if(dzwiekWlaczony){
-      powiedz(INFO_KROKI[infoKrok].replace(/\n/g,' '),()=>pokazPrzyciskKontynuuj());
-    }else{
-      setTimeout(()=>pokazPrzyciskKontynuuj(),2500);
-    }
-    return;
-  }
   if(dzwiekWlaczony)powiedz(INFO_KROKI[infoKrok].replace(/\n/g,' '));
 }
-function przelaczDzwiekInfo(){
-  przelaczDzwiek();
-  document.getElementById('infoDzwiek').textContent=dzwiekWlaczony?'🔊':'🔇';
-  if(dzwiekWlaczony)czytajAktualnyKrokInfo();
-}
+function przelaczDzwiekInfo(){}
 function infoDalej(){
   if(infoKrok===0){
     const a=document.getElementById('introAudio');
