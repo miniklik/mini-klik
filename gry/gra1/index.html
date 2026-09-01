@@ -1,0 +1,864 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no"/>
+<title>Zapamiętaj Figury</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body,#root{width:100%;min-height:100vh;overflow-x:hidden}
+body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif}
+button{font-family:inherit}
+input{font-family:inherit}
+@keyframes floatShape{0%{transform:translateY(0) rotate(0deg)}100%{transform:translateY(-30px) rotate(15deg)}}
+@keyframes fadeInUp{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:translateY(0)}}
+@keyframes pulse{0%{transform:scale(1)}100%{transform:scale(1.08)}}
+@keyframes popIn{0%{transform:scale(.5);opacity:0}70%{transform:scale(1.1)}100%{transform:scale(1);opacity:1}}
+@keyframes shakeX{0%,100%{transform:translateX(0)}20%{transform:translateX(-8px)}40%{transform:translateX(8px)}60%{transform:translateX(-5px)}80%{transform:translateX(5px)}}
+@keyframes particleBurst{0%{transform:translate(-50%,-50%) translate(0,0);opacity:1}100%{transform:translate(-50%,-50%) translate(var(--px),var(--py));opacity:0}}
+@keyframes countPop{0%{transform:scale(1.3);opacity:.5}100%{transform:scale(1);opacity:1}}
+@keyframes levelUp{0%{transform:scale(.8);opacity:0}50%{transform:scale(1.15)}100%{transform:scale(1);opacity:1}}
+@keyframes breathe{0%{transform:scale(1);opacity:.7}50%{transform:scale(1.15);opacity:1}100%{transform:scale(1);opacity:.7}}
+@keyframes transIn{from{opacity:0}to{opacity:1}}
+@keyframes transFadeText{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+@keyframes floatParticle{0%{transform:translateY(0) translateX(0) scale(1)}50%{transform:translateY(-30px) translateX(15px) scale(1.3)}100%{transform:translateY(-60px) translateX(-10px) scale(0.8)}}
+</style>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const {useState,useEffect,useRef,useCallback,createContext,useContext}=React;
+
+const SHAPES=[{symbol:"●"},{symbol:"▲"},{symbol:"■"},{symbol:"◆"},{symbol:"★"},{symbol:"♥"},{symbol:"⬟"},{symbol:"✦"}];
+const COLORS_DARK=["#6c63ff","#ff6b6b","#4ecdc4","#ffd93d","#ff8a5c","#a29bfe","#fd79a8","#00cec9"];
+const COLORS_LIGHT=["#4A90E2","#E74C3C","#27AE60","#F39C12","#E67E22","#8E44AD","#E84393","#00B894"];
+const LEVELS=Array.from({length:15},(_,i)=>{const n=i+1;return{id:n,shapes:Math.min(2+Math.floor(i/3),6),memorizeMs:5000,guessMs:Math.max(2000,6000-i*260),rounds:n<=3?3:n<=9?4:5,label:n<=3?"Łatwy":n<=6?"Średni":n<=9?"Trudny":n<=12?"Expert":"Mistrz"};});
+
+// Local storage
+function loadProgress(){try{const d=localStorage.getItem("zf_progress");return d?JSON.parse(d):{unlocked:1,bestScores:{}};}catch{return{unlocked:1,bestScores:{}};}}
+function saveProgress(data){try{localStorage.setItem("zf_progress",JSON.stringify(data));}catch{}}
+function loadNick(){try{return localStorage.getItem("zf_nick")||"";}catch{return"";}}
+function saveNick(n){try{localStorage.setItem("zf_nick",n);}catch{}}
+
+// Firestore REST API
+const FS_BASE="https://firestore.googleapis.com/v1/projects/miniklik/databases/(default)/documents";
+const FS_KEY="AIzaSyBYCfUzKiKZOsqO4fX504EQWuUs7murmi8";
+
+async function loadRecords(){
+  try{
+    const res=await fetch(`${FS_BASE}/zapamietaj_rekordy?key=${FS_KEY}&pageSize=100`);
+    const data=await res.json();
+    if(!data.documents)return[];
+    return data.documents.map(doc=>({
+      nick:doc.fields.nick?.stringValue||"Anonim",
+      score:parseInt(doc.fields.score?.integerValue||"0"),
+      level:parseInt(doc.fields.level?.integerValue||"0"),
+      date:doc.fields.date?.stringValue||"",
+    })).sort((a,b)=>b.score-a.score).slice(0,20);
+  }catch{return[];}
+}
+
+async function addRecord(nick,score,level){
+  const dateStr=new Date().toLocaleDateString("pl-PL");
+  try{
+    await fetch(`${FS_BASE}/zapamietaj_rekordy?key=${FS_KEY}`,{
+      method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({fields:{
+        nick:{stringValue:(nick||"Anonim").slice(0,16)},
+        score:{integerValue:String(score)},
+        level:{integerValue:String(level)},
+        date:{stringValue:dateStr},
+      }})
+    });
+  }catch{}
+  return loadRecords();
+}
+const THEMES = {
+  dark: {
+    key:"dark", bg:"linear-gradient(145deg,#0f0e17,#1a1a2e 40%,#16213e)",
+    title:"#f8f8f2", subtitle:"#a0a0b8", accent:"#6c63ff",
+    accentGrad:"linear-gradient(135deg,#6c63ff,#8b5cf6)",
+    correct:"#4ecdc4", wrong:"#ff6b6b", gold:"#ffd93d", combo:"#ff8a5c",
+    cardBg:"#ffffff08", cardBorder:"#ffffff15", cardHover:"#ffffff18",
+    circleBg:"#ffffff06", timerTrack:"#ffffff10",
+    hudText:"#f8f8f2", mutedText:"#ffffff20",
+    btnSecBg:"transparent", btnSecBorder:"#a0a0b830", btnSecText:"#a0a0b8",
+    colors: COLORS_DARK, switchIcon:"☀️", switchBg:"#ffffff12",
+    mapNodeDone:"#4ecdc4", mapNodeCurrent:"#6c63ff", mapNodeLocked:"#ffffff15",
+    mapLine:"#ffffff12", mapBg:"linear-gradient(145deg,#0f0e17,#1a1a2e 40%,#16213e)",
+    heartDim:"grayscale(1) opacity(0.25)", shadow:"none",
+    dropShadow: c => `drop-shadow(0 0 10px ${c}60)`,
+  },
+  light: {
+    key:"light", bg:"linear-gradient(145deg,#FFF8E7,#FFE5B4 40%,#FFF4D6)",
+    title:"#333", subtitle:"#777", accent:"#4A90E2",
+    accentGrad:"linear-gradient(135deg,#4A90E2,#5BA0F2)",
+    correct:"#27AE60", wrong:"#E74C3C", gold:"#F39C12", combo:"#E67E22",
+    cardBg:"#ffffff", cardBorder:"#d0d0d0", cardHover:"#f0f0f0",
+    circleBg:"#ffffff", timerTrack:"#e0d8c8",
+    hudText:"#333", mutedText:"#ccc",
+    btnSecBg:"#fff", btnSecBorder:"#ccc", btnSecText:"#777",
+    colors: COLORS_LIGHT, switchIcon:"🌙", switchBg:"#00000010",
+    mapNodeDone:"#27AE60", mapNodeCurrent:"#4A90E2", mapNodeLocked:"#ddd",
+    mapLine:"#e0d0b8", mapBg:"linear-gradient(145deg,#FFF8E7,#FFE5B4 40%,#FFF4D6)",
+    heartDim:"grayscale(1) opacity(0.3)", shadow:"0 2px 10px rgba(0,0,0,0.07)",
+    dropShadow: () => "none",
+  },
+};
+
+const ThemeCtx = createContext(THEMES.light);
+function useTheme() { return useContext(ThemeCtx); }
+
+function shuffle(a){const b=[...a];for(let i=b.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[b[i],b[j]]=[b[j],b[i]];}return b;}
+function pickN(a,n){return shuffle(a).slice(0,n);}
+
+  try {
+    const res = await fetch(`${FS_BASE}/zapamietaj_rekordy?key=${FS_KEY}&pageSize=100`);
+    const data = await res.json();
+    if (!data.documents) return [];
+    return data.documents.map(doc => ({
+      nick: doc.fields.nick?.stringValue || "Anonim",
+      score: parseInt(doc.fields.score?.integerValue || "0"),
+      level: parseInt(doc.fields.level?.integerValue || "0"),
+      date: doc.fields.date?.stringValue || "",
+    })).sort((a, b) => b.score - a.score).slice(0, 20);
+  } catch { return []; }
+}
+
+  const dateStr = new Date().toLocaleDateString("pl-PL");
+  try {
+    await fetch(`${FS_BASE}/zapamietaj_rekordy?key=${FS_KEY}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        fields: {
+          nick: { stringValue: (nick || "Anonim").slice(0, 16) },
+          score: { integerValue: String(score) },
+          level: { integerValue: String(level) },
+          date: { stringValue: dateStr },
+        }
+      })
+    });
+  } catch {}
+  return loadRecords();
+}
+
+// ─── Theme Toggle ───
+function ThemeToggle({ onToggle }) {
+  const t = useTheme();
+  return (
+    <button onClick={onToggle} title={t.key==="dark"?"Jasny":"Ciemny"} style={{
+      position:"fixed",top:14,right:14,zIndex:100,width:40,height:40,borderRadius:12,
+      background:t.switchBg,border:"none",fontSize:18,cursor:"pointer",
+      display:"flex",alignItems:"center",justifyContent:"center",
+    }}>{t.switchIcon}</button>
+  );
+}
+
+// ─── Particles ───
+function Particles({x,y,active}){
+  const t=useTheme();
+  if(!active)return null;
+  return(<div style={{position:"fixed",left:x,top:y,pointerEvents:"none",zIndex:999}}>
+    {Array.from({length:12}).map((_,i)=>{
+      const ang=(i/12)*360,dist=40+Math.random()*60,sz=4+Math.random()*6;
+      return <div key={i} style={{position:"absolute",width:sz,height:sz,borderRadius:"50%",
+        backgroundColor:t.colors[i%t.colors.length],animation:"particleBurst .7s ease-out forwards",
+        transform:"translate(-50%,-50%)",
+        "--px":`${Math.cos(ang*Math.PI/180)*dist}px`,"--py":`${Math.sin(ang*Math.PI/180)*dist}px`,
+      }}/>;
+    })}
+  </div>);
+}
+
+// ─── Timer Bar ───
+function TimerBar({duration,running,onExpire}){
+  const t=useTheme();
+  const[w,setW]=useState(100);const sRef=useRef(null);const rRef=useRef(null);
+  useEffect(()=>{
+    if(!running){setW(100);return;}
+    sRef.current=Date.now();
+    const tick=()=>{const p=Math.max(0,100-((Date.now()-sRef.current)/duration)*100);setW(p);if(p<=0){onExpire();return;}rRef.current=requestAnimationFrame(tick);};
+    rRef.current=requestAnimationFrame(tick);
+    return()=>cancelAnimationFrame(rRef.current);
+  },[running,duration]);
+  const c=w>50?t.correct:w>25?t.gold:t.wrong;
+  return(<div style={{width:"100%",maxWidth:400,height:6,background:t.timerTrack,borderRadius:3,overflow:"hidden",margin:"12px 0"}}>
+    <div style={{width:`${w}%`,height:"100%",background:c,borderRadius:3,transition:"background .3s",boxShadow:`0 0 8px ${c}60`}}/>
+  </div>);
+}
+
+// ─── Intro Screen ───
+function IntroScreen({onStart,onMap,onRecords,highLevel,nick,onNickChange}){
+  const t=useTheme();const[hov,setHov]=useState(false);const[hov2,setHov2]=useState(false);const[hov3,setHov3]=useState(false);
+  return(
+    <div style={{minHeight:"100vh",background:t.bg,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",fontFamily:"'Segoe UI',system-ui,sans-serif",overflow:"hidden",position:"relative"}}>
+      {SHAPES.map((s,i)=>(
+        <div key={i} style={{position:"absolute",fontSize:30+i*8,color:t.colors[i%t.colors.length],opacity:t.key==="dark"?.12:.18,
+          animation:`floatShape ${4+i*.7}s ease-in-out infinite alternate`,animationDelay:`${i*.4}s`,
+          top:`${10+(i*13)%70}%`,left:`${5+(i*17)%80}%`}}>{s.symbol}</div>
+      ))}
+      <div style={{textAlign:"center",zIndex:2,animation:"fadeInUp .8s ease-out"}}>
+        <div style={{fontSize:54,letterSpacing:4,display:"flex",gap:12,justifyContent:"center",marginBottom:8}}>
+          {["●","▲","■"].map((s,i)=>(<span key={i} style={{color:t.colors[i],filter:t.dropShadow(t.colors[i]),animation:`pulse ${1.5+i*.3}s ease-in-out infinite alternate`}}>{s}</span>))}
+        </div>
+        <h1 style={{color:t.title,fontSize:38,fontWeight:800,margin:"16px 0 0",letterSpacing:3}}>Zapamiętaj Figury</h1>
+        <p style={{color:t.subtitle,fontSize:16,margin:"14px 0 20px",lineHeight:1.6,maxWidth:320}}>
+          Zapamiętaj układ figur, zanim znikną.<br/>Z każdym poziomem jest trudniej!
+        </p>
+
+        {/* Nick input */}
+        <div style={{marginBottom:24}}>
+          <input
+            type="text" value={nick} onChange={e=>onNickChange(e.target.value)}
+            placeholder="Twój nick..."
+            maxLength={16}
+            style={{
+              background:t.key==="dark"?"rgba(255,255,255,0.08)":"#fff",
+              border:`2px solid ${t.cardBorder}`,
+              borderRadius:12,padding:"10px 18px",fontSize:15,fontWeight:600,
+              color:t.title,textAlign:"center",width:200,outline:"none",
+              transition:"border-color .3s",fontFamily:"inherit",
+            }}
+            onFocus={e=>{e.target.style.borderColor=t.accent;}}
+            onBlur={e=>{e.target.style.borderColor=t.cardBorder;}}
+          />
+        </div>
+
+        {highLevel>1&&<div style={{color:t.gold,fontSize:13,marginBottom:18,letterSpacing:1}}>★ Odblokowany poziom: {highLevel}</div>}
+        <div style={{display:"flex",flexDirection:"column",gap:12,alignItems:"center"}}>
+          <button onClick={onStart} onMouseEnter={()=>setHov(true)} onMouseLeave={()=>setHov(false)} style={{
+            background:hov?"linear-gradient(135deg,#7c73ff,#9b59ff)":t.accentGrad,color:"#fff",border:"none",
+            padding:"16px 56px",fontSize:20,fontWeight:700,borderRadius:14,cursor:"pointer",letterSpacing:2,
+            transition:"all .25s",transform:hov?"scale(1.05)":"scale(1)",
+            boxShadow:hov?`0 8px 30px ${t.accent}40`:`0 4px 20px ${t.accent}25`,
+          }}>START</button>
+          <button onClick={onMap} onMouseEnter={()=>setHov2(true)} onMouseLeave={()=>setHov2(false)} style={{
+            background:hov2?t.cardHover:t.btnSecBg,color:t.subtitle,
+            border:`1px solid ${t.btnSecBorder}`,
+            padding:"12px 36px",fontSize:15,fontWeight:600,borderRadius:12,cursor:"pointer",
+            transition:"all .25s",letterSpacing:1,
+          }}>🗺️ Poziomy</button>
+          <button onClick={onRecords} onMouseEnter={()=>setHov3(true)} onMouseLeave={()=>setHov3(false)} style={{
+            background:hov3?t.cardHover:t.btnSecBg,color:t.subtitle,
+            border:`1px solid ${t.btnSecBorder}`,
+            padding:"12px 36px",fontSize:15,fontWeight:600,borderRadius:12,cursor:"pointer",
+            transition:"all .25s",letterSpacing:1,
+          }}>🏆 Rekordy</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Level Map ───
+function LevelMap({progress,onSelectLevel,onBack}){
+  const t=useTheme();
+  // winding path positions
+  const positions = LEVELS.map((_,i)=>{
+    const row = i;
+    const zigzag = row % 2 === 0;
+    const x = zigzag ? 30 + (i % 3) * 25 : 70 - (i % 3) * 25;
+    return { x, y: 60 + row * 62 };
+  });
+
+  return(
+    <div style={{minHeight:"100vh",background:t.mapBg,fontFamily:"'Segoe UI',system-ui,sans-serif",
+      display:"flex",flexDirection:"column",alignItems:"center",padding:"20px 16px",boxSizing:"border-box"}}>
+      <div style={{width:"100%",maxWidth:400,marginBottom:16,display:"flex",alignItems:"center",gap:12}}>
+        <button onClick={onBack} style={{background:t.key==="dark"?"rgba(255,255,255,0.08)":"rgba(0,0,0,0.06)",
+          border:"none",color:t.title,fontSize:20,fontWeight:700,cursor:"pointer",
+          width:40,height:40,borderRadius:12,display:"flex",alignItems:"center",justifyContent:"center",
+          transition:"all .2s"}}>←</button>
+        <h2 style={{color:t.title,fontSize:22,fontWeight:800,margin:0,letterSpacing:1}}>Mapa poziomów</h2>
+      </div>
+
+      <div style={{position:"relative",width:"100%",maxWidth:400,height:positions[positions.length-1].y+80,marginBottom:20}}>
+        {/* Lines */}
+        <svg style={{position:"absolute",top:0,left:0,width:"100%",height:"100%",pointerEvents:"none"}} viewBox={`0 0 400 ${positions[positions.length-1].y+80}`} preserveAspectRatio="xMidYMid meet">
+          {positions.map((p,i)=>{
+            if(i===0)return null;
+            const prev=positions[i-1];
+            const done=i<progress.unlocked;
+            return <line key={i} x1={prev.x/100*400} y1={prev.y} x2={p.x/100*400} y2={p.y}
+              stroke={done?t.mapNodeDone:t.mapLine} strokeWidth={done?3:2} strokeDasharray={done?"":"6 4"} opacity={done?0.7:0.4}/>;
+          })}
+        </svg>
+
+        {/* Nodes */}
+        {LEVELS.map((lvl,i)=>{
+          const pos=positions[i];
+          const done=lvl.id<progress.unlocked;
+          const current=lvl.id===progress.unlocked;
+          const locked=lvl.id>progress.unlocked;
+          const best=progress.bestScores[lvl.id];
+          const stars = best ? (best >= lvl.rounds * 15 ? 3 : best >= lvl.rounds * 10 ? 2 : 1) : 0;
+
+          return(
+            <button key={lvl.id} onClick={()=>!locked&&onSelectLevel(lvl.id)}
+              disabled={locked}
+              style={{
+                position:"absolute",
+                left:`calc(${pos.x}% - 28px)`,top:pos.y-28,
+                width:56,height:56,borderRadius:"50%",
+                border: current?`3px solid ${t.mapNodeCurrent}`:done?`3px solid ${t.mapNodeDone}`:`2px solid ${t.mapNodeLocked}`,
+                background: current?`${t.mapNodeCurrent}18`:done?`${t.mapNodeDone}12`:t.key==="dark"?"#ffffff06":"#ffffff80",
+                cursor:locked?"default":"pointer",
+                display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",
+                transition:"all .3s",
+                boxShadow: current?`0 0 20px ${t.mapNodeCurrent}40`:done?t.shadow:"none",
+                animation: current?"pulse 2s ease-in-out infinite alternate":"none",
+                opacity:locked?0.4:1,
+              }}>
+              <span style={{fontSize:locked?16:18,fontWeight:800,color:locked?t.mutedText:current?t.mapNodeCurrent:done?t.mapNodeDone:t.subtitle,lineHeight:1}}>
+                {locked?"🔒":lvl.id}
+              </span>
+              {done&&stars>0&&(
+                <span style={{fontSize:8,marginTop:1,letterSpacing:1,lineHeight:1}}>
+                  {"★".repeat(stars)}{"☆".repeat(3-stars)}
+                </span>
+              )}
+            </button>
+          );
+        })}
+
+        {/* Level labels */}
+        {LEVELS.map((lvl,i)=>{
+          const pos=positions[i];
+          const locked=lvl.id>progress.unlocked;
+          if(locked)return null;
+          return(
+            <div key={`lbl-${lvl.id}`} style={{
+              position:"absolute",
+              left:`calc(${pos.x}% + 36px)`,top:pos.y-16,
+              fontSize:11,color:t.subtitle,whiteSpace:"nowrap",
+              fontWeight:600,
+            }}>
+              {lvl.shapes} figur · {lvl.label}
+            </div>
+          );
+        })}
+      </div>
+
+      <div style={{color:t.subtitle,fontSize:13,textAlign:"center",maxWidth:300,lineHeight:1.5}}>
+        Wybierz odblokowany poziom, aby rozpocząć od niego grę.
+      </div>
+    </div>
+  );
+}
+
+// ─── Records Screen ───
+function RecordsScreen({records,loading,onRefresh,onBack}){
+  const t=useTheme();
+  return(
+    <div style={{minHeight:"100vh",background:t.bg,display:"flex",flexDirection:"column",alignItems:"center",
+      fontFamily:"'Segoe UI',system-ui,sans-serif",padding:"20px 16px",animation:"fadeInUp .5s ease-out"}}>
+      <div style={{width:"100%",maxWidth:400,marginBottom:6,display:"flex",alignItems:"center",gap:12}}>
+        <button onClick={onBack} style={{background:t.key==="dark"?"rgba(255,255,255,0.08)":"rgba(0,0,0,0.06)",
+          border:"none",color:t.title,fontSize:20,fontWeight:700,cursor:"pointer",
+          width:40,height:40,borderRadius:12,display:"flex",alignItems:"center",justifyContent:"center"}}>←</button>
+        <h2 style={{color:t.title,fontSize:22,fontWeight:800,margin:0,flex:1,letterSpacing:1}}>🏆 Księga rekordów</h2>
+        <button onClick={onRefresh} style={{background:t.key==="dark"?"rgba(255,255,255,0.08)":"rgba(0,0,0,0.06)",
+          border:"none",color:t.subtitle,fontSize:16,cursor:"pointer",
+          width:40,height:40,borderRadius:12,display:"flex",alignItems:"center",justifyContent:"center",
+          transition:"transform .3s",
+          transform:loading?"rotate(360deg)":"rotate(0)",
+        }}>🔄</button>
+      </div>
+      <div style={{color:t.subtitle,fontSize:11,marginBottom:16,letterSpacing:1}}>🌍 Ranking globalny</div>
+
+      {loading?(
+        <div style={{color:t.subtitle,fontSize:15,marginTop:40,animation:"pulse 1s ease-in-out infinite alternate"}}>
+          Ładowanie rekordów...
+        </div>
+      ):records.length===0?(
+        <div style={{color:t.subtitle,fontSize:15,marginTop:40,textAlign:"center"}}>
+          Brak rekordów. Zagraj, żeby zapisać swój wynik!
+        </div>
+      ):(
+        <div style={{width:"100%",maxWidth:400}}>
+          {records.map((rec,i)=>(
+            <div key={i} style={{
+              display:"flex",alignItems:"center",gap:12,
+              padding:"12px 16px",marginBottom:8,
+              borderRadius:14,
+              background:i===0?`${t.gold}15`:i===1?`${t.subtitle}10`:i===2?`${t.combo}10`:t.cardBg,
+              border:`1px solid ${i===0?t.gold+"40":i===1?t.subtitle+"20":i===2?t.combo+"20":t.cardBorder}`,
+              animation:`transFadeText .5s ease-out ${i*0.05}s both`,
+            }}>
+              <div style={{
+                width:32,height:32,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",
+                fontSize:i<3?16:13,fontWeight:800,
+                background:i===0?t.gold+"25":i===1?"#c0c0c025":i===2?"#cd7f3225":"transparent",
+                color:i===0?t.gold:i===1?"#aaa":i===2?t.combo:t.subtitle,
+              }}>
+                {i<3?["🥇","🥈","🥉"][i]:i+1}
+              </div>
+              <div style={{flex:1}}>
+                <div style={{color:t.title,fontSize:15,fontWeight:700}}>{rec.nick}</div>
+                <div style={{color:t.subtitle,fontSize:11,marginTop:2}}>Poziom {rec.level} · {rec.date}</div>
+              </div>
+              <div style={{color:i===0?t.gold:t.accent,fontSize:20,fontWeight:800}}>
+                {rec.score}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Game Over ───
+function GameOverScreen({score,level,startLevel,isNewBest,onRestart,onMap,onMenu}){
+  const t=useTheme();
+  return(
+    <div style={{minHeight:"100vh",background:t.bg,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",fontFamily:"'Segoe UI',system-ui,sans-serif",animation:"fadeInUp .6s ease-out"}}>
+      <div style={{fontSize:56,marginBottom:12}}>{score>=30?"🏆":score>=15?"🌟":"👏"}</div>
+      <h2 style={{color:t.title,fontSize:32,fontWeight:800,margin:0}}>Koniec gry!</h2>
+      <div style={{margin:"24px 0",textAlign:"center"}}>
+        <div style={{color:t.subtitle,fontSize:14,marginBottom:4}}>Wynik</div>
+        <div style={{color:t.gold,fontSize:56,fontWeight:800,lineHeight:1,filter:t.dropShadow(t.gold)}}>{score}</div>
+        <div style={{color:t.subtitle,fontSize:14,marginTop:12}}>Osiągnięty poziom: {level}</div>
+        {isNewBest&&<div style={{color:t.correct,fontSize:16,fontWeight:700,marginTop:12,animation:"pulse 1s ease-in-out infinite alternate"}}>✦ Nowy rekord! ✦</div>}
+      </div>
+      <div style={{display:"flex",gap:10,marginTop:16,flexWrap:"wrap",justifyContent:"center"}}>
+        <button onClick={onRestart} style={{background:t.accentGrad,color:"#fff",border:"none",padding:"14px 32px",fontSize:16,fontWeight:700,borderRadius:12,cursor:"pointer"}}>Jeszcze raz</button>
+        <button onClick={onMap} style={{background:t.btnSecBg,color:t.btnSecText,border:`1px solid ${t.btnSecBorder}`,padding:"14px 24px",fontSize:16,fontWeight:600,borderRadius:12,cursor:"pointer"}}>🗺️ Mapa</button>
+        <button onClick={onMenu} style={{background:t.btnSecBg,color:t.btnSecText,border:`1px solid ${t.btnSecBorder}`,padding:"14px 24px",fontSize:16,fontWeight:600,borderRadius:12,cursor:"pointer"}}>Menu</button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Main App ───
+function App(){
+  const[theme,setTheme]=useState("light");
+  const t=THEMES[theme];
+  const toggle=()=>setTheme(p=>p==="dark"?"light":"dark");
+
+  const[screen,setScreen]=useState("intro");
+  const[progress,setProgress]=useState({unlocked:1,bestScores:{}});
+  const[nick,setNick]=useState("");
+  const[records,setRecords]=useState([]);
+  const[recordsLoading,setRecordsLoading]=useState(false);
+  const[startLevel,setStartLevel]=useState(1);
+  const[level,setLevel]=useState(1);
+  const[roundInLevel,setRoundInLevel]=useState(0);
+  const[score,setScore]=useState(0);
+  const[lives,setLives]=useState(3);
+  const[combo,setCombo]=useState(0);
+
+  const[shownShapes,setShownShapes]=useState([]);
+  const[targetShape,setTargetShape]=useState(null);
+  const[targetIndex,setTargetIndex]=useState(0);
+  const[phase,setPhase]=useState("memorize");
+  const[feedbackType,setFeedbackType]=useState(null);
+  const[particles,setParticles]=useState({active:false,x:0,y:0});
+  const[timerRunning,setTimerRunning]=useState(false);
+  const[shakeWrong,setShakeWrong]=useState(-1);
+  const[memorizeCountdown,setMemorizeCountdown]=useState(0);
+  const[isNewBest,setIsNewBest]=useState(false);
+  const[levelUpBanner,setLevelUpBanner]=useState(false);
+  const[paused,setPaused]=useState(false);
+  const[lifeBanner,setLifeBanner]=useState(false);
+  const[nextLifeAt,setNextLifeAt]=useState(100);
+  const[transition,setTransition]=useState(null);
+  const[isRetry,setIsRetry]=useState(false);
+  const MAX_LIVES=10;
+  const LIFE_EVERY=100;
+  const mTimerRef=useRef(null);const mIntRef=useRef(null);
+  const transInRef=useRef(null);const transOutRef=useRef(null);
+  const pausedPhaseRef=useRef(null);
+
+  // Load progress, nick, records on mount
+  useEffect(()=>{
+    setProgress(loadProgress());
+    setNick(loadNick());
+    loadRecords().then(r=>setRecords(r));
+  },[]);
+
+  const currentLevelData=()=>LEVELS[Math.min(level-1,LEVELS.length-1)];
+  const handleNickChange=(n)=>{setNick(n);saveNick(n);};
+  const refreshRecords=useCallback(()=>{
+    setRecordsLoading(true);
+    loadRecords().then(r=>{setRecords(r);setRecordsLoading(false);}).catch(()=>setRecordsLoading(false));
+  },[]);
+
+  // Auto-refresh records when entering records screen
+  useEffect(()=>{if(screen==="records")refreshRecords();},[screen]);
+
+  const startNewRound=useCallback((lvl)=>{
+    const ld=LEVELS[Math.min(lvl-1,LEVELS.length-1)];
+    const picked=pickN(SHAPES,ld.shapes);
+    const cols=pickN(t.colors,ld.shapes);
+    const withC=picked.map((s,i)=>({...s,color:cols[i]}));
+    const idx=Math.floor(Math.random()*ld.shapes);
+    setShownShapes(withC);setTargetShape(withC[idx]);setTargetIndex(idx);
+    setPhase("memorize");setFeedbackType(null);setTimerRunning(false);setShakeWrong(-1);
+    clearTimeout(mTimerRef.current);clearInterval(mIntRef.current);
+    const mt=ld.memorizeMs;const ts=Math.ceil(mt/1000);setMemorizeCountdown(ts);
+    const st=Date.now();
+    mIntRef.current=setInterval(()=>{setMemorizeCountdown(Math.max(0,Math.ceil((mt-(Date.now()-st))/1000)));},100);
+    mTimerRef.current=setTimeout(()=>{clearInterval(mIntRef.current);setMemorizeCountdown(0);setPhase("guess");setTimerRunning(true);},mt);
+  },[t.colors]);
+
+  const startGame=useCallback((fromLevel=1)=>{
+    setStartLevel(fromLevel);setLevel(fromLevel);setRoundInLevel(0);
+    setScore(0);setLives(3);setCombo(0);setIsNewBest(false);setLevelUpBanner(false);
+    setPaused(false);setLifeBanner(false);setNextLifeAt(LIFE_EVERY);setIsRetry(false);
+    setScreen("game");startNewRound(fromLevel);
+  },[startNewRound]);
+
+  // Pause / Resume
+  const doPause=useCallback(()=>{
+    if(paused||phase==="feedback")return;
+    clearTimeout(mTimerRef.current);clearInterval(mIntRef.current);
+    setTimerRunning(false);
+    pausedPhaseRef.current=phase;
+    setPaused(true);
+  },[paused,phase]);
+
+  const doResume=useCallback(()=>{
+    setPaused(false);
+    // restart current round fresh so timers are clean
+    startNewRound(level);
+  },[level,startNewRound]);
+
+  const endGame=useCallback((finalScore,finalLevel)=>{
+    const newProg={...progress};
+    const newUnlocked=Math.max(newProg.unlocked,finalLevel);
+    newProg.unlocked=Math.min(newUnlocked,15);
+    const prevBest=newProg.bestScores[startLevel]||0;
+    const isBest=finalScore>prevBest;
+    if(isBest)newProg.bestScores[startLevel]=finalScore;
+    setProgress(newProg);saveProgress(newProg);
+    setIsNewBest(isBest);
+    addRecord(nick,finalScore,finalLevel).then(r=>setRecords(r));
+    setScreen("gameover");
+  },[progress,startLevel,nick]);
+
+  const showTransition=useCallback((nextRound,nextLvl,isLevelUp,callback)=>{
+    clearTimeout(transInRef.current);clearTimeout(transOutRef.current);
+    setTransition({round:nextRound,level:nextLvl,isLevelUp,fading:"in"});
+    const holdTime=isLevelUp?4200:3200;
+    transInRef.current=setTimeout(()=>{
+      setTransition(prev=>prev?{...prev,fading:"out"}:null);
+      transOutRef.current=setTimeout(()=>{setTransition(null);callback();},800);
+    },holdTime);
+  },[]);
+
+  const advanceLevel=useCallback(()=>{
+    const nextLvl=Math.min(level+1,15);
+    showTransition(1,nextLvl,true,()=>{
+      setLevel(nextLvl);setRoundInLevel(0);setLevelUpBanner(true);
+      setTimeout(()=>setLevelUpBanner(false),1200);
+      startNewRound(nextLvl);
+    });
+  },[level,startNewRound,showTransition]);
+
+  const handleAnswer=useCallback((index,e)=>{
+    if(phase!=="guess")return;
+    setTimerRunning(false);
+    const ld=currentLevelData();
+    if(index===targetIndex){
+      setIsRetry(false);
+      const mult=Math.min(combo+1,5);const pts=10*mult+level*5;
+      const newScore=score+pts;
+      setScore(newScore);setCombo(c=>c+1);setFeedbackType("correct");setPhase("feedback");
+      if(newScore>=nextLifeAt&&lives<MAX_LIVES){
+        setLives(l=>Math.min(l+1,MAX_LIVES));
+        setNextLifeAt(n=>n+LIFE_EVERY);
+        setLifeBanner(true);setTimeout(()=>setLifeBanner(false),1500);
+      }
+      if(e){const r=e.currentTarget.getBoundingClientRect();setParticles({active:true,x:r.left+r.width/2,y:r.top+r.height/2});setTimeout(()=>setParticles({active:false,x:0,y:0}),700);}
+      const nextRound=roundInLevel+1;
+      setTimeout(()=>{
+        if(nextRound>=ld.rounds){
+          advanceLevel();
+        } else {
+          showTransition(nextRound+1,level,false,()=>{
+            setRoundInLevel(nextRound);
+            startNewRound(level);
+          });
+        }
+      },800);
+    } else {
+      setCombo(0);setFeedbackType("wrong");setShakeWrong(index);setPhase("feedback");
+      const nl=lives-1;setLives(nl);
+      setTimeout(()=>{
+        if(nl<=0)endGame(score,level);
+        else{setIsRetry(true);startNewRound(level);}
+      },1800);
+    }
+  },[phase,targetIndex,combo,level,lives,score,roundInLevel,nextLifeAt,startNewRound,advanceLevel,endGame,showTransition]);
+
+  const handleExpire=useCallback(()=>{
+    if(phase!=="guess")return;
+    setTimerRunning(false);setCombo(0);setFeedbackType("wrong");setPhase("feedback");
+    const nl=lives-1;setLives(nl);
+    setTimeout(()=>{
+      if(nl<=0)endGame(score,level);
+      else{setIsRetry(true);startNewRound(level);}
+    },1800);
+  },[phase,lives,score,level,startNewRound,endGame]);
+
+  const ld=currentLevelData();
+
+  const CSS=`
+    @keyframes floatShape{0%{transform:translateY(0) rotate(0deg)}100%{transform:translateY(-30px) rotate(15deg)}}
+    @keyframes fadeInUp{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:translateY(0)}}
+    @keyframes pulse{0%{transform:scale(1)}100%{transform:scale(1.08)}}
+    @keyframes popIn{0%{transform:scale(.5);opacity:0}70%{transform:scale(1.1)}100%{transform:scale(1);opacity:1}}
+    @keyframes shakeX{0%,100%{transform:translateX(0)}20%{transform:translateX(-8px)}40%{transform:translateX(8px)}60%{transform:translateX(-5px)}80%{transform:translateX(5px)}}
+    @keyframes particleBurst{0%{transform:translate(-50%,-50%) translate(0,0);opacity:1}100%{transform:translate(-50%,-50%) translate(var(--px),var(--py));opacity:0}}
+    @keyframes glowPulse{0%{box-shadow:0 0 8px ${t.accent}40}50%{box-shadow:0 0 24px ${t.accent}80}100%{box-shadow:0 0 8px ${t.accent}40}}
+    @keyframes countPop{0%{transform:scale(1.3);opacity:.5}100%{transform:scale(1);opacity:1}}
+    @keyframes slideDown{from{opacity:0;transform:translateY(-20px)}to{opacity:1;transform:translateY(0)}}
+    @keyframes levelUp{0%{transform:scale(.8);opacity:0}50%{transform:scale(1.15)}100%{transform:scale(1);opacity:1}}
+    @keyframes breathe{0%{transform:scale(1);opacity:.7}50%{transform:scale(1.15);opacity:1}100%{transform:scale(1);opacity:.7}}
+    @keyframes countdownPop{0%{transform:scale(2);opacity:0}40%{transform:scale(.9)}100%{transform:scale(1);opacity:1}}
+    @keyframes transIn{from{opacity:0;backdrop-filter:blur(0)}to{opacity:1;backdrop-filter:blur(12px)}}
+    @keyframes transFadeText{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+    @keyframes floatParticle{0%{transform:translateY(0) translateX(0) scale(1)}50%{transform:translateY(-30px) translateX(15px) scale(1.3)}100%{transform:translateY(-60px) translateX(-10px) scale(0.8)}}
+  `;
+
+  return(
+    <ThemeCtx.Provider value={t}>
+      <style>{CSS}</style>
+      <ThemeToggle onToggle={toggle}/>
+
+      {screen==="intro"&&<IntroScreen onStart={()=>startGame(progress.unlocked)} onMap={()=>setScreen("map")} onRecords={()=>setScreen("records")} highLevel={progress.unlocked} nick={nick} onNickChange={handleNickChange}/>}
+
+      {screen==="map"&&<LevelMap progress={progress} onSelectLevel={lvl=>startGame(lvl)} onBack={()=>setScreen("intro")}/>}
+
+      {screen==="records"&&<RecordsScreen records={records} loading={recordsLoading} onRefresh={refreshRecords} onBack={()=>setScreen("intro")}/>}
+
+      {screen==="gameover"&&<GameOverScreen score={score} level={level} startLevel={startLevel} isNewBest={isNewBest}
+        onRestart={()=>startGame(startLevel)} onMap={()=>setScreen("map")} onMenu={()=>setScreen("intro")}/>}
+
+      {screen==="game"&&(
+        <div style={{minHeight:"100vh",background:t.bg,display:"flex",flexDirection:"column",alignItems:"center",
+          fontFamily:"'Segoe UI',system-ui,sans-serif",padding:"20px 16px",boxSizing:"border-box",transition:"background .4s"}}>
+          <Particles {...particles}/>
+
+          {/* Level up banner */}
+          {levelUpBanner&&(
+            <div style={{position:"fixed",top:60,left:"50%",transform:"translateX(-50%)",zIndex:50,
+              background:t.accentGrad,color:"#fff",padding:"10px 28px",borderRadius:12,fontSize:16,fontWeight:700,
+              animation:"levelUp .6s ease-out",letterSpacing:1,boxShadow:`0 4px 20px ${t.accent}40`,
+            }}>🎉 Poziom {level}!</div>
+          )}
+
+          {/* Bonus life banner */}
+          {lifeBanner&&(
+            <div style={{position:"fixed",top:levelUpBanner?110:60,left:"50%",transform:"translateX(-50%)",zIndex:50,
+              background:`linear-gradient(135deg,${t.wrong},#ff8a5c)`,color:"#fff",padding:"10px 28px",borderRadius:12,fontSize:16,fontWeight:700,
+              animation:"levelUp .6s ease-out",letterSpacing:1,boxShadow:`0 4px 20px ${t.wrong}40`,
+            }}>♥ +1 życie!</div>
+          )}
+
+          {/* Pause overlay */}
+          {paused&&(
+            <div style={{position:"fixed",inset:0,zIndex:80,background:"rgba(0,0,0,0.6)",
+              display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",
+              animation:"fadeInUp .3s ease-out",backdropFilter:"blur(6px)",
+            }}>
+              <div style={{background:t.key==="dark"?"#1a1a2e":"#fff",borderRadius:20,padding:"36px 44px",
+                textAlign:"center",boxShadow:"0 8px 40px rgba(0,0,0,0.3)",maxWidth:320,width:"90%",
+              }}>
+                <div style={{fontSize:36,marginBottom:8}}>⏸️</div>
+                <h3 style={{color:t.title,fontSize:22,fontWeight:800,margin:"0 0 8px"}}>Pauza</h3>
+                <div style={{color:t.subtitle,fontSize:14,marginBottom:24}}>Poziom {level} · Wynik: {score}</div>
+                <div style={{display:"flex",flexDirection:"column",gap:10}}>
+                  <button onClick={doResume} style={{
+                    background:t.accentGrad,color:"#fff",border:"none",padding:"14px 0",
+                    fontSize:17,fontWeight:700,borderRadius:12,cursor:"pointer",width:"100%",
+                  }}>▶ Wznów</button>
+                  <button onClick={()=>{setPaused(false);setScreen("intro");}} style={{
+                    background:t.btnSecBg,color:t.btnSecText,border:`1px solid ${t.btnSecBorder}`,
+                    padding:"12px 0",fontSize:15,fontWeight:600,borderRadius:12,cursor:"pointer",width:"100%",
+                  }}>Wyjdź do menu</button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Transition overlay */}
+          {transition&&(()=>{
+            const tLvl=LEVELS[Math.min(transition.level-1,14)];
+            return(
+            <div style={{position:"fixed",inset:0,zIndex:70,
+              background:t.key==="dark"?"rgba(15,14,23,0.95)":"rgba(255,245,220,0.95)",
+              display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",
+              backdropFilter:"blur(12px)",WebkitBackdropFilter:"blur(12px)",
+              opacity:transition.fading==="in"?1:0,
+              transition:"opacity 0.8s ease-in-out",
+              animation:transition.fading==="in"?"transIn 0.8s ease-out":"none",
+              overflow:"hidden",
+            }}>
+              {/* Floating particles - only on level up */}
+              {transition.isLevelUp&&Array.from({length:20}).map((_,i)=>(
+                <div key={i} style={{
+                  position:"absolute",
+                  width:4+Math.random()*6,height:4+Math.random()*6,
+                  borderRadius:"50%",
+                  background:t.colors[i%t.colors.length],
+                  opacity:.3+Math.random()*.3,
+                  left:`${Math.random()*100}%`,
+                  top:`${Math.random()*100}%`,
+                  animation:`floatParticle ${2+Math.random()*3}s ease-in-out infinite alternate`,
+                  animationDelay:`${Math.random()*2}s`,
+                }}/>
+              ))}
+
+              {transition.isLevelUp?(
+                <React.Fragment>
+                  <div style={{fontSize:44,marginBottom:16,animation:"popIn .6s ease-out"}}>🎉</div>
+                  <div style={{fontSize:13,color:t.subtitle,letterSpacing:3,fontWeight:600,marginBottom:12,textTransform:"uppercase",
+                    opacity:0,animation:"transFadeText .8s ease-out .2s forwards"}}>
+                    Nowy poziom
+                  </div>
+                  <div style={{fontSize:40,color:t.accent,fontWeight:800,letterSpacing:2,
+                    opacity:0,animation:"transFadeText .8s ease-out .4s forwards"}}>
+                    Poziom {transition.level}
+                  </div>
+                  <div style={{marginTop:24,display:"flex",gap:24,
+                    opacity:0,animation:"transFadeText .8s ease-out .7s forwards"}}>
+                    <div style={{textAlign:"center"}}>
+                      <div style={{fontSize:28,fontWeight:800,color:t.accent}}>{tLvl.shapes}</div>
+                      <div style={{fontSize:11,color:t.subtitle,marginTop:2,letterSpacing:1}}>figur</div>
+                    </div>
+                    <div style={{width:1,background:t.cardBorder,opacity:.5}}/>
+                    <div style={{textAlign:"center"}}>
+                      <div style={{fontSize:28,fontWeight:800,color:t.accent}}>{tLvl.rounds}</div>
+                      <div style={{fontSize:11,color:t.subtitle,marginTop:2,letterSpacing:1}}>rund</div>
+                    </div>
+                  </div>
+                  <div style={{fontSize:12,color:t.subtitle,marginTop:20,opacity:0,
+                    animation:"transFadeText .8s ease-out .9s forwards",letterSpacing:1}}>
+                    {tLvl.label}
+                  </div>
+                </React.Fragment>
+              ):(
+                <React.Fragment>
+                  <div style={{fontSize:13,color:t.subtitle,letterSpacing:3,fontWeight:600,marginBottom:12,textTransform:"uppercase",
+                    opacity:0,animation:"transFadeText .8s ease-out .3s forwards"}}>
+                    Następna runda
+                  </div>
+                  <div style={{fontSize:28,color:t.accent,fontWeight:800,letterSpacing:2,
+                    opacity:0,animation:"transFadeText .8s ease-out .5s forwards"}}>
+                    Runda {transition.round}
+                  </div>
+                  <div style={{fontSize:15,color:t.subtitle,marginTop:8,fontWeight:500,
+                    opacity:0,animation:"transFadeText .8s ease-out .7s forwards"}}>
+                    z {tLvl.rounds}
+                  </div>
+                </React.Fragment>
+              )}
+              <div style={{width:60,height:3,borderRadius:2,background:t.accent,marginTop:24,
+                opacity:.4,animation:"breathe 2s ease-in-out infinite"}}/>
+            </div>);
+          })()}
+
+          {/* HUD */}
+          <div style={{textAlign:"center",marginBottom:6}}>
+            <div style={{color:t.hudText,fontSize:14,fontWeight:700,letterSpacing:1}}>Poziom {level}</div>
+            <div style={{color:t.subtitle,fontSize:10,marginTop:1}}>Runda {roundInLevel+1}/{ld.rounds}</div>
+          </div>
+          <div style={{display:"flex",justifyContent:"space-between",width:"100%",maxWidth:400,alignItems:"center",marginBottom:4}}>
+            <div style={{minWidth:50}}>
+              <div style={{color:t.gold,fontSize:18,fontWeight:800}}>{score}</div>
+              <div style={{color:t.subtitle,fontSize:9,marginTop:1}}>punkty</div>
+            </div>
+            <div style={{display:"flex",gap:2,alignItems:"center"}}>
+              {Array.from({length:MAX_LIVES}).map((_,i)=>(
+                <span key={i} style={{fontSize:14,transition:"all .3s",
+                  filter:i<lives?"none":t.heartDim,
+                  animation:i===lives-1&&lifeBanner?"popIn .4s ease-out":"none",
+                }}>{i<lives?"♥":"♡"}</span>
+              ))}
+            </div>
+            <div style={{minWidth:50}}/>
+          </div>
+
+          {combo>=2&&<div style={{color:t.combo,fontSize:13,fontWeight:700,letterSpacing:1,animation:"pulse .6s ease-in-out infinite alternate",marginBottom:4}}>COMBO ×{Math.min(combo,5)} 🔥</div>}
+
+          {phase!=="memorize"?<TimerBar duration={ld.guessMs} running={phase==="guess"&&timerRunning} onExpire={handleExpire}/>:<div style={{height:30}}/>}
+
+          {isRetry&&phase==="memorize"&&(
+            <div style={{color:t.wrong,fontSize:12,fontWeight:700,letterSpacing:1,marginBottom:4,
+              animation:"popIn .4s ease-out"}}>
+              🔄 Poprawiasz rundę {roundInLevel+1}
+            </div>
+          )}
+
+          <div style={{
+            color:phase==="memorize"?(isRetry?t.wrong:t.correct):phase==="feedback"&&feedbackType==="correct"?t.correct:phase==="feedback"&&feedbackType==="wrong"?t.wrong:t.subtitle,
+            fontSize:16,fontWeight:600,marginBottom:20,minHeight:24,transition:"color .3s",
+          }}>
+            {phase==="memorize"&&(isRetry?"Spróbuj jeszcze raz!":"Zapamiętaj figury!")}
+            {phase==="guess"&&"Wskaż właściwą figurę"}
+            {phase==="feedback"&&feedbackType==="correct"&&`Dobrze! +${10*Math.min(combo,5)+level*5}`}
+            {phase==="feedback"&&feedbackType==="wrong"&&"Pudło!"}
+          </div>
+
+          {/* Big circle */}
+          <div style={{width:130,height:130,borderRadius:"50%",
+            border:phase==="memorize"?`4px solid ${t.correct}80`:`3px solid ${targetShape?targetShape.color+"60":t.mutedText}`,
+            display:"flex",alignItems:"center",justifyContent:"center",marginBottom:32,
+            background:t.circleBg,animation:phase==="guess"?"glowPulse 2s ease-in-out infinite":"none",
+            transition:"border-color .3s",boxShadow:t.shadow,
+          }}>
+            {phase==="memorize"&&<span key={memorizeCountdown} style={{fontSize:52,fontWeight:800,color:t.correct,filter:t.dropShadow(t.correct),animation:"countPop .3s ease-out",fontVariantNumeric:"tabular-nums"}}>{memorizeCountdown}</span>}
+            {phase!=="memorize"&&targetShape&&<span style={{fontSize:56,color:targetShape.color,animation:"popIn .35s ease-out",filter:t.dropShadow(targetShape.color)}}>{targetShape.symbol}</span>}
+          </div>
+
+          {/* Shape buttons */}
+          <div style={{display:"flex",flexWrap:"wrap",gap:14,justifyContent:"center",maxWidth:360}}>
+            {shownShapes.map((shape,i)=>{
+              const isOk=phase==="feedback"&&feedbackType==="correct"&&i===targetIndex;
+              const isReveal=phase==="feedback"&&feedbackType==="wrong"&&i===targetIndex;
+              const isShake=shakeWrong===i;
+              return(
+                <button key={`${level}-${roundInLevel}-${i}`} onClick={e=>handleAnswer(i,e)} disabled={phase!=="guess"}
+                  style={{width:80,height:80,borderRadius:16,
+                    border:isOk?`3px solid ${t.correct}`:isReveal?`3px solid ${t.gold}`
+                      :phase==="memorize"?`2px solid ${shape.color}50`:`2px solid ${t.cardBorder}`,
+                    background:isOk?`${t.correct}15`:isReveal?`${t.gold}15`:t.cardBg,
+                    display:"flex",alignItems:"center",justifyContent:"center",
+                    cursor:phase==="guess"?"pointer":"default",transition:"all .3s",
+                    animation:isShake?"shakeX .5s ease":isReveal?"popIn .4s ease-out":`popIn .35s ease-out ${i*.06}s both`,
+                    boxShadow:isOk?`0 0 20px ${t.correct}40`:isReveal?`0 0 20px ${t.gold}40`:t.shadow,
+                  }}
+                  onMouseEnter={e=>{if(phase==="guess"){e.currentTarget.style.background=t.cardHover;e.currentTarget.style.transform="scale(1.08)";}}}
+                  onMouseLeave={e=>{e.currentTarget.style.background=isOk?`${t.correct}15`:t.cardBg;e.currentTarget.style.transform="scale(1)";}}
+                >
+                  {phase==="memorize"?<span style={{fontSize:36,color:shape.color,filter:t.dropShadow(shape.color)}}>{shape.symbol}</span>
+                    :isReveal?<span style={{fontSize:36,color:t.gold,animation:"popIn .4s ease-out",filter:t.dropShadow(t.gold)}}>{shape.symbol}</span>
+                    :isOk?<span style={{fontSize:36,color:t.correct}}>{shape.symbol}</span>
+                    :<span style={{fontSize:28,color:t.mutedText}}>?</span>}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Bottom info + pause */}
+          <div style={{color:t.subtitle,fontSize:11,marginTop:24,letterSpacing:.5,textAlign:"center",opacity:.7}}>
+            {ld.shapes} figur · {ld.label} · +♥ za {nextLifeAt} pkt
+          </div>
+          <button onClick={doPause} style={{
+            marginTop:14,background:"none",border:`1px solid ${t.btnSecBorder}`,
+            color:t.subtitle,padding:"10px 32px",fontSize:14,fontWeight:600,
+            borderRadius:10,cursor:"pointer",letterSpacing:1,transition:"all .2s",
+          }}>⏸ Pauza</button>
+        </div>
+      )}
+    </ThemeCtx.Provider>
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>
