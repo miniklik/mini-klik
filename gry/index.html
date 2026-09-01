@@ -2,1098 +2,232 @@
 <html lang="pl">
 <head>
 <meta charset="UTF-8">
-<title>Mini Przygoda Eda • mini-klik</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="theme-color" content="#fff200">
+<title>Moje mapy · mini-klik.pl</title>
+<meta name="description" content="Moje mapy — kolekcja interaktywnych map miejscowości">
+
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Bungee&family=Outfit:wght@400;700;800;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
 
 <style>
-:root{
-  --yellow:#fff200;
-  --black:#000;
-  --red:#ff003c;
-  --blue:#0040ff;
-  --green:#00ffaa;
-  --pink:#ff44a8;
-  --gray:#1a1a1a;
-}
-
-*{margin:0;padding:0;box-sizing:border-box}
-html,body{min-height:100%;overflow-x:hidden}
-
-body{
-  font-family:'Outfit',sans-serif;
-  background:var(--yellow);
-  color:var(--black);
-  position:relative;
-  min-height:100vh;
-}
-/* siatka w tle */
-body::before{
-  content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
-  background-image:
-    linear-gradient(0deg,transparent 49%,rgba(0,0,0,0.05) 50%,transparent 51%),
-    linear-gradient(90deg,transparent 49%,rgba(0,0,0,0.05) 50%,transparent 51%);
-  background-size:40px 40px
-}
-
-a{color:inherit;text-decoration:none}
-
-/* ===== TOP BAR ===== */
-.topbar{
-  position:sticky;top:0;z-index:100;
-  background:var(--black);color:var(--yellow);
-  border-bottom:4px solid var(--black);
-  padding:14px 24px;
-  display:flex;align-items:center;justify-content:space-between;
-  font-family:'Bungee',sans-serif;
-}
-.topbar .logo{
-  font-size:24px;letter-spacing:-1px;color:var(--yellow);
-  display:flex;align-items:center;gap:8px;
-}
-.topbar .logo .red{color:var(--red)}
-.topbar .logo .blue{color:#5ba3ff}
-.topbar-right{display:flex;align-items:center;gap:10px;font-family:'Outfit',sans-serif;font-weight:900;font-size:13px;text-transform:uppercase}
-.back-link{
-  color:var(--yellow);padding:8px 14px;border:2px solid var(--yellow);
-  transition:all .15s;letter-spacing:1px;
-}
-.back-link:hover{background:var(--yellow);color:var(--black)}
-.topbar-tagline{
-  color:var(--green);
-  font-family:'JetBrains Mono',monospace;font-size:12px;
-  letter-spacing:2px;font-weight:700;
-}
-.mobile-btn{
-  display:none;background:var(--yellow);color:var(--black);border:none;
-  padding:8px 14px;cursor:pointer;font-family:'Outfit',sans-serif;
-  font-weight:900;font-size:13px;letter-spacing:1px;text-transform:uppercase;
-}
-.mobile-btn.hamburger-toggle{font-size:20px;padding:6px 12px}
-
-/* ===== LAYOUT ===== */
-.layout{
-  position:relative;z-index:1;
-  display:grid;
-  grid-template-columns:200px minmax(0,1fr) 300px;
-  gap:0;
-  max-width:1400px;
-  margin:0 auto;
-  min-height:calc(100vh - 60px);
-}
-
-/* ===== SIDEBAR ===== */
-.sidebar{
-  background:var(--black);color:var(--yellow);
-  padding:32px 0;
-  border-right:4px solid var(--black);
-}
-.sidebar-close{
-  display:none;position:absolute;top:14px;right:14px;
-  background:var(--yellow);color:var(--black);border:none;
-  width:36px;height:36px;font-size:22px;font-weight:900;cursor:pointer;
-  font-family:'Outfit',sans-serif;
-}
-.sidebar-section-title{
-  font-family:'Bungee',sans-serif;font-size:12px;letter-spacing:2px;
-  color:var(--red);padding:0 24px;margin:20px 0 12px;
-}
-.sidebar-section-title:first-of-type{margin-top:0}
-.sidebar a{
-  display:flex;align-items:center;gap:12px;
-  padding:12px 24px;
-  color:var(--yellow);
-  font-weight:700;font-size:15px;letter-spacing:0.5px;
-  transition:all .15s;
-  border-left:4px solid transparent;
-  text-transform:uppercase;
-}
-.sidebar a:hover{
-  background:var(--yellow);color:var(--black);
-  border-left-color:var(--red);
-}
-.sidebar a.active{
-  background:var(--red);color:#fff;
-  border-left-color:var(--yellow);
-}
-.sidebar-icon{font-size:18px;flex-shrink:0;width:24px;text-align:center}
-
-/* ===== MAIN ===== */
-.main{
-  background:var(--yellow);
-  padding:28px 24px;
-  border-right:4px solid var(--black);
-  min-width:0;
-  overflow:hidden;
-}
-
-/* HEADER GRY */
-.game-header{
-  border-bottom:4px solid var(--black);
-  padding-bottom:20px;
-  margin-bottom:32px;
-}
-.game-header h1{
-  font-family:'Bungee',sans-serif;
-  font-size:48px;letter-spacing:-2px;line-height:0.95;
-  color:var(--black);
-}
-.game-header h1::after{
-  content:'★';color:var(--red);margin-left:14px;font-size:32px;display:inline-block;animation:starSpin 4s linear infinite;
-}
-@keyframes starSpin{from{transform:rotate(0)}to{transform:rotate(360deg)}}
-
-/* MARQUEE */
-.marquee{
-  background:var(--black);color:var(--yellow);padding:10px 0;margin:0 -24px 28px;
-  overflow:hidden;border-top:4px solid var(--black);border-bottom:4px solid var(--black);
-}
-.marquee-track{
-  display:flex;gap:48px;white-space:nowrap;
-  animation:marquee 25s linear infinite;
-  font-family:'Bungee',sans-serif;font-size:16px;
-}
-.marquee-track span::before{content:'★';margin-right:48px;color:var(--red)}
-@keyframes marquee{from{transform:translateX(0)}to{transform:translateX(-50%)}}
-
-/* SECTION */
-.section{
-  background:#fff;
-  border:4px solid var(--black);
-  padding:24px;
-  margin-bottom:24px;
-  position:relative;
-  transition:all .15s;
-  min-width:0;
-}
-.section:hover{transform:translate(-3px,-3px);box-shadow:6px 6px 0 var(--black)}
-.section.player{background:#fff}
-.section.editor{background:var(--green)}
-
-.section h2{
-  font-family:'Bungee',sans-serif;font-size:22px;letter-spacing:0;
-  margin-bottom:18px;line-height:1;
-  display:flex;align-items:center;gap:10px;
-}
-
-/* PLAYER ROW */
-.player-row{
-  display:grid;grid-template-columns:minmax(0,240px) minmax(0,1fr);gap:20px;align-items:start;
-}
-.cover-action{
-  display:block;position:relative;
-  background:var(--black);
-  border:4px solid var(--black);
-  aspect-ratio:16/10;
-  width:100%;
-  overflow:hidden;
-  transition:all .15s;
-}
-.cover-action:hover{transform:translate(-4px,-4px);box-shadow:8px 8px 0 var(--black)}
-.cover-action img{width:100%;height:100%;object-fit:cover;display:block}
-.cover-action.cover-broken{
-  display:flex;align-items:center;justify-content:center;
-  background:var(--blue);color:#fff;
-}
-.cover-play-overlay{
-  position:absolute;inset:0;
-  display:flex;align-items:center;justify-content:center;
-  font-size:80px;color:var(--yellow);
-  text-shadow:4px 4px 0 var(--black);
-  opacity:0;transition:opacity .15s;
-  font-family:'Bungee',sans-serif;
-}
-.cover-action:hover .cover-play-overlay{opacity:1}
-
-.game-desc p{
-  font-size:15px;line-height:1.5;font-weight:500;margin-bottom:10px;
-}
-.game-desc p:last-child{margin-bottom:0}
-
-/* INFO PILLS */
-.info-row{
-  display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0;
-  margin-top:24px;
-  border:4px solid var(--black);
-}
-.info-pill{
-  padding:14px 12px;
-  background:#fff;
-  border-right:4px solid var(--black);
-  text-align:left;
-  min-width:0;
-  overflow:hidden;
-}
-.info-pill:last-child{border-right:none}
-.info-pill:nth-child(1){background:var(--yellow)}
-.info-pill:nth-child(2){background:var(--red);color:#fff}
-.info-pill:nth-child(3){background:var(--blue);color:#fff}
-.pill-label{
-  display:block;font-family:'JetBrains Mono',monospace;font-size:10px;
-  letter-spacing:2px;text-transform:uppercase;font-weight:700;
-  opacity:0.7;margin-bottom:4px;
-}
-.pill-value{
-  font-family:'Bungee',sans-serif;font-size:15px;letter-spacing:0;
-  word-break:break-word;
-  display:block;
-  line-height:1.1;
-}
-.mini-controls{display:inline-flex;gap:4px;align-items:center}
-.mini-key{
-  display:inline-block;padding:3px 8px;
-  background:var(--black);color:var(--yellow);
-  font-family:'Bungee',sans-serif;font-size:13px;
-  border:2px solid var(--black);
-  min-width:24px;text-align:center;
-}
-.info-pill:nth-child(2) .mini-key,
-.info-pill:nth-child(3) .mini-key{
-  background:#fff;color:var(--black);border-color:#fff;
-}
-
-/* ===== HERO ===== */
-.hero{
-  background:var(--black);color:var(--yellow);
-  border:4px solid var(--black);
-  padding:0;
-  margin-bottom:24px;
-  position:relative;
-  overflow:hidden;
-  min-height:240px;
-}
-#heroCanvas{
-  position:absolute;inset:0;width:100%;height:100%;z-index:1;
-  display:block;
-}
-.hero-content{
-  position:relative;z-index:2;
-  padding:40px 30px;
-  text-align:left;
-}
-.hero h1{
-  font-family:'Bungee',sans-serif;
-  font-size:48px;line-height:0.95;letter-spacing:-2px;
-  color:var(--yellow);
-  text-shadow:4px 4px 0 var(--red);
-  margin-bottom:14px;
-}
-.hero h1 .accent{color:var(--green)}
-.hero p{
-  font-family:'Outfit',sans-serif;font-weight:700;
-  font-size:16px;line-height:1.5;
-  color:#fff;
-  max-width:520px;
-  text-shadow:2px 2px 0 var(--black);
-}
-
-/* ===== DEMO ROW ===== */
-.demo-row{
-  display:grid;grid-template-columns:auto minmax(0,1fr);gap:24px;align-items:start;
-}
-
-/* GAMES GRID */
-.games-grid{
-  display:grid;
-  grid-template-columns:repeat(auto-fill,minmax(120px,1fr));
-  gap:14px;
-}
-.demo-row .games-grid{
-  grid-template-columns:repeat(2,120px);
-}
-.game-card{
-  background:#fff;
-  border:4px solid var(--black);
-  cursor:pointer;
-  overflow:hidden;
-  transition:all .15s;
-  display:flex;flex-direction:column;
-  aspect-ratio:1/1;
-  width:120px;
-  position:relative;
-}
-.game-card:hover{
-  transform:translate(-3px,-3px);
-  box-shadow:6px 6px 0 var(--red);
-}
-.game-card:nth-child(2n){background:var(--green)}
-.game-card:nth-child(3n){background:var(--blue)}
-.game-card img{
-  width:100%;height:100%;
-  object-fit:cover;
-  display:block;
-}
-
-/* DEMO INFO */
-.demo-info{
-  font-family:'Outfit',sans-serif;font-weight:600;
-  font-size:14px;line-height:1.5;color:#000;
-  min-width:0;
-}
-.demo-info p{margin-bottom:10px}
-.demo-info p:last-child{margin-bottom:0}
-.demo-info b{
-  background:var(--black);color:var(--yellow);
-  padding:1px 5px;font-weight:900;
-}
-.demo-info a{
-  color:var(--red);font-weight:900;
-  border-bottom:2px solid var(--red);
-}
-.demo-info hr{
-  border:none;border-top:3px dashed var(--black);
-  margin:14px 0;
-}
-
-/* SECTION INTRO */
-.section-intro{
-  background:var(--yellow);
-  border:3px solid var(--black);
-  padding:14px 18px;
-  margin-bottom:18px;
-  font-family:'Outfit',sans-serif;
-  font-weight:700;font-size:14px;line-height:1.5;
-  color:#000;
-}
-.section-intro b{
-  background:var(--black);color:var(--yellow);
-  padding:1px 5px;
-}
-
-/* ===== ACCORDION ===== */
-.section details{
-  border:3px solid var(--black);
-  background:#fff;
-  overflow:hidden;
-}
-.section details summary{
-  padding:14px 18px;
-  font-family:'Bungee',sans-serif;font-size:15px;letter-spacing:0.5px;
-  background:var(--black);color:var(--yellow);
-  cursor:pointer;
-  list-style:none;
-  display:flex;align-items:center;gap:10px;
-  transition:background .15s;
-}
-.section details summary::-webkit-details-marker{display:none}
-.section details summary::after{
-  content:'▼';margin-left:auto;font-size:12px;
-  transition:transform .2s;
-}
-.section details[open] summary::after{transform:rotate(180deg)}
-.section details summary:hover{background:var(--red)}
-.section details > div{
-  padding:20px;
-  font-family:'Outfit',sans-serif;font-weight:500;
-  font-size:14px;line-height:1.7;color:#000;
-}
-.section details h3{
-  font-family:'Bungee',sans-serif;
-  font-size:18px;letter-spacing:0;
-  color:var(--black);margin:18px 0 10px;
-  padding-bottom:6px;border-bottom:3px solid var(--black);
-}
-.section details p{margin-bottom:10px}
-.section details b{
-  background:var(--yellow);color:var(--black);
-  padding:1px 5px;font-weight:900;
-  border:1px solid var(--black);
-}
-.section details ul{margin-left:24px;margin-top:8px}
-.section details ul li{margin-bottom:6px}
-.callout{
-  background:var(--yellow);
-  border:3px solid var(--black);
-  padding:12px 16px;margin-bottom:18px;
-  font-family:'Outfit',sans-serif;font-weight:700;
-  font-size:13px;line-height:1.5;
-}
-.callout strong{
-  font-family:'Bungee',sans-serif;
-  display:block;font-size:14px;margin-bottom:6px;
-  color:var(--red);
-}
-
-/* ===== GUESTBOOK ===== */
-.guestbook-col{
-  background:var(--black);color:var(--yellow);
-  padding:24px 18px;
-  display:flex;flex-direction:column;
-  min-width:0;
-  overflow:hidden;
-}
-.guestbook-close{
-  display:none;position:absolute;top:14px;right:14px;
-  background:var(--yellow);color:var(--black);border:none;
-  width:36px;height:36px;font-size:22px;font-weight:900;cursor:pointer;
-  font-family:'Outfit',sans-serif;
-}
-.guestbook-col h2{
-  font-family:'Bungee',sans-serif;font-size:20px;letter-spacing:0;
-  margin-bottom:6px;color:var(--yellow);
-  display:flex;align-items:center;gap:8px;
-}
-.guestbook-count{
-  font-family:'JetBrains Mono',monospace;font-size:11px;
-  color:var(--green);letter-spacing:1px;margin-bottom:16px;text-transform:uppercase;
-}
-
-.comments{
-  flex:1;overflow-y:auto;
-  margin-bottom:16px;
-  display:flex;flex-direction:column;gap:10px;
-  max-height:50vh;
-}
-.comment{
-  background:#1a1a1a;border:2px solid var(--yellow);
-  padding:10px 12px;
-  display:grid;grid-template-columns:36px 1fr;gap:10px;
-  transition:transform .15s;
-}
-.comment:hover{transform:translate(-2px,-2px);box-shadow:4px 4px 0 var(--red)}
-.comment-avatar{
-  width:36px;height:36px;border-radius:0;
-  display:flex;align-items:center;justify-content:center;
-  font-family:'Bungee',sans-serif;font-size:13px;font-weight:700;
-}
-.comment-meta{
-  display:flex;justify-content:space-between;align-items:center;
-  margin-bottom:4px;font-size:11px;
-}
-.comment-author{font-family:'Bungee',sans-serif;font-size:12px}
-.comment-time{
-  font-family:'JetBrains Mono',monospace;color:#888;font-size:10px;
-}
-.comment-text{
-  font-size:13px;line-height:1.4;color:#eee;font-weight:500;
-  word-wrap:break-word;overflow-wrap:break-word;
-}
-
-/* GUESTBOOK FORM */
-.guestbook-form{
-  display:flex;flex-direction:column;gap:8px;
-  background:var(--yellow);color:var(--black);
-  padding:14px;border:3px solid var(--yellow);
-}
-.guestbook-form label{
-  font-family:'Bungee',sans-serif;font-size:13px;letter-spacing:1px;
-}
-.guestbook-form input,.guestbook-form textarea{
-  background:#fff;border:2px solid var(--black);
-  padding:8px 10px;font-family:'Outfit',sans-serif;font-size:14px;font-weight:600;
-  color:var(--black);width:100%;
-}
-.guestbook-form textarea{
-  min-height:60px;resize:vertical;
-}
-.guestbook-form input:focus,.guestbook-form textarea:focus{
-  outline:none;border-color:var(--red);box-shadow:3px 3px 0 var(--red);
-}
-.char-count{
-  font-family:'JetBrains Mono',monospace;font-size:10px;text-align:right;color:#555;
-}
-.guestbook-form button{
-  background:var(--black);color:var(--yellow);border:none;
-  padding:12px;font-family:'Bungee',sans-serif;font-size:15px;letter-spacing:1px;
-  cursor:pointer;transition:all .15s;
-}
-.guestbook-form button:hover{
-  background:var(--red);transform:translate(-2px,-2px);box-shadow:4px 4px 0 var(--black);
-}
-.guestbook-form button:disabled{opacity:0.6;cursor:not-allowed}
-
-/* ===== FOOTER ===== */
-.footer{
-  position:relative;z-index:1;
-  background:var(--black);color:var(--yellow);
-  padding:32px 24px;border-top:4px solid var(--black);
-  margin-top:0;
-}
-.footer-links{
-  display:flex;justify-content:center;gap:32px;
-  flex-wrap:wrap;margin-bottom:16px;
-}
-.footer-link{
-  display:flex;align-items:center;gap:8px;
-  padding:10px 18px;border:2px solid var(--yellow);
-  font-family:'Bungee',sans-serif;font-size:14px;letter-spacing:1px;
-  transition:all .15s;cursor:pointer;
-}
-.footer-link:hover{
-  background:var(--yellow);color:var(--black);
-  transform:translate(-2px,-2px);box-shadow:4px 4px 0 var(--red);
-}
-.footer-link.copied{background:var(--green);color:var(--black);border-color:var(--green)}
-.footer-link svg{flex-shrink:0}
-.footer-link:hover svg{stroke:var(--black) !important}
-.footer-link:hover svg[fill="#ff0000"]{fill:var(--black)}
-.footer-copy{
-  text-align:center;font-family:'JetBrains Mono',monospace;
-  font-size:11px;letter-spacing:1px;color:var(--yellow);
-}
-.footer-copy a{color:var(--green);text-decoration:none;font-weight:700}
-
-/* ===== BACKDROP ===== */
-.backdrop{
-  display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);
-  z-index:200;
-}
-.backdrop.show{display:block}
-
-/* ============ RESPONSYWNOŚĆ ============ */
-
-/* Średnie ekrany - chowamy księgę pod drawer, sidebar zostaje */
-@media (max-width:1100px){
-  .layout{grid-template-columns:200px minmax(0,1fr)}
-  .guestbook-col{
-    position:fixed;top:0;right:0;height:100vh;width:340px;
-    z-index:300;
-    transform:translateX(100%);
-    transition:transform .3s ease;
-    overflow-y:auto;
-    border-left:4px solid var(--yellow);
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{min-height:100%;overflow-x:hidden}
+  body{
+    font-family:'Space Grotesk',system-ui,sans-serif;
+    background:radial-gradient(ellipse at 20% 0%,#1a0f2e 0%,#0a0a14 50%,#000 100%);
+    color:#e8e8ea;
+    min-height:100vh;
+    padding:32px 24px 48px;
+    position:relative;
   }
-  .guestbook-col.open{transform:translateX(0)}
-  .guestbook-close{display:flex;align-items:center;justify-content:center}
-  .mobile-btn.guestbook-toggle{display:inline-flex;align-items:center;gap:6px}
-  .game-header h1{font-size:42px}
-}
 
-/* Małe ekrany - również sidebar pod drawer */
-@media (max-width:768px){
-  .mobile-btn{display:inline-flex;align-items:center;gap:6px}
-  .layout{grid-template-columns:minmax(0,1fr)}
-  .sidebar{
-    position:fixed;top:0;left:0;height:100vh;width:280px;
-    z-index:300;
-    transform:translateX(-100%);
-    transition:transform .3s ease;
-    overflow-y:auto;
-    border-right:4px solid var(--yellow);
+  body::before{
+    content:'';position:fixed;inset:0;pointer-events:none;
+    background-image:
+      radial-gradient(1px 1px at 23% 14%,#fff,transparent),
+      radial-gradient(1px 1px at 67% 28%,#fff,transparent),
+      radial-gradient(1px 1px at 41% 52%,#fff,transparent),
+      radial-gradient(2px 2px at 89% 71%,#ffd9a3,transparent),
+      radial-gradient(1px 1px at 12% 84%,#fff,transparent),
+      radial-gradient(1px 1px at 76% 91%,#fff,transparent),
+      radial-gradient(1px 1px at 55% 8%,#a3d9ff,transparent),
+      radial-gradient(1px 1px at 33% 39%,#fff,transparent),
+      radial-gradient(2px 2px at 8% 47%,#ff9a3d,transparent),
+      radial-gradient(1px 1px at 92% 35%,#fff,transparent);
+    opacity:0.7;
+    animation:twinkle 4s ease-in-out infinite;
   }
-  .sidebar.open{transform:translateX(0)}
-  .sidebar-close{display:flex;align-items:center;justify-content:center}
-  .main{border-right:none;padding:20px 16px}
-  .marquee{margin:0 -16px 24px}
-  .game-header h1{font-size:32px}
-  .game-header h1::after{font-size:22px}
-  .player-row{grid-template-columns:1fr;gap:16px}
-  .cover-action{aspect-ratio:16/9;max-width:100%}
-  .info-row{grid-template-columns:1fr;border:none}
-  .info-pill{border:4px solid var(--black);border-bottom:none;border-right:none}
-  .info-pill:last-child{border-bottom:4px solid var(--black)}
-  .hero h1{font-size:36px}
-  .hero-content{padding:30px 22px}
-  .demo-row{grid-template-columns:1fr;gap:18px}
-  .demo-row .games-grid{grid-template-columns:repeat(auto-fill,120px);justify-content:center}
-}
+  @keyframes twinkle{0%,100%{opacity:0.7}50%{opacity:0.4}}
 
-@media (max-width:500px){
-  .topbar{padding:10px 14px}
-  .topbar .logo{font-size:18px}
-  .back-link{display:none}
-  .main{padding:16px 12px}
-  .marquee{margin:0 -12px 18px}
-  .marquee-track{font-size:14px}
-  .game-header h1{font-size:24px;letter-spacing:-1px}
-  .section{padding:14px 12px}
-  .section h2{font-size:18px}
-  .game-desc p{font-size:14px}
-  .footer-links{gap:10px}
-  .footer-link{font-size:12px;padding:8px 12px}
-  .topbar-right{gap:6px}
-  .mobile-btn{padding:6px 10px;font-size:12px}
-  .hero h1{font-size:28px}
-  .hero-content{padding:24px 18px}
-  .hero p{font-size:14px}
-  .games-grid{grid-template-columns:repeat(auto-fill,minmax(110px,1fr))}
-  .demo-row .games-grid{grid-template-columns:repeat(2,1fr)}
-  .game-card{width:100%}
-}
+  body::after{
+    content:'';position:fixed;top:-200px;left:50%;transform:translateX(-50%);
+    width:800px;height:600px;
+    background:radial-gradient(ellipse,rgba(255,154,61,0.15) 0%,transparent 60%);
+    pointer-events:none;
+  }
+
+  .wrapper{position:relative;z-index:2;max-width:1100px;margin:0 auto}
+
+  header{text-align:center;margin-bottom:56px;padding-top:24px}
+
+  .ikona-strony{
+    font-size:80px;line-height:1;margin-bottom:18px;display:inline-block;
+    filter:drop-shadow(0 4px 16px rgba(255,154,61,0.5));
+    animation:floatIcon 3s ease-in-out infinite;
+  }
+  @keyframes floatIcon{
+    0%,100%{transform:translateY(0)}
+    50%{transform:translateY(-6px)}
+  }
+
+  h1{
+    font-size:56px;font-weight:700;letter-spacing:-1px;line-height:1;
+    background:linear-gradient(180deg,#ff9a3d 0%,#e87a1d 70%,#a04510 100%);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+    text-shadow:0 0 80px rgba(255,154,61,0.4);
+  }
+
+  .line{
+    width:60px;height:2px;background:#ff9a3d;margin:20px auto;
+  }
+
+  .tagline{
+    color:#888;font-size:14px;letter-spacing:4px;text-transform:uppercase;
+    font-family:'JetBrains Mono',monospace;
+  }
+
+  .grid{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:24px;
+    margin-top:24px;
+  }
+
+  .tile{
+    background:linear-gradient(180deg,rgba(40,40,55,0.6) 0%,rgba(20,20,30,0.8) 100%);
+    border:1px solid rgba(255,154,61,0.2);
+    border-radius:16px;
+    padding:32px 28px;
+    cursor:pointer;
+    text-align:center;
+    transition:all 0.3s cubic-bezier(0.2,0.9,0.3,1);
+    backdrop-filter:blur(10px);
+    position:relative;
+    overflow:hidden;
+    display:block;
+    text-decoration:none;
+    color:inherit;
+    animation:tileIn 0.7s cubic-bezier(0.2,0.9,0.3,1.1) both;
+  }
+  .tile:nth-child(1){animation-delay:0.1s}
+  .tile:nth-child(2){animation-delay:0.2s}
+  .tile:nth-child(3){animation-delay:0.3s}
+  .tile:nth-child(4){animation-delay:0.4s}
+  .tile:nth-child(5){animation-delay:0.5s}
+  .tile:nth-child(6){animation-delay:0.6s}
+
+  .tile::before{
+    content:'';position:absolute;top:0;left:0;right:0;height:2px;
+    background:linear-gradient(90deg,transparent,#ff9a3d,transparent);
+    transform:translateX(-100%);transition:transform 0.6s;
+  }
+
+  .tile:hover{
+    transform:translateY(-6px);
+    border-color:rgba(255,154,61,0.6);
+    box-shadow:0 16px 48px rgba(255,154,61,0.2);
+  }
+  .tile:hover::before{transform:translateX(0)}
+
+  .tile-numer{
+    position:absolute;top:14px;right:18px;
+    font-family:'JetBrains Mono',monospace;
+    font-size:11px;font-weight:700;letter-spacing:2px;
+    color:rgba(255,154,61,0.4);
+  }
+
+  .tile .icon{
+    font-size:56px;margin-bottom:18px;display:block;
+    filter:drop-shadow(0 4px 12px rgba(255,154,61,0.4));
+  }
+
+  .tile-title{
+    font-size:18px;font-weight:700;letter-spacing:1px;text-transform:uppercase;
+    color:#ff9a3d;margin-bottom:6px;
+  }
+
+  .tile-desc{
+    font-size:12px;color:#888;line-height:1.5;
+    font-family:'JetBrains Mono',monospace;
+  }
+
+  .bottomnav{
+    text-align:center;margin-top:48px;padding-top:24px;
+    border-top:1px solid rgba(255,154,61,0.15);
+  }
+  .back{
+    color:#888;text-decoration:none;font-size:14px;letter-spacing:2px;
+    font-family:'JetBrains Mono',monospace;
+    transition:color 0.2s;
+    padding:8px 16px;
+    border-radius:6px;
+  }
+  .back:hover{color:#ff9a3d;background:rgba(255,154,61,0.05)}
+
+  footer{
+    text-align:center;margin-top:24px;padding:16px 0;
+    color:#555;font-size:12px;letter-spacing:2px;
+    font-family:'JetBrains Mono',monospace;
+  }
+
+  @keyframes tileIn{
+    from{opacity:0;transform:translateY(30px) scale(0.95)}
+    to{opacity:1;transform:translateY(0) scale(1)}
+  }
+
+  @media (max-width:900px) and (min-width:701px){
+    .grid{grid-template-columns:repeat(2,1fr)}
+  }
+  @media (max-width:700px){
+    body{padding:20px 14px 32px}
+    .ikona-strony{font-size:60px}
+    h1{font-size:38px}
+    .tagline{font-size:11px;letter-spacing:2px}
+    .grid{grid-template-columns:1fr;gap:16px}
+    .tile{padding:24px 20px}
+  }
 </style>
 </head>
 <body>
 
-<div class="backdrop" id="backdrop"></div>
+<div class="wrapper">
 
-<!-- TOP BAR -->
-<header class="topbar">
-  <div style="display:flex;align-items:center;gap:12px">
-    <button class="mobile-btn hamburger-toggle" id="hamburgerBtn" aria-label="Menu">☰</button>
-    <a href="https://mini-klik.pl" class="logo">MINI<span class="red">·</span>KLIK<span class="blue">.PL</span></a>
-  </div>
-  <div class="topbar-right">
-    <span class="topbar-tagline">// PORTAL Z GRAMI</span>
-    <button class="mobile-btn guestbook-toggle" id="guestbookBtn">💬 KSIĘGA</button>
-  </div>
-</header>
+  <header>
+    <span class="ikona-strony">📍</span>
+    <h1>Moje mapy</h1>
+    <div class="line"></div>
+  </header>
 
-<div class="layout">
-
-  <!-- ===== LEWY SIDEBAR ===== -->
-  <aside class="sidebar" id="sidebar">
-    <button class="sidebar-close" id="sidebarClose" aria-label="Zamknij">×</button>
-
-    <div class="sidebar-section-title">/ NAWIGACJA</div>
-    <a href="#home" class="active" data-section="home"><span class="sidebar-icon">🏠</span> Dom</a>
-    <a href="#nowe" data-section="nowe"><span class="sidebar-icon">🎮</span> Dema</a>
-    <a href="#wasze-gry" data-section="wasze-gry"><span class="sidebar-icon">⭐</span> Nasze gry</a>
-    <a href="#opis" data-section="opis"><span class="sidebar-icon">📖</span> Opis</a>
-
-    <div class="sidebar-section-title">/ SPOŁECZNOŚĆ</div>
-    <a href="#" data-email="mini-klik@wp.pl">
-      <span class="sidebar-icon">📧</span>
-      <span class="copy-email-text">Kontakt</span>
+  <div class="grid">
+    <a href="./edytor/" class="tile">
+      <span class="tile-numer">// 01</span>
+      <span class="icon">📝</span>
+      <div class="tile-title">Formularz zgłoszeniowy</div>
+      <div class="tile-desc">zgłoś miejscowość, artystę<br>lub wiersz do mapy</div>
     </a>
-  </aside>
+    <a href="./mapa1/" class="tile">
+      <span class="tile-numer">// 02</span>
+      <span class="icon">🖼️</span>
+      <div class="tile-title">Edytor zdjęć</div>
+      <div class="tile-desc">obróbka i przygotowanie<br>zdjęć do mapy</div>
+    </a>
+    <a href="./mapa2/" class="tile">
+      <span class="tile-numer">// 03</span>
+      <span class="icon">📖</span>
+      <div class="tile-title">Instrukcja mapy</div>
+      <div class="tile-desc">jak korzystać z mapy<br>poradnik i podpowiedzi</div>
+    </a>
+    <a href="./mapa4/" class="tile">
+      <span class="tile-numer">// 04</span>
+      <span class="icon">🪶</span>
+      <div class="tile-title">Demo - poezja</div>
+      <div class="tile-desc">interaktywna mapa<br>poezji regionalnej</div>
+    </a>
+  </div>
 
-  <!-- ===== ŚRODEK ===== -->
-  <main class="main">
+  <!-- POWRÓT -->
+  <div class="bottomnav">
+    <a href="../" class="back">← powrót do mini-klik</a>
+  </div>
 
-    <!-- HERO -->
-    <section class="hero" id="home">
-      <canvas id="heroCanvas"></canvas>
-      <div class="hero-content">
-        <h1>TWÓRZ.<br>GRAJ.<br><span class="accent">UDOSTĘPNIAJ.</span></h1>
-        <p>Portal dla miłośników i twórców małych, kreatywnych gier — bez potrzeby kodowania.</p>
-      </div>
-    </section>
-
-    <!-- MARQUEE -->
-    <div class="marquee">
-      <div class="marquee-track">
-        <span>GRAJ TWÓRZ EKSPLORUJ ODKRYWAJ</span>
-        <span>GRAJ TWÓRZ EKSPLORUJ ODKRYWAJ</span>
-        <span>GRAJ TWÓRZ EKSPLORUJ ODKRYWAJ</span>
-        <span>GRAJ TWÓRZ EKSPLORUJ ODKRYWAJ</span>
-      </div>
-    </div>
-
-    <!-- DEMA -->
-    <section class="section" id="nowe">
-      <h2>🎮 WYBIERZ DEMO</h2>
-      <div class="demo-row">
-        <div class="games-grid">
-          <div class="game-card" onclick="window.location.href='demo3/'">
-            <img src="images/demo3.png" alt="Demo 3" onerror="this.style.display='none'">
-          </div>
-          <div class="game-card" onclick="window.location.href='demo4/'">
-            <img src="images/demo4.png" alt="Demo 4" onerror="this.style.display='none'">
-          </div>
-        </div>
-
-        <div class="demo-info">
-          <p>Każda gra ma swój <b>edytor</b> i własny <b>Game Player</b> — to całkowita, wygodna nowość przy zabawie z prostymi grami.</p>
-          <p>Wczytaj demo, baw się ustawieniami, dorzuć własne pomysły — i graj od razu, bez instalowania niczego.</p>
-          <hr>
-          <p><a href="https://mini-klik.pl">mini-klik.pl</a> używa własnego silnika gry <b>mini-klik Classic</b> — stworzonego w całości w przeglądarce, <b>bez Unity</b> ani innych edytorów graficznych.</p>
-          <p>To pewnego rodzaju eksperyment — każda aplikacja waży zaledwie <b>kilka KB</b> i jest zwykłą stroną internetową, napisaną w czystym kodzie.</p>
-        </div>
-      </div>
-    </section>
-
-    <!-- NASZE GRY -->
-    <section class="section editor" id="wasze-gry">
-      <h2>⭐ ZAGRAJMY W NASZE GRY</h2>
-
-      <p class="section-intro">
-        📤 Prześlij nam zapisany projekt <b>.json</b> swojej gry i krótki opis — najciekawsze zostaną opublikowane. Miłej zabawy! 🎮
-      </p>
-
-      <div class="games-grid">
-        <div class="game-card" onclick="window.location.href='demo5/'">
-          <img src="images/demo5.png" alt="Demo 5" onerror="this.style.display='none'">
-        </div>
-      </div>
-    </section>
-
-    <!-- OPIS -->
-    <section class="section" id="opis">
-      <h2>📖 O MINI-KLIK</h2>
-
-      <details>
-        <summary>✨ SZCZEGÓŁY — JAK DZIAŁA EDYTOR?</summary>
-        <div>
-          <div class="callout">
-            <strong>⚡ WYMAGANIA TECHNICZNE</strong>
-            Cały projekt <b>mini-klik.pl</b> został zoptymalizowany pod przeglądarkę <b>Google Chrome</b> na komputerze stacjonarnym. Na tabletach i telefonach funkcjonalność jest ograniczona ze względu na niższą wydajność silnika renderującego w mobilnych wersjach przeglądarek. Dla najlepszego doświadczenia zalecamy Chrome na PC.
-          </div>
-
-          <h3>★ Witaj w świecie gier — mini-klik.pl 🎮</h3>
-
-          <p>Silnik mini-klik powstał z myślą o miłośnikach <b>starych, prostych gier z lat 90.</b> — tych, w których liczyła się pomysłowość, a nie grafika 4K.</p>
-
-          <p>Stworzony został, by być <b>najprostszą formą rozrywki</b> — bez reklam, bez pobierania, bez instalowania. Wchodzisz na stronę, klikasz dowolną grę i grasz. Tak po prostu.</p>
-
-          <p><b>Co nas wyróżnia od innych portali?</b> To, że <b>każdą grę możesz dowolnie przerabiać</b> — dodawać własne pomysły, zmieniać wrogów, tworzyć nowe poziomy. A wszystko w prosty sposób zapisać na własnym komputerze w pliku <b>.json</b>, gotowym do ponownej edycji.</p>
-
-          <p>Każdy zapisany plik <b>.json</b> możesz później otworzyć w dowolnym edytorze tekstowym lub ponownie wczytać do edytora mini-klik — i bawić się dalej. 🔄</p>
-
-          <h3>⚙️ Jak działa edytor?</h3>
-
-          <p style="color:#666;font-size:13px;font-style:italic;margin-top:14px;">Pierwszą grę możesz stworzyć w mniej niż 10 minut. Sprawdź demo powyżej i zacznij już dziś!</p>
-        </div>
-      </details>
-    </section>
-
-  </main>
-
-  <!-- ===== PRAWA KOLUMNA: KSIĘGA GOŚCI ===== -->
-  <aside class="guestbook-col" id="guestbookCol">
-    <button class="guestbook-close" id="guestbookClose" aria-label="Zamknij">×</button>
-
-    <h2>★ KSIĘGA GOŚCI</h2>
-    <p class="guestbook-count" id="commentCount">// ŁADOWANIE WPISÓW…</p>
-
-    <div class="comments" id="comments"></div>
-
-    <form id="guestbookForm" class="guestbook-form">
-      <label>ZOSTAW SWÓJ ŚLAD</label>
-      <input type="text" id="name" placeholder="Twój nick / imię" required>
-      <textarea id="message" placeholder="Napisz coś o mini-klik… 🎮" required maxlength="280"
-                oninput="document.getElementById('charCount').textContent=this.value.length+'/280'"></textarea>
-      <div class="char-count"><span id="charCount">0/280</span></div>
-      <button type="submit">📨 ZOSTAW WPIS</button>
-    </form>
-  </aside>
+  <footer>// moje-mapy · mini-klik.pl · 2026</footer>
 
 </div>
-
-<!-- STOPKA -->
-<footer class="footer">
-  <div class="footer-links">
-    <a href="#" class="footer-link contact" data-email="mini-klik@wp.pl">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
-        <polyline points="22,6 12,13 2,6"/>
-      </svg>
-      <span class="footer-link-text">KONTAKT</span>
-    </a>
-  </div>
-  <p class="footer-copy">© 2026 MINI-KLIK • ZROBIONE Z ❤️ I NEONU</p>
-</footer>
-
-<script>
-// ============== DRAWERS ==============
-const sidebar = document.getElementById('sidebar');
-const guestbookCol = document.getElementById('guestbookCol');
-const backdrop = document.getElementById('backdrop');
-
-function openSidebar()    { sidebar.classList.add('open'); backdrop.classList.add('show'); }
-function closeSidebar()   { sidebar.classList.remove('open'); backdrop.classList.remove('show'); }
-function openGuestbook()  { guestbookCol.classList.add('open'); backdrop.classList.add('show'); }
-function closeGuestbook() { guestbookCol.classList.remove('open'); backdrop.classList.remove('show'); }
-function closeAll()       { closeSidebar(); closeGuestbook(); }
-
-document.getElementById('hamburgerBtn').addEventListener('click', openSidebar);
-document.getElementById('sidebarClose').addEventListener('click', closeSidebar);
-document.getElementById('guestbookBtn').addEventListener('click', openGuestbook);
-document.getElementById('guestbookClose').addEventListener('click', closeGuestbook);
-backdrop.addEventListener('click', closeAll);
-
-// ============== KOPIOWANIE EMAILA ==============
-async function copyEmail(link) {
-    const email = link.dataset.email;
-    const textEl = link.querySelector('.copy-email-text, .footer-link-text');
-    if (!textEl) return;
-    const original = textEl.textContent;
-
-    try {
-        await navigator.clipboard.writeText(email);
-        textEl.textContent = '✓ SKOPIOWANO!';
-        link.classList.add('copied');
-    } catch (err) {
-        const ta = document.createElement('textarea');
-        ta.value = email;
-        ta.style.position = 'fixed';
-        ta.style.opacity = '0';
-        document.body.appendChild(ta);
-        ta.select();
-        try { document.execCommand('copy'); textEl.textContent = '✓ SKOPIOWANO!'; link.classList.add('copied'); }
-        catch (e2) { textEl.textContent = email; }
-        document.body.removeChild(ta);
-    }
-
-    setTimeout(() => {
-        textEl.textContent = original;
-        link.classList.remove('copied');
-    }, 1800);
-}
-
-document.querySelectorAll('[data-email]').forEach(link => {
-    link.addEventListener('click', (e) => {
-        e.preventDefault();
-        copyEmail(e.currentTarget);
-    });
-});
-
-// ============== SCROLL SPY (aktywna sekcja w sidebar) ==============
-const sectionIds = ['home', 'nowe', 'wasze-gry', 'opis'];
-const sections = sectionIds.map(id => document.getElementById(id)).filter(Boolean);
-const sidebarLinks = document.querySelectorAll('.sidebar a[data-section]');
-window.addEventListener('scroll', () => {
-    const scrollY = window.scrollY + 120;
-    let current = 'home';
-    for (const s of sections) {
-        if (s.offsetTop <= scrollY) current = s.id;
-    }
-    sidebarLinks.forEach(l => {
-        l.classList.toggle('active', l.dataset.section === current);
-    });
-});
-
-// Klik w link sidebara -> zamknij drawer (mobile)
-sidebarLinks.forEach(a => {
-    a.addEventListener('click', () => {
-        if (window.innerWidth <= 768) closeSidebar();
-    });
-});
-
-// ============== HERO CANVAS - kosmiczna animacja ==============
-(function() {
-    const canvas = document.getElementById('heroCanvas');
-    if (!canvas) return;
-    const hctx = canvas.getContext('2d');
-
-    function resizeHero() {
-        const rect = canvas.getBoundingClientRect();
-        canvas.width = rect.width || 600;
-        canvas.height = rect.height || 240;
-    }
-    resizeHero();
-    window.addEventListener('resize', resizeHero);
-
-    let particles = [];
-    let platforms = [];
-    let player = { x: 320, y: 220, floatT: 0 };
-
-    for (let i = 0; i < 60; i++) {
-        particles.push({
-            x: Math.random() * 800,
-            y: Math.random() * 400,
-            size: Math.random() * 2 + 0.6,
-            speed: Math.random() * 0.6 + 0.2
-        });
-    }
-    for (let i = 0; i < 6; i++) {
-        platforms.push({
-            x: Math.random() * 1200,
-            y: 60 + Math.random() * 200,
-            w: 80 + Math.random() * 60,
-            speed: 0.6 + Math.random() * 0.5
-        });
-    }
-
-    function drawShip(c, x, y, r, tilt, time) {
-        const t = time * 0.001;
-        const hover = Math.sin(t * 2.2) * 2;
-        c.save();
-        c.translate(x, y + hover);
-        c.rotate(tilt);
-
-        // płomień
-        const flameLen = r * 0.9 + Math.sin(t * 20) * 3;
-        const flameGrad = c.createLinearGradient(-r * 0.7, 0, -r * 0.7 - flameLen, 0);
-        flameGrad.addColorStop(0, 'rgba(255, 230, 100, 0.95)');
-        flameGrad.addColorStop(0.4, 'rgba(255, 100, 40, 0.8)');
-        flameGrad.addColorStop(1, 'rgba(255, 50, 30, 0)');
-        c.fillStyle = flameGrad;
-        c.beginPath();
-        c.moveTo(-r * 0.7, -r * 0.35);
-        c.lineTo(-r * 0.7 - flameLen, 0);
-        c.lineTo(-r * 0.7, r * 0.35);
-        c.closePath();
-        c.fill();
-
-        // dysza
-        c.fillStyle = '#1a1a1a';
-        c.fillRect(-r * 0.85, -r * 0.28, r * 0.2, r * 0.56);
-
-        // kadłub
-        c.fillStyle = '#fff200';
-        c.strokeStyle = '#000';
-        c.lineWidth = 2;
-        c.beginPath();
-        c.moveTo(r * 1.0, 0);
-        c.lineTo(r * 0.3, -r * 0.45);
-        c.lineTo(-r * 0.7, -r * 0.35);
-        c.lineTo(-r * 0.7, r * 0.35);
-        c.lineTo(r * 0.3, r * 0.45);
-        c.closePath();
-        c.fill();
-        c.stroke();
-
-        // skrzydła
-        c.fillStyle = '#ff003c';
-        c.beginPath();
-        c.moveTo(-r * 0.3, -r * 0.35);
-        c.lineTo(-r * 0.6, -r * 0.85);
-        c.lineTo(-r * 0.1, -r * 0.4);
-        c.closePath();
-        c.fill(); c.stroke();
-        c.beginPath();
-        c.moveTo(-r * 0.3, r * 0.35);
-        c.lineTo(-r * 0.6, r * 0.85);
-        c.lineTo(-r * 0.1, r * 0.4);
-        c.closePath();
-        c.fill(); c.stroke();
-
-        // kokpit
-        c.fillStyle = '#0040ff';
-        c.beginPath();
-        c.ellipse(r * 0.35, 0, r * 0.25, r * 0.18, 0, 0, Math.PI * 2);
-        c.fill();
-        c.stroke();
-
-        // dziób
-        c.fillStyle = '#ff003c';
-        c.beginPath();
-        c.moveTo(r * 1.0, 0);
-        c.lineTo(r * 0.7, -r * 0.15);
-        c.lineTo(r * 0.7, r * 0.15);
-        c.closePath();
-        c.fill();
-        c.stroke();
-
-        c.restore();
-    }
-
-    function animate() {
-        hctx.clearRect(0, 0, canvas.width, canvas.height);
-
-        // gwiazdki
-        hctx.fillStyle = '#fff200';
-        particles.forEach(p => {
-            p.y += p.speed;
-            if (p.y > canvas.height) p.y = 0;
-            if (p.x > canvas.width) p.x = 0;
-            hctx.fillRect(p.x, p.y, p.size, p.size);
-        });
-
-        // poziome linie poziomów
-        hctx.strokeStyle = '#00ffaa';
-        hctx.lineWidth = 2;
-        platforms.forEach(pl => {
-            pl.x -= pl.speed;
-            if (pl.x < -300) pl.x = canvas.width + 100;
-            hctx.beginPath();
-            hctx.moveTo(pl.x, pl.y);
-            hctx.lineTo(pl.x + pl.w, pl.y);
-            hctx.stroke();
-        });
-
-        // statek lewituje
-        player.floatT += 0.02;
-        player.x = canvas.width * 0.65 + Math.sin(player.floatT) * (canvas.width * 0.15);
-        player.y = canvas.height * 0.55 + Math.sin(player.floatT * 0.7) * (canvas.height * 0.18);
-        const tilt = Math.cos(player.floatT) * 0.15;
-        drawShip(hctx, player.x, player.y, 18, tilt, Date.now());
-
-        requestAnimationFrame(animate);
-    }
-    animate();
-})();
-
-// ============== KSIĘGA GOŚCI (Firebase) ==============
-const firebaseConfig = {
-    apiKey: "AIzaSyDRR3vSfgpEmbpZz_-VldMTnTHoXRfuGKg",
-    authDomain: "ksiega-ramzi.firebaseapp.com",
-    projectId: "ksiega-ramzi",
-    storageBucket: "ksiega-ramzi.firebasestorage.app",
-    messagingSenderId: "400735142662",
-    appId: "1:400735142662:web:0b52a57f4fedf367839487"
-};
-firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
-
-const form = document.getElementById('guestbookForm');
-form.addEventListener('submit', async function(e) {
-    e.preventDefault();
-    const name = document.getElementById('name').value.trim();
-    const message = document.getElementById('message').value.trim();
-    if (!name || !message) return;
-
-    const btn = form.querySelector('button[type=submit]');
-    btn.disabled = true;
-    const oldHtml = btn.innerHTML;
-    btn.textContent = 'WYSYŁANIE…';
-
-    try {
-        await db.collection("wpisy").add({
-            name, message,
-            created: firebase.firestore.FieldValue.serverTimestamp()
-        });
-        form.reset();
-        document.getElementById('charCount').textContent = '0/280';
-        loadComments();
-    } catch (err) {
-        console.error("Błąd zapisu:", err);
-    } finally {
-        btn.disabled = false;
-        btn.innerHTML = oldHtml;
-    }
-});
-
-function avatarColor(name) {
-    const colors = ['#fff200','#ff003c','#0040ff','#00ffaa','#ff44a8','#ff9a3d','#a855f7'];
-    let h = 0;
-    for (let c of name) h = (h * 31 + c.charCodeAt(0)) % colors.length;
-    return colors[h];
-}
-function timeAgo(ts) {
-    if (!ts) return '';
-    const diff = Math.floor((Date.now() - ts.toMillis()) / 1000);
-    if (diff < 60) return 'przed chwilą';
-    if (diff < 3600) return `${Math.floor(diff/60)} min temu`;
-    if (diff < 86400) return `${Math.floor(diff/3600)} godz. temu`;
-    return `${Math.floor(diff/86400)} dni temu`;
-}
-async function loadComments() {
-    const commentsDiv = document.getElementById('comments');
-    commentsDiv.innerHTML = '<p style="text-align:center;color:#888;padding:20px;font-size:0.85rem;font-family:JetBrains Mono;">// ŁADOWANIE…</p>';
-    try {
-        const snapshot = await db.collection("wpisy").orderBy("created", "desc").get();
-        const count = snapshot.size;
-        document.getElementById('commentCount').textContent =
-            count === 0 ? '// BĄDŹ PIERWSZY!' : `// ${count} ${count === 1 ? 'WPIS' : count < 5 ? 'WPISY' : 'WPISÓW'}`;
-        if (count === 0) {
-            commentsDiv.innerHTML = '<p style="text-align:center;color:#888;padding:30px;font-size:0.85rem;font-family:JetBrains Mono;">BRAK WPISÓW — BĄDŹ PIERWSZY 👇</p>';
-            return;
-        }
-        commentsDiv.innerHTML = '';
-        snapshot.forEach(doc => {
-            const data = doc.data();
-            const name = data.name || 'anon';
-            const message = data.message || data.text || '';
-            const initials = name.slice(0,2).toUpperCase();
-            const color = avatarColor(name);
-            const ago = timeAgo(data.created);
-            const div = document.createElement('div');
-            div.className = 'comment';
-            div.innerHTML = `
-                <div class="comment-avatar" style="background:${color}; color:#000;">${initials}</div>
-                <div class="comment-body">
-                    <div class="comment-meta">
-                        <span class="comment-author" style="color:${color};">@${name}</span>
-                        <span class="comment-time">${ago}</span>
-                    </div>
-                    <p class="comment-text">${message}</p>
-                </div>
-            `;
-            commentsDiv.appendChild(div);
-        });
-    } catch (err) {
-        console.error("Błąd ładowania:", err);
-        commentsDiv.innerHTML = '<p style="text-align:center;color:#ff003c;padding:20px;font-size:0.85rem;font-family:JetBrains Mono;">! BŁĄD ŁADOWANIA</p>';
-    }
-}
-loadComments();
-</script>
 
 </body>
 </html>
