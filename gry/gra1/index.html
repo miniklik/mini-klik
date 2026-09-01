@@ -161,7 +161,7 @@ const S = {
   transition: null,
   isRetry: false,
 };
-let mTimerRef=null, mIntRef=null, rafId=null, transInT=null, transOutT=null;
+let mTimerRef=null, mIntRef=null, rafId=null, transInT=null, transOutT=null, gameOverT=null;
 
 function t(){ return THEMES[S.theme]; }
 function ld(){ return LEVELS[Math.min(S.level-1, LEVELS.length-1)]; }
@@ -354,6 +354,7 @@ function renderGameOver(){
       <button onclick="goto('map')" style="background:${th.btnSecBg};color:${th.btnSecText};border:1px solid ${th.btnSecBorder};padding:14px 24px;font-size:16px;font-weight:600;border-radius:12px;cursor:pointer;">🗺️ Mapa</button>
       <button onclick="goto('intro')" style="background:${th.btnSecBg};color:${th.btnSecText};border:1px solid ${th.btnSecBorder};padding:14px 24px;font-size:16px;font-weight:600;border-radius:12px;cursor:pointer;">Menu</button>
     </div>
+    <div style="color:${th.subtitle};font-size:11px;margin-top:22px;letter-spacing:.5px;opacity:.6;">za chwilę zobaczysz ranking 🏆</div>
   </div>`;
 }
 
@@ -424,7 +425,7 @@ function renderGame(){
       border:${S.phase==='memorize'?`4px solid ${th.correct}80`:`3px solid ${S.targetShape?S.targetShape.color+"60":th.mutedText}`};
       display:flex;align-items:center;justify-content:center;margin-bottom:32px;background:${th.circleBg};
       animation:${S.phase==='guess'?'pulse 1.5s ease-in-out infinite alternate':'none'};box-shadow:${th.shadow};">
-      ${S.phase==="memorize" ? `<span style="font-size:52px;font-weight:800;color:${th.correct};filter:${th.dropShadow(th.correct)};font-variant-numeric:tabular-nums;">${S.memorizeCountdown}</span>` : ""}
+      ${S.phase==="memorize" ? `<span id="memCountdown" style="font-size:52px;font-weight:800;color:${th.correct};filter:${th.dropShadow(th.correct)};font-variant-numeric:tabular-nums;">${S.memorizeCountdown}</span>` : ""}
       ${S.phase!=="memorize" && S.targetShape ? `<span style="font-size:56px;color:${S.targetShape.color};filter:${th.dropShadow(S.targetShape.color)};">${S.targetShape.symbol}</span>` : ""}
     </div>
 
@@ -507,9 +508,12 @@ function startNewRound(lvl){
   const st = Date.now();
   render();
   mIntRef = setInterval(()=>{
-    S.memorizeCountdown = Math.max(0, Math.ceil((mt-(Date.now()-st))/1000));
-    const el = document.getElementById("gameRoot");
-    if(el) render();
+    const newVal = Math.max(0, Math.ceil((mt-(Date.now()-st))/1000));
+    if(newVal !== S.memorizeCountdown){
+      S.memorizeCountdown = newVal;
+      const span = document.getElementById("memCountdown");
+      if(span) span.textContent = String(newVal);
+    }
   }, 100);
   mTimerRef = setTimeout(()=>{
     clearInterval(mIntRef);
@@ -571,6 +575,10 @@ function endGame(finalScore, finalLevel){
   addRecord(S.nick, finalScore, finalLevel).then(r=>{ S.records=r; });
   S.screen = "gameover";
   render();
+  clearTimeout(gameOverT);
+  gameOverT = setTimeout(()=>{
+    if(S.screen==="gameover") goto("records");
+  }, 4000);
 }
 
 function showTransition(nextRound, nextLvl, isLevelUp, callback){
