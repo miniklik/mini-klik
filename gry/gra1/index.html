@@ -94,7 +94,7 @@ function shuffle(a){const b=[...a];for(let i=b.length-1;i>0;i--){const j=Math.fl
 function pickN(a,n){return shuffle(a).slice(0,n);}
 function esc(s){const d=document.createElement("div");d.textContent=s;return d.innerHTML;}
 
-/* ============ PERSYSTENCJA (localStorage — działa na hostingu; w podglądzie może nie zapisywać) ============ */
+/* ============ PERSYSTENCJA ============ */
 function loadProgress(){
   try{const r=localStorage.getItem("mk_zf_progress");return r?JSON.parse(r):{unlocked:1,bestScores:{}};}
   catch(e){return {unlocked:1,bestScores:{}};}
@@ -176,7 +176,7 @@ function render(){
   else if(S.screen==="game") { app.innerHTML = renderGame(); afterGameRender(); }
 }
 
-/* ============ THEME TOGGLE (wspólny dla wszystkich ekranów) ============ */
+/* ============ THEME TOGGLE ============ */
 function themeToggleHtml(){
   const th=t();
   return `<button onclick="toggleTheme()" title="${th.key==='dark'?'Jasny':'Ciemny'}" style="
@@ -381,7 +381,7 @@ function renderGame(){
         <div style="color:${th.subtitle};font-size:14px;margin-bottom:24px;">Poziom ${S.level} · Wynik: ${S.score}</div>
         <div style="display:flex;flex-direction:column;gap:10px;">
           <button onclick="doResume()" style="background:${th.accentGrad};color:#fff;border:none;padding:14px 0;font-size:17px;font-weight:700;border-radius:12px;cursor:pointer;width:100%;">▶ Wznów</button>
-          <button onclick="S.paused=false;goto('intro')" style="background:${th.btnSecBg};color:${th.btnSecText};border:1px solid ${th.btnSecBorder};padding:12px 0;font-size:15px;font-weight:600;border-radius:12px;cursor:pointer;width:100%;">Wyjdź do menu</button>
+          <button onclick="saveAndQuit()" style="background:linear-gradient(135deg,${th.correct},#2ecc71);color:#fff;border:none;padding:12px 0;font-size:15px;font-weight:700;border-radius:12px;cursor:pointer;width:100%;">💾 Zapisz i zakończ</button>
         </div>
       </div>
     </div>`:""}
@@ -520,11 +520,12 @@ function startNewRound(lvl){
     S.memorizeCountdown = 0;
     S.phase = "guess";
     render();
-    runTimer(L.guessMs);
+    /* Timer is started by afterGameRender via render() — do NOT call runTimer here */
   }, mt);
 }
 
 function runTimer(duration){
+  cancelAnimationFrame(rafId);
   const startT = Date.now();
   const fill = document.getElementById("timerFill");
   if(!fill) return;
@@ -563,6 +564,34 @@ function doPause(){
   S.paused = true; render();
 }
 function doResume(){ S.paused=false; startNewRound(S.level); }
+
+/* ============ ZAPISZ I ZAKOŃCZ (z pauzy) ============ */
+function saveAndQuit(){
+  clearTimeout(mTimerRef); clearInterval(mIntRef); cancelAnimationFrame(rafId);
+  clearTimeout(transInT); clearTimeout(transOutT);
+
+  /* Zapisz postęp poziomów do localStorage */
+  const newProg = {...S.progress, bestScores:{...S.progress.bestScores}};
+  newProg.unlocked = Math.min(Math.max(newProg.unlocked, S.level), 15);
+  const prevBest = newProg.bestScores[S.startLevel] || 0;
+  if(S.score > prevBest) newProg.bestScores[S.startLevel] = S.score;
+  S.progress = newProg;
+  saveProgress(newProg);
+
+  /* Zapisz do księgi rekordów (Firestore) i przejdź do widoku rekordów */
+  S.paused = false;
+  S.screen = "records";
+  S.recordsLoading = true;
+  render();
+  addRecord(S.nick, S.score, S.level).then(r=>{
+    S.records = r;
+    S.recordsLoading = false;
+    render();
+  }).catch(()=>{
+    S.recordsLoading = false;
+    render();
+  });
+}
 
 function endGame(finalScore, finalLevel){
   const newProg = {...S.progress, bestScores:{...S.progress.bestScores}};
