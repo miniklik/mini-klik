@@ -33,24 +33,47 @@
 
 <script>
 /* ============ DANE / KONFIGURACJA ============ */
-const SHAPES = [
-  { symbol: "●" }, { symbol: "▲" }, { symbol: "■" }, { symbol: "◆" },
-  { symbol: "★" }, { symbol: "♥" }, { symbol: "⬟" }, { symbol: "✦" },
+const SHAPES_FIGURES = [
+  { symbol:"●" },{ symbol:"▲" },{ symbol:"■" },{ symbol:"◆" },
+  { symbol:"★" },{ symbol:"♥" },{ symbol:"⬟" },{ symbol:"✦" },
 ];
+const SHAPES_ANIMALS = [
+  { symbol:"🐶" },{ symbol:"🐱" },{ symbol:"🐻" },{ symbol:"🦊" },
+  { symbol:"🐸" },{ symbol:"🐵" },{ symbol:"🦁" },{ symbol:"🐯" },
+];
+const SHAPES_PLANTS = [
+  { symbol:"🌸" },{ symbol:"🌻" },{ symbol:"🌵" },{ symbol:"🍀" },
+  { symbol:"🌹" },{ symbol:"🌺" },{ symbol:"🍄" },{ symbol:"🌿" },
+];
+const SHAPES_MIX = [...SHAPES_FIGURES, ...SHAPES_ANIMALS, ...SHAPES_PLANTS];
+
+const CATEGORIES = [
+  { id:0, name:"Figury",    icon:"🔷", from:1,  to:15, symbols:SHAPES_FIGURES },
+  { id:1, name:"Zwierzęta", icon:"🐾", from:16, to:30, symbols:SHAPES_ANIMALS },
+  { id:2, name:"Rośliny",   icon:"🌿", from:31, to:45, symbols:SHAPES_PLANTS },
+  { id:3, name:"Mix",       icon:"🎲", from:46, to:60, symbols:SHAPES_MIX },
+];
+
 const COLORS_DARK = ["#6c63ff","#ff6b6b","#4ecdc4","#ffd93d","#ff8a5c","#a29bfe","#fd79a8","#00cec9"];
 const COLORS_LIGHT = ["#4A90E2","#E74C3C","#27AE60","#F39C12","#E67E22","#8E44AD","#E84393","#00B894"];
 
-const LEVELS = Array.from({ length: 15 }, (_, i) => {
+const LEVELS = Array.from({ length: 60 }, (_, i) => {
   const n = i + 1;
+  const localIdx = i % 15;
+  const catIdx = Math.floor(i / 15);
   return {
     id: n,
-    shapes: Math.min(2 + Math.floor(i / 3), 6),
-    memorizeMs: 5000,
-    guessMs: Math.max(2000, 6000 - i * 260),
-    rounds: n <= 3 ? 3 : n <= 9 ? 4 : 5,
-    label: n <= 3 ? "Łatwy" : n <= 6 ? "Średni" : n <= 9 ? "Trudny" : n <= 12 ? "Expert" : "Mistrz",
+    catIdx,
+    shapes: Math.min(2 + Math.floor(localIdx / 3), 6 + catIdx),
+    memorizeMs: Math.max(3000, 5000 - catIdx * 500),
+    guessMs: Math.max(1500, 6000 - localIdx * 260 - catIdx * 400),
+    rounds: localIdx <= 2 ? 3 : localIdx <= 8 ? 4 : 5,
+    label: localIdx <= 2 ? "Łatwy" : localIdx <= 5 ? "Średni" : localIdx <= 8 ? "Trudny" : localIdx <= 11 ? "Expert" : "Mistrz",
   };
 });
+
+function catForLevel(lvl){ return Math.floor((lvl-1)/15); }
+function symbolsForLevel(lvl){ return CATEGORIES[catForLevel(lvl)].symbols; }
 
 const THEMES = {
   dark: {
@@ -105,7 +128,7 @@ function saveNick(n){ try{localStorage.setItem("mk_zf_nick",n);}catch(e){} }
 
 async function loadRecords(){
   try{
-    const res = await fetch(`${FS_BASE}/zapamietaj_rekordy?key=${FS_KEY}&pageSize=100`);
+    const res = await fetch(`${FS_BASE}/zapamietaj_rekordy?key=${FS_KEY}&pageSize=500`);
     const data = await res.json();
     if(!data.documents) return [];
     return data.documents.map(doc=>({
@@ -113,7 +136,7 @@ async function loadRecords(){
       score: parseInt(doc.fields.score?.integerValue || "0"),
       level: parseInt(doc.fields.level?.integerValue || "0"),
       date: doc.fields.date?.stringValue || "",
-    })).sort((a,b)=>b.score-a.score).slice(0,20);
+    })).sort((a,b)=>b.score-a.score).slice(0,99);
   }catch(e){ return []; }
 }
 async function addRecord(nick,score,level){
@@ -141,6 +164,7 @@ const S = {
   nick: "",
   records: [],
   recordsLoading: false,
+  mapCategory: 0,
   startLevel: 1,
   level: 1,
   roundInLevel: 0,
@@ -181,7 +205,7 @@ function render(){
   else if(S.screen==="game") { app.innerHTML = renderGame(); afterGameRender(); }
 }
 
-/* ============ THEME TOGGLE ============ */
+/* ============ THEME + DIFFICULTY TOGGLE ============ */
 function themeToggleHtml(){
   const th=t();
   const isN = S.difficulty==="normal";
@@ -204,7 +228,7 @@ function toggleTheme(){ S.theme = S.theme==="dark"?"light":"dark"; render(); }
 /* ============ EKRAN: INTRO ============ */
 function renderIntro(){
   const th=t();
-  const floats = SHAPES.map((s,i)=>`
+  const floats = SHAPES_FIGURES.map((s,i)=>`
     <div style="position:absolute;font-size:${30+i*8}px;color:${th.colors[i%th.colors.length]};opacity:${th.key==='dark'?0.12:0.18};
       animation:floatShape ${4+i*0.7}s ease-in-out infinite alternate;animation-delay:${i*0.4}s;
       top:${10+(i*13)%70}%;left:${5+(i*17)%80}%;">${s.symbol}</div>`).join("");
@@ -226,7 +250,7 @@ function renderIntro(){
           border-radius:12px;padding:10px 18px;font-size:15px;font-weight:600;color:${th.title};
           text-align:center;width:200px;outline:none;">
       </div>
-      ${S.progress.unlocked>1?`<div style="color:${th.gold};font-size:13px;margin-bottom:18px;letter-spacing:1px;">★ Odblokowany poziom: ${S.progress.unlocked}</div>`:""}
+      ${S.progress.unlocked>1?`<div style="color:${th.gold};font-size:13px;margin-bottom:18px;letter-spacing:1px;">★ Odblokowany poziom: ${S.progress.unlocked} / 60</div>`:""}
       <div style="display:flex;flex-direction:column;gap:12px;align-items:center;">
         <button onclick="startGame(S.progress.unlocked)" style="background:${th.accentGrad};color:#fff;border:none;
           padding:16px 56px;font-size:20px;font-weight:700;border-radius:14px;cursor:pointer;letter-spacing:2px;
@@ -240,27 +264,56 @@ function renderIntro(){
   </div>`;
 }
 function handleNickChange(v){ S.nick=v; saveNick(v); }
-function goto(screen){ S.screen=screen; render(); if(screen==="records") refreshRecords(); }
+function goto(screen){
+  S.screen=screen; 
+  if(screen==="map") S.mapCategory = catForLevel(Math.min(S.progress.unlocked, 60));
+  render(); 
+  if(screen==="records") refreshRecords();
+}
 
 /* ============ EKRAN: MAPA POZIOMÓW ============ */
 function renderMap(){
   const th=t();
-  const positions = LEVELS.map((_,i)=>{
-    const row=i, zigzag = row%2===0;
+  const cat = CATEGORIES[S.mapCategory];
+  const catLevels = LEVELS.slice(cat.from-1, cat.to);
+
+  /* Zakładki kategorii 2x2 */
+  const tabs = CATEGORIES.map((c,ci)=>{
+    const unlocked = S.progress.unlocked >= c.from;
+    const active = ci === S.mapCategory;
+    const bg = active ? (th.key==='dark'?th.accent+'25':'#fff') : (unlocked ? (th.key==='dark'?'#ffffff08':'#ffffff80') : (th.key==='dark'?'#ffffff04':'#f0f0f0'));
+    const border = active ? th.accent : (unlocked ? th.cardBorder : th.mapNodeLocked);
+    return `<button ${unlocked?`onclick="switchMapCat(${ci})"`:'disabled'} style="
+      flex:1;min-width:140px;padding:10px 8px;border-radius:14px;cursor:${unlocked?'pointer':'default'};
+      border:2px solid ${border};background:${bg};opacity:${unlocked?1:0.4};
+      display:flex;align-items:center;gap:8px;justify-content:center;
+      box-shadow:${active?`0 0 16px ${th.accent}30`:th.shadow};">
+      <span style="font-size:20px;">${unlocked?c.icon:'🔒'}</span>
+      <div style="text-align:left;">
+        <div style="font-size:13px;font-weight:700;color:${active?th.accent:th.title};line-height:1.2;">${c.name}</div>
+        <div style="font-size:10px;color:${th.subtitle};margin-top:1px;">${c.from}–${c.to}</div>
+      </div>
+    </button>`;
+  }).join("");
+
+  /* Kółka poziomów (15 na kategorię) */
+  const positions = catLevels.map((_,i)=>{
+    const zigzag = i%2===0;
     const x = zigzag ? 30+(i%3)*25 : 70-(i%3)*25;
-    return {x, y: 60+row*62};
+    return {x, y: 50+i*62};
   });
   const totalH = positions[positions.length-1].y+80;
 
   const lines = positions.map((p,i)=>{
     if(i===0) return "";
     const prev=positions[i-1];
-    const done = i<S.progress.unlocked;
+    const globalId = cat.from+i;
+    const done = globalId<S.progress.unlocked;
     return `<line x1="${prev.x/100*400}" y1="${prev.y}" x2="${p.x/100*400}" y2="${p.y}"
       stroke="${done?th.mapNodeDone:th.mapLine}" stroke-width="${done?3:2}" stroke-dasharray="${done?'':'6 4'}" opacity="${done?0.7:0.4}"/>`;
   }).join("");
 
-  const nodes = LEVELS.map((lvl,i)=>{
+  const nodes = catLevels.map((lvl,i)=>{
     const pos=positions[i];
     const done = lvl.id<S.progress.unlocked;
     const current = lvl.id===S.progress.unlocked;
@@ -279,11 +332,11 @@ function renderMap(){
     </button>`;
   }).join("");
 
-  const labels = LEVELS.map((lvl,i)=>{
+  const labels = catLevels.map((lvl,i)=>{
     const pos=positions[i];
     if(lvl.id>S.progress.unlocked) return "";
     return `<div style="position:absolute;left:calc(${pos.x}% + 36px);top:${pos.y-16}px;font-size:11px;color:${th.subtitle};white-space:nowrap;font-weight:600;">
-      ${lvl.shapes} figur · ${lvl.label}</div>`;
+      ${lvl.shapes} szt · ${lvl.label}</div>`;
   }).join("");
 
   return `
@@ -293,6 +346,11 @@ function renderMap(){
         font-size:20px;font-weight:700;cursor:pointer;width:40px;height:40px;border-radius:12px;display:flex;align-items:center;justify-content:center;">←</button>
       <h2 style="color:${th.title};font-size:22px;font-weight:800;margin:0;letter-spacing:1px;">Mapa poziomów</h2>
     </div>
+
+    <div style="display:flex;flex-wrap:wrap;gap:8px;width:100%;max-width:400px;margin-bottom:20px;">
+      ${tabs}
+    </div>
+
     <div style="position:relative;width:100%;max-width:400px;height:${totalH}px;margin-bottom:20px;">
       <svg style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;" viewBox="0 0 400 ${totalH}" preserveAspectRatio="xMidYMid meet">${lines}</svg>
       ${nodes}
@@ -301,9 +359,19 @@ function renderMap(){
     <div style="color:${th.subtitle};font-size:13px;text-align:center;max-width:300px;line-height:1.5;">
       Wybierz odblokowany poziom, aby rozpocząć od niego grę.
     </div>
+    <button id="copyLinkBtn" onclick="copyGameLink()" style="margin-top:16px;background:${th.key==='dark'?'rgba(255,255,255,0.08)':'rgba(0,0,0,0.06)'};
+      border:1px solid ${th.btnSecBorder};color:${th.subtitle};padding:10px 24px;font-size:13px;font-weight:600;
+      border-radius:12px;cursor:pointer;letter-spacing:.5px;">🔗 Skopiuj adres gry</button>
   </div>`;
 }
+function switchMapCat(ci){ S.mapCategory=ci; render(); }
 function selectLevel(lvl){ startGame(lvl); }
+function copyGameLink(){
+  navigator.clipboard.writeText("mini-klik.pl").then(()=>{
+    const btn=document.getElementById("copyLinkBtn");
+    if(btn){btn.textContent="✅ Skopiowano!";setTimeout(()=>{btn.textContent="🔗 Skopiuj adres gry";},1500);}
+  }).catch(()=>{});
+}
 
 /* ============ EKRAN: REKORDY ============ */
 function renderRecords(){
@@ -354,6 +422,7 @@ function refreshRecords(){
 function renderGameOver(){
   const th=t();
   const emoji = S.score>=30?"🏆":S.score>=15?"🌟":"👏";
+  const catName = CATEGORIES[catForLevel(S.level)].name;
   return `
   <div style="min-height:100vh;background:${th.bg};display:flex;flex-direction:column;align-items:center;justify-content:center;animation:fadeInUp .6s ease-out;">
     <div style="font-size:56px;margin-bottom:12px;">${emoji}</div>
@@ -361,7 +430,7 @@ function renderGameOver(){
     <div style="margin:24px 0;text-align:center;">
       <div style="color:${th.subtitle};font-size:14px;margin-bottom:4px;">Wynik</div>
       <div style="color:${th.gold};font-size:56px;font-weight:800;line-height:1;filter:${th.dropShadow(th.gold)};">${S.score}</div>
-      <div style="color:${th.subtitle};font-size:14px;margin-top:12px;">Osiągnięty poziom: ${S.level}</div>
+      <div style="color:${th.subtitle};font-size:14px;margin-top:12px;">Poziom ${S.level} · ${catName}</div>
       ${S.isNewBest?`<div style="color:${th.correct};font-size:16px;font-weight:700;margin-top:12px;animation:pulse 1s ease-in-out infinite alternate;">✦ Nowy rekord! ✦</div>`:""}
     </div>
     <div style="display:flex;gap:10px;margin-top:16px;flex-wrap:wrap;justify-content:center;">
@@ -376,14 +445,11 @@ function renderGameOver(){
 /* ============ EKRAN: GRA ============ */
 function renderGame(){
   const th=t(); const L=ld();
+  const catName = CATEGORIES[catForLevel(S.level)].name;
   return `
   <div id="gameRoot" style="min-height:100vh;background:${th.bg};display:flex;flex-direction:column;align-items:center;padding:20px 16px;box-sizing:border-box;position:relative;">
 
-    ${S.levelUpBanner?`<div style="position:fixed;top:60px;left:50%;transform:translateX(-50%);z-index:50;background:${th.accentGrad};
-      color:#fff;padding:10px 28px;border-radius:12px;font-size:16px;font-weight:700;animation:levelUp .6s ease-out;letter-spacing:1px;
-      box-shadow:0 4px 20px ${th.accent}40;">🎉 Poziom ${S.level}!</div>`:""}
-
-    ${S.lifeBanner?`<div style="position:fixed;top:${S.levelUpBanner?110:60}px;left:50%;transform:translateX(-50%);z-index:50;
+    ${S.lifeBanner?`<div style="position:fixed;top:60px;left:50%;transform:translateX(-50%);z-index:50;
       background:linear-gradient(135deg,${th.wrong},#ff8a5c);color:#fff;padding:10px 28px;border-radius:12px;font-size:16px;font-weight:700;
       animation:levelUp .6s ease-out;letter-spacing:1px;box-shadow:0 4px 20px ${th.wrong}40;">♥ +1 życie!</div>`:""}
 
@@ -393,7 +459,7 @@ function renderGame(){
         box-shadow:0 8px 40px rgba(0,0,0,0.3);max-width:320px;width:90%;">
         <div style="font-size:36px;margin-bottom:8px;">⏸️</div>
         <h3 style="color:${th.title};font-size:22px;font-weight:800;margin:0 0 8px;">Pauza</h3>
-        <div style="color:${th.subtitle};font-size:14px;margin-bottom:24px;">Poziom ${S.level} · Wynik: ${S.score}</div>
+        <div style="color:${th.subtitle};font-size:14px;margin-bottom:24px;">Poziom ${S.level} · ${catName} · Wynik: ${S.score}</div>
         <div style="display:flex;flex-direction:column;gap:10px;">
           <button onclick="doResume()" style="background:${th.accentGrad};color:#fff;border:none;padding:14px 0;font-size:17px;font-weight:700;border-radius:12px;cursor:pointer;width:100%;">▶ Wznów</button>
           <button onclick="saveAndQuit()" style="background:linear-gradient(135deg,${th.correct},#2ecc71);color:#fff;border:none;padding:12px 0;font-size:15px;font-weight:700;border-radius:12px;cursor:pointer;width:100%;">💾 Zapisz i zakończ</button>
@@ -404,7 +470,7 @@ function renderGame(){
     ${renderTransition()}
 
     <div style="text-align:center;margin-bottom:6px;">
-      <div style="color:${th.hudText};font-size:14px;font-weight:700;letter-spacing:1px;">Poziom ${S.level}</div>
+      <div style="color:${th.hudText};font-size:14px;font-weight:700;letter-spacing:1px;">Poziom ${S.level} · ${catName}</div>
       <div style="color:${th.subtitle};font-size:10px;margin-top:1px;">Runda ${S.roundInLevel+1}/${L.rounds}</div>
     </div>
     <div style="display:flex;justify-content:space-between;width:100%;max-width:400px;align-items:center;margin-bottom:4px;">
@@ -467,7 +533,7 @@ function renderGame(){
     </div>
 
     <div style="color:${th.subtitle};font-size:11px;margin-top:24px;letter-spacing:.5px;text-align:center;opacity:.7;">
-      ${L.shapes} figur · ${L.label} · +♥ za ${S.nextLifeAt} pkt
+      ${L.shapes} szt · ${L.label} · +♥ za ${S.nextLifeAt} pkt
     </div>
     <button onclick="doPause()" style="margin-top:14px;background:none;border:1px solid ${th.btnSecBorder};color:${th.subtitle};
       padding:10px 32px;font-size:14px;font-weight:600;border-radius:10px;cursor:pointer;letter-spacing:1px;">⏸ Pauza</button>
@@ -477,26 +543,41 @@ function renderGame(){
 function renderTransition(){
   if(!S.transition) return "";
   const th=t();
-  const tLvl = LEVELS[Math.min(S.transition.level-1,14)];
-  const particles = S.transition.isLevelUp ? Array.from({length:16}).map((_,i)=>`
+  const tLvl = LEVELS[Math.min(S.transition.level-1,59)];
+  const isCatChange = S.transition.isCatChange;
+  const newCat = isCatChange ? CATEGORIES[catForLevel(S.transition.level)] : null;
+  const particles = (S.transition.isLevelUp || isCatChange) ? Array.from({length:16}).map((_,i)=>`
     <div style="position:absolute;width:${4+Math.random()*6}px;height:${4+Math.random()*6}px;border-radius:50%;
       background:${th.colors[i%th.colors.length]};opacity:${0.3+Math.random()*0.3};left:${Math.random()*100}%;top:${Math.random()*100}%;
       animation:floatParticle ${2+Math.random()*3}s ease-in-out infinite alternate;animation-delay:${Math.random()*2}s;"></div>`).join("") : "";
-  const content = S.transition.isLevelUp ? `
-    <div style="font-size:44px;margin-bottom:16px;animation:popIn .6s ease-out;">🎉</div>
-    <div style="font-size:13px;color:${th.subtitle};letter-spacing:3px;font-weight:600;margin-bottom:12px;text-transform:uppercase;">Nowy poziom</div>
-    <div style="font-size:40px;color:${th.accent};font-weight:800;letter-spacing:2px;">Poziom ${S.transition.level}</div>
-    <div style="margin-top:24px;display:flex;gap:24px;">
-      <div style="text-align:center;"><div style="font-size:28px;font-weight:800;color:${th.accent};">${tLvl.shapes}</div><div style="font-size:11px;color:${th.subtitle};margin-top:2px;letter-spacing:1px;">figur</div></div>
-      <div style="width:1px;background:${th.cardBorder};opacity:.5;"></div>
-      <div style="text-align:center;"><div style="font-size:28px;font-weight:800;color:${th.accent};">${tLvl.rounds}</div><div style="font-size:11px;color:${th.subtitle};margin-top:2px;letter-spacing:1px;">rund</div></div>
-    </div>
-    <div style="font-size:12px;color:${th.subtitle};margin-top:20px;letter-spacing:1px;">${tLvl.label}</div>
-  ` : `
-    <div style="font-size:13px;color:${th.subtitle};letter-spacing:3px;font-weight:600;margin-bottom:12px;text-transform:uppercase;">Następna runda</div>
-    <div style="font-size:28px;color:${th.accent};font-weight:800;letter-spacing:2px;">Runda ${S.transition.round}</div>
-    <div style="font-size:15px;color:${th.subtitle};margin-top:8px;font-weight:500;">z ${tLvl.rounds}</div>
-  `;
+
+  let content;
+  if(isCatChange){
+    content = `
+      <div style="font-size:56px;margin-bottom:16px;animation:popIn .6s ease-out;">${newCat.icon}</div>
+      <div style="font-size:13px;color:${th.subtitle};letter-spacing:3px;font-weight:600;margin-bottom:12px;text-transform:uppercase;">Nowa kategoria!</div>
+      <div style="font-size:36px;color:${th.accent};font-weight:800;letter-spacing:2px;">${newCat.name}</div>
+      <div style="font-size:16px;color:${th.subtitle};margin-top:12px;font-weight:500;">Poziomy ${newCat.from}–${newCat.to}</div>
+    `;
+  } else if(S.transition.isLevelUp){
+    content = `
+      <div style="font-size:44px;margin-bottom:16px;animation:popIn .6s ease-out;">🎉</div>
+      <div style="font-size:13px;color:${th.subtitle};letter-spacing:3px;font-weight:600;margin-bottom:12px;text-transform:uppercase;">Nowy poziom</div>
+      <div style="font-size:40px;color:${th.accent};font-weight:800;letter-spacing:2px;">Poziom ${S.transition.level}</div>
+      <div style="margin-top:24px;display:flex;gap:24px;">
+        <div style="text-align:center;"><div style="font-size:28px;font-weight:800;color:${th.accent};">${tLvl.shapes}</div><div style="font-size:11px;color:${th.subtitle};margin-top:2px;letter-spacing:1px;">figur</div></div>
+        <div style="width:1px;background:${th.cardBorder};opacity:.5;"></div>
+        <div style="text-align:center;"><div style="font-size:28px;font-weight:800;color:${th.accent};">${tLvl.rounds}</div><div style="font-size:11px;color:${th.subtitle};margin-top:2px;letter-spacing:1px;">rund</div></div>
+      </div>
+      <div style="font-size:12px;color:${th.subtitle};margin-top:20px;letter-spacing:1px;">${tLvl.label}</div>
+    `;
+  } else {
+    content = `
+      <div style="font-size:13px;color:${th.subtitle};letter-spacing:3px;font-weight:600;margin-bottom:12px;text-transform:uppercase;">Następna runda</div>
+      <div style="font-size:28px;color:${th.accent};font-weight:800;letter-spacing:2px;">Runda ${S.transition.round}</div>
+      <div style="font-size:15px;color:${th.subtitle};margin-top:8px;font-weight:500;">z ${tLvl.rounds}</div>
+    `;
+  }
   return `<div style="position:fixed;inset:0;z-index:70;background:${th.key==='dark'?'rgba(15,14,23,0.95)':'rgba(255,245,220,0.95)'};
     display:flex;flex-direction:column;align-items:center;justify-content:center;backdrop-filter:blur(12px);
     -webkit-backdrop-filter:blur(12px);opacity:${S.transition.fading==='in'?1:0};transition:opacity .8s ease-in-out;overflow:hidden;">
@@ -507,10 +588,11 @@ function renderTransition(){
 }
 
 /* ============ LOGIKA GRY ============ */
-function startNewRound(lvl){
+function startNewRound(){
   const th=t();
   const L = ld();
-  const picked = pickN(SHAPES, L.shapes);
+  const symbols = symbolsForLevel(S.level);
+  const picked = pickN(symbols, L.shapes);
   const cols = pickN(th.colors, L.shapes);
   const withC = picked.map((s,i)=>({...s, color: cols[i]}));
   const idx = Math.floor(Math.random()*L.shapes);
@@ -535,7 +617,6 @@ function startNewRound(lvl){
     S.memorizeCountdown = 0;
     S.phase = "guess";
     render();
-    /* Timer is started by afterGameRender via render() — do NOT call runTimer here */
   }, mt);
 }
 
@@ -570,7 +651,7 @@ function startGame(fromLevel){
   S.score = 0; S.lives = S.difficulty==="hard"?2:3; S.combo = 0; S.isNewBest=false; S.levelUpBanner=false;
   S.paused=false; S.lifeBanner=false; S.nextLifeAt=LIFE_EVERY; S.isRetry=false;
   S.screen = "game";
-  startNewRound(fromLevel);
+  startNewRound();
 }
 
 function doPause(){
@@ -578,40 +659,31 @@ function doPause(){
   clearTimeout(mTimerRef); clearInterval(mIntRef); cancelAnimationFrame(rafId);
   S.paused = true; render();
 }
-function doResume(){ S.paused=false; startNewRound(S.level); }
+function doResume(){ S.paused=false; startNewRound(); }
 
 /* ============ ZAPISZ I ZAKOŃCZ (z pauzy) ============ */
 function saveAndQuit(){
   clearTimeout(mTimerRef); clearInterval(mIntRef); cancelAnimationFrame(rafId);
   clearTimeout(transInT); clearTimeout(transOutT);
-
-  /* Zapisz postęp poziomów do localStorage */
   const newProg = {...S.progress, bestScores:{...S.progress.bestScores}};
-  newProg.unlocked = Math.min(Math.max(newProg.unlocked, S.level), 15);
+  newProg.unlocked = Math.min(Math.max(newProg.unlocked, S.level), 60);
   const prevBest = newProg.bestScores[S.startLevel] || 0;
   if(S.score > prevBest) newProg.bestScores[S.startLevel] = S.score;
   S.progress = newProg;
   saveProgress(newProg);
-
-  /* Zapisz do księgi rekordów (Firestore) i przejdź do widoku rekordów */
   S.paused = false;
   S.screen = "records";
   S.recordsLoading = true;
   render();
   const recNick = S.difficulty==="hard" ? S.nick+" [H]" : S.nick;
   addRecord(recNick, S.score, S.level).then(r=>{
-    S.records = r;
-    S.recordsLoading = false;
-    render();
-  }).catch(()=>{
-    S.recordsLoading = false;
-    render();
-  });
+    S.records = r; S.recordsLoading = false; render();
+  }).catch(()=>{ S.recordsLoading = false; render(); });
 }
 
 function endGame(finalScore, finalLevel){
   const newProg = {...S.progress, bestScores:{...S.progress.bestScores}};
-  newProg.unlocked = Math.min(Math.max(newProg.unlocked, finalLevel), 15);
+  newProg.unlocked = Math.min(Math.max(newProg.unlocked, finalLevel), 60);
   const prevBest = newProg.bestScores[S.startLevel] || 0;
   const isBest = finalScore > prevBest;
   if(isBest) newProg.bestScores[S.startLevel] = finalScore;
@@ -627,16 +699,13 @@ function endGame(finalScore, finalLevel){
   }, 4000);
 }
 
-function showTransition(nextRound, nextLvl, isLevelUp, callback){
+function showTransition(nextRound, nextLvl, isLevelUp, isCatChange, callback){
   clearTimeout(transInT); clearTimeout(transOutT);
-  S.transition = { round: nextRound, level: nextLvl, isLevelUp, fading: "in" };
+  S.transition = { round: nextRound, level: nextLvl, isLevelUp, isCatChange, fading: "in" };
   render();
-  const holdTime = isLevelUp ? 4200 : (S.difficulty==="hard" ? 1500 : 3200);
+  const holdTime = isCatChange ? 4500 : (isLevelUp ? 4200 : (S.difficulty==="hard" ? 1500 : 3200));
   transInT = setTimeout(()=>{
-    /* Wyczyść stare figury PRZED fade-outem, żeby nie było flashu starego poziomu */
-    S.shownShapes = [];
-    S.feedbackType = null;
-    S.phase = "memorize";
+    S.shownShapes = []; S.feedbackType = null; S.phase = "memorize";
     if(S.transition) S.transition = {...S.transition, fading:"out"};
     render();
     transOutT = setTimeout(()=>{ S.transition = null; callback(); }, 800);
@@ -644,10 +713,13 @@ function showTransition(nextRound, nextLvl, isLevelUp, callback){
 }
 
 function advanceLevel(){
-  const nextLvl = Math.min(S.level+1, 15);
-  showTransition(1, nextLvl, true, ()=>{
+  const nextLvl = Math.min(S.level+1, 60);
+  const currentCat = catForLevel(S.level);
+  const nextCat = catForLevel(nextLvl);
+  const isCatChange = nextCat !== currentCat;
+  showTransition(1, nextLvl, true, isCatChange, ()=>{
     S.level = nextLvl; S.roundInLevel = 0;
-    startNewRound(nextLvl);
+    startNewRound();
   });
 }
 
@@ -691,13 +763,12 @@ function handleAnswer(index, e){
     render();
     const nextRound = S.roundInLevel+1;
     setTimeout(()=>{
-      /* Wyczyść stare figury przed przejściem */
       S.shownShapes = []; S.feedbackType = null; render();
       if(nextRound>=L.rounds){ advanceLevel(); }
       else {
-        showTransition(nextRound+1, S.level, false, ()=>{
+        showTransition(nextRound+1, S.level, false, false, ()=>{
           S.roundInLevel = nextRound;
-          startNewRound(S.level);
+          startNewRound();
         });
       }
     }, 800);
@@ -709,9 +780,8 @@ function handleAnswer(index, e){
     setTimeout(()=>{
       if(nl<=0) endGame(S.score, S.level);
       else {
-        /* Wyczyść stare figury, żeby nie było flashu */
         S.shownShapes = []; S.feedbackType = null; render();
-        S.isRetry = true; startNewRound(S.level);
+        S.isRetry = true; startNewRound();
       }
     }, 1800);
   }
@@ -727,7 +797,7 @@ function handleExpire(){
     if(nl<=0) endGame(S.score, S.level);
     else {
       S.shownShapes = []; S.feedbackType = null; render();
-      S.isRetry = true; startNewRound(S.level);
+      S.isRetry = true; startNewRound();
     }
   }, 1800);
 }
