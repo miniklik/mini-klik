@@ -135,6 +135,7 @@ async function addRecord(nick,score,level){
 /* ============ STAN GLOBALNY ============ */
 const S = {
   theme: "light",
+  difficulty: "normal",
   screen: "intro",
   progress: {unlocked:1,bestScores:{}},
   nick: "",
@@ -164,7 +165,11 @@ const S = {
 let mTimerRef=null, mIntRef=null, rafId=null, transInT=null, transOutT=null, gameOverT=null;
 
 function t(){ return THEMES[S.theme]; }
-function ld(){ return LEVELS[Math.min(S.level-1, LEVELS.length-1)]; }
+function ld(){
+  const base = LEVELS[Math.min(S.level-1, LEVELS.length-1)];
+  if(S.difficulty==="hard") return {...base, memorizeMs: 1500, guessMs: 3000};
+  return base;
+}
 
 const app = document.getElementById("app");
 function render(){
@@ -179,11 +184,21 @@ function render(){
 /* ============ THEME TOGGLE ============ */
 function themeToggleHtml(){
   const th=t();
-  return `<button onclick="toggleTheme()" title="${th.key==='dark'?'Jasny':'Ciemny'}" style="
+  const isN = S.difficulty==="normal";
+  return `<div style="position:fixed;top:14px;left:14px;z-index:100;display:flex;gap:4px;">
+    <button onclick="setDifficulty('normal')" style="height:40px;padding:0 12px;border-radius:12px;font-size:12px;font-weight:700;
+      cursor:pointer;letter-spacing:.5px;border:${isN?'none':'1px solid '+(th.key==='dark'?'#ffffff20':'#ccc')};
+      background:${isN?th.correct:'transparent'};color:${isN?'#fff':th.subtitle};">Normal</button>
+    <button onclick="setDifficulty('hard')" style="height:40px;padding:0 12px;border-radius:12px;font-size:12px;font-weight:700;
+      cursor:pointer;letter-spacing:.5px;border:${!isN?'none':'1px solid '+(th.key==='dark'?'#ffffff20':'#ccc')};
+      background:${!isN?th.wrong:'transparent'};color:${!isN?'#fff':th.subtitle};">Hard</button>
+  </div>
+  <button onclick="toggleTheme()" title="${th.key==='dark'?'Jasny':'Ciemny'}" style="
     position:fixed;top:14px;right:14px;z-index:100;width:40px;height:40px;border-radius:12px;
     background:${th.switchBg};border:none;font-size:18px;cursor:pointer;
     display:flex;align-items:center;justify-content:center;">${th.switchIcon}</button>`;
 }
+function setDifficulty(d){ S.difficulty=d; render(); }
 function toggleTheme(){ S.theme = S.theme==="dark"?"light":"dark"; render(); }
 
 /* ============ EKRAN: INTRO ============ */
@@ -494,7 +509,7 @@ function renderTransition(){
 /* ============ LOGIKA GRY ============ */
 function startNewRound(lvl){
   const th=t();
-  const L = LEVELS[Math.min(lvl-1, LEVELS.length-1)];
+  const L = ld();
   const picked = pickN(SHAPES, L.shapes);
   const cols = pickN(th.colors, L.shapes);
   const withC = picked.map((s,i)=>({...s, color: cols[i]}));
@@ -552,7 +567,7 @@ function afterGameRender(){
 function startGame(fromLevel){
   clearTimeout(mTimerRef); clearInterval(mIntRef); cancelAnimationFrame(rafId);
   S.startLevel = fromLevel; S.level = fromLevel; S.roundInLevel = 0;
-  S.score = 0; S.lives = 3; S.combo = 0; S.isNewBest=false; S.levelUpBanner=false;
+  S.score = 0; S.lives = S.difficulty==="hard"?2:3; S.combo = 0; S.isNewBest=false; S.levelUpBanner=false;
   S.paused=false; S.lifeBanner=false; S.nextLifeAt=LIFE_EVERY; S.isRetry=false;
   S.screen = "game";
   startNewRound(fromLevel);
@@ -583,7 +598,8 @@ function saveAndQuit(){
   S.screen = "records";
   S.recordsLoading = true;
   render();
-  addRecord(S.nick, S.score, S.level).then(r=>{
+  const recNick = S.difficulty==="hard" ? S.nick+" [H]" : S.nick;
+  addRecord(recNick, S.score, S.level).then(r=>{
     S.records = r;
     S.recordsLoading = false;
     render();
@@ -601,7 +617,8 @@ function endGame(finalScore, finalLevel){
   if(isBest) newProg.bestScores[S.startLevel] = finalScore;
   S.progress = newProg; saveProgress(newProg);
   S.isNewBest = isBest;
-  addRecord(S.nick, finalScore, finalLevel).then(r=>{ S.records=r; });
+  const endNick = S.difficulty==="hard" ? S.nick+" [H]" : S.nick;
+  addRecord(endNick, finalScore, finalLevel).then(r=>{ S.records=r; });
   S.screen = "gameover";
   render();
   clearTimeout(gameOverT);
@@ -614,8 +631,12 @@ function showTransition(nextRound, nextLvl, isLevelUp, callback){
   clearTimeout(transInT); clearTimeout(transOutT);
   S.transition = { round: nextRound, level: nextLvl, isLevelUp, fading: "in" };
   render();
-  const holdTime = isLevelUp ? 4200 : 3200;
+  const holdTime = isLevelUp ? 4200 : (S.difficulty==="hard" ? 1500 : 3200);
   transInT = setTimeout(()=>{
+    /* Wyczyść stare figury PRZED fade-outem, żeby nie było flashu starego poziomu */
+    S.shownShapes = [];
+    S.feedbackType = null;
+    S.phase = "memorize";
     if(S.transition) S.transition = {...S.transition, fading:"out"};
     render();
     transOutT = setTimeout(()=>{ S.transition = null; callback(); }, 800);
@@ -625,9 +646,8 @@ function showTransition(nextRound, nextLvl, isLevelUp, callback){
 function advanceLevel(){
   const nextLvl = Math.min(S.level+1, 15);
   showTransition(1, nextLvl, true, ()=>{
-    S.level = nextLvl; S.roundInLevel = 0; S.levelUpBanner = true;
+    S.level = nextLvl; S.roundInLevel = 0;
     startNewRound(nextLvl);
-    setTimeout(()=>{ S.levelUpBanner=false; render(); }, 1200);
   });
 }
 
@@ -671,6 +691,8 @@ function handleAnswer(index, e){
     render();
     const nextRound = S.roundInLevel+1;
     setTimeout(()=>{
+      /* Wyczyść stare figury przed przejściem */
+      S.shownShapes = []; S.feedbackType = null; render();
       if(nextRound>=L.rounds){ advanceLevel(); }
       else {
         showTransition(nextRound+1, S.level, false, ()=>{
@@ -686,7 +708,11 @@ function handleAnswer(index, e){
     const nl = S.lives;
     setTimeout(()=>{
       if(nl<=0) endGame(S.score, S.level);
-      else { S.isRetry = true; startNewRound(S.level); }
+      else {
+        /* Wyczyść stare figury, żeby nie było flashu */
+        S.shownShapes = []; S.feedbackType = null; render();
+        S.isRetry = true; startNewRound(S.level);
+      }
     }, 1800);
   }
 }
@@ -699,7 +725,10 @@ function handleExpire(){
   const nl = S.lives;
   setTimeout(()=>{
     if(nl<=0) endGame(S.score, S.level);
-    else { S.isRetry = true; startNewRound(S.level); }
+    else {
+      S.shownShapes = []; S.feedbackType = null; render();
+      S.isRetry = true; startNewRound(S.level);
+    }
   }, 1800);
 }
 
