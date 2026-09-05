@@ -127,6 +127,7 @@ function render(){
   if(S.screen==="intro")app.innerHTML=renderIntro();
   else if(S.screen==="select")app.innerHTML=renderSelect();
   else if(S.screen==="game")app.innerHTML=renderGame();
+  else if(S.screen==="results")app.innerHTML=renderResults();
 }
 function gotoScreen(scr){
   if(_lock)return;_lock=true;
@@ -196,36 +197,72 @@ function renderIntro(){
 function gotoSelect(){sndMusic('menu');gotoScreen('select');}
 
 /* === SELECT === */
-function renderSelect(){
-  var cat=catObj();
-  var catTabs='';
+function renderCatTabsHtml(){
+  var cat=catObj(),html='';
   for(var ci=0;ci<CATEGORIES.length;ci++){
     var c=CATEGORIES[ci],active=c.id===S.category;
-    catTabs+='<button onclick="selectCat(\''+c.id+'\')" class="glass-card" style="flex:1;min-width:100px;padding:14px 10px;border-radius:16px;border:'+(active?'2px solid #6c63ff':'1px solid rgba(255,255,255,0.12)')+';background:'+(active?'rgba(108,99,255,0.15)':'rgba(255,255,255,0.06)')+';display:flex;flex-direction:column;align-items:center;gap:6px;box-shadow:'+(active?'0 0 20px #6c63ff40':'0 4px 20px rgba(0,0,0,0.3)')+';transition:all .3s;"><span style="font-size:28px;">'+c.icon+'</span><span style="font-size:12px;font-weight:700;color:'+(active?'#6c63ff':'#a0a0b8')+';letter-spacing:1px;">'+c.name+'</span></button>';
+    html+='<button onclick="selectCat(\''+c.id+'\')" class="glass-card" style="flex:1;min-width:100px;padding:14px 10px;border-radius:16px;border:'+(active?'2px solid #6c63ff':'1px solid rgba(255,255,255,0.12)')+';background:'+(active?'rgba(108,99,255,0.15)':'rgba(255,255,255,0.06)')+';display:flex;flex-direction:column;align-items:center;gap:6px;box-shadow:'+(active?'0 0 20px #6c63ff40':'0 4px 20px rgba(0,0,0,0.3)')+';transition:all .3s;"><span style="font-size:28px;">'+c.icon+'</span><span style="font-size:12px;font-weight:700;color:'+(active?'#6c63ff':'#a0a0b8')+';letter-spacing:1px;">'+c.name+'</span></button>';
   }
-  var tiles='';
+  return html;
+}
+function renderTilesHtml(){
+  var cat=catObj(),html='';
   for(var n=2;n<=9;n++){
     var isActive=n===S.symbolCount;
     var borderStyle=isActive?'2px solid #4ecdc4':'2px solid rgba(255,255,255,0.08)';
     var bgStyle=isActive?'rgba(78,205,196,0.1)':'rgba(255,255,255,0.04)';
     var glowStyle=isActive?'0 0 25px #4ecdc430,0 0 50px #4ecdc415':'0 4px 20px rgba(0,0,0,0.3)';
     var content=renderTileContent(n,cat,isActive);
-    tiles+='<button onclick="selectCount('+n+')" class="tile-btn" style="--tc:#4ecdc4;width:100%;aspect-ratio:1;border-radius:20px;border:'+borderStyle+';background:'+bgStyle+';display:flex;align-items:center;justify-content:center;padding:10px 6px;box-shadow:'+glowStyle+';animation:cardEnter .5s ease-out '+((n-2)*0.07)+'s both;">'+content+'</button>';
+    html+='<button onclick="selectCount('+n+')" class="tile-btn" style="--tc:#4ecdc4;width:100%;aspect-ratio:1;border-radius:20px;border:'+borderStyle+';background:'+bgStyle+';display:flex;align-items:center;justify-content:center;padding:10px 6px;box-shadow:'+glowStyle+';transition:border .3s,background .3s,box-shadow .3s;">'+content+'</button>';
   }
+  return html;
+}
+function renderSelect(){
   return muteBtn()+
   '<div style="min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:20px 16px;animation:fadeInUp .5s ease-out;">'+
     '<div style="width:100%;max-width:400px;margin-bottom:20px;display:flex;align-items:center;gap:12px;">'+
       '<button onclick="gotoScreen(\'intro\')" class="glass-card" style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);color:#fff;font-size:18px;font-weight:700;width:40px;height:40px;border-radius:14px;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 20px rgba(0,0,0,0.3);">←</button>'+
       '<h2 style="font-size:22px;font-weight:800;letter-spacing:1px;">Choose Mode</h2>'+
     '</div>'+
-    '<div style="display:flex;gap:8px;width:100%;max-width:400px;margin-bottom:24px;">'+catTabs+'</div>'+
-    '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;width:100%;max-width:400px;margin-bottom:28px;">'+tiles+'</div>'+
+    '<div id="catTabs" style="display:flex;gap:8px;width:100%;max-width:400px;margin-bottom:24px;">'+renderCatTabsHtml()+'</div>'+
+    '<div id="tilesGrid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;width:100%;max-width:400px;margin-bottom:28px;transition:opacity .2s;">'+renderTilesHtml()+'</div>'+
     '<button onclick="startGame()" style="background:linear-gradient(135deg,#4ecdc4,#2ecc71);color:#fff;border:none;padding:18px 56px;font-size:20px;font-weight:800;border-radius:18px;letter-spacing:3px;box-shadow:0 0 20px #4ecdc440,0 0 40px #4ecdc420;animation:pulse 3s ease-in-out infinite;transition:transform .2s;">PLAY</button>'+
     '<div style="color:#a0a0b8;font-size:11px;margin-top:20px;text-align:center;opacity:.5;max-width:280px;line-height:1.5;">Endless training — no pressure, no time limit.<br>Just you and your memory.</div>'+
   '</div>';
 }
-function selectCat(id){S.category=id;render()}
-function selectCount(n){S.symbolCount=n;render()}
+function updateSelectUI(){
+  /* update category tab styles only */
+  var tabs=document.getElementById('catTabs');
+  if(tabs){
+    var btns=tabs.children;
+    for(var ci=0;ci<CATEGORIES.length;ci++){
+      var c=CATEGORIES[ci],active=c.id===S.category,b=btns[ci];
+      if(!b)continue;
+      b.style.border=active?'2px solid #6c63ff':'1px solid rgba(255,255,255,0.12)';
+      b.style.background=active?'rgba(108,99,255,0.15)':'rgba(255,255,255,0.06)';
+      b.style.boxShadow=active?'0 0 20px #6c63ff40':'0 4px 20px rgba(0,0,0,0.3)';
+      var label=b.querySelectorAll('span')[1];
+      if(label)label.style.color=active?'#6c63ff':'#a0a0b8';
+    }
+  }
+  /* update tile contents and styles */
+  var grid=document.getElementById('tilesGrid');
+  if(grid){
+    var cat=catObj(),tiles=grid.children;
+    for(var n=2;n<=9;n++){
+      var idx=n-2,tile=tiles[idx];
+      if(!tile)continue;
+      var isActive=n===S.symbolCount;
+      tile.style.border=isActive?'2px solid #4ecdc4':'2px solid rgba(255,255,255,0.08)';
+      tile.style.background=isActive?'rgba(78,205,196,0.1)':'rgba(255,255,255,0.04)';
+      tile.style.boxShadow=isActive?'0 0 25px #4ecdc430,0 0 50px #4ecdc415':'0 4px 20px rgba(0,0,0,0.3)';
+      tile.innerHTML=renderTileContent(n,cat,isActive);
+    }
+  }
+  document.body.style.background=catBg();
+}
+function selectCat(id){S.category=id;updateSelectUI()}
+function selectCount(n){S.symbolCount=n;updateSelectUI()}
 
 /* === GAME === */
 function renderGame(){
@@ -342,7 +379,209 @@ function handleAnswer(index,e){
   }
 }
 
-function quitGame(){clearTimeout(mTimerRef);clearInterval(mIntRef);sndMusic('menu');gotoScreen('select');}
+function quitGame(){clearTimeout(mTimerRef);clearInterval(mIntRef);sndMusic('menu');S.screen="results";render();}
+
+var GAME_URL="https://mini-klik.pl/gry/gra2/";
+
+/* === RESULTS SCREEN === */
+function renderResults(){
+  var cat=catObj();
+  var total=S.correct+S.wrong;
+  var pct=total>0?Math.round(S.correct/total*100):0;
+  var emoji=pct>=90?"🏆":pct>=70?"🌟":pct>=50?"👍":pct>=30?"💪":"🧠";
+  var ratingText=pct>=90?"Excellent!":pct>=70?"Great job!":pct>=50?"Not bad!":pct>=30?"Keep practicing!":"Don't give up!";
+  var ratingColor=pct>=90?"#ffd93d":pct>=70?"#4ecdc4":pct>=50?"#a29bfe":pct>=30?"#ff8a5c":"#ff6b6b";
+
+  var barWidth=Math.max(4,pct);
+
+  return muteBtn()+
+  '<div style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px 16px;animation:fadeInUp .6s ease-out;">'+
+    '<div style="font-size:64px;margin-bottom:8px;animation:popIn .6s ease-out;">'+emoji+'</div>'+
+    '<h2 style="font-size:28px;font-weight:800;margin:0 0 4px;">Training Complete</h2>'+
+    '<div style="color:'+ratingColor+';font-size:16px;font-weight:700;margin-bottom:24px;letter-spacing:1px;">'+ratingText+'</div>'+
+
+    '<div style="width:100%;max-width:340px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:20px;padding:24px;margin-bottom:20px;">'+
+      '<div style="color:#a0a0b8;font-size:11px;letter-spacing:2px;text-transform:uppercase;margin-bottom:16px;text-align:center;">'+cat.icon+' '+cat.name+'</div>'+
+
+      '<div style="text-align:center;margin-bottom:18px;padding:10px 0;background:rgba(108,99,255,0.1);border:1px solid rgba(108,99,255,0.2);border-radius:12px;">'+
+        '<div style="color:#6c63ff;font-size:36px;font-weight:800;">'+S.symbolCount+'</div>'+
+        '<div style="color:#a0a0b8;font-size:11px;margin-top:2px;">symbols per round</div>'+
+      '</div>'+
+
+      '<div style="display:flex;justify-content:space-around;margin-bottom:20px;">'+
+        '<div style="text-align:center;"><div style="color:#4ecdc4;font-size:32px;font-weight:800;">'+S.correct+'</div><div style="color:#a0a0b8;font-size:11px;margin-top:2px;">correct</div></div>'+
+        '<div style="text-align:center;"><div style="color:#ff6b6b;font-size:32px;font-weight:800;">'+S.wrong+'</div><div style="color:#a0a0b8;font-size:11px;margin-top:2px;">wrong</div></div>'+
+        '<div style="text-align:center;"><div style="color:#a29bfe;font-size:32px;font-weight:800;">'+S.round+'</div><div style="color:#a0a0b8;font-size:11px;margin-top:2px;">rounds</div></div>'+
+      '</div>'+
+
+      '<div style="margin-bottom:6px;display:flex;justify-content:space-between;align-items:baseline;">'+
+        '<span style="color:#a0a0b8;font-size:12px;">Accuracy</span>'+
+        '<span style="color:#ffd93d;font-size:24px;font-weight:800;">'+pct+'%</span>'+
+      '</div>'+
+      '<div style="width:100%;height:10px;background:rgba(255,255,255,0.08);border-radius:5px;overflow:hidden;">'+
+        '<div style="width:'+barWidth+'%;height:100%;border-radius:5px;background:linear-gradient(90deg,#4ecdc4,#2ecc71);transition:width 1s ease-out;"></div>'+
+      '</div>'+
+    '</div>'+
+
+    '<div style="display:flex;flex-direction:column;gap:10px;align-items:center;">'+
+      '<button onclick="shareOnFB()" style="background:#1877F2;color:#fff;border:none;padding:16px 36px;font-size:16px;font-weight:700;border-radius:14px;box-shadow:0 4px 15px rgba(24,119,242,0.3);transition:transform .2s;display:flex;align-items:center;gap:10px;width:100%;max-width:300px;justify-content:center;">📘 Share on Facebook</button>'+
+      '<button onclick="gotoScreen(\'select\')" class="glass-card" style="background:rgba(255,255,255,0.06);color:#a0a0b8;border:1px solid rgba(255,255,255,0.12);padding:14px 36px;font-size:14px;font-weight:600;border-radius:14px;box-shadow:0 4px 20px rgba(0,0,0,0.3);width:100%;max-width:300px;">← Back to menu</button>'+
+    '</div>'+
+  '</div>';
+}
+
+/* === SHARE FUNCTIONS === */
+function getShareText(){
+  var total=S.correct+S.wrong;
+  var pct=total>0?Math.round(S.correct/total*100):0;
+  return 'I scored '+pct+'% accuracy memorizing '+S.symbolCount+' symbols! '+S.correct+' correct, '+S.wrong+' wrong. Try it yourself: '+GAME_URL;
+}
+
+function shareOnFB(){
+  generateResultsPNG(function(blob){
+    /* download PNG */
+    var url=URL.createObjectURL(blob);
+    var a=document.createElement('a');
+    a.href=url;a.download='memory-training-results.png';
+    document.body.appendChild(a);a.click();
+    setTimeout(function(){document.body.removeChild(a);URL.revokeObjectURL(url)},100);
+    /* open FB after short delay so download starts first */
+    setTimeout(function(){
+      var text=encodeURIComponent(getShareText());
+      var fbUrl=encodeURIComponent(GAME_URL);
+      window.open('https://www.facebook.com/sharer/sharer.php?u='+fbUrl+'&quote='+text,'_blank','width=600,height=400');
+    },500);
+  });
+}
+
+function generateResultsPNG(callback){
+  var cat=catObj();
+  var total=S.correct+S.wrong;
+  var pct=total>0?Math.round(S.correct/total*100):0;
+  var ratingText=pct>=90?"Excellent!":pct>=70?"Great job!":pct>=50?"Not bad!":pct>=30?"Keep practicing!":"Don't give up!";
+  var ratingColor=pct>=90?"#ffd93d":pct>=70?"#4ecdc4":pct>=50?"#a29bfe":pct>=30?"#ff8a5c":"#ff6b6b";
+
+  var W=600,H=700;
+  var canvas=document.createElement('canvas');
+  canvas.width=W;canvas.height=H;
+  var c=canvas.getContext('2d');
+
+  /* background */
+  c.fillStyle='#1a1a2e';
+  c.fillRect(0,0,W,H);
+
+  /* card bg */
+  c.fillStyle='#1e2240';
+  c.beginPath();
+  if(c.roundRect){c.roundRect(30,30,540,640,24);}else{c.rect(30,30,540,640);}
+  c.fill();
+  c.strokeStyle='rgba(255,255,255,0.12)';c.lineWidth=1.5;
+  c.beginPath();
+  if(c.roundRect){c.roundRect(30,30,540,640,24);}else{c.rect(30,30,540,640);}
+  c.stroke();
+
+  /* title */
+  c.textAlign='center';c.textBaseline='middle';
+  c.font='800 36px Segoe UI, sans-serif';
+  c.fillStyle='#f8f8f2';
+  c.fillText('MEMORY TRAINING',300,80);
+
+  /* category */
+  c.font='600 18px Segoe UI, sans-serif';
+  c.fillStyle='#a0a0b8';
+  c.fillText(cat.name.toUpperCase(),300,120);
+
+  /* symbol count badge */
+  c.fillStyle='rgba(108,99,255,0.2)';
+  c.beginPath();
+  if(c.roundRect){c.roundRect(200,140,200,55,16);}else{c.rect(200,140,200,55);}
+  c.fill();
+  c.strokeStyle='rgba(108,99,255,0.4)';c.lineWidth=2;
+  c.beginPath();
+  if(c.roundRect){c.roundRect(200,140,200,55,16);}else{c.rect(200,140,200,55);}
+  c.stroke();
+  c.font='800 30px Segoe UI, sans-serif';
+  c.fillStyle='#6c63ff';
+  c.fillText(S.symbolCount+' SYMBOLS',300,168);
+
+  /* divider */
+  c.strokeStyle='rgba(255,255,255,0.08)';c.lineWidth=1;
+  c.beginPath();c.moveTo(80,215);c.lineTo(520,215);c.stroke();
+
+  /* big accuracy */
+  c.font='800 90px Segoe UI, sans-serif';
+  c.fillStyle='#ffd93d';
+  c.fillText(pct+'%',300,295);
+  c.font='600 16px Segoe UI, sans-serif';
+  c.fillStyle='#a0a0b8';
+  c.fillText('ACCURACY',300,335);
+
+  /* accuracy bar bg */
+  c.fillStyle='rgba(255,255,255,0.08)';
+  c.beginPath();
+  if(c.roundRect){c.roundRect(80,360,440,16,8);}else{c.rect(80,360,440,16);}
+  c.fill();
+
+  /* accuracy bar fill */
+  var barW=Math.max(16,Math.round(440*(pct/100)));
+  var barG=c.createLinearGradient(80,0,80+barW,0);
+  barG.addColorStop(0,'#4ecdc4');barG.addColorStop(1,'#2ecc71');
+  c.fillStyle=barG;
+  c.beginPath();
+  if(c.roundRect){c.roundRect(80,360,barW,16,8);}else{c.rect(80,360,barW,16);}
+  c.fill();
+
+  /* correct */
+  c.font='800 40px Segoe UI, sans-serif';
+  c.fillStyle='#4ecdc4';c.fillText(String(S.correct),150,430);
+  c.font='500 14px Segoe UI, sans-serif';
+  c.fillStyle='#a0a0b8';c.fillText('CORRECT',150,455);
+
+  /* wrong */
+  c.font='800 40px Segoe UI, sans-serif';
+  c.fillStyle='#ff6b6b';c.fillText(String(S.wrong),300,430);
+  c.font='500 14px Segoe UI, sans-serif';
+  c.fillStyle='#a0a0b8';c.fillText('WRONG',300,455);
+
+  /* rounds */
+  c.font='800 40px Segoe UI, sans-serif';
+  c.fillStyle='#a29bfe';c.fillText(String(S.round),450,430);
+  c.font='500 14px Segoe UI, sans-serif';
+  c.fillStyle='#a0a0b8';c.fillText('ROUNDS',450,455);
+
+  /* rating */
+  c.font='700 24px Segoe UI, sans-serif';
+  c.fillStyle=ratingColor;
+  c.fillText(ratingText,300,520);
+
+  /* divider */
+  c.strokeStyle='rgba(255,255,255,0.08)';
+  c.beginPath();c.moveTo(80,555);c.lineTo(520,555);c.stroke();
+
+  /* link */
+  c.font='600 15px Segoe UI, sans-serif';
+  c.fillStyle='#888';c.fillText('Play it yourself:',300,590);
+  c.font='700 19px Segoe UI, sans-serif';
+  c.fillStyle='#8b5cf6';c.fillText(GAME_URL,300,620);
+
+  /* branding */
+  c.font='500 13px Segoe UI, sans-serif';
+  c.fillStyle='rgba(255,255,255,0.15)';c.fillText('mini-klik.pl',300,655);
+
+  try{
+    canvas.toBlob(function(blob){
+      if(blob&&callback)callback(blob);
+    },'image/png');
+  }catch(e){
+    /* fallback: toDataURL */
+    var dataUrl=canvas.toDataURL('image/png');
+    var arr=dataUrl.split(','),mime=arr[0].match(/:(.*?);/)[1];
+    var bstr=atob(arr[1]),n=bstr.length,u8arr=new Uint8Array(n);
+    while(n--)u8arr[n]=bstr.charCodeAt(n);
+    var blob=new Blob([u8arr],{type:mime});
+    if(callback)callback(blob);
+  }
+}
 
 sndInit();render();
 </script>
