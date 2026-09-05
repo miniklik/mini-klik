@@ -1,18 +1,20 @@
 <!DOCTYPE html>
-<html lang="pl">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Zapamiętaj Figury · mini-klik.pl</title>
-<meta name="description" content="Zapamiętaj Figury — gra pamięciowa. Zapamiętaj układ figur, zanim znikną!">
+<title>Remember Symbols</title>
+<meta name="description" content="Remember Symbols — a memory game! Memorize the symbols before they disappear.">
 <style>
   *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   html,body{min-height:100%;overflow-x:hidden}
   body{font-family:'Segoe UI',system-ui,sans-serif;transition:background .6s}
+  *::-webkit-scrollbar{display:none}
+  *{scrollbar-width:none;-ms-overflow-style:none}
   button{font-family:inherit;-webkit-appearance:none;appearance:none}
   input{font-family:inherit}
 
-  /* === ANIMACJE === */
+  /* === ANIMATIONS === */
   @keyframes floatShape{0%{transform:translateY(0) rotate(0deg)}50%{transform:translateY(-25px) rotate(8deg)}100%{transform:translateY(0) rotate(0deg)}}
   @keyframes fadeInUp{from{opacity:0;transform:translateY(30px)}to{opacity:1;transform:translateY(0)}}
   @keyframes fadeIn{from{opacity:0}to{opacity:1}}
@@ -40,6 +42,13 @@
   @keyframes glowUnlock{0%{box-shadow:0 0 0 transparent}50%{box-shadow:0 0 30px var(--uc)}100%{box-shadow:0 0 10px var(--uc)}}
   @keyframes introFloat{0%{transform:translateY(100vh) rotate(0deg)}100%{transform:translateY(-100px) rotate(360deg)}}
   @keyframes starPop{0%{transform:scale(0) rotate(-30deg);opacity:0}60%{transform:scale(1.3) rotate(10deg);opacity:1}100%{transform:scale(1) rotate(0deg);opacity:1}}
+  @keyframes screenFadeIn{from{opacity:0;transform:scale(.97)}to{opacity:1;transform:scale(1)}}
+  @keyframes screenFadeOut{from{opacity:1;transform:scale(1)}to{opacity:0;transform:scale(.97)}}
+  @keyframes nodeAppear{0%{opacity:0;transform:scale(0)}60%{transform:scale(1.2)}100%{opacity:1;transform:scale(1)}}
+  @keyframes nodeGlow{0%{box-shadow:0 0 0 transparent}40%{box-shadow:0 0 25px var(--nc)}100%{box-shadow:0 0 8px var(--nc)}}
+  @keyframes pathGrow{to{stroke-dashoffset:0}}
+
+  #app>.screen-enter{animation:screenFadeIn .35s ease-out both}
 
   .glass-card{
     backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
@@ -55,7 +64,7 @@
 <div id="app"></div>
 
 <script>
-/* ============ DANE / KONFIGURACJA ============ */
+/* ============ DATA / CONFIG ============ */
 const SHAPES_FIGURES = [
   {symbol:"●"},{symbol:"▲"},{symbol:"■"},{symbol:"◆"},
   {symbol:"★"},{symbol:"♥"},{symbol:"⬟"},{symbol:"✦"},
@@ -71,9 +80,9 @@ const SHAPES_PLANTS = [
 const SHAPES_MIX = [...SHAPES_FIGURES,...SHAPES_ANIMALS,...SHAPES_PLANTS];
 
 const CATEGORIES = [
-  {id:0,name:"Figury",icon:"🔷",from:1,to:15,symbols:SHAPES_FIGURES,hue:"250"},
-  {id:1,name:"Zwierzęta",icon:"🐾",from:16,to:30,symbols:SHAPES_ANIMALS,hue:"30"},
-  {id:2,name:"Rośliny",icon:"🌿",from:31,to:45,symbols:SHAPES_PLANTS,hue:"140"},
+  {id:0,name:"Shapes",icon:"🔷",from:1,to:15,symbols:SHAPES_FIGURES,hue:"250"},
+  {id:1,name:"Animals",icon:"🐾",from:16,to:30,symbols:SHAPES_ANIMALS,hue:"30"},
+  {id:2,name:"Plants",icon:"🌿",from:31,to:45,symbols:SHAPES_PLANTS,hue:"140"},
   {id:3,name:"Mix",icon:"🎲",from:46,to:60,symbols:SHAPES_MIX,hue:"280"},
 ];
 
@@ -88,7 +97,7 @@ const LEVELS = Array.from({length:60},(_,i)=>{
     memorizeMs:Math.max(3000,5000-catIdx*500),
     guessMs:Math.max(1500,6000-localIdx*260-catIdx*400),
     rounds:localIdx<=2?3:localIdx<=8?4:5,
-    label:localIdx<=2?"Łatwy":localIdx<=5?"Średni":localIdx<=8?"Trudny":localIdx<=11?"Expert":"Mistrz",
+    label:localIdx<=2?"Easy":localIdx<=5?"Medium":localIdx<=8?"Hard":localIdx<=11?"Expert":"Master",
   };
 });
 
@@ -136,41 +145,103 @@ const THEMES = {
 };
 
 const MAX_LIVES=10,LIFE_EVERY=100;
-const FS_BASE="https://firestore.googleapis.com/v1/projects/miniklik/databases/(default)/documents";
-const FS_KEY="AIzaSyBYCfUzKiKZOsqO4fX504EQWuUs7murmi8";
-
-/* ============ HELPERY ============ */
+/* ============ HELPERS ============ */
 function shuffle(a){const b=[...a];for(let i=b.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[b[i],b[j]]=[b[j],b[i]];}return b;}
 function pickN(a,n){return shuffle(a).slice(0,n)}
 function esc(s){const d=document.createElement("div");d.textContent=s;return d.innerHTML}
 
-/* ============ PERSYSTENCJA ============ */
-function loadProgress(){try{const r=localStorage.getItem("mk_zf_progress");return r?JSON.parse(r):{unlocked:1,bestScores:{}};}catch(e){return{unlocked:1,bestScores:{}}}}
-function saveProgress(d){try{localStorage.setItem("mk_zf_progress",JSON.stringify(d))}catch(e){}}
-function loadNick(){try{return localStorage.getItem("mk_zf_nick")||""}catch(e){return""}}
-function saveNick(n){try{localStorage.setItem("mk_zf_nick",n)}catch(e){}}
+/* Leaderboard via Firestore */
+const FS_BASE="https://firestore.googleapis.com/v1/projects/miniklik/databases/(default)/documents";
+const FS_KEY="AIzaSyBYCfUzKiKZOsqO4fX504EQWuUs7murmi8";
+
+/* ============ PERSISTENCE (progress local, scores via Firestore) ============ */
+function loadProgress(){try{const r=localStorage.getItem("rs_progress");return r?JSON.parse(r):{unlocked:1,bestScores:{}};}catch(e){return{unlocked:1,bestScores:{}}}}
+function saveProgress(d){try{localStorage.setItem("rs_progress",JSON.stringify(d))}catch(e){}}
+function loadNick(){try{return localStorage.getItem("rs_nick")||""}catch(e){return""}}
+function saveNick(n){try{localStorage.setItem("rs_nick",n)}catch(e){}}
 
 async function loadRecords(){
   try{
-    const res=await fetch(`${FS_BASE}/zapamietaj_rekordy?key=${FS_KEY}&pageSize=500`);
+    const res=await fetch(`${FS_BASE}/remember_symbols_scores?key=${FS_KEY}&pageSize=500`);
     const data=await res.json();
     if(!data.documents)return[];
     return data.documents.map(doc=>({
-      nick:doc.fields.nick?.stringValue||"Anonim",
+      nick:doc.fields.nick?.stringValue||"Anonymous",
       score:parseInt(doc.fields.score?.integerValue||"0"),
       level:parseInt(doc.fields.level?.integerValue||"0"),
       date:doc.fields.date?.stringValue||"",
     })).sort((a,b)=>b.score-a.score).slice(0,99);
-  }catch(e){return[]}
+  }catch(e){console.error("Firestore load error:",e);return[]}
 }
+
 async function addRecord(nick,score,level){
-  const dateStr=new Date().toLocaleDateString("pl-PL");
-  try{await fetch(`${FS_BASE}/zapamietaj_rekordy?key=${FS_KEY}`,{method:"POST",headers:{"Content-Type":"application/json"},
-    body:JSON.stringify({fields:{nick:{stringValue:(nick||"Anonim").slice(0,16)},score:{integerValue:String(score)},level:{integerValue:String(level)},date:{stringValue:dateStr}}})})}catch(e){}
+  const dateStr=new Date().toLocaleDateString("en-US");
+  try{await fetch(`${FS_BASE}/remember_symbols_scores?key=${FS_KEY}`,{method:"POST",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({fields:{nick:{stringValue:(nick||"Anonymous").slice(0,16)},score:{integerValue:String(score)},level:{integerValue:String(level)},date:{stringValue:dateStr}}})})}catch(e){console.error("Firestore save error:",e)}
   return loadRecords();
 }
 
-/* ============ EFEKTY WIZUALNE ============ */
+/* ============ AUDIO MANAGER ============ */
+const SND={
+  muted:true,
+  sounds:{},
+  music:{menu:null,game:null},
+  currentMusic:null,
+};
+
+function sndLoad(name,loop){
+  try{
+    const a=new Audio('sounds/'+name+'.mp3');
+    a.preload='auto';
+    a.loop=!!loop;
+    if(loop)a.volume=0.4;
+    a.addEventListener('error',function(){console.warn('Sound not found:',name)});
+    return a;
+  }catch(e){return null}
+}
+
+function sndInit(){
+  var names=['correct','wrong','combo','tick','levelup','category','gameover','start','memorize','lifeup'];
+  names.forEach(function(n){SND.sounds[n]=sndLoad(n,false)});
+  SND.music.menu=sndLoad('bgm_menu',true);
+  SND.music.game=sndLoad('bgm_game',true);
+}
+
+function sndPlay(name){
+  if(SND.muted)return;
+  var s=SND.sounds[name];
+  if(!s)return;
+  try{s.currentTime=0;s.play().catch(function(){})}catch(e){}
+}
+
+function sndMusic(which){
+  if(SND.currentMusic===which)return;
+  if(SND.music.menu)try{SND.music.menu.pause();SND.music.menu.currentTime=0}catch(e){}
+  if(SND.music.game)try{SND.music.game.pause();SND.music.game.currentTime=0}catch(e){}
+  SND.currentMusic=which;
+  if(SND.muted||!which)return;
+  var m=SND.music[which];
+  if(m)try{m.play().catch(function(){})}catch(e){}
+}
+
+function sndToggleMute(){
+  SND.muted=!SND.muted;
+  if(SND.muted){
+    if(SND.music.menu)try{SND.music.menu.pause()}catch(e){}
+    if(SND.music.game)try{SND.music.game.pause()}catch(e){}
+  }else{
+    if(SND.currentMusic){var m=SND.music[SND.currentMusic];if(m)try{m.play().catch(function(){})}catch(e){}}
+  }
+  render();
+}
+
+function muteButtonHtml(){
+  return `<button onclick="sndToggleMute()" style="position:fixed;top:14px;right:14px;z-index:100;width:38px;height:38px;
+    border-radius:20px;background:rgba(255,255,255,0.08);border:none;font-size:16px;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;">${SND.muted?'🔇':'🔊'}</button>`;
+}
+
+/* ============ VISUAL EFFECTS ============ */
 function spawnParticles(x,y,count=12){
   const th=t();const wrap=document.createElement("div");
   wrap.style.cssText=`position:fixed;left:${x}px;top:${y}px;pointer-events:none;z-index:999;`;
@@ -233,10 +304,10 @@ function animateCountUp(el,target,duration=800){
   requestAnimationFrame(tick);
 }
 
-/* ============ STAN GLOBALNY ============ */
+/* ============ GLOBAL STATE ============ */
 const S={
-  theme:"light",difficulty:"normal",screen:"intro",
-  progress:{unlocked:1,bestScores:{}},nick:"",records:[],recordsLoading:false,
+  theme:"dark",difficulty:"normal",screen:"intro",
+  progress:{unlocked:1,bestScores:{}},nick:"",playerPhoto:"",records:[],recordsLoading:false,recordsTab:"global",
   mapCategory:0,startLevel:1,level:1,roundInLevel:0,
   score:0,lives:3,combo:0,
   shownShapes:[],targetShape:null,targetIndex:0,
@@ -258,14 +329,40 @@ function gameBg(){
 }
 
 const app=document.getElementById("app");
+let _transLock=false;
 function render(){
-  const bg=S.screen==="game"?gameBg():catBg(0,S.theme==="dark");
+  const bg=S.screen==="game"?gameBg():catBg(S.screen==="map"?S.mapCategory:0,S.theme==="dark");
   document.body.style.background=bg;
   if(S.screen==="intro")app.innerHTML=renderIntro();
   else if(S.screen==="map")app.innerHTML=renderMap();
   else if(S.screen==="records")app.innerHTML=renderRecords();
-  else if(S.screen==="gameover")app.innerHTML=renderGameOver();
+  else if(S.screen==="gameover"){app.innerHTML=renderGameOver();afterGameRender();}
   else if(S.screen==="game"){app.innerHTML=renderGame();afterGameRender();}
+}
+function gotoAnimated(screen){
+  if(_transLock)return;
+  _transLock=true;
+  var mus=(screen==="game")?"game":"menu";
+  sndMusic(mus);
+  const el=app.firstElementChild;
+  if(el){
+    el.style.animation="screenFadeOut .25s ease-in forwards";
+    setTimeout(function(){
+      S.screen=screen;
+      if(screen==="map")S.mapCategory=catForLevel(Math.min(S.progress.unlocked,60));
+      render();
+      if(app.firstElementChild)app.firstElementChild.classList.add('screen-enter');
+      if(screen==="records")refreshRecords();
+      _transLock=false;
+    },250);
+  }else{
+    S.screen=screen;
+    if(screen==="map")S.mapCategory=catForLevel(Math.min(S.progress.unlocked,60));
+    render();
+    if(app.firstElementChild)app.firstElementChild.classList.add('screen-enter');
+    if(screen==="records")refreshRecords();
+    _transLock=false;
+  }
 }
 
 /* ============ TOGGLE THEME + DIFFICULTY ============ */
@@ -281,18 +378,15 @@ function themeToggleHtml(){
       background:${!isN?th.wrong:'rgba(128,128,128,0.15)'};color:${!isN?'#fff':th.subtitle};
       box-shadow:${!isN?'0 2px 12px '+th.wrong+'40':'none'};">Hard</button>
   </div>
-  <button onclick="toggleTheme()" style="position:fixed;top:14px;right:14px;z-index:100;width:38px;height:38px;border-radius:20px;
-    background:${th.switchBg};border:none;font-size:16px;cursor:pointer;transition:all .3s;
-    display:flex;align-items:center;justify-content:center;box-shadow:${th.shadow};">${th.switchIcon}</button>`;
+  ${muteButtonHtml()}`;
 }
 function setDifficulty(d){S.difficulty=d;render()}
-function toggleTheme(){S.theme=S.theme==="dark"?"light":"dark";render()}
+function toggleTheme(){}
 
-/* ============ EKRAN: INTRO ============ */
+/* ============ SCREEN: INTRO ============ */
 function renderIntro(){
   const th=t();
   const floats=Array.from({length:14}).map((_,i)=>{
-    const sym=[...SHAPES_FIGURES,...SHAPES_ANIMALS,...SHAPES_PLANTS][i%SHAPES_FIGURES.length+SHAPES_ANIMALS.length];
     const s=SHAPES_FIGURES[i%SHAPES_FIGURES.length];
     return `<div style="position:absolute;font-size:${24+Math.random()*40}px;color:${th.colors[i%th.colors.length]};
       opacity:${th.key==='dark'?0.08:0.12};left:${Math.random()*100}%;
@@ -308,28 +402,28 @@ function renderIntro(){
         ${["●","▲","■"].map((s,i)=>`<span style="color:${th.colors[i]};filter:${th.dropShadow(th.colors[i])};
           animation:pulse 2s ease-in-out infinite;animation-delay:${i*0.3}s;text-shadow:${th.glow(th.colors[i])};">${s}</span>`).join("")}
       </div>
-      <h1 style="color:${th.title};font-size:36px;font-weight:800;margin:16px 0 0;letter-spacing:2px;">Zapamiętaj Figury</h1>
+      <h1 style="color:${th.title};font-size:36px;font-weight:800;margin:16px 0 0;letter-spacing:2px;">Remember Symbols</h1>
       <p style="color:${th.subtitle};font-size:15px;margin:14px 0 24px;line-height:1.7;max-width:320px;">
-        Zapamiętaj układ figur, zanim znikną.<br>Z każdym poziomem jest trudniej!
+        Memorize the symbols before they disappear.<br>Each level gets harder!
       </p>
       <div style="margin-bottom:24px;">
-        <input type="text" id="nickInput" value="${esc(S.nick)}" placeholder="Twój nick..." maxlength="16"
+        <input type="text" id="nickInput" value="${esc(S.nick)}" placeholder="Your nickname..." maxlength="16"
           oninput="handleNickChange(this.value)"
           style="background:${th.cardGlass};border:2px solid ${th.cardBorder};backdrop-filter:blur(8px);
           border-radius:16px;padding:12px 20px;font-size:15px;font-weight:600;color:${th.title};
           text-align:center;width:220px;outline:none;transition:border .3s;box-shadow:${th.shadow};">
       </div>
       ${S.progress.unlocked>1?`<div style="color:${th.gold};font-size:13px;margin-bottom:18px;letter-spacing:1px;
-        text-shadow:0 0 10px ${th.gold}40;">★ Odblokowany poziom: ${S.progress.unlocked} / 60</div>`:""}
+        text-shadow:0 0 10px ${th.gold}40;">★ Unlocked level: ${S.progress.unlocked} / 60</div>`:""}
       <div style="display:flex;flex-direction:column;gap:14px;align-items:center;">
         <button onclick="startGame(S.progress.unlocked)" style="background:${th.accentGrad};color:#fff;border:none;
           padding:18px 60px;font-size:22px;font-weight:800;border-radius:18px;cursor:pointer;letter-spacing:3px;
           box-shadow:${th.glow(th.accent)};animation:pulse 3s ease-in-out infinite;transition:transform .2s;">START</button>
         <div style="display:flex;gap:10px;">
           <button onclick="goto('map')" class="glass-card" style="background:${th.cardGlass};color:${th.subtitle};border:1px solid ${th.cardBorder};
-            padding:12px 28px;font-size:14px;font-weight:600;border-radius:14px;cursor:pointer;box-shadow:${th.shadow};">🗺️ Poziomy</button>
+            padding:12px 28px;font-size:14px;font-weight:600;border-radius:14px;cursor:pointer;box-shadow:${th.shadow};">🗺️ Levels</button>
           <button onclick="goto('records')" class="glass-card" style="background:${th.cardGlass};color:${th.subtitle};border:1px solid ${th.cardBorder};
-            padding:12px 28px;font-size:14px;font-weight:600;border-radius:14px;cursor:pointer;box-shadow:${th.shadow};">🏆 Rekordy</button>
+            padding:12px 28px;font-size:14px;font-weight:600;border-radius:14px;cursor:pointer;box-shadow:${th.shadow};">🏆 Records</button>
         </div>
       </div>
     </div>
@@ -337,13 +431,10 @@ function renderIntro(){
 }
 function handleNickChange(v){S.nick=v;saveNick(v)}
 function goto(screen){
-  S.screen=screen;
-  if(screen==="map")S.mapCategory=catForLevel(Math.min(S.progress.unlocked,60));
-  render();
-  if(screen==="records")refreshRecords();
+  gotoAnimated(screen);
 }
 
-/* ============ EKRAN: MAPA POZIOMÓW ============ */
+/* ============ SCREEN: LEVEL MAP ============ */
 function renderMap(){
   const th=t(),cat=CATEGORIES[S.mapCategory],catLevels=LEVELS.slice(cat.from-1,cat.to);
   const bg=catBg(S.mapCategory,th.key==="dark");
@@ -374,23 +465,27 @@ function renderMap(){
   const lines=positions.map((p,i)=>{
     if(i===0)return"";
     const prev=positions[i-1],globalId=cat.from+i,done=globalId<S.progress.unlocked;
+    const dx=p.x/100*400-prev.x/100*400,dy=p.y-prev.y,len=Math.sqrt(dx*dx+dy*dy);
     return `<line x1="${prev.x/100*400}" y1="${prev.y}" x2="${p.x/100*400}" y2="${p.y}"
       stroke="${done?th.mapNodeDone:th.mapLine}" stroke-width="${done?3:2}"
-      stroke-dasharray="${done?'':'6 4'}" opacity="${done?0.8:0.4}"
-      ${done?`style="animation:pathDraw 1s ease-out;stroke-dasharray:1000;stroke-dashoffset:0;"`:''} />`;
+      stroke-linecap="round"
+      stroke-dasharray="${done?len:6}" stroke-dashoffset="${done?len:0}"
+      opacity="${done?0.8:0.4}"
+      style="${done?`animation:pathGrow .6s ease-out ${i*0.12}s both`:''}" />`;
   }).join("");
 
   const nodes=catLevels.map((lvl,i)=>{
     const pos=positions[i],done=lvl.id<S.progress.unlocked,current=lvl.id===S.progress.unlocked,locked=lvl.id>S.progress.unlocked;
     const best=S.progress.bestScores[lvl.id],stars=best?(best>=lvl.rounds*15?3:best>=lvl.rounds*10?2:1):0;
+    const nodeAnim=current?`nodeAppear .5s ease-out ${i*0.1}s both, pulse 2s ease-in-out ${i*0.1+0.5}s infinite, nodeGlow 1.5s ease-out ${i*0.1+0.5}s both`
+      :done?`nodeAppear .4s ease-out ${i*0.1}s both`
+      :`nodeAppear .3s ease-out ${i*0.1+0.2}s both`;
     return `<button ${locked?"disabled":`onclick="selectLevel(${lvl.id})"`} class="glass-card" style="
       position:absolute;left:calc(${pos.x}% - 28px);top:${pos.y-28}px;width:56px;height:56px;border-radius:50%;
       border:${current?`3px solid ${th.mapNodeCurrent}`:done?`2px solid ${th.mapNodeDone}`:`2px solid ${th.mapNodeLocked}`};
       background:${current?th.mapNodeCurrent+'20':done?th.mapNodeDone+'10':th.cardGlass};
       cursor:${locked?'default':'pointer'};display:flex;flex-direction:column;align-items:center;justify-content:center;
-      box-shadow:${current?th.glow(th.mapNodeCurrent):done?th.shadow:'none'};
-      animation:${current?'pulse 2s ease-in-out infinite':'fadeIn .5s ease-out'};animation-delay:${i*0.05}s;
-      opacity:${locked?0.35:1};--uc:${th.mapNodeCurrent};" >
+      animation:${nodeAnim};opacity:0;--nc:${current?th.mapNodeCurrent:done?th.mapNodeDone:'transparent'};">
       <span style="font-size:${locked?14:17}px;font-weight:800;color:${locked?th.mutedText:current?th.mapNodeCurrent:done?th.mapNodeDone:th.subtitle};line-height:1;">${locked?"🔒":lvl.id}</span>
       ${done&&stars>0?`<span style="font-size:7px;margin-top:1px;letter-spacing:1px;line-height:1;color:${th.gold};">${"★".repeat(stars)}${"☆".repeat(3-stars)}</span>`:""}
     </button>`;
@@ -399,8 +494,8 @@ function renderMap(){
   const labels=catLevels.map((lvl,i)=>{
     const pos=positions[i];if(lvl.id>S.progress.unlocked)return"";
     return `<div style="position:absolute;left:calc(${pos.x}% + 36px);top:${pos.y-16}px;font-size:10px;color:${th.subtitle};
-      white-space:nowrap;font-weight:600;animation:fadeIn .5s ease-out;animation-delay:${i*0.05}s;">
-      ${lvl.shapes} szt · ${lvl.label}</div>`;
+      white-space:nowrap;font-weight:600;opacity:0;animation:fadeIn .4s ease-out ${i*0.1+0.15}s both;">
+      ${lvl.shapes} pcs · ${lvl.label}</div>`;
   }).join("");
 
   return `
@@ -409,7 +504,7 @@ function renderMap(){
       <button onclick="goto('intro')" class="glass-card" style="background:${th.cardGlass};border:1px solid ${th.cardBorder};color:${th.title};
         font-size:18px;font-weight:700;cursor:pointer;width:40px;height:40px;border-radius:14px;display:flex;align-items:center;justify-content:center;
         box-shadow:${th.shadow};">←</button>
-      <h2 style="color:${th.title};font-size:22px;font-weight:800;margin:0;letter-spacing:1px;">Mapa poziomów</h2>
+      <h2 style="color:${th.title};font-size:22px;font-weight:800;margin:0;letter-spacing:1px;">Level Map</h2>
     </div>
     <div style="display:flex;flex-wrap:wrap;gap:8px;width:100%;max-width:400px;margin-bottom:20px;">${tabs}</div>
     <div style="position:relative;width:100%;max-width:400px;height:${totalH}px;margin-bottom:20px;">
@@ -417,30 +512,21 @@ function renderMap(){
       ${nodes}${labels}
     </div>
     <div style="color:${th.subtitle};font-size:12px;text-align:center;max-width:300px;line-height:1.5;">
-      Wybierz odblokowany poziom, aby rozpocząć grę.
+      Choose an unlocked level to start playing.
     </div>
-    <button id="copyLinkBtn" onclick="copyGameLink()" class="glass-card" style="margin-top:16px;background:${th.cardGlass};
-      border:1px solid ${th.cardBorder};color:${th.subtitle};padding:10px 24px;font-size:12px;font-weight:600;
-      border-radius:14px;cursor:pointer;box-shadow:${th.shadow};">🔗 Skopiuj adres gry</button>
   </div>`;
 }
 function switchMapCat(ci){S.mapCategory=ci;render()}
 function selectLevel(lvl){startGame(lvl)}
-function copyGameLink(){
-  navigator.clipboard.writeText("https://mini-klik.pl/gry/gra1/").then(()=>{
-    const btn=document.getElementById("copyLinkBtn");
-    if(btn){btn.textContent="✅ Skopiowano!";setTimeout(()=>{btn.textContent="🔗 Skopiuj adres gry"},1500)}
-  }).catch(()=>{});
-}
 
-/* ============ EKRAN: REKORDY ============ */
+/* ============ SCREEN: RECORDS ============ */
 function renderRecords(){
   const th=t();
   let body;
   if(S.recordsLoading){
-    body=`<div style="color:${th.subtitle};font-size:15px;margin-top:40px;animation:pulse 1.5s ease-in-out infinite;">Ładowanie rekordów...</div>`;
+    body=`<div style="color:${th.subtitle};font-size:15px;margin-top:40px;animation:pulse 1.5s ease-in-out infinite;">Loading records...</div>`;
   }else if(S.records.length===0){
-    body=`<div style="color:${th.subtitle};font-size:15px;margin-top:40px;text-align:center;">Brak rekordów. Zagraj, żeby zapisać swój wynik!</div>`;
+    body=`<div style="color:${th.subtitle};font-size:15px;margin-top:40px;text-align:center;">No records yet. Play to save your score!</div>`;
   }else{
     body=`<div style="width:100%;max-width:400px;">`+S.records.map((rec,i)=>{
       const medal=i<3?["🥇","🥈","🥉"][i]:(i+1);
@@ -450,12 +536,13 @@ function renderRecords(){
         background:${th.cardGlass};border:1px solid ${i===0?th.gold+'40':th.cardBorder};
         box-shadow:${isTop?glow:th.shadow};animation:slideInLeft .4s ease-out;animation-delay:${i*0.03}s;animation-fill-mode:both;">
         <div style="width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;
-          font-size:${isTop?17:12}px;font-weight:800;
+          font-size:${isTop?17:12}px;font-weight:800;overflow:hidden;
           background:${i===0?th.gold+'25':i===1?'#c0c0c020':i===2?'#cd7f3220':'transparent'};
-          color:${i===0?th.gold:i===1?'#aaa':i===2?th.combo:th.subtitle};">${medal}</div>
+          color:${i===0?th.gold:i===1?'#aaa':i===2?th.combo:th.subtitle};">
+          ${medal}</div>
         <div style="flex:1;min-width:0;">
           <div style="color:${th.title};font-size:14px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(rec.nick)}</div>
-          <div style="color:${th.subtitle};font-size:10px;margin-top:2px;">Poziom ${rec.level} · ${esc(rec.date)}</div>
+          <div style="color:${th.subtitle};font-size:10px;margin-top:2px;">Level ${rec.level} · ${esc(rec.date)}</div>
         </div>
         <div style="color:${i===0?th.gold:th.accent};font-size:20px;font-weight:800;text-shadow:${isTop?`0 0 10px ${i===0?th.gold:th.accent}40`:''}">${rec.score}</div>
       </div>`;
@@ -467,12 +554,12 @@ function renderRecords(){
       <button onclick="goto('intro')" class="glass-card" style="background:${th.cardGlass};border:1px solid ${th.cardBorder};color:${th.title};
         font-size:18px;font-weight:700;cursor:pointer;width:40px;height:40px;border-radius:14px;display:flex;align-items:center;justify-content:center;
         box-shadow:${th.shadow};">←</button>
-      <h2 style="color:${th.title};font-size:22px;font-weight:800;margin:0;flex:1;letter-spacing:1px;">🏆 Księga rekordów</h2>
+      <h2 style="color:${th.title};font-size:22px;font-weight:800;margin:0;flex:1;letter-spacing:1px;">🏆 Hall of Fame</h2>
       <button onclick="refreshRecords()" class="glass-card" style="background:${th.cardGlass};border:1px solid ${th.cardBorder};color:${th.subtitle};
         font-size:14px;cursor:pointer;width:40px;height:40px;border-radius:14px;display:flex;align-items:center;justify-content:center;
         box-shadow:${th.shadow};">🔄</button>
     </div>
-    <div style="color:${th.subtitle};font-size:11px;margin-bottom:16px;letter-spacing:1px;">🌍 Ranking globalny</div>
+    <div style="color:${th.subtitle};font-size:11px;margin-bottom:16px;letter-spacing:1px;">🌍 Global Ranking</div>
     ${body}
   </div>`;
 }
@@ -481,7 +568,7 @@ function refreshRecords(){
   loadRecords().then(r=>{S.records=r;S.recordsLoading=false;render()}).catch(()=>{S.recordsLoading=false;render()});
 }
 
-/* ============ EKRAN: GAME OVER ============ */
+/* ============ SCREEN: GAME OVER ============ */
 function renderGameOver(){
   const th=t(),catName=CATEGORIES[catForLevel(S.level)].name;
   const stars=S.score>=100?3:S.score>=50?2:S.score>=20?1:0;
@@ -489,31 +576,31 @@ function renderGameOver(){
   return `
   <div style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;animation:fadeInUp .6s ease-out;position:relative;">
     <div style="font-size:64px;margin-bottom:16px;animation:popIn .6s ease-out;">${emoji}</div>
-    <h2 style="color:${th.title};font-size:34px;font-weight:800;margin:0;">Koniec gry!</h2>
+    <h2 style="color:${th.title};font-size:34px;font-weight:800;margin:0;">Game Over!</h2>
     <div style="margin:28px 0;text-align:center;">
-      <div style="color:${th.subtitle};font-size:13px;margin-bottom:6px;letter-spacing:2px;text-transform:uppercase;">Wynik</div>
+      <div style="color:${th.subtitle};font-size:13px;margin-bottom:6px;letter-spacing:2px;text-transform:uppercase;">Score</div>
       <div id="goScore" style="color:${th.gold};font-size:64px;font-weight:800;line-height:1;
         text-shadow:${th.glow(th.gold)};">0</div>
       <div style="display:flex;gap:8px;justify-content:center;margin-top:16px;">
         ${[1,2,3].map((s,i)=>`<span style="font-size:32px;animation:${i<stars?`starPop .5s ease-out ${0.3+i*0.2}s both`:'none'};
           opacity:${i<stars?1:0.2};filter:${i<stars?'none':'grayscale(1)'};">⭐</span>`).join("")}
       </div>
-      <div style="color:${th.subtitle};font-size:14px;margin-top:14px;">Poziom ${S.level} · ${catName}</div>
+      <div style="color:${th.subtitle};font-size:14px;margin-top:14px;">Level ${S.level} · ${catName}</div>
       ${S.isNewBest?`<div style="color:${th.correct};font-size:17px;font-weight:700;margin-top:14px;
-        animation:pulse 1s ease-in-out infinite;text-shadow:${th.glow(th.correct)};">✦ Nowy rekord! ✦</div>`:""}
+        animation:pulse 1s ease-in-out infinite;text-shadow:${th.glow(th.correct)};">✦ New Record! ✦</div>`:""}
     </div>
     <div style="display:flex;gap:10px;margin-top:16px;flex-wrap:wrap;justify-content:center;">
       <button onclick="startGame(S.startLevel)" style="background:${th.accentGrad};color:#fff;border:none;padding:14px 32px;
-        font-size:16px;font-weight:700;border-radius:14px;cursor:pointer;box-shadow:${th.glow(th.accent)};transition:transform .2s;">Jeszcze raz</button>
+        font-size:16px;font-weight:700;border-radius:14px;cursor:pointer;box-shadow:${th.glow(th.accent)};transition:transform .2s;">Play Again</button>
       <button onclick="goto('map')" class="glass-card" style="background:${th.cardGlass};color:${th.subtitle};border:1px solid ${th.cardBorder};
-        padding:14px 24px;font-size:15px;font-weight:600;border-radius:14px;cursor:pointer;box-shadow:${th.shadow};">🗺️ Mapa</button>
+        padding:14px 24px;font-size:15px;font-weight:600;border-radius:14px;cursor:pointer;box-shadow:${th.shadow};">🗺️ Map</button>
       <button onclick="goto('intro')" class="glass-card" style="background:${th.cardGlass};color:${th.subtitle};border:1px solid ${th.cardBorder};
         padding:14px 24px;font-size:15px;font-weight:600;border-radius:14px;cursor:pointer;box-shadow:${th.shadow};">Menu</button>
     </div>
   </div>`;
 }
 
-/* ============ EKRAN: GRA ============ */
+/* ============ SCREEN: GAME ============ */
 function renderGame(){
   const th=t(),L=ld(),catName=CATEGORIES[catForLevel(S.level)].name;
   const livesHtml=Array.from({length:MAX_LIVES}).map((_,i)=>{
@@ -523,19 +610,9 @@ function renderGame(){
       filter:${alive?'none':th.heartDim};">${alive?"❤️":"🤍"}</span>`;
   }).join("");
 
-  const timerHtml=S.phase!=="memorize"?`
-    <div style="width:100%;max-width:400px;height:8px;background:${th.timerTrack};border-radius:4px;overflow:hidden;margin:14px 0;
-      position:relative;box-shadow:inset 0 1px 3px rgba(0,0,0,0.1);">
-      <div id="timerFill" style="width:100%;height:100%;border-radius:4px;transition:background .3s;
-        background:linear-gradient(90deg,${th.correct},${th.correct});"></div>
-    </div>
-    <div id="timerNum" style="color:${th.subtitle};font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;margin-bottom:4px;"></div>
-  `:`<div style="height:40px;"></div>`;
-
-  /* Ring countdown SVG for memorize phase */
   const ringSize=140,ringStroke=6,ringR=(ringSize-ringStroke)/2,ringC=2*Math.PI*ringR;
   const ringHtml=S.phase==="memorize"?`
-    <div style="position:relative;width:${ringSize}px;height:${ringSize}px;margin-bottom:32px;">
+    <div style="position:relative;width:${ringSize}px;height:${ringSize}px;margin-bottom:16px;">
       <svg width="${ringSize}" height="${ringSize}" style="position:absolute;top:0;left:0;transform:rotate(-90deg);--rc:${th.correct};">
         <circle cx="${ringSize/2}" cy="${ringSize/2}" r="${ringR}" fill="none" stroke="${th.timerTrack}" stroke-width="${ringStroke}"/>
         <circle id="ringProgress" cx="${ringSize/2}" cy="${ringSize/2}" r="${ringR}" fill="none"
@@ -551,7 +628,7 @@ function renderGame(){
   `:`
     <div style="width:${ringSize}px;height:${ringSize}px;border-radius:50%;position:relative;
       border:3px solid ${S.targetShape?S.targetShape.color+'50':th.mutedText};
-      display:flex;align-items:center;justify-content:center;margin-bottom:32px;
+      display:flex;align-items:center;justify-content:center;margin-bottom:16px;
       background:${th.circleBg};box-shadow:${S.targetShape?th.glow(S.targetShape.color):th.shadow};
       animation:${S.phase==='guess'?'pulse 1.5s ease-in-out infinite':'none'};">
       ${S.targetShape?`<span style="font-size:56px;color:${S.targetShape.color};
@@ -582,10 +659,10 @@ function renderGame(){
     </button>`;
   }).join("");
 
-  const feedbackText=S.phase==="memorize"?(S.isRetry?"Spróbuj jeszcze raz!":"Zapamiętaj figury!")
-    :S.phase==="guess"?"Wskaż właściwą figurę"
-    :S.phase==="feedback"&&S.feedbackType==="correct"?`Dobrze! +${10*Math.min(S.combo,5)+S.level*5}`
-    :S.phase==="feedback"&&S.feedbackType==="wrong"?"Pudło!":"";
+  const feedbackText=S.phase==="memorize"?(S.isRetry?"Try again!":"Memorize the symbols!")
+    :S.phase==="guess"?"Pick the right symbol"
+    :S.phase==="feedback"&&S.feedbackType==="correct"?`Correct! +${10*Math.min(S.combo,5)+S.level*5}`
+    :S.phase==="feedback"&&S.feedbackType==="wrong"?"Wrong!":"";
   const feedbackColor=S.phase==='memorize'?(S.isRetry?th.wrong:th.correct)
     :S.feedbackType==='correct'?th.correct:S.feedbackType==='wrong'?th.wrong:th.subtitle;
 
@@ -594,62 +671,77 @@ function renderGame(){
 
     ${S.lifeBanner?`<div style="position:fixed;top:60px;left:50%;transform:translateX(-50%);z-index:50;
       background:linear-gradient(135deg,${th.correct},#2ecc71);color:#fff;padding:12px 28px;border-radius:14px;font-size:16px;font-weight:700;
-      animation:levelUp .6s ease-out;letter-spacing:1px;box-shadow:${th.glow(th.correct)};">❤️ +1 życie!</div>`:""}
+      animation:levelUp .6s ease-out;letter-spacing:1px;box-shadow:${th.glow(th.correct)};">❤️ +1 life!</div>`:""}
 
     ${S.paused?`<div style="position:fixed;inset:0;z-index:80;background:rgba(0,0,0,0.65);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
       display:flex;flex-direction:column;align-items:center;justify-content:center;animation:fadeIn .3s ease-out;">
       <div class="glass-card" style="background:${th.key==='dark'?'rgba(26,26,46,0.95)':'rgba(255,255,255,0.95)'};border-radius:24px;
         padding:40px 48px;text-align:center;box-shadow:0 8px 40px rgba(0,0,0,0.3);max-width:320px;width:90%;border:1px solid ${th.cardBorder};">
         <div style="font-size:40px;margin-bottom:10px;">⏸️</div>
-        <h3 style="color:${th.title};font-size:24px;font-weight:800;margin:0 0 8px;">Pauza</h3>
-        <div style="color:${th.subtitle};font-size:14px;margin-bottom:28px;">Poziom ${S.level} · ${catName} · Wynik: ${S.score}</div>
+        <h3 style="color:${th.title};font-size:24px;font-weight:800;margin:0 0 8px;">Paused</h3>
+        <div style="color:${th.subtitle};font-size:14px;margin-bottom:28px;">Level ${S.level} · ${catName} · Score: ${S.score}</div>
         <div style="display:flex;flex-direction:column;gap:10px;">
           <button onclick="doResume()" style="background:${th.accentGrad};color:#fff;border:none;padding:14px 0;font-size:17px;
-            font-weight:700;border-radius:14px;cursor:pointer;width:100%;box-shadow:${th.glow(th.accent)};">▶ Wznów</button>
+            font-weight:700;border-radius:14px;cursor:pointer;width:100%;box-shadow:${th.glow(th.accent)};">▶ Resume</button>
           <button onclick="saveAndQuit()" style="background:linear-gradient(135deg,${th.correct},#2ecc71);color:#fff;border:none;
             padding:12px 0;font-size:15px;font-weight:700;border-radius:14px;cursor:pointer;width:100%;
-            box-shadow:${th.glow(th.correct)};">💾 Zapisz i zakończ</button>
+            box-shadow:${th.glow(th.correct)};">💾 Save & Quit</button>
         </div>
       </div>
     </div>`:""}
 
     ${renderTransition()}
 
-    <div style="text-align:center;margin-bottom:8px;">
-      <div style="color:${th.hudText};font-size:14px;font-weight:700;letter-spacing:1px;">${catName} · Poziom ${S.level}</div>
-      <div style="color:${th.subtitle};font-size:10px;margin-top:2px;">Runda ${S.roundInLevel+1}/${L.rounds}</div>
+    <div style="text-align:center;height:36px;">
+      <div style="color:${th.hudText};font-size:14px;font-weight:700;letter-spacing:1px;">${catName} · Level ${S.level}</div>
+      <div style="color:${th.subtitle};font-size:10px;margin-top:2px;">Round ${S.roundInLevel+1}/${L.rounds}</div>
     </div>
-    <div style="display:flex;justify-content:space-between;width:100%;max-width:400px;align-items:center;margin-bottom:6px;">
+    <div style="display:flex;justify-content:space-between;width:100%;max-width:400px;align-items:center;height:32px;">
       <div style="min-width:55px;">
         <div style="color:${th.gold};font-size:20px;font-weight:800;text-shadow:${th.glow(th.gold)};">${S.score}</div>
-        <div style="color:${th.subtitle};font-size:9px;margin-top:1px;">punkty</div>
+        <div style="color:${th.subtitle};font-size:9px;margin-top:1px;">points</div>
       </div>
       <div style="display:flex;gap:1px;align-items:center;">${livesHtml}</div>
       <div style="min-width:55px;"></div>
     </div>
 
-    ${S.combo>=2?`<div style="color:${th.combo};font-size:14px;font-weight:700;letter-spacing:1px;
-      animation:pulse .6s ease-in-out infinite;margin-bottom:4px;text-shadow:${th.glow(th.combo)};">
-      🔥 COMBO ×${Math.min(S.combo,5)}</div>`:""}
+    <div style="height:22px;display:flex;align-items:center;justify-content:center;">
+      ${S.combo>=2?`<div style="color:${th.combo};font-size:14px;font-weight:700;letter-spacing:1px;
+        animation:pulse .6s ease-in-out infinite;text-shadow:${th.glow(th.combo)};">
+        🔥 COMBO ×${Math.min(S.combo,5)}</div>`:``}
+    </div>
 
-    ${timerHtml}
+    <div style="height:36px;width:100%;max-width:400px;display:flex;flex-direction:column;align-items:center;justify-content:center;">
+      ${S.phase!=="memorize"?`
+        <div style="width:100%;height:8px;background:${th.timerTrack};border-radius:4px;overflow:hidden;
+          box-shadow:inset 0 1px 3px rgba(0,0,0,0.1);">
+          <div id="timerFill" style="width:100%;height:100%;border-radius:4px;transition:background .3s;
+            background:linear-gradient(90deg,${th.correct},${th.correct});"></div>
+        </div>
+        <div id="timerNum" style="color:${th.subtitle};font-size:12px;font-weight:700;font-variant-numeric:tabular-nums;margin-top:2px;"></div>
+      `:`<div style="height:8px;"></div>`}
+    </div>
 
-    ${S.isRetry&&S.phase==="memorize"?`<div style="color:${th.wrong};font-size:12px;font-weight:700;letter-spacing:1px;margin-bottom:4px;">🔄 Poprawiasz rundę ${S.roundInLevel+1}</div>`:""}
+    <div style="height:24px;display:flex;align-items:center;justify-content:center;">
+      ${S.isRetry&&S.phase==="memorize"?`<div style="color:${th.wrong};font-size:12px;font-weight:700;letter-spacing:1px;">🔄 Retrying round ${S.roundInLevel+1}</div>`:``}
+    </div>
 
-    <div style="color:${feedbackColor};font-size:16px;font-weight:600;margin-bottom:20px;min-height:24px;
-      text-shadow:0 0 10px ${feedbackColor}30;transition:color .3s;">${feedbackText}</div>
+    <div style="height:24px;display:flex;align-items:center;justify-content:center;">
+      <span style="color:${feedbackColor};font-size:16px;font-weight:600;
+        text-shadow:0 0 10px ${feedbackColor}30;transition:color .3s;">${feedbackText}</span>
+    </div>
 
     ${ringHtml}
 
-    <div style="display:flex;flex-wrap:wrap;gap:14px;justify-content:center;max-width:380px;">
+    <div style="display:flex;flex-wrap:wrap;gap:14px;justify-content:center;max-width:380px;min-height:82px;align-content:center;">
       ${cardsHtml}
     </div>
 
     <div style="color:${th.subtitle};font-size:11px;margin-top:28px;letter-spacing:.5px;text-align:center;opacity:.6;">
-      ${L.shapes} szt · ${L.label} · +❤️ za ${S.nextLifeAt} pkt
+      ${L.shapes} pcs · ${L.label} · +❤️ at ${S.nextLifeAt} pts
     </div>
     <button onclick="doPause()" class="glass-card" style="margin-top:14px;background:${th.cardGlass};border:1px solid ${th.cardBorder};
-      color:${th.subtitle};padding:10px 32px;font-size:13px;font-weight:600;border-radius:14px;cursor:pointer;box-shadow:${th.shadow};">⏸ Pauza</button>
+      color:${th.subtitle};padding:10px 32px;font-size:13px;font-weight:600;border-radius:14px;cursor:pointer;box-shadow:${th.shadow};">⏸ Pause</button>
   </div>`;
 }
 
@@ -666,22 +758,22 @@ function renderTransition(){
   let content;
   if(isCatChange){
     content=`<div style="font-size:64px;margin-bottom:20px;animation:popIn .6s ease-out;">${newCat.icon}</div>
-      <div style="font-size:12px;color:${th.subtitle};letter-spacing:4px;font-weight:600;margin-bottom:12px;text-transform:uppercase;">Nowa kategoria!</div>
+      <div style="font-size:12px;color:${th.subtitle};letter-spacing:4px;font-weight:600;margin-bottom:12px;text-transform:uppercase;">New Category!</div>
       <div style="font-size:38px;color:${th.accent};font-weight:800;letter-spacing:2px;text-shadow:${th.glow(th.accent)};">${newCat.name}</div>
-      <div style="font-size:16px;color:${th.subtitle};margin-top:14px;">Poziomy ${newCat.from}–${newCat.to}</div>`;
+      <div style="font-size:16px;color:${th.subtitle};margin-top:14px;">Levels ${newCat.from}–${newCat.to}</div>`;
   }else if(S.transition.isLevelUp){
     content=`<div style="font-size:48px;margin-bottom:16px;animation:popIn .6s ease-out;">🎉</div>
-      <div style="font-size:12px;color:${th.subtitle};letter-spacing:4px;font-weight:600;margin-bottom:12px;text-transform:uppercase;">Nowy poziom</div>
-      <div style="font-size:42px;color:${th.accent};font-weight:800;text-shadow:${th.glow(th.accent)};">Poziom ${S.transition.level}</div>
+      <div style="font-size:12px;color:${th.subtitle};letter-spacing:4px;font-weight:600;margin-bottom:12px;text-transform:uppercase;">New Level</div>
+      <div style="font-size:42px;color:${th.accent};font-weight:800;text-shadow:${th.glow(th.accent)};">Level ${S.transition.level}</div>
       <div style="margin-top:24px;display:flex;gap:28px;">
-        <div style="text-align:center;"><div style="font-size:30px;font-weight:800;color:${th.accent};">${tLvl.shapes}</div><div style="font-size:10px;color:${th.subtitle};margin-top:2px;">figur</div></div>
+        <div style="text-align:center;"><div style="font-size:30px;font-weight:800;color:${th.accent};">${tLvl.shapes}</div><div style="font-size:10px;color:${th.subtitle};margin-top:2px;">symbols</div></div>
         <div style="width:1px;background:${th.cardBorder};"></div>
-        <div style="text-align:center;"><div style="font-size:30px;font-weight:800;color:${th.accent};">${tLvl.rounds}</div><div style="font-size:10px;color:${th.subtitle};margin-top:2px;">rund</div></div>
+        <div style="text-align:center;"><div style="font-size:30px;font-weight:800;color:${th.accent};">${tLvl.rounds}</div><div style="font-size:10px;color:${th.subtitle};margin-top:2px;">rounds</div></div>
       </div>`;
   }else{
-    content=`<div style="font-size:12px;color:${th.subtitle};letter-spacing:4px;font-weight:600;margin-bottom:12px;text-transform:uppercase;">Następna runda</div>
-      <div style="font-size:30px;color:${th.accent};font-weight:800;text-shadow:${th.glow(th.accent)};">Runda ${S.transition.round}</div>
-      <div style="font-size:14px;color:${th.subtitle};margin-top:8px;">z ${tLvl.rounds}</div>`;
+    content=`<div style="font-size:12px;color:${th.subtitle};letter-spacing:4px;font-weight:600;margin-bottom:12px;text-transform:uppercase;">Next Round</div>
+      <div style="font-size:30px;color:${th.accent};font-weight:800;text-shadow:${th.glow(th.accent)};">Round ${S.transition.round}</div>
+      <div style="font-size:14px;color:${th.subtitle};margin-top:8px;">of ${tLvl.rounds}</div>`;
   }
   return `<div style="position:fixed;inset:0;z-index:70;
     background:${th.key==='dark'?'rgba(15,14,23,0.95)':'rgba(255,248,230,0.95)'};
@@ -694,7 +786,7 @@ function renderTransition(){
   </div>`;
 }
 
-/* ============ LOGIKA GRY ============ */
+/* ============ GAME LOGIC ============ */
 function startNewRound(){
   const th=t(),L=ld();
   const symbols=symbolsForLevel(S.level);
@@ -704,6 +796,7 @@ function startNewRound(){
   S.shownShapes=withC;S.targetShape=withC[idx];S.targetIndex=idx;
   S.phase="memorize";S.feedbackType=null;S.shakeWrong=-1;
   clearTimeout(mTimerRef);clearInterval(mIntRef);cancelAnimationFrame(rafId);
+  sndPlay('memorize');
 
   const mt=L.memorizeMs;
   S.memorizeCountdown=Math.ceil(mt/1000);
@@ -727,11 +820,14 @@ function runTimer(duration){
   guessStart=Date.now();
   const fill=document.getElementById("timerFill"),numEl=document.getElementById("timerNum");
   if(!fill)return;
+  var _lastTickSec=-1;
   function tick(){
     if(S.phase!=="guess")return;
     const elapsed=Date.now()-guessStart,pct=Math.max(0,100-(elapsed/duration)*100);
     const th=t(),f=document.getElementById("timerFill"),n=document.getElementById("timerNum");
     const sec=Math.max(0,(duration-elapsed)/1000);
+    const secInt=Math.ceil(sec);
+    if(secInt<=3&&secInt!==_lastTickSec&&secInt>0){_lastTickSec=secInt;sndPlay('tick');}
     if(f){
       f.style.width=pct+"%";
       const col=pct>50?th.correct:pct>25?th.gold:th.wrong;
@@ -758,7 +854,7 @@ function startGame(fromLevel){
   S.startLevel=fromLevel;S.level=fromLevel;S.roundInLevel=0;
   S.score=0;S.lives=S.difficulty==="hard"?2:3;S.combo=0;S.isNewBest=false;
   S.paused=false;S.lifeBanner=false;S.nextLifeAt=LIFE_EVERY;S.isRetry=false;
-  S.screen="game";startNewRound();
+  S.screen="game";sndPlay('start');sndMusic('game');startNewRound();
 }
 
 function doPause(){
@@ -777,8 +873,7 @@ function saveAndQuit(){
   if(S.score>prevBest)newProg.bestScores[S.startLevel]=S.score;
   S.progress=newProg;saveProgress(newProg);
   S.paused=false;S.screen="records";S.recordsLoading=true;render();
-  const recNick=S.difficulty==="hard"?S.nick+" [H]":S.nick;
-  addRecord(recNick,S.score,S.level).then(r=>{S.records=r;S.recordsLoading=false;render()}).catch(()=>{S.recordsLoading=false;render()});
+  addRecord(S.nick,S.score,S.level).then(r=>{S.records=r;S.recordsLoading=false;render()}).catch(()=>{S.recordsLoading=false;render()});
 }
 
 function endGame(finalScore,finalLevel){
@@ -788,9 +883,8 @@ function endGame(finalScore,finalLevel){
   const isBest=finalScore>prevBest;
   if(isBest)newProg.bestScores[S.startLevel]=finalScore;
   S.progress=newProg;saveProgress(newProg);S.isNewBest=isBest;
-  const endNick=S.difficulty==="hard"?S.nick+" [H]":S.nick;
-  addRecord(endNick,finalScore,finalLevel).then(r=>{S.records=r});
-  S.screen="gameover";render();
+  addRecord(S.nick,finalScore,finalLevel).then(r=>{S.records=r});
+  S.screen="gameover";sndPlay('gameover');sndMusic('menu');render();
   clearTimeout(gameOverT);
   gameOverT=setTimeout(()=>{if(S.screen==="gameover")goto("records")},5000);
 }
@@ -809,6 +903,7 @@ function showTransition(nextRound,nextLvl,isLevelUp,isCatChange,callback){
 function advanceLevel(){
   const nextLvl=Math.min(S.level+1,60);
   const currentCat=catForLevel(S.level),nextCat=catForLevel(nextLvl);
+  if(nextCat!==currentCat)sndPlay('category');else sndPlay('levelup');
   showTransition(1,nextLvl,true,nextCat!==currentCat,()=>{
     S.level=nextLvl;S.roundInLevel=0;startNewRound();
   });
@@ -822,9 +917,10 @@ function handleAnswer(index,e){
     S.isRetry=false;
     const mult=Math.min(S.combo+1,5),pts=10*mult+S.level*5,newScore=S.score+pts;
     S.score=newScore;S.combo++;S.feedbackType="correct";S.phase="feedback";
+    if(S.combo>=2)sndPlay('combo');else sndPlay('correct');
     if(newScore>=S.nextLifeAt&&S.lives<MAX_LIVES){
       S.lives=Math.min(S.lives+1,MAX_LIVES);S.nextLifeAt+=LIFE_EVERY;
-      S.lifeBanner=true;setTimeout(()=>{S.lifeBanner=false;render()},1500);
+      S.lifeBanner=true;sndPlay('lifeup');setTimeout(()=>{S.lifeBanner=false;render()},1500);
     }
     if(e&&e.currentTarget){
       const r=e.currentTarget.getBoundingClientRect();
@@ -834,35 +930,37 @@ function handleAnswer(index,e){
     render();
     const nextRound=S.roundInLevel+1;
     setTimeout(()=>{
-      S.shownShapes=[];S.feedbackType=null;render();
+      S.shownShapes=[];S.feedbackType=null;
       if(nextRound>=L.rounds)advanceLevel();
       else showTransition(nextRound+1,S.level,false,false,()=>{S.roundInLevel=nextRound;startNewRound()});
     },800);
   }else{
     S.combo=0;S.feedbackType="wrong";S.shakeWrong=index;S.phase="feedback";S.lives-=1;
+    sndPlay('wrong');
     render();
     const nl=S.lives;
     setTimeout(()=>{
       if(nl<=0)endGame(S.score,S.level);
-      else{S.shownShapes=[];S.feedbackType=null;render();S.isRetry=true;startNewRound()}
+      else{S.shownShapes=[];S.feedbackType=null;S.isRetry=true;startNewRound()}
     },1800);
   }
 }
 
 function handleExpire(){
   if(S.phase!=="guess")return;
-  S.combo=0;S.feedbackType="wrong";S.phase="feedback";S.lives-=1;render();
+  S.combo=0;S.feedbackType="wrong";S.phase="feedback";S.lives-=1;sndPlay('wrong');render();
   const nl=S.lives;
   setTimeout(()=>{
     if(nl<=0)endGame(S.score,S.level);
-    else{S.shownShapes=[];S.feedbackType=null;render();S.isRetry=true;startNewRound()}
+    else{S.shownShapes=[];S.feedbackType=null;S.isRetry=true;startNewRound()}
   },1800);
 }
 
-/* ============ START ============ */
+/* ============ STANDALONE START (no FB SDK) ============ */
 S.progress=loadProgress();
-S.nick=loadNick();
-loadRecords().then(r=>{S.records=r});
+sndInit();
+S.nick=loadNick()||"";
+loadRecords().then(function(r){S.records=r;render()}).catch(function(){});
 render();
 </script>
 </body>
