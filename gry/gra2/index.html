@@ -109,13 +109,20 @@ function spawnFloatingScore(x,y,text,color){
 
 var S={
   screen:"intro",category:"figures",symbolCount:4,
-  score:0,round:0,correct:0,wrong:0,
+  score:0,round:0,correct:0,wrong:0,gameStartTime:0,elapsedTime:0,
   shownShapes:[],targetShape:null,targetIndex:0,
   phase:"memorize",feedbackType:null,shakeWrong:-1,memorizeCountdown:0
 };
-var mTimerRef=null,mIntRef=null;
+var mTimerRef=null,mIntRef=null,stopwatchRef=null;
 var app=document.getElementById("app");
 var _lock=false;
+
+function formatTime(ms){
+  var totalSec=Math.floor(ms/1000);
+  var min=Math.floor(totalSec/60);
+  var sec=totalSec%60;
+  return (min<10?'0':'')+min+':'+(sec<10?'0':'')+sec;
+}
 
 function catObj(){for(var i=0;i<CATEGORIES.length;i++){if(CATEGORIES[i].id===S.category)return CATEGORIES[i]}return CATEGORIES[0]}
 function catBg(){var h=catObj().hue;return "linear-gradient(145deg,hsl("+h+",20%,8%),hsl("+h+",25%,14%) 40%,hsl("+h+",30%,18%))"}
@@ -184,7 +191,7 @@ function renderIntro(){
     floats+
     '<div style="text-align:center;z-index:2;animation:fadeInUp .8s ease-out;position:relative;">'+
       '<div style="font-size:64px;letter-spacing:8px;display:flex;gap:16px;justify-content:center;margin-bottom:12px;">'+
-        '<span style="animation:pulse 2s ease-in-out infinite;">🧠</span>'+
+        '<span style="animation:pulse 2s ease-in-out infinite;">🤔</span>'+
         '<span style="animation:pulse 2s ease-in-out infinite;animation-delay:0.3s;">💡</span>'+
         '<span style="animation:pulse 2s ease-in-out infinite;animation-delay:0.6s;">✨</span>'+
       '</div>'+
@@ -192,6 +199,7 @@ function renderIntro(){
       '<p style="color:#a0a0b8;font-size:15px;margin:14px 0 36px;line-height:1.7;max-width:320px;">Train your brain!<br>Memorize symbols and test your memory.</p>'+
       '<button onclick="gotoSelect()" style="background:linear-gradient(135deg,#6c63ff,#8b5cf6);color:#fff;border:none;padding:18px 60px;font-size:22px;font-weight:800;border-radius:18px;letter-spacing:3px;box-shadow:0 0 20px #6c63ff40,0 0 40px #6c63ff20;animation:pulse 3s ease-in-out infinite;transition:transform .2s;">START</button>'+
     '</div>'+
+    '<div style="position:absolute;bottom:20px;"><a href="https://mini-klik.pl" target="_blank" style="color:rgba(255,255,255,0.4);font-size:15px;font-weight:600;letter-spacing:1px;text-decoration:none;">mini-klik.pl</a></div>'+
   '</div>';
 }
 function gotoSelect(){sndMusic('menu');gotoScreen('select');}
@@ -322,7 +330,7 @@ function renderGame(){
       '<div style="text-align:center;"><div style="color:#4ecdc4;font-size:22px;font-weight:800;">'+S.correct+'</div><div style="color:#a0a0b8;font-size:10px;">correct</div></div>'+
       '<div style="text-align:center;"><div style="color:#ff6b6b;font-size:22px;font-weight:800;">'+S.wrong+'</div><div style="color:#a0a0b8;font-size:10px;">wrong</div></div>'+
       '<div style="text-align:center;"><div style="color:#ffd93d;font-size:22px;font-weight:800;">'+pct+'%</div><div style="color:#a0a0b8;font-size:10px;">accuracy</div></div>'+
-      '<div style="text-align:center;"><div style="color:#a29bfe;font-size:22px;font-weight:800;">'+S.round+'</div><div style="color:#a0a0b8;font-size:10px;">rounds</div></div>'+
+      '<div style="text-align:center;"><div id="stopwatch" style="color:#a29bfe;font-size:22px;font-weight:800;font-variant-numeric:tabular-nums;">'+formatTime(S.elapsedTime)+'</div><div style="color:#a0a0b8;font-size:10px;">time</div></div>'+
     '</div>'+
 
     '<div style="height:24px;display:flex;align-items:center;justify-content:center;"><span style="color:'+feedbackColor+';font-size:16px;font-weight:600;text-shadow:0 0 10px '+feedbackColor+'30;transition:color .3s;">'+feedbackText+'</span></div>'+
@@ -337,9 +345,15 @@ function renderGame(){
 
 /* === GAME LOGIC === */
 function startGame(){
-  clearTimeout(mTimerRef);clearInterval(mIntRef);
-  S.score=0;S.round=0;S.correct=0;S.wrong=0;
-  S.screen="game";sndMusic('game');startNewRound();
+  clearTimeout(mTimerRef);clearInterval(mIntRef);clearInterval(stopwatchRef);
+  S.score=0;S.round=0;S.correct=0;S.wrong=0;S.gameStartTime=Date.now();S.elapsedTime=0;
+  S.screen="game";sndMusic('game');
+  stopwatchRef=setInterval(function(){
+    S.elapsedTime=Date.now()-S.gameStartTime;
+    var el=document.getElementById('stopwatch');
+    if(el)el.textContent=formatTime(S.elapsedTime);
+  },500);
+  startNewRound();
 }
 function startNewRound(){
   var cat=catObj();
@@ -379,14 +393,14 @@ function handleAnswer(index,e){
   }
 }
 
-function quitGame(){clearTimeout(mTimerRef);clearInterval(mIntRef);sndMusic('menu');S.screen="results";render();}
+function quitGame(){clearTimeout(mTimerRef);clearInterval(mIntRef);clearInterval(stopwatchRef);S.elapsedTime=Date.now()-S.gameStartTime;sndMusic('menu');S.screen="results";render();}
 
 /* === RESULTS SCREEN === */
 function renderResults(){
   var cat=catObj();
   var total=S.correct+S.wrong;
   var pct=total>0?Math.round(S.correct/total*100):0;
-  var emoji=pct>=90?"🏆":pct>=70?"🌟":pct>=50?"👍":pct>=30?"💪":"🧠";
+  var emoji=pct>=90?"🏆":pct>=70?"🌟":pct>=50?"👍":pct>=30?"💪":"🤔";
   var ratingText=pct>=90?"Excellent!":pct>=70?"Great job!":pct>=50?"Not bad!":pct>=30?"Keep practicing!":"Don't give up!";
   var ratingColor=pct>=90?"#ffd93d":pct>=70?"#4ecdc4":pct>=50?"#a29bfe":pct>=30?"#ff8a5c":"#ff6b6b";
 
@@ -409,7 +423,7 @@ function renderResults(){
       '<div style="display:flex;justify-content:space-around;margin-bottom:20px;">'+
         '<div style="text-align:center;"><div style="color:#4ecdc4;font-size:32px;font-weight:800;">'+S.correct+'</div><div style="color:#a0a0b8;font-size:11px;margin-top:2px;">correct</div></div>'+
         '<div style="text-align:center;"><div style="color:#ff6b6b;font-size:32px;font-weight:800;">'+S.wrong+'</div><div style="color:#a0a0b8;font-size:11px;margin-top:2px;">wrong</div></div>'+
-        '<div style="text-align:center;"><div style="color:#a29bfe;font-size:32px;font-weight:800;">'+S.round+'</div><div style="color:#a0a0b8;font-size:11px;margin-top:2px;">rounds</div></div>'+
+        '<div style="text-align:center;"><div style="color:#a29bfe;font-size:32px;font-weight:800;font-variant-numeric:tabular-nums;">'+formatTime(S.elapsedTime)+'</div><div style="color:#a0a0b8;font-size:11px;margin-top:2px;">time</div></div>'+
       '</div>'+
 
       '<div style="margin-bottom:6px;display:flex;justify-content:space-between;align-items:baseline;">'+
@@ -422,26 +436,24 @@ function renderResults(){
     '</div>'+
 
     '<div style="display:flex;flex-direction:column;gap:10px;align-items:center;">'+
-      '<button id="shareBtn" onclick="shareGame()" class="glass-card" style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.2);color:#fff;padding:16px 36px;font-size:16px;font-weight:700;border-radius:14px;box-shadow:0 4px 20px rgba(0,0,0,0.3);transition:all .3s;width:100%;max-width:300px;">🔗 Share</button>'+
       '<button onclick="gotoScreen(\'select\')" style="background:linear-gradient(135deg,#6c63ff,#8b5cf6);color:#fff;border:none;padding:16px 36px;font-size:16px;font-weight:700;border-radius:14px;box-shadow:0 0 20px #6c63ff40;transition:transform .2s;width:100%;max-width:300px;">← Back to menu</button>'+
+      '<button onclick="copyGameUrl(this)" style="background:linear-gradient(135deg,#4ecdc4,#2ecc71);color:#fff;border:none;padding:10px 28px;font-size:13px;font-weight:600;border-radius:12px;box-shadow:0 4px 15px rgba(78,205,196,0.2);transition:transform .2s;width:100%;max-width:240px;">📋 Copy game link</button>'+
     '</div>'+
+    '<a href="https://mini-klik.pl" target="_blank" style="color:rgba(255,255,255,0.4);font-size:15px;font-weight:600;letter-spacing:1px;text-decoration:none;margin-top:24px;">mini-klik.pl</a>'+
   '</div>';
 }
 
-function shareGame(){
-  var url="https://mini-klik.pl/gry/gra2/";
-  var total=S.correct+S.wrong;
-  var pct=total>0?Math.round(S.correct/total*100):0;
-  var text="🧠 Memory Training — "+pct+"% accuracy! Can you beat me?";
-  if(navigator.share){
-    navigator.share({title:"Memory Training",text:text,url:url}).catch(function(){});
-  }else{
+function copyGameUrl(btn){
+  var url=window.location.href;
+  if(navigator.clipboard){
     navigator.clipboard.writeText(url).then(function(){
-      var btn=document.getElementById("shareBtn");
-      if(btn){btn.textContent="✓ Link copied!";btn.style.background="linear-gradient(135deg,#4ecdc4,#2ecc71)";setTimeout(function(){btn.textContent="🔗 Share";btn.style.background="rgba(255,255,255,0.08)"},2000);}
-    }).catch(function(){
-      prompt("Copy this link:",url);
+      btn.textContent='✓ Copied!';
+      setTimeout(function(){btn.textContent='📋 Copy game link'},2000);
     });
+  }else{
+    var t=document.createElement('textarea');t.value=url;document.body.appendChild(t);t.select();document.execCommand('copy');document.body.removeChild(t);
+    btn.textContent='✓ Copied!';
+    setTimeout(function(){btn.textContent='📋 Copy game link'},2000);
   }
 }
 
