@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Multiply Master</title>
+<title>Tabliczka mnożenia</title>
 <style>
   *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   html,body{min-height:100%;overflow-x:hidden}
@@ -33,6 +33,7 @@
   @keyframes owlSad{0%{transform:translateY(0) rotate(0)}100%{transform:translateY(3px) rotate(-2deg)}}
   @keyframes owlWave{0%,100%{transform:rotate(0deg)}25%{transform:rotate(-15deg)}75%{transform:rotate(15deg)}}
   @keyframes owlFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+  @keyframes owlDrift{0%,100%{transform:translateX(-30px) translateY(0)}25%{transform:translateX(30px) translateY(-5px)}50%{transform:translateX(30px) translateY(0)}75%{transform:translateX(-30px) translateY(-5px)}}
   @keyframes sparkle{0%,100%{opacity:0;transform:scale(0)}50%{opacity:1;transform:scale(1)}}
   @keyframes questionMark{0%,100%{opacity:0.3;transform:translateY(0)}50%{opacity:0.8;transform:translateY(-5px)}}
   @keyframes tearDrop{0%{opacity:0;transform:translateY(0)}50%{opacity:0.7}100%{opacity:0;transform:translateY(12px)}}
@@ -216,7 +217,7 @@ function renderIntro(){
         '<span style="animation:pulse 2s ease-in-out infinite;animation-delay:.3s;">💡</span>'+
         '<span style="animation:pulse 2s ease-in-out infinite;animation-delay:.6s;">🔥</span>'+
       '</div>'+
-      '<h1 style="font-size:34px;font-weight:800;margin:16px 0 0;letter-spacing:2px;">Multiply Master</h1>'+
+      '<h1 style="font-size:32px;font-weight:800;margin:16px 0 0;letter-spacing:2px;">Tabliczka mnożenia</h1>'+
       '<p style="color:#a0a0b8;font-size:15px;margin:14px 0 8px;line-height:1.7;max-width:320px;">Naucz się tabliczki mnożenia<br>przez zabawę! 🎯</p>'+
       '<div style="margin:10px 0 20px;display:flex;flex-direction:column;align-items:center;gap:6px;">'+owlSVG('wave',130)+owlBubble('Cześć! Uczmy się razem!')+'</div>'+
       '<button onclick="gotoScreen(\'select\')" style="background:linear-gradient(135deg,#6c63ff,#8b5cf6);color:#fff;border:none;padding:18px 60px;font-size:22px;font-weight:800;border-radius:18px;letter-spacing:3px;box-shadow:0 0 20px #6c63ff40,0 0 40px #6c63ff20;animation:pulse 3s ease-in-out infinite;">START</button>'+
@@ -233,6 +234,12 @@ function renderSelect(){
     '<div style="width:100%;max-width:400px;margin-bottom:20px;display:flex;align-items:center;gap:12px;">'+
       '<button onclick="gotoScreen(\'intro\')" class="glass-card" style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);color:#fff;font-size:18px;font-weight:700;width:40px;height:40px;border-radius:14px;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 20px rgba(0,0,0,0.3);">←</button>'+
       '<h2 style="font-size:22px;font-weight:800;letter-spacing:1px;">Wybierz tryb</h2>'+
+    '</div>'+
+    /* owl has its own row, tabs below */
+    '<div style="width:100%;max-width:400px;margin-bottom:6px;">'+
+      '<div id="selectOwlTrack" style="position:relative;height:65px;width:100%;">'+
+        '<div id="selectOwl" style="position:absolute;bottom:0;left:'+owlPosForCat(S.category)+'%;transform:translateX(-50%);transition:left .6s cubic-bezier(.34,1.56,.64,1);animation:owlFloat 3s ease-in-out infinite;">'+owlSVG('idle',55)+'</div>'+
+      '</div>'+
     '</div>'+
     '<div id="catTabs" style="display:flex;gap:8px;width:100%;max-width:400px;margin-bottom:24px;">'+buildCatTabs()+'</div>'+
     '<div id="tilesWrap" style="width:100%;max-width:400px;margin-bottom:24px;">'+
@@ -276,12 +283,35 @@ function buildRoundBtns(){
   });
   return h;
 }
+/* owl position — calculated from actual tab DOM when possible */
+function owlPosForCat(id){
+  var idx=id==='easy'?0:id==='medium'?1:2;
+  var tabs=document.getElementById('catTabs');
+  if(tabs&&tabs.children.length===3){
+    var track=document.getElementById('selectOwlTrack');
+    if(track){
+      var tw=track.getBoundingClientRect().width;
+      var btn=tabs.children[idx];
+      var br=btn.getBoundingClientRect();
+      var tr=tabs.getBoundingClientRect();
+      return((br.left-tr.left+br.width/2)/tw*100);
+    }
+  }
+  /* fallback: 3 equal columns with 8px gap in ~400px */
+  return idx===0?16:idx===1?50:84;
+}
+function moveOwl(){
+  var owl=document.getElementById('selectOwl');
+  if(owl)owl.style.left=owlPosForCat(S.category)+'%';
+}
 /* DOM-patch select screen — NO full re-render */
 function selectCat(id){
   S.category=id;S.selectedTable=0;
   document.body.style.background=catBg();
   var tabs=document.getElementById('catTabs');
   if(tabs)tabs.innerHTML=buildCatTabs();
+  /* move owl after tabs repaint */
+  requestAnimationFrame(function(){moveOwl();});
   var wrap=document.getElementById('tilesWrap');
   if(wrap){
     var cat=catObj();
@@ -590,6 +620,7 @@ function renderResults(){
   }
 
   return '<div style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px;animation:fadeInUp .6s ease-out;">'+
+    '<div style="margin-bottom:6px;animation:owlDrift 6s ease-in-out infinite;">'+owlSVG('wave',65)+'</div>'+
     '<h2 style="font-size:26px;font-weight:800;margin:0 0 2px;">Koniec gry!</h2>'+
     '<div style="color:'+rc+';font-size:15px;font-weight:700;margin-bottom:12px;letter-spacing:1px;">'+rt+'</div>'+
     '<div style="width:100%;max-width:340px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:18px;padding:16px 20px;margin-bottom:14px;">'+
