@@ -67,7 +67,7 @@ canvas{display:block;position:absolute;top:0;left:0}
 #swipeHint{position:fixed;bottom:14px;bottom:calc(14px + env(safe-area-inset-bottom));left:14px;display:none;flex-direction:column;align-items:center;pointer-events:none;z-index:19}
 #swipeHint.touching{opacity:1}
 .swipe-label{font-size:8px;color:rgba(136,187,255,.35);white-space:nowrap;font-family:'Segoe UI',sans-serif;letter-spacing:1px;text-transform:uppercase;margin-top:2px}
-.mb{width:58px;height:58px;background:rgba(100,140,255,.12);border:2px solid rgba(100,140,255,.35);border-radius:50%;color:#88bbff;font-size:24px;display:flex;align-items:center;justify-content:center;user-select:none;-webkit-user-select:none}
+.mb{width:72px;height:72px;background:rgba(100,140,255,.12);border:2px solid rgba(100,140,255,.35);border-radius:50%;color:#88bbff;font-size:30px;display:flex;align-items:center;justify-content:center;user-select:none;-webkit-user-select:none}
 .mb:active{background:rgba(100,140,255,.3)}
 .mb.bk{border-color:rgba(255,140,60,.4);color:#ffaa66;background:rgba(255,140,60,.1)}
 .mb.bk:active{background:rgba(255,140,60,.3)}
@@ -446,11 +446,14 @@ if(mob){
   sb('bF',()=>mF=true,()=>mF=false);
 
   // Relative touch — drag left/right = move, drag up = boost
+  const FINGER_OFFSET=70; // plane appears above finger
   C.addEventListener('touchstart',e=>{
     const t=e.touches[0];
     touchStartX=t.clientX;touchStartY=t.clientY;
     touchLastX=t.clientX;touchLastY=t.clientY;
     touchDeltaX=0;touchDeltaY=0;touchActive=true;
+    // Snap plane to finger X with offset Y
+    if(run){P.x=GX?t.clientX-GX:t.clientX;P.y=t.clientY-FINGER_OFFSET;P.y=Math.max(H*.15,Math.min(H*.85,P.y))}
     const sh=document.getElementById('swipeHint');if(sh)sh.classList.add('touching');
     e.preventDefault()},{passive:false});
   C.addEventListener('touchmove',e=>{
@@ -459,8 +462,8 @@ if(mob){
     touchDeltaX=t.clientX-touchLastX;
     touchDeltaY=t.clientY-touchLastY;
     touchLastX=t.clientX;touchLastY=t.clientY;
-    // Boost when swiping up (negative Y = up)
-    mB=(touchStartY-t.clientY)>20;
+    // Boost when swiping up (larger threshold to avoid accidental)
+    mB=(touchStartY-t.clientY)>35;
     e.preventDefault()},{passive:false});
   C.addEventListener('touchend',e=>{touchActive=false;touchDeltaX=0;touchDeltaY=0;touchLastX=null;touchLastY=null;mB=false;
     const sh=document.getElementById('swipeHint');if(sh)sh.classList.remove('touching')});
@@ -863,10 +866,12 @@ function update(){
   if(K['ArrowRight']||K['KeyD']||mR)inputX+=1;
 
   // Touch: relative drag — delta from last frame
-  if(touchActive&&touchDeltaX!==0){
-    // Scale screen pixels to canvas coordinates
+  if(touchActive&&(touchDeltaX!==0||touchDeltaY!==0)){
     P.vx+=touchDeltaX*(W/innerWidth)*.35;
-    touchDeltaX=0;
+    // Y follows finger with offset
+    P.y+=touchDeltaY*(H/innerHeight)*.4;
+    P.y=Math.max(H*.15,Math.min(H*.85,P.y));
+    touchDeltaX=0;touchDeltaY=0;
   } else if(inputX!==0){
     // Keyboard: acceleration
     const accel=.45;
@@ -881,7 +886,7 @@ function update(){
   P.x+=P.vx+P.pushX;P.pushX*=.88;
   // Smooth tilt based on velocity
   P.tilt+=(P.vx*.35-P.tilt)*.12;
-  P.y=H*.72;
+  if(!touchActive)P.y=H*.72; // keyboard: fixed Y
   const pp=getP(P.y);const mg=P.w/2+4;
   // Soft wall bounce — reverse velocity on contact
   if(P.x<pp.left+mg){P.x=pp.left+mg;P.vx=Math.abs(P.vx)*.3}
