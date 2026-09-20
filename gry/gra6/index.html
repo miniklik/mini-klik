@@ -132,6 +132,7 @@ canvas#gc{display:block;width:100%;height:100%;cursor:pointer}
   <p id="draw-info">Draw with mouse/finger • Right click = eraser</p>
   <div id="draw-tools">
     <button class="draw-btn tool active" id="tool-draw">✏️ Rysuj</button>
+    <button class="draw-btn tool" id="tool-eraser">🧹 Gumka</button>
     <button class="draw-btn tool" id="tool-start">🟢 Start</button>
     <button class="draw-btn tool" id="tool-end">🔴 Wyjście</button>
     <button class="draw-btn tool" id="tool-ghost">👻 Duch</button>
@@ -234,7 +235,7 @@ var TEXTS={
   en:{
     menuPlay:'🎲 Play — random maze',menuDraw:'✏️ Draw your maze',menuGames:'📁 My mazes',menuOptions:'⚙️ Options / Controls',
     drawTitle:'✏️ Draw a path',drawInfo:'Draw with mouse/finger • Right click = eraser',
-    toolDraw:'✏️ Draw',toolStart:'🟢 Start',toolEnd:'🔴 Exit',toolGhost:'👻 Ghost',
+    toolDraw:'✏️ Draw',toolEraser:'🧹 Eraser',toolStart:'🟢 Start',toolEnd:'🔴 Exit',toolGhost:'👻 Ghost',
     btnMenu:'⬅ Menu',btnClear:'🗑 Clear',btnTest:'🎮 Test',btnSave:'💾 Save',btnCopy:'📋 Copy game.txt',
     gamesTitle:'📁 My mazes',gamesPaste:'📋 Paste game.txt',gamesBack:'⬅ Menu',
     gamesHow:'💡 How to share mazes?',
@@ -263,7 +264,7 @@ var TEXTS={
   pl:{
     menuPlay:'🎲 Gra — losowy labirynt',menuDraw:'✏️ Narysuj swój labirynt',menuGames:'📁 Moje labirynty',menuOptions:'⚙️ Opcje / Sterowanie',
     drawTitle:'✏️ Narysuj ścieżkę',drawInfo:'Rysuj myszką/palcem • Prawy klik = gumka',
-    toolDraw:'✏️ Rysuj',toolStart:'🟢 Start',toolEnd:'🔴 Wyjście',toolGhost:'👻 Duch',
+    toolDraw:'✏️ Rysuj',toolEraser:'🧹 Gumka',toolStart:'🟢 Start',toolEnd:'🔴 Wyjście',toolGhost:'👻 Duch',
     btnMenu:'⬅ Menu',btnClear:'🗑 Wyczyść',btnTest:'🎮 Test',btnSave:'💾 Zapisz',btnCopy:'📋 Kopiuj grę.txt',
     gamesTitle:'📁 Moje labirynty',gamesPaste:'📋 Wklej grę.txt',gamesBack:'⬅ Menu',
     gamesHow:'💡 Jak udostępniać labirynty?',
@@ -305,6 +306,7 @@ function setLang(l){
   document.getElementById('draw-title').textContent=t('drawTitle');
   document.getElementById('draw-info').textContent=t('drawInfo');
   document.getElementById('tool-draw').textContent=t('toolDraw');
+  document.getElementById('tool-eraser').textContent=t('toolEraser');
   document.getElementById('tool-start').textContent=t('toolStart');
   document.getElementById('tool-end').textContent=t('toolEnd');
   document.getElementById('tool-ghost').textContent=t('toolGhost');
@@ -424,7 +426,7 @@ var missionShown=false,missionTimer=0,gateFlashTimer=0;
 var ghosts=[],GHOST_COUNT=2,GHOST_SPEED=2.5,GHOST_CATCH_DIST=2.3,caughtTimer=0;
 var touchMoveX=0,touchMoveZ=0,touchActive=false;
 // STEP MOVEMENT (mobile)
-var stepTarget=null,STEP_SPEED=18,isMobile=false;
+var stepTarget=null,STEP_SPEED=8,isMobile=false;
 var mobileCamYaw=Math.PI;
 var mobileFacing=2; // globalny facing dla mobile, ustawiany przez startInMaze
 // AMMO
@@ -502,7 +504,7 @@ function initDrawScreen(){
     if(drawTool==='ghost'){customCorridor[p.r][p.c]=1;
       var idx=-1;for(var i=0;i<customGhosts.length;i++){if(customGhosts[i].r===p.r&&customGhosts[i].c===p.c){idx=i;break;}}
       if(idx>=0)customGhosts.splice(idx,1);else customGhosts.push({r:p.r,c:p.c});renderDraw();return;}
-    if(erasing){customCorridor[p.r][p.c]=0;
+    if(drawTool==='eraser'||erasing){customCorridor[p.r][p.c]=0;
       if(p.r===drawStartR&&p.c===drawStartC){drawStartR=-1;drawStartC=-1;}
       if(p.r===drawEndR&&p.c===drawEndC){drawEndR=-1;drawEndC=-1;}
       for(var i=customGhosts.length-1;i>=0;i--){if(customGhosts[i].r===p.r&&customGhosts[i].c===p.c)customGhosts.splice(i,1);}
@@ -544,6 +546,7 @@ function updateToolBtns(){
   var btns=document.querySelectorAll('.draw-btn.tool');
   btns.forEach(function(b){b.classList.remove('active');});
   if(drawTool==='draw')document.getElementById('tool-draw').classList.add('active');
+  if(drawTool==='eraser')document.getElementById('tool-eraser').classList.add('active');
   if(drawTool==='start')document.getElementById('tool-start').classList.add('active');
   if(drawTool==='end')document.getElementById('tool-end').classList.add('active');
   if(drawTool==='ghost')document.getElementById('tool-ghost').classList.add('active');
@@ -1477,6 +1480,7 @@ document.getElementById('games-paste').addEventListener('click',function(){showJ
 
 // Tool buttons
 document.getElementById('tool-draw').addEventListener('click',function(){drawTool='draw';updateToolBtns();});
+document.getElementById('tool-eraser').addEventListener('click',function(){drawTool='eraser';updateToolBtns();});
 document.getElementById('tool-start').addEventListener('click',function(){drawTool='start';updateToolBtns();});
 document.getElementById('tool-end').addEventListener('click',function(){drawTool='end';updateToolBtns();});
 document.getElementById('tool-ghost').addEventListener('click',function(){drawTool='ghost';updateToolBtns();});
