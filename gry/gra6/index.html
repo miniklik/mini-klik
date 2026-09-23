@@ -495,6 +495,8 @@ var charX=0,charY=0,charZ=0,charAng=0,tgtAng=0;
 var velY=0,onGr=true,wTime=0,isMov=false,isRun=false;
 var WSP=5,RSP=10,JF=8,GR=20,TSM=0.12,CR=0.35;
 var keys={w:0,a:0,s:0,d:0,sh:0,sp:0};
+window.addEventListener('blur',function(){for(var k in keys)keys[k]=0;});
+document.addEventListener('visibilitychange',function(){if(document.hidden)for(var k in keys)keys[k]=0;});
 var pLock=false,wCols=[],scObjs=[];
 var isMobile=false;
 var exitMk=null,tStarted=false,tVal=0,mWon=false;
@@ -1279,7 +1281,7 @@ function update(dt){
     // Win
     if(!mWon&&tutorialDone){
       var ddx=charX-exitWorldX,ddz=charZ-exitWorldZ;if(Math.sqrt(ddx*ddx+ddz*ddz)<1.5){
-        if(keysFound>=KEY_COUNT){mWon=true;GameAudio.play('win');var m=Math.floor(tVal/60),s=Math.floor(tVal%60);
+        if(keysFound>=KEY_COUNT){mWon=true;stepTarget=null;GameAudio.play('win');var m=Math.floor(tVal/60),s=Math.floor(tVal%60);
           document.getElementById('win-time').textContent=t('winTime')+': '+m+':'+String(s).padStart(2,'0');
           if(testMode){
             document.getElementById('win-round').textContent=t('levelLbl')+' '+(customLevelIdx+1)+' '+t('testOk');
@@ -1378,6 +1380,7 @@ function doRestart(){
 
   // === RANDOM ROUNDS ===
   roundNum++;
+  stepTarget=null;velY=0;onGr=true;isMov=false;for(var _k in keys)keys[_k]=0; // FIX: stary cel kroku z poprzedniej rundy ciągnął postać na ukos przez mury
   document.getElementById('win-screen').style.display='none';document.getElementById('mission-msg').style.display='none';
   mWon=false;tStarted=false;tVal=0;missionShown=false;missionTimer=0;gateFlashTimer=0;
   heartAmmo=0;updateAmmoHUD();
@@ -1467,6 +1470,7 @@ function autoDetectStartEnd(){
 }
 
 function destroyScene(){
+  stepTarget=null;velY=0;onGr=true;isMov=false;for(var _k in keys)keys[_k]=0;
   GameAudio.setNear(0);
   if(scene){for(var i=scObjs.length-1;i>=0;i--)scene.remove(scObjs[i]);
     if(charGroup&&charGroup.parent)scene.remove(charGroup);
