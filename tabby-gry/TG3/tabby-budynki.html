@@ -83,13 +83,6 @@ input[type=text]{width:100%;background:rgba(255,255,255,.06);border:1px solid rg
 
     <!-- KROK 1 -->
     <div class="pane" data-pane="1">
-      <div class="sec"><h2>Projekt</h2>
-        <div class="row">
-          <button class="btn" id="prj-save" title="Zapisz projekt na dysku — potem wczytasz go i dalej edytujesz">💾 Zapisz projekt</button>
-          <button class="btn" id="prj-load" title="Wczytaj zapisany projekt (plik .json z Tabby budynki)">📂 Wczytaj projekt</button>
-        </div>
-        <input type="file" id="prj-file" accept=".json,application/json" style="display:none">
-      </div>
       <div class="sec"><h2>Narzędzie</h2>
         <div class="row">
           <button class="btn tool active" data-tool="draw">Rysuj</button>
@@ -140,10 +133,13 @@ input[type=text]{width:100%;background:rgba(255,255,255,.06);border:1px solid rg
         <p class="stat" id="stat"></p>
       </div>
       <div class="sec">
-        <button class="btn go big" id="copy-btn">Kopiuj JSON</button>
-        <button class="btn big" id="dl-btn">Pobierz .json</button>
+        <button class="btn go big" id="prj-save" title="Zapisz projekt na dysku — potem wczytasz go i dalej edytujesz">💾 Zapisz projekt</button>
+        <button class="btn big" id="prj-load" title="Wczytaj zapisany projekt (plik .json z Tabby budynki)">📂 Wczytaj projekt</button>
+        <button class="btn big" id="link-btn" title="Skopiuj adres i wyślij komuś — otworzy go i gotowe">🔗 Skopiuj adres gry</button>
+        <input type="file" id="prj-file" accept=".json,application/json" style="display:none">
+        <button class="btn" id="copy-btn" style="margin-top:6px;font-size:12px;opacity:.8">Kopiuj JSON do Tabby Editor</button>
         <button class="btn go big" id="arena-back" style="display:none;margin-top:8px;background:#3fb950;border-color:#3fb950;color:#06200d">↩ Wróć do pokoju</button>
-        <p class="hint" style="margin-top:10px">W Tabby Editor otwórz <b>Obiekty</b>, wklej JSON i postaw budynek na mapie. Ściany, podłogi i schody mają już kolizję — ludzik od razu chodzi w środku.</p>
+        <p class="hint" style="margin-top:10px"><b>Zapisz projekt</b> — plik na dysku, który potem <b>wczytasz</b> i dalej edytujesz. <b>Skopiuj adres gry</b> — wyślij go komuś, otworzy i gotowe.</p>
       </div>
     </div>
   </aside>
@@ -867,6 +863,11 @@ document.getElementById('prj-save').onclick=function(){
   var a=document.createElement('a');a.href=URL.createObjectURL(new Blob([jsonText()],{type:'application/json'}));
   a.download=prjName()+'.json';a.click();setTimeout(function(){URL.revokeObjectURL(a.href);},500);toast('💾 Projekt zapisany — wczytasz go przyciskiem „Wczytaj projekt”');};
 document.getElementById('prj-load').onclick=function(){document.getElementById('prj-file').click();};
+document.getElementById('link-btn').onclick=function(){ // adres gry: w arenie adres areny (z kodem pokoju), osobno — adres tej strony
+  var u='';try{if(window.parent!==window&&window.parent.tbArenaLink)u=window.parent.tbArenaLink();}catch(e){}
+  if(!u)u=location.href.split('#')[0].replace(/[?&]arena=1/,'').replace(/\?$/,'');
+  var ok=function(){toast('🔗 Adres skopiowany — wklej go i wyślij: '+u);},no=function(){prompt('Skopiuj adres gry:',u);};
+  try{navigator.clipboard.writeText(u).then(ok,no);}catch(e){no();}};
 document.getElementById('prj-file').onchange=function(){var f=this.files&&this.files[0];this.value='';if(!f)return;
   var rd=new FileReader();rd.onload=function(){var d;try{d=JSON.parse(rd.result);}catch(e){alert('To nie jest plik projektu (zły JSON).');return;}
     var src=d&&d.src?d.src:(d&&d.floors&&d.w?d:null);
@@ -889,7 +890,7 @@ document.getElementById('copy-btn').onclick=function(){
   function fallback(){var ta=document.createElement('textarea');ta.value=t;ta.style.position='fixed';ta.style.opacity='0';document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);toast('JSON skopiowany — wklej w Tabby Editor');}
   if(navigator.clipboard)navigator.clipboard.writeText(t).then(function(){toast('JSON skopiowany — wklej w Tabby Editor');},fallback);else fallback();
 };
-document.getElementById('dl-btn').onclick=function(){
+var _dl=document.getElementById('dl-btn');if(_dl)_dl.onclick=function(){
   var d=exportJSON();if(!d.parts.length){toast('Budynek jest pusty');return;}
   var a=document.createElement('a');a.href=URL.createObjectURL(new Blob([jsonText()],{type:'application/json'}));
   a.download=(d.name||'budynek').toLowerCase().replace(/[^a-z0-9ąćęłńóśźż]+/gi,'-').replace(/^-|-$/g,'')+'.json';a.click();setTimeout(function(){URL.revokeObjectURL(a.href);},500);
