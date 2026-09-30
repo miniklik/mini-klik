@@ -3997,7 +3997,7 @@ function arCanBuild(){return !(typeof MP!=='undefined'&&MP.on&&!MP.host)&&(MP.ph
 function arOpen(){ // otwórz Tabby budynki w oknie gry
   if(!arCanBuild()||ARENA.frame)return;if(document.pointerLockElement)document.exitPointerLock();
   var w=document.createElement('div');w.style.cssText='position:fixed;inset:0;z-index:95;background:#0d1117';
-  w.innerHTML='<iframe src="tabby-budynki.html?arena=1" style="width:100%;height:100%;border:0"></iframe>'+
+  w.innerHTML='<iframe src="tabby-budynki.html?arena=1'+(MP.phase==='solo'?'&solo=1':'')+'" style="width:100%;height:100%;border:0"></iframe>'+
     '<button style="position:fixed;top:10px;right:12px;z-index:96;padding:8px 14px;border-radius:9px;border:0;background:rgba(255,255,255,.15);color:#fff;font:bold 13px sans-serif;cursor:pointer">✕ Zamknij</button>';
   w.querySelector('button').onclick=arClose;['keydown','keyup'].forEach(function(t){w.addEventListener(t,function(e){e.stopPropagation();});});
   document.body.appendChild(w);ARENA.frame=w;ARENA.busy=true;
@@ -4006,7 +4006,7 @@ function arClose(){if(ARENA.frame){ARENA.frame.remove();ARENA.frame=null;}ARENA.
 window.addEventListener('message',function(e){var d=e.data;if(!d||!d.tabbyArena)return;
   if(d.tabbyArena==='building'&&d.data&&(!d.data.parts||!d.data.parts.length)){alert('Budynek jest pusty — narysuj go najpierw w kroku 1 (Rysowanie).');return;}
   if(d.tabbyArena==='building'&&d.data){ARENA.v++;arBuild(d.data,ARENA.v);arClose();arSend();
-    if(typeof drnToast==='function')drnToast('🏗 Budynek stoi na placu'+(MP.on?' — wysłany do wszystkich w pokoju':''));}});
+    if(typeof drnToast==='function')drnToast(MP.phase==='solo'?'🎮 Budynek gotowy — kliknij w grę i poluj na boty!':'🏗 Budynek stoi na placu'+(MP.on?' — wysłany do wszystkich w pokoju':''));}});
 // wiadomości arenowe: budynek od gospodarza, „gospodarz buduje…”
 (function(){var _m=mpMsg;mpMsg=function(d,from){
   if(d&&d.id!==MP.me.id){
@@ -4021,6 +4021,7 @@ function arUI(){ // przycisk „Buduj” i stan budynku
   var u=ARENA.ui,ph=MP.phase,show=ph==='lobby'||ph==='solo';if(!show){u.style.display='none';return;}
   var mine=arCanBuild(),h='<b>🏗 Arena budynku</b><br>';
   h+=ARENA.json?'<span style="color:#3fb950">✔ Budynek: '+mpEsc(ARENA.json.name||'Budynek')+' ('+ARENA.json.parts.length+' części)</span>':'<span style="color:#ffd24a">Brak budynku na placu</span>';
+  if(mine&&ph==='solo'&&!ARENA.json)h+='<div style="font-size:12px;color:#c9d1d9;margin-top:6px">Graj sam: <b>1.</b> zbuduj budynek • <b>2.</b> „Wróć do gry” • <b>3.</b> kliknij w grę i poluj na boty</div>';
   if(mine)h+='<br><button id="ar-b" style="margin-top:7px;width:100%;padding:8px;border-radius:9px;border:0;background:#f0a35e;color:#1a1230;font-weight:bold;cursor:pointer">'+(ARENA.json?'✏ Zmień budynek':'🏗 Buduj budynek')+'</button><div style="font-size:11px;color:#9aa4b2;margin-top:4px">albo klawisz <b>B</b></div>';
   else h+='<br><span style="font-size:12px;color:#9aa4b2">'+(ARENA.hostBusy?'⏳ Gospodarz buduje budynek…':'Budynek stawia gospodarz')+'</span>';
   if(u._h!==h){u.innerHTML=h;u._h=h;var b=u.querySelector('#ar-b');if(b)b.onclick=function(e){e.stopPropagation();arOpen();};}
