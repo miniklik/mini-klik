@@ -4103,6 +4103,24 @@ function arSetChanged(wpnChanged){
         else if(a==='w'){ARENA.wpn=AR_WPN[(AR_WPN.indexOf(ARENA.wpn)+1)%AR_WPN.length];wc=true;}
         arSetChanged(wc);};});}};
 })();
+// ===== 🔗 LINK DO POKOJU: skopiuj adres gry z kodem pokoju — kto go otworzy, od razu dołącza =====
+window.tbArenaLink=function(){var u=location.href.split('#')[0].replace(/([?&])pokoj=[^&]*&?/,'$1').replace(/[?&]$/,'');
+  if(MP.on&&!MP.pub&&MP.code&&/^[A-Z0-9]{4}$/.test(MP.code))u+=(u.indexOf('?')<0?'?':'&')+'pokoj='+MP.code;return u;};
+function arCopyLink(){var u=window.tbArenaLink();var ok=function(){if(typeof drnToast==='function')drnToast('🔗 Link skopiowany — wyślij go komuś');},no=function(){prompt('Skopiuj link do gry:',u);};
+  try{navigator.clipboard.writeText(u).then(ok,no);}catch(e){no();}}
+(function(){ // otwarty link z ?pokoj=KOD: wpisz kod i dołącz sam
+  var m=location.search.match(/[?&]pokoj=([A-Za-z0-9]{4})/);if(!m)return;var code=m[1].toUpperCase(),done=false;
+  var t=setInterval(function(){if(done)return;if(!MP.ui||MP.phase!=='menu')return;done=true;clearInterval(t);
+    var ci=MP.ui.ov.querySelector('#mp-code');if(ci)ci.value=code;mpStatus('Dołączam do pokoju <b>'+code+'</b>…');setTimeout(function(){mpStart(false,code);},300);},200);
+})();
+(function(){ // przycisk w okienku areny (gospodarz pokoju prywatnego)
+  var _ui=arUI;arUI=function(){_ui();var u=ARENA.ui;if(!u||u.style.display==='none')return;
+    var show=MP.phase==='lobby'&&MP.on&&!MP.pub&&MP.code,b=u.querySelector('#ar-link');
+    if(show&&!b){b=document.createElement('button');b.id='ar-link';b.textContent='🔗 Skopiuj link do pokoju';
+      b.style.cssText='margin-top:8px;width:100%;padding:7px;border-radius:9px;border:0;background:#58a6ff;color:#03101f;font-weight:bold;cursor:pointer';
+      b.onclick=function(e){e.stopPropagation();arCopyLink();};u.appendChild(b);}
+    else if(!show&&b)b.remove();};
+})();
 
 //@@MP_CORE_END
 
