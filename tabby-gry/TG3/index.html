@@ -2357,7 +2357,9 @@ function liftMake(g,d){
   liftBox(L,cw,0.12,cw,0,-0.04,0,'#6d737a',L.cab);                                   // podłoga (2 cm nad posadzką)
   liftBox(L,cw,0.08,cw,0,h,0,'#c9ced4',L.cab);                                        // sufit kabiny
   liftBox(L,1.2,0.04,1.2,0,h-0.05,0,'#fff6d8',L.cab).material.emissive=new THREE.Color('#fff2c0'); // lampa
-  liftBox(L,0.06,h,cw,-cw/2+0.03,h/2,0,CC,L.cab);liftBox(L,0.06,h,cw,cw/2-0.03,h/2,0,CC,L.cab);liftBox(L,cw,h,0.06,0,h/2,-cw/2+0.03,CC,L.cab);
+  var LR=function(i){var di=d.ds&&d.ds[i]!==undefined?d.ds[i]:d.d,a=[[0,-1],[1,0],[0,1],[-1,0]][di];var r=Math.atan2(a[0],a[1])-L.root.rotation.y;while(r>Math.PI)r-=Math.PI*2;while(r<-Math.PI)r+=Math.PI*2;return r;}; // 🚪 drzwi na każdym piętrze mogą być z innej strony
+  var used={};d.levels.forEach(function(_,i){if(!d.doors||d.doors[i])used[((Math.round(LR(i)/(Math.PI/2))%4)+4)%4]=1;}); // 0:+Z 1:+X 2:-Z 3:-X
+  if(!used[3])liftBox(L,0.06,h,cw,-cw/2+0.03,h/2,0,CC,L.cab);if(!used[1])liftBox(L,0.06,h,cw,cw/2-0.03,h/2,0,CC,L.cab);if(!used[2])liftBox(L,cw,h,0.06,0,h/2,-cw/2+0.03,CC,L.cab); // kabina otwarta tam, gdzie są drzwi
   liftBox(L,cw-0.2,0.06,0.08,0,1.0,-cw/2+0.1,'#d9dde1',L.cab);                       // poręcz
   var pn=liftBox(L,0.4,0.7,0.05,cw/2-0.4,1.4,cw/2-0.12,'#2b2f33',L.cab);            // panel z przyciskami (przy drzwiach, w środku)
   L.cab.traverse(function(o){if(o.isMesh)o.castShadow=false;});                        // kabina nie zaciemnia sama siebie
@@ -2366,8 +2368,8 @@ function liftMake(g,d){
   var dw=d.dw||1.9,dh=Math.min(d.dh||2.6,h);
   L.lv.forEach(function(y,i){
     if(d.doors&&!d.doors[i]){L.doors.push(null);return;}
-    var D={o:0,tg:0,y:y,panels:[]};
-    [-1,1].forEach(function(s){var p=liftBox(L,dw/2+0.05,dh,0.07,s*(dw/4),y+dh/2,w/2-0.12,DC);D.panels.push({m:p,s:s});});
+    var D={o:0,tg:0,y:y,panels:[],rot:LR(i)},Dg=new THREE.Group();Dg.rotation.y=D.rot;L.root.add(Dg);D.g=Dg;
+    [-1,1].forEach(function(s){var p=liftBox(L,dw/2+0.05,dh,0.07,s*(dw/4),y+dh/2,w/2-0.12,DC,Dg);D.panels.push({m:p,s:s});});
     L.doors.push(D);
   });
   // 🟢 światełka nad drzwiami (na każdym piętrze od korytarza i w kabinie nad wejściem): numer piętra kabiny i strzałki kierunku
@@ -2381,7 +2383,7 @@ function liftMake(g,d){
       ar.position.set(q[1]>0?-W2/2+0.12:W2/2-0.12,0,0.025);if(q[1]<0)ar.rotation.z=Math.PI;gi.add(ar);I[q[0]]=ar;});
     L.ind.push(I);
   }
-  L.lv.forEach(function(y,i){if(L.doors[i])indicator(L.root,0,y+dh+0.36,w/2+0.21,false);});
+  L.lv.forEach(function(y,i){if(L.doors[i])indicator(L.doors[i].g,0,y+dh+0.36,w/2+0.21,false);});
   indicator(L.cab,0,h-0.32,cw/2-0.03,true); // w kabinie, nad wejściem (patrzy do środka)
   L.indK='';
   liftCols(L);return L;
@@ -2399,14 +2401,15 @@ function liftCols(L){ // kolizje ruchome: podłoga i sufit kabiny, zamknięte dr
   var cw=L.w-0.55,c=liftW(L,0,L.y,0),hw=cw/2;
   wCols.push({x:c.x,z:c.z,hw:hw,hd:hw,y:c.y-0.12,h:0.12,_lift:L});
   wCols.push({x:c.x,z:c.z,hw:hw,hd:hw,y:c.y+Math.min(L.d.h||3,3.2),h:0.1,_lift:L});
-  L.doors.forEach(function(D){if(!D||D.o>0.85)return;var p=liftW(L,0,D.y,L.w/2-0.12),a=Math.abs(Math.sin(L.root.rotation.y+L.g.rotation.y)),e=0.95*(1-a)+0.08*a,f=0.08*(1-a)+0.95*a;
+  L.doors.forEach(function(D){if(!D||D.o>0.85)return;var r0=D.rot||0,zz=L.w/2-0.12,p=liftW(L,Math.sin(r0)*zz,D.y,Math.cos(r0)*zz),a=Math.abs(Math.sin(L.root.rotation.y+L.g.rotation.y+r0)),e=0.95*(1-a)+0.08*a,f=0.08*(1-a)+0.95*a;
     wCols.push({x:p.x,z:p.z,hw:e,hd:f,y:p.y,h:2.6,_lift:L});});
 }
 // gdzie jest ludzik względem windy
 function liftLocal(L){var v=L.root.worldToLocal(new THREE.Vector3(charX,charY,charZ));return v;}
 function liftInside(L,m){var v=liftLocal(L),hw=(L.w-0.55)/2+(m||0);return Math.abs(v.x)<hw&&Math.abs(v.z)<hw&&Math.abs(v.y-L.y)<1.2;}
-function liftFront(L){var v=liftLocal(L);if(Math.abs(v.x)>1.6||v.z<L.w/2-0.2||v.z>L.w/2+2.6)return -1;
-  for(var i=0;i<L.lv.length;i++)if(L.doors[i]&&Math.abs(v.y-L.lv[i])<1.2)return i;return -1;}
+function liftFront(L){var v=liftLocal(L); // przed którymi drzwiami stoi ludzik (drzwi mogą być z różnych stron)
+  for(var i=0;i<L.lv.length;i++){var D=L.doors[i];if(!D||Math.abs(v.y-L.lv[i])>=1.2)continue;var r=D.rot||0,c=Math.cos(r),s=Math.sin(r),x=v.x*c-v.z*s,z=v.x*s+v.z*c;
+    if(Math.abs(x)<=1.6&&z>=L.w/2-0.2&&z<=L.w/2+2.6)return i;}return -1;}
 function liftName(i){return i===0?'P':String(i);}
 function liftGo(L,k){ // jazda na piętro k (najpierw zamknięcie drzwi)
   if(k===L.cur&&L.state==='idle'){liftDoor(L,k,1);return;}
