@@ -305,7 +305,7 @@ function resize(){
 }
 let ctrlH=0;
 // Plane Y: on phones keep it above the thumb pads
-function playerY(){return mob?Math.min(H*.72,H-ctrlH-70*sc):H*.72}
+function playerY(){return mob?Math.min(H*.72,H-ctrlH-40*sc):H*.72}
 function positionUI(){
   const hud=document.getElementById('hud');
   if(hud){hud.style.left=GX+'px';hud.style.width=W+'px'}
@@ -475,10 +475,15 @@ if(mob){
     pads.forEach(p=>p.classList.toggle('on',hitEls.has(p)));
   };
   ['touchstart','touchmove','touchend','touchcancel'].forEach(ev=>mc.addEventListener(ev,scan,{passive:false}));
+  addEventListener('blur',releasePads);document.addEventListener('visibilitychange',()=>{if(document.hidden)releasePads()});
   // Block stray touches on the canvas (no scrolling / zoom)
   C.addEventListener('touchstart',e=>e.preventDefault(),{passive:false});
   C.addEventListener('touchmove',e=>e.preventDefault(),{passive:false});
 }
+
+// Release all thumb pads (overlay shown, app hidden, etc.)
+function releasePads(){mL=mR=mB=mF=false;document.querySelectorAll('#mc .tb').forEach(b=>b.classList.remove('on'))}
+function showPads(v){if(!mob)return;releasePads();document.getElementById('mc').style.display=v?'flex':'none';if(v)positionUI()}
 
 // ===== MENU SYSTEM =====
 let opts={sound:true,engine:true,vibrate:true,particles:true};
@@ -1502,7 +1507,7 @@ function startGame(){
   document.getElementById('hud').style.display='flex';
   
   document.getElementById('comboDisp').style.opacity='0';
-  if(mob){document.getElementById('mc').style.display='flex';positionUI()}
+  showPads(true)
   run=true;showStage(0)}
 
 function gameOverFn(){run=false;stopEngineSound();doVibrate([50,30,80]);
@@ -1521,7 +1526,7 @@ function gameOverFn(){run=false;stopEngineSound();doVibrate([50,30,80]);
   document.getElementById('nickRow').style.display='';document.getElementById('saveMsg').style.display='none';
   loadLeaderboard('leaderboard');
   playResultsMusic();
-  if(mob){document.getElementById('mc').style.display='none';mL=mR=mB=mF=false;document.querySelectorAll('#mc .tb').forEach(b=>b.classList.remove('on'))}}
+  showPads(false)}
 
 // ===== FLIGHT COMPLETE / VICTORY =====
 function showFlightComplete(completedStage){
@@ -1532,7 +1537,7 @@ function showFlightComplete(completedStage){
   document.getElementById('fcScore').textContent=score;
   document.getElementById('fcHp').textContent=Math.round(hp);
   document.getElementById('fcFuel').textContent=Math.round(energy);
-  document.getElementById('flightComplete').style.display='flex';
+  document.getElementById('flightComplete').style.display='flex';showPads(false);
   sfxAchieve();
   if(completedStage===4)checkAchieve('flight5','Połowa drogi! 🔥');
 }
@@ -1542,7 +1547,7 @@ function continueNextFlight(){
   stage++;stageDist=0;
   // Clear obstacles for clean start
   obstacles=[];fallingR=[];pendulums=[];lavaS=[];spinList=[];batList=[];geyserList=[];cannonList=[];shipList=[];retractBridges=[];
-  run=true;startEngineSound();
+  run=true;startEngineSound();showPads(true);
   showStage(stage);
 }
 
@@ -1552,7 +1557,7 @@ function showVictory(){
   document.getElementById('vicNick').value=nick;
   document.getElementById('vicNickRow').style.display='';
   document.getElementById('vicSaveMsg').style.display='none';
-  document.getElementById('victoryScreen').style.display='flex';
+  document.getElementById('victoryScreen').style.display='flex';showPads(false);
   loadLeaderboard('vicLeaderboard');
   playResultsMusic();
   checkAchieve('victory','Wszystkie 10 lotów! 🏆');
