@@ -63,7 +63,17 @@ canvas{display:block;position:absolute;top:0;left:0}
 #stageLabel{position:absolute;top:45%;left:50%;transform:translate(-50%,-50%);font-size:26px;font-weight:bold;color:#fff;text-shadow:0 0 30px rgba(100,150,255,.7);opacity:0;pointer-events:none;z-index:15;text-align:center;white-space:nowrap;transition:opacity .5s}
 #stageSubLabel{position:absolute;top:calc(45% + 32px);left:50%;transform:translate(-50%,-50%);font-size:14px;color:#aabbdd;text-shadow:0 0 15px rgba(100,150,255,.4);opacity:0;pointer-events:none;z-index:15;text-align:center;transition:opacity .5s}
 #achievePopup{position:absolute;top:20%;left:50%;transform:translateX(-50%);font-size:16px;color:#fff;background:rgba(100,200,255,.15);border:1px solid rgba(100,200,255,.3);padding:6px 18px;border-radius:20px;opacity:0;pointer-events:none;z-index:16;white-space:nowrap;transition:opacity .4s;text-shadow:0 0 8px rgba(100,200,255,.4)}
-#mc{position:fixed;bottom:12px;bottom:calc(12px + env(safe-area-inset-bottom));right:12px;display:none;flex-direction:column;gap:8px;align-items:flex-end;pointer-events:auto;z-index:20}
+#mc{position:fixed;bottom:0;left:0;width:100%;display:none;justify-content:space-between;align-items:flex-end;padding:0 12px calc(14px + env(safe-area-inset-bottom));box-sizing:border-box;pointer-events:auto;z-index:20;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+.tpad{display:flex;flex-direction:column;align-items:center;gap:10px}
+.tb{--s:76px;width:var(--s);height:var(--s);border-radius:22px;background:rgba(136,187,255,.10);border:2px solid rgba(136,187,255,.32);box-shadow:0 0 14px rgba(68,136,255,.15),inset 0 0 12px rgba(136,187,255,.06);display:flex;align-items:center;justify-content:center;transition:background .08s,transform .08s,border-color .08s;-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px)}
+.tb svg{width:52%;height:52%;fill:rgba(170,205,255,.55);pointer-events:none;transition:fill .08s}
+.tb.boost{border-color:rgba(255,170,68,.38);background:rgba(255,170,68,.08)}
+.tb.boost svg{fill:rgba(255,190,110,.6)}
+.tb.on{background:rgba(136,187,255,.32);border-color:rgba(170,210,255,.8);transform:scale(.94)}
+.tb.on svg{fill:rgba(230,242,255,.95)}
+.tb.boost.on{background:rgba(255,170,68,.32);border-color:rgba(255,200,120,.85)}
+.tb.fire{border-radius:50%;border-color:rgba(127,255,127,.38);background:rgba(127,255,127,.08);font-size:calc(var(--s)*.38);color:#7fff7f;margin-bottom:calc(var(--s)*.25)}
+.tb.fire.on{background:rgba(127,255,127,.3);border-color:rgba(160,255,160,.85)}
 #swipeHint{position:fixed;bottom:14px;bottom:calc(14px + env(safe-area-inset-bottom));left:14px;display:none;flex-direction:column;align-items:center;pointer-events:none;z-index:19}
 #swipeHint.touching{opacity:1}
 .swipe-label{font-size:8px;color:rgba(136,187,255,.35);white-space:nowrap;font-family:'Segoe UI',sans-serif;letter-spacing:1px;text-transform:uppercase;margin-top:2px}
@@ -138,8 +148,8 @@ canvas{display:block;position:absolute;top:0;left:0}
       <h2>📖 Jak grać</h2>
       <div class="mp-section">
         <h3>🎮 Sterowanie</h3>
-        <div class="mp-row"><span class="mp-icon">↔️</span><span><span class="mp-key">← →</span> / <span class="mp-key">A D</span> — ruch na boki</span></div>
-        <div class="mp-row"><span class="mp-icon">🚀</span><span><span class="mp-key">↑</span> / <span class="mp-key">W</span> — turbo! 📱 przesuń palec do góry</span></div>
+        <div class="mp-row"><span class="mp-icon">↔️</span><span><span class="mp-key">← →</span> / <span class="mp-key">A D</span> — ruch na boki 📱 ◀ ▶ na dole ekranu</span></div>
+        <div class="mp-row"><span class="mp-icon">🚀</span><span><span class="mp-key">↑</span> / <span class="mp-key">W</span> — turbo! 📱 strzałka ▲ (lewa lub prawa)</span></div>
         <div class="mp-row"><span class="mp-icon">🔫</span><span><span class="mp-key">Spacja</span> — laser — niszczy mosty!</span></div>
       </div>
       <div class="mp-section">
@@ -270,7 +280,9 @@ canvas{display:block;position:absolute;top:0;left:0}
   <span class="swipe-label">przesuń palcem</span>
 </div>
 <div id="mc">
-  <div class="mb" id="bF" style="border-color:rgba(127,255,127,.4);color:#7fff7f;background:rgba(127,255,127,.1)">🔫</div>
+  <div class="tpad"><div class="tb boost" data-k="B"><svg viewBox="0 0 24 24"><path d="M12 3 22 19H2z"/></svg></div><div class="tb" data-k="L"><svg viewBox="0 0 24 24"><path d="M3 12 19 2v20z"/></svg></div></div>
+  <div class="tb fire" data-k="F">🔫</div>
+  <div class="tpad"><div class="tb boost" data-k="B"><svg viewBox="0 0 24 24"><path d="M12 3 22 19H2z"/></svg></div><div class="tb" data-k="R"><svg viewBox="0 0 24 24"><path d="M21 12 5 2v20z"/></svg></div></div>
 </div>
 <script>
 const C=document.getElementById('game'),G=C.getContext('2d');
@@ -291,13 +303,19 @@ function resize(){
   if(mob) sc*=1.3;
   positionUI();
 }
+let ctrlH=0;
+// Plane Y: on phones keep it above the thumb pads
+function playerY(){return mob?Math.min(H*.72,H-ctrlH-70*sc):H*.72}
 function positionUI(){
   const hud=document.getElementById('hud');
   if(hud){hud.style.left=GX+'px';hud.style.width=W+'px'}
   const fg=document.getElementById('fuelGauge');
   if(fg){fg.style.right=(innerWidth-GX-W+6)+'px'}
   const mc=document.getElementById('mc');
-  if(mc){mc.style.right=(innerWidth-GX-W+12)+'px'}
+  if(mc){mc.style.left=GX+'px';mc.style.width=W+'px';
+    const bs=Math.round(Math.max(62,Math.min(88,W*.2,H*.11)));
+    mc.style.setProperty('--s',bs+'px');mc.querySelectorAll('.tb').forEach(b=>b.style.setProperty('--s',bs+'px'));
+    ctrlH=bs*2+10+14}
   const sh=document.getElementById('swipeHint');
   if(sh){sh.style.left=(GX+14)+'px'}
 }
@@ -439,36 +457,27 @@ addEventListener('keyup',e=>{K[e.code]=false});
 let mL=false,mR=false,mB=false,mF=false;
 let touchStartX=null,touchStartY=null,touchLastX=null,touchLastY=null,touchDeltaX=0,touchDeltaY=0,touchActive=false;
 if(mob){
-  const sb=(id,on,off)=>{const el=document.getElementById(id);
-    el.addEventListener('touchstart',e=>{e.preventDefault();on()});
-    el.addEventListener('touchend',e=>{e.preventDefault();off()});
-    el.addEventListener('touchcancel',()=>off())};
-  sb('bF',()=>mF=true,()=>mF=false);
-
-  // Relative touch — drag left/right = move, drag up = boost
-  const FINGER_OFFSET=70; // plane appears above finger
-  C.addEventListener('touchstart',e=>{
-    const t=e.touches[0];
-    touchStartX=t.clientX;touchStartY=t.clientY;
-    touchLastX=t.clientX;touchLastY=t.clientY;
-    touchDeltaX=0;touchDeltaY=0;touchActive=true;
-    // Snap plane to finger X with offset Y
-    if(run){P.x=GX?t.clientX-GX:t.clientX;P.y=t.clientY-FINGER_OFFSET;P.y=Math.max(H*.15,Math.min(H*.85,P.y))}
-    const sh=document.getElementById('swipeHint');if(sh)sh.classList.add('touching');
-    e.preventDefault()},{passive:false});
-  C.addEventListener('touchmove',e=>{
-    if(!touchActive)return;
-    const t=e.touches[0];
-    touchDeltaX=t.clientX-touchLastX;
-    touchDeltaY=t.clientY-touchLastY;
-    touchLastX=t.clientX;touchLastY=t.clientY;
-    // Boost when swiping up (larger threshold to avoid accidental)
-    mB=(touchStartY-t.clientY)>35;
-    e.preventDefault()},{passive:false});
-  C.addEventListener('touchend',e=>{touchActive=false;touchDeltaX=0;touchDeltaY=0;touchLastX=null;touchLastY=null;mB=false;
-    const sh=document.getElementById('swipeHint');if(sh)sh.classList.remove('touching')});
-  C.addEventListener('touchcancel',e=>{touchActive=false;touchDeltaX=0;touchDeltaY=0;touchLastX=null;touchLastY=null;mB=false;
-    const sh=document.getElementById('swipeHint');if(sh)sh.classList.remove('touching')});
+  // Thumb pads: each finger checked separately, sliding between buttons works
+  const mc=document.getElementById('mc');
+  const pads=[...mc.querySelectorAll('.tb')];
+  let prevB=false;
+  const scan=e=>{
+    e.preventDefault();
+    let L=false,R=false,B=false,F=false;const hitEls=new Set();
+    for(const t of e.touches){
+      const el=document.elementFromPoint(t.clientX,t.clientY);
+      const b=el&&el.closest&&el.closest('.tb');if(!b)continue;
+      hitEls.add(b);const k=b.dataset.k;
+      if(k==='L')L=true;else if(k==='R')R=true;else if(k==='B')B=true;else if(k==='F')F=true;
+    }
+    if(B&&!prevB&&opts.vibrate&&navigator.vibrate)try{navigator.vibrate(12)}catch(_){}
+    prevB=B;mL=L;mR=R;mB=B;mF=F;
+    pads.forEach(p=>p.classList.toggle('on',hitEls.has(p)));
+  };
+  ['touchstart','touchmove','touchend','touchcancel'].forEach(ev=>mc.addEventListener(ev,scan,{passive:false}));
+  // Block stray touches on the canvas (no scrolling / zoom)
+  C.addEventListener('touchstart',e=>e.preventDefault(),{passive:false});
+  C.addEventListener('touchmove',e=>e.preventDefault(),{passive:false});
 }
 
 // ===== MENU SYSTEM =====
@@ -886,7 +895,7 @@ function update(){
   P.x+=P.vx+P.pushX;P.pushX*=.88;
   // Smooth tilt based on velocity
   P.tilt+=(P.vx*.35-P.tilt)*.12;
-  if(!touchActive)P.y=H*.72; // keyboard: fixed Y
+  P.y=playerY(); // fixed Y (above thumb pads on phones)
   const pp=getP(P.y);const mg=P.w/2+4;
   // Soft wall bounce — reverse velocity on contact
   if(P.x<pp.left+mg){P.x=pp.left+mg;P.vx=Math.abs(P.vx)*.3}
@@ -1484,7 +1493,7 @@ function startGame(){
   narrowTimer=NARROW_GAP;narrowActive=false;achievements=new Set();
   obstacles=[];pickups=[];particles=[];dustP=[];trail=[];speedLines=[];floatTexts=[];wallSparks=[];bullets=[];bridges=[];ricochets=[];rockFrags=[];shootCooldown=0;
   fallingR=[];pendulums=[];lavaS=[];spinList=[];batList=[];geyserList=[];cannonList=[];shipList=[];retractBridges=[];
-  P.x=W/2;P.y=H*.72;P.inv=60;P.tilt=0;P.pushX=0;P.vx=0;P.roll=0;
+  P.x=W/2;P.y=playerY();P.inv=60;P.tilt=0;P.pushX=0;P.vx=0;P.roll=0;
   touchStartX=null;touchLastX=null;touchDeltaX=0;touchActive=false;
   best=allStats.best;
   initPath();initStars();
@@ -1493,7 +1502,7 @@ function startGame(){
   document.getElementById('hud').style.display='flex';
   
   document.getElementById('comboDisp').style.opacity='0';
-  if(mob){document.getElementById('mc').style.display='flex';document.getElementById('swipeHint').style.display='flex'}
+  if(mob){document.getElementById('mc').style.display='flex';positionUI()}
   run=true;showStage(0)}
 
 function gameOverFn(){run=false;stopEngineSound();doVibrate([50,30,80]);
@@ -1512,7 +1521,7 @@ function gameOverFn(){run=false;stopEngineSound();doVibrate([50,30,80]);
   document.getElementById('nickRow').style.display='';document.getElementById('saveMsg').style.display='none';
   loadLeaderboard('leaderboard');
   playResultsMusic();
-  if(mob){document.getElementById('mc').style.display='none';document.getElementById('swipeHint').style.display='none'}}
+  if(mob){document.getElementById('mc').style.display='none';mL=mR=mB=mF=false;document.querySelectorAll('#mc .tb').forEach(b=>b.classList.remove('on'))}}
 
 // ===== FLIGHT COMPLETE / VICTORY =====
 function showFlightComplete(completedStage){
