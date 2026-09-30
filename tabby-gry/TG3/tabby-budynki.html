@@ -89,6 +89,8 @@ input[type=text]{width:100%;background:rgba(255,255,255,.06);border:1px solid rg
           <button class="btn tool" data-tool="erase">Gumka</button>
           <button class="btn tool" data-tool="stairs">Schody</button>
           <button class="btn tool" data-tool="lift">Winda</button>
+          <button class="btn tool" data-tool="player">🧍 Gracz</button>
+          <button class="btn tool" data-tool="enemy">🤖 Wróg</button>
         </div>
         <p class="hint" style="margin-top:8px" id="tool-hint">Maluj pomieszczenia i korytarze. Ściany stawiają się same. Prawy przycisk to gumka.</p>
       </div>
@@ -135,6 +137,7 @@ input[type=text]{width:100%;background:rgba(255,255,255,.06);border:1px solid rg
       <div class="sec">
         <button class="btn go big" id="prj-save" title="Zapisz projekt na dysku — wybierzesz folder i nazwę, potem wczytasz go i dalej edytujesz">💾 Zapisz projekt</button>
         <button class="btn big" id="prj-load" title="Wczytaj zapisany projekt (plik .json z Tabby budynki)">📂 Wczytaj projekt</button>
+        <button class="btn big" id="demo-btn" title="Wczytaj jeden z gotowych przykładowych budynków">🏠 Wczytaj demo</button>
         <button class="btn big" id="link-btn" title="Skopiuj adres i wyślij komuś — otworzy go i gotowe">🔗 Skopiuj adres gry</button>
         <input type="file" id="prj-file" accept=".json,application/json" style="display:none">
         <button class="btn" id="copy-btn" style="margin-top:6px;font-size:12px;opacity:.8">Kopiuj JSON do Tabby Editor</button>
@@ -231,6 +234,22 @@ function roofWalk(f){ // czy po dachu nad piętrem f da się chodzić (taras)
 function terEdge(f,h,r,c){ // czy ta krawędź to drzwi windy na taras (tam nie stawiamy zwykłej ściany)
   for(var i=0;i<B.lifts.length;i++){var l=B.lifts[i];if(!terDoor(l,f))continue;var q=DIRS[liftDir(l,f)];
     if(h&&q[1]!==0&&l.c===c&&Math.max(l.r,l.r+q[1])===r)return true;if(!h&&q[0]!==0&&l.r===r&&Math.max(l.c,l.c+q[0])===c)return true;}return false;}
+// 🧍🤖 GRACZE I WROGOWIE na planie (gracze: tylko parter, najwyżej 4; wrogowie: każde piętro)
+function actors(){if(!B.players)B.players=[];if(!B.enemies)B.enemies=[];}
+function playerAt(r,c){actors();for(var i=0;i<B.players.length;i++)if(B.players[i].r===r&&B.players[i].c===c)return i;return -1;}
+function enemyAt(f,r,c){actors();for(var i=0;i<B.enemies.length;i++){var e=B.enemies[i];if(e.f===f&&e.r===r&&e.c===c)return i;}return -1;}
+function placePlayer(rc){actors();var r=rc[0],c=rc[1];
+  if(curF!==0){toast('Graczy stawiasz tylko na parterze');return;}
+  var i=playerAt(r,c);if(i>=0){var p=B.players[i];p.d=(p.d+1)%4;toast('Gracz '+(i+1)+' patrzy: '+ARROW[p.d]);return;}
+  if(B.players.length>=4){toast('Najwyżej 4 graczy');return;}
+  if(liftAt(r,c)||stairAt(0,r,c)){toast('Tu jest winda albo schody');return;}
+  B.players.push({r:r,c:c,d:lastDir||0});toast('🧍 Gracz '+B.players.length+(B.players.length===1?' (gospodarz)':'')+' — kliknij go, żeby obrócić');}
+function placeEnemy(rc){actors();var r=rc[0],c=rc[1],i=enemyAt(curF,r,c);
+  if(i>=0){B.enemies.splice(i,1);toast('Wróg usunięty');return;}
+  if(curF>0&&!open(curF,r,c)){toast('Wroga stawiasz w pomieszczeniu (albo na parterze)');return;}
+  if(liftAt(r,c)||stairAt(curF,r,c)||hole(curF,r,c)){toast('Tu jest winda albo schody');return;}
+  B.enemies.push({f:curF,r:r,c:c,kind:'orb'});toast('🤖 Wróg na '+(curF===0?'parterze':curF+'. piętrze')+' ('+B.enemies.filter(function(e){return e.f===curF;}).length+' tutaj)');}
+function eraseActors(r,c){actors();var i=playerAt(r,c);if(curF===0&&i>=0){B.players.splice(i,1);return true;}var j=enemyAt(curF,r,c);if(j>=0){B.enemies.splice(j,1);return true;}return false;}
 function placeLift(rc){
   var r=rc[0],c=rc[1],l=liftAt(r,c);
   if(l){if(!l.dd)l.dd=B.floors.map(function(){return l.d;});while(l.dd.length<B.floors.length)l.dd.push(l.d);l.dd[curF]=(liftDir(l,curF)+1)%4;if(curF===0)l.d=l.dd[0];lastDir=l.dd[curF];
@@ -288,6 +307,15 @@ function drawGrid(){
     cx.fillStyle='#fff';cx.font='bold '+Math.round(px*0.42)+'px sans-serif';cx.fillText('🛗',x+px/2,y+px/2+1);
     cx.strokeStyle='#ffcc33';cx.lineWidth=Math.max(3,px*0.12);cx.lineCap='butt';cx.beginPath();
     if(d[0]!==0){var xx=x+(d[0]>0?px-2:2);cx.moveTo(xx,y+px*0.25);cx.lineTo(xx,y+px*0.75);}else{var yy=y+(d[1]>0?px-2:2);cx.moveTo(x+px*0.25,yy);cx.lineTo(x+px*0.75,yy);}cx.stroke();});
+  // 🧍 gracze (parter) i 🤖 wrogowie (bieżące piętro)
+  actors();
+  if(curF===0)B.players.forEach(function(p,i){var x=p.c*px+px/2,y=p.r*px+px/2,d=DIRS[p.d],rr=px*0.36;
+    cx.fillStyle=i===0?'#3fb950':'#58a6ff';cx.beginPath();cx.arc(x,y,rr,0,Math.PI*2);cx.fill();
+    var tx=x+d[0]*rr*1.5,ty=y+d[1]*rr*1.5,nx=-d[1],ny=d[0];cx.fillStyle='#ffcc33';cx.beginPath();cx.moveTo(tx,ty); // strzałka: w którą stronę patrzy
+    cx.lineTo(x+d[0]*rr*0.95+nx*rr*0.45,y+d[1]*rr*0.95+ny*rr*0.45);cx.lineTo(x+d[0]*rr*0.95-nx*rr*0.45,y+d[1]*rr*0.95-ny*rr*0.45);cx.closePath();cx.fill();
+    cx.fillStyle='#fff';cx.font='bold '+Math.round(px*0.36)+'px sans-serif';cx.textAlign='center';cx.textBaseline='middle';cx.fillText(String(i+1),x,y+1);});
+  B.enemies.forEach(function(e){if(e.f!==curF)return;var x=e.c*px+px/2,y=e.r*px+px/2;cx.fillStyle='#e5484d';cx.beginPath();cx.arc(x,y,px*0.34,0,Math.PI*2);cx.fill();
+    cx.font=Math.round(px*0.42)+'px sans-serif';cx.textAlign='center';cx.textBaseline='middle';cx.fillText('🤖',x,y+1);});
   // kratka
   cx.strokeStyle='rgba(255,255,255,0.08)';cx.lineWidth=1;
   for(var i=1;i<W;i++){cx.beginPath();cx.moveTo(i*px+.5,0);cx.lineTo(i*px+.5,cv.height);cx.stroke();}
@@ -334,6 +362,9 @@ cv.addEventListener('pointerdown',function(e){
   // po postawieniu schodów albo windy od razu wracamy do rysowania
   if(tool==='stairs'&&e.button===0){var n0=B.stairs.length;placeStairs(rc);renderFloors();changed();if(B.stairs.length>n0)setTool('draw');return;}
   if(tool==='lift'&&e.button===0){var n1=B.lifts.length;placeLift(rc);renderFloors();changed();if(B.lifts.length>n1)setTool('draw');return;}
+  if(tool==='player'&&e.button===0){placePlayer(rc);changed();return;}
+  if(tool==='enemy'&&e.button===0){placeEnemy(rc);changed();return;}
+  if((tool==='erase'||e.button===2)&&eraseActors(rc[0],rc[1])){changed();return;} // gumka usuwa najpierw gracza/wroga
   // przy rysowaniu klik na schodach albo windzie obraca je
   if(tool==='draw'&&e.button===0){if(stairAt(curF,rc[0],rc[1])){placeStairs(rc);renderFloors();changed();return;}if(liftAt(rc[0],rc[1])){placeLift(rc);changed();return;}}
   painting=(e.button===2||tool==='erase')?-1:1;paint(rc,painting>0);changed();
@@ -369,6 +400,8 @@ document.getElementById('size-btn').onclick=function(){
 var HINTS={draw:'Maluj pomieszczenia i korytarze. Ściany stawiają się same. Prawy przycisk to gumka. Klik na schodach albo windzie obraca je.',
   erase:'Wymazuj pomieszczenia (także schody).',
   lift:'Kliknij kratkę, żeby postawić windę — szyb przejdzie przez wszystkie piętra, na każdym będą drzwi. Kliknij windę jeszcze raz, żeby obrócić drzwi — osobno na każdym piętrze (wybierz piętro u góry). Gumka usuwa windę.',
+  player:'Postaw graczy (najwyżej 4) — tylko na parterze. Gracz 1 to gospodarz, 2–4 kolejni w multiplayerze. Kliknij gracza jeszcze raz, żeby obrócić, w którą stronę patrzy. Gumka usuwa.',
+  enemy:'Postaw wrogów (kule bojowe) na wybranym piętrze — w pomieszczeniach, a na parterze także na zewnątrz. Kliknij wroga jeszcze raz, żeby go usunąć.',
   stairs:'Kliknij, żeby postawić schody (3 kratki). Kliknij schody jeszcze raz, żeby je obrócić. Podest i otwór w stropie na piętrze wyżej zrobią się same.'};
 function setTool(t){tool=t;document.querySelectorAll('.tool').forEach(function(x){x.classList.toggle('active',x.dataset.tool===t);});document.getElementById('tool-hint').textContent=HINTS[t];}
 document.querySelectorAll('.tool').forEach(function(b){b.onclick=function(){setTool(b.dataset.tool);};});
@@ -503,6 +536,10 @@ function buildParts(){
 function exportJSON(){
   var parts=buildParts().map(function(p){var q={shape:p.shape,size:p.size,color:p.color,position:p.position,role:B.mode==='budynki'?'bld':(p._k==='roof'?'roof':'bud')};if(p.col)q.col=true;if(p.ramp)q.ramp=p.ramp;if(p.opacity!==undefined)q.opacity=p.opacity;if(p.shadow===false)q.shadow=false;if(p.glass)q.glass=true;return q;});
   var o={name:(document.getElementById('name').value||'Budynek').trim()||'Budynek',parts:parts},ox=-B.w*CELL/2,oz=-B.h*CELL/2;
+  actors();
+  if(B.players.length)o.players=B.players.map(function(p){var d=DIRS[p.d];return {x:+(ox+p.c*CELL+CELL/2).toFixed(3),y:+GSLAB.toFixed(3),z:+(oz+p.r*CELL+CELL/2).toFixed(3),yaw:+Math.atan2(-d[0],-d[1]).toFixed(3)};}); // 🧍 miejsca startu graczy
+  var en=B.enemies.filter(function(e){return e.f<B.floors.length&&(e.f===0||open(e.f,e.r,e.c));});
+  if(en.length)o.enemies=en.map(function(e){return {x:+(ox+e.c*CELL+CELL/2).toFixed(3),y:+(e.f===0?GSLAB:e.f*FH).toFixed(3),z:+(oz+e.r*CELL+CELL/2).toFixed(3),kind:e.kind||'orb'};}); // 🤖 wrogowie
   if(B.lifts.length)o.lifts=B.lifts.map(function(l){var q=DIRS[l.d];return {cab:B.colors.cab||'#b08d57',door:B.colors.door||'#5f7f99',x:+(ox+l.c*CELL+CELL/2).toFixed(3),z:+(oz+l.r*CELL+CELL/2).toFixed(3),d:l.d,w:CELL,h:+(WH-0.3).toFixed(2),dw:1.9,dh:+Math.min(2.7,WH-0.3).toFixed(2),
     levels:B.floors.map(function(_,f){return +(f===0?GSLAB:f*FH).toFixed(3);}),doors:B.floors.map(function(_,f){var qq=DIRS[liftDir(l,f)];return open(f,l.r+qq[1],l.c+qq[0])||terDoor(l,f);}),ds:B.floors.map(function(_,f){return liftDir(l,f);})};});
   if(o.lifts&&B.roof&&B.terrace){var tf=B.floors.length-1,rt=+(tf*FH+WH+ROOF).toFixed(3);o.lifts.forEach(function(L,i){var l=B.lifts[i],dt=liftDir(l,tf),q=DIRS[dt];L.levels.push(rt);L.doors.push(open(tf,l.r+q[1],l.c+q[0]));L.ds.push(dt);L.terrace=true;});} // 🏙 taras: dodatkowy przystanek na dachu
@@ -867,6 +904,51 @@ document.getElementById('prj-save').onclick=function(){ // pyta, do jakiego fold
     .then(function(h){return h.createWritable().then(function(w){return w.write(jsonText()).then(function(){return w.close();});}).then(function(){toast('💾 Zapisano: '+h.name+' — wczytasz go przyciskiem „Wczytaj projekt”');});})
     .catch(function(e){if(e&&e.name==='AbortError')return;prjDownload();});}; // anulowane okno = nic; inny błąd = zapis do „Pobranych”
 document.getElementById('prj-load').onclick=function(){document.getElementById('prj-file').click();};
+// === 🏠 DEMO: gotowe przykładowe budynki do wczytania i przerobienia ===
+var TB_DEMOS=[{"name":"Domek z tarasem","desc":"Parter większy niż piętro — z piętra winda wypuszcza na taras nad parterem. Schody w środku.","src":{"lifts":[{"r":3,"c":5,"d":2,"dd":[2,2]}],"mode":"budynki","w":8,"h":8,"floors":[[[0,0,0,0,0,0,0,0],[0,1,1,1,1,1,1,0],[0,1,1,1,1,1,1,0],[0,1,1,1,1,1,1,0],[0,1,1,1,1,1,1,0],[0,1,1,1,1,1,1,0],[0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0]],[[0,0,0,0,0,0,0,0],[0,1,1,1,1,1,1,0],[0,1,0,1,1,1,1,0],[0,1,0,1,1,1,1,0],[0,0,0,0,0,0,0,0],[0,0,1,0,0,0,0,0],[0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0]]],"stairs":[{"f":0,"r":2,"c":2,"d":2}],"roof":true,"colors":{"wall":"#e8dcc6","floor":"#8a6a48","stairs":"#9c7a55","roof":"#b5533c","cab":"#b08d57","door":"#6b8f71"},"name":"Domek z tarasem","terrace":false}},{"name":"Kamienica z windą","desc":"Cztery piętra, schody na każde piętro i winda z tarasem na dachu.","src":{"lifts":[{"r":4,"c":7,"d":3,"dd":[3,3,3,3]}],"mode":"budynki","w":10,"h":10,"floors":[[[0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0],[0,0,1,1,1,1,1,1,0,0],[0,0,1,1,1,1,1,1,0,0],[0,0,1,1,1,1,1,1,0,0],[0,0,1,1,1,1,1,1,0,0],[0,0,1,1,1,1,1,1,0,0],[0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0]],[[0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0],[0,0,1,1,1,1,1,1,0,0],[0,0,1,0,0,0,1,1,0,0],[0,0,1,1,1,1,1,1,0,0],[0,0,1,1,1,1,1,1,0,0],[0,0,1,1,1,1,1,1,0,0],[0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0]],[[0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0],[0,0,1,1,1,1,1,1,0,0],[0,0,1,1,1,1,1,1,0,0],[0,0,1,1,1,1,1,1,0,0],[0,0,1,0,0,0,1,1,0,0],[0,0,1,1,1,1,1,1,0,0],[0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0]],[[0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0],[0,0,1,1,1,1,1,1,0,0],[0,0,1,0,0,0,1,1,0,0],[0,0,1,1,1,1,1,1,0,0],[0,0,1,1,1,1,1,1,0,0],[0,0,1,1,1,1,1,1,0,0],[0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0]]],"stairs":[{"f":0,"r":3,"c":3,"d":1},{"f":1,"r":5,"c":3,"d":1},{"f":2,"r":3,"c":3,"d":1}],"roof":true,"colors":{"wall":"#d9c7a8","floor":"#7b5a3c","stairs":"#9c7a55","roof":"#8e3b2f","cab":"#b08d57","door":"#5f7f99"},"name":"Kamienica z windą","terrace":true}},{"name":"Dom z dziedzińcem","desc":"Budynek dookoła otwartego dziedzińca. Winda na parterze wychodzi prosto na dziedziniec.","src":{"lifts":[{"r":4,"c":2,"d":1,"dd":[1,3]}],"mode":"budynki","w":10,"h":10,"floors":[[[0,0,0,0,0,0,0,0,0,0],[0,1,1,1,1,1,1,1,1,0],[0,1,1,1,1,1,1,1,1,0],[0,1,1,0,0,0,0,1,1,0],[0,1,1,0,0,0,0,1,1,0],[0,1,1,0,0,0,0,1,1,0],[0,1,1,0,0,0,0,1,1,0],[0,1,1,1,1,1,1,1,1,0],[0,1,1,1,1,1,1,1,1,0],[0,0,0,0,0,0,0,0,0,0]],[[0,0,0,0,0,0,0,0,0,0],[0,1,1,1,0,0,0,1,1,0],[0,1,1,1,1,1,1,1,1,0],[0,1,1,0,0,0,0,1,1,0],[0,1,1,0,0,0,0,1,1,0],[0,1,1,0,0,0,0,1,1,0],[0,1,1,0,0,0,0,1,1,0],[0,1,1,1,1,1,1,1,1,0],[0,1,1,1,1,1,1,1,1,0],[0,0,0,0,0,0,0,0,0,0]]],"stairs":[{"f":0,"r":1,"c":4,"d":1}],"roof":true,"colors":{"wall":"#f0e6d2","floor":"#9c7a55","stairs":"#9c7a55","roof":"#a0522d","cab":"#b08d57","door":"#4f7a5a"},"name":"Dom z dziedzińcem","terrace":false}},{"name":"Wieża widokowa","desc":"Wąska wieża na pięć pięter. Winda wywozi na taras widokowy na samej górze.","src":{"lifts":[{"r":2,"c":2,"d":2,"dd":[2,2,2,2,2]}],"mode":"budynki","w":6,"h":6,"floors":[[[0,0,0,0,0,0],[0,0,0,0,0,0],[0,0,1,1,0,0],[0,0,1,1,0,0],[0,0,0,0,0,0],[0,0,0,0,0,0]],[[0,0,0,0,0,0],[0,0,0,0,0,0],[0,0,1,1,0,0],[0,0,1,1,0,0],[0,0,0,0,0,0],[0,0,0,0,0,0]],[[0,0,0,0,0,0],[0,0,0,0,0,0],[0,0,1,1,0,0],[0,0,1,1,0,0],[0,0,0,0,0,0],[0,0,0,0,0,0]],[[0,0,0,0,0,0],[0,0,0,0,0,0],[0,0,1,1,0,0],[0,0,1,1,0,0],[0,0,0,0,0,0],[0,0,0,0,0,0]],[[0,0,0,0,0,0],[0,0,0,0,0,0],[0,0,1,1,0,0],[0,0,1,1,0,0],[0,0,0,0,0,0],[0,0,0,0,0,0]]],"stairs":[],"roof":true,"colors":{"wall":"#c9ced4","floor":"#6d737a","stairs":"#9c7a55","roof":"#3d5a80","cab":"#e0b04a","door":"#3d5a80"},"name":"Wieża widokowa","terrace":true}},{"name":"Biurowiec schodkowy","desc":"Każde piętro węższe od poprzedniego — na najwyższym piętrze winda wypuszcza na taras nad niższym piętrem.","src":{"lifts":[{"r":3,"c":4,"d":2,"dd":[2,2,2]}],"mode":"budynki","w":10,"h":10,"floors":[[[0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0],[0,1,1,1,1,1,1,1,1,0],[0,1,1,1,1,1,1,1,1,0],[0,1,1,1,1,1,1,1,1,0],[0,1,1,1,1,1,1,1,1,0],[0,1,1,1,1,1,1,1,1,0],[0,1,1,1,1,1,1,1,1,0],[0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0]],[[0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0],[0,1,1,1,1,1,1,1,1,0],[0,1,1,1,1,1,1,1,1,0],[0,1,1,1,1,1,1,1,1,0],[0,1,1,1,0,0,0,1,1,0],[0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0]],[[0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0],[0,1,1,1,1,0,0,0,1,0],[0,1,1,1,1,1,1,1,1,0],[0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0]]],"stairs":[{"f":0,"r":5,"c":6,"d":3},{"f":1,"r":2,"c":7,"d":3}],"roof":true,"colors":{"wall":"#e4e8ec","floor":"#707880","stairs":"#9c7a55","roof":"#556b2f","cab":"#9aa4ae","door":"#2e4a62"},"name":"Biurowiec schodkowy","terrace":false}},{"name":"Labirynt","desc":"Klasyczny labirynt bez dachu — wejście od góry, wyjście od dołu. Idealny do polowania na boty.","src":{"lifts":[],"mode":"labirynt","w":12,"h":12,"floors":[[[0,0,0,0,0,0,0,0,0,0,1,1],[0,1,1,1,1,1,0,1,1,1,0,1],[0,1,0,0,0,1,0,1,0,1,0,1],[0,1,0,1,1,1,0,1,0,1,0,1],[0,1,0,1,0,0,0,1,0,0,0,1],[0,1,1,1,0,1,1,1,1,1,0,1],[0,0,0,1,0,1,0,0,0,1,0,1],[0,1,1,1,0,1,0,1,1,1,0,1],[0,1,0,0,0,1,0,1,0,0,0,1],[0,1,0,1,1,1,0,1,0,1,1,1],[0,1,0,1,0,0,0,1,0,1,0,0],[0,0,0,0,0,1,1,1,0,0,0,0]]],"stairs":[],"roof":false,"colors":{"wall":"#7a8b6f","floor":"#c2b280","stairs":"#9c7a55","roof":"#4b5a3f","cab":"#b08d57","door":"#5f7f99"},"name":"Labirynt"}}];
+function prjOpen(src){try{localStorage.setItem('tabby-budynki',JSON.stringify(src));}catch(e){alert('Nie udało się wczytać: '+e.message);return;}location.reload();}
+// okno demo w stylu Tabby Sceny: nocne tło, kafelki z podglądem 3D
+var demoThumbs={},demoR=null;
+function demoParts(src){var keep=B;try{B=JSON.parse(JSON.stringify(src));return exportJSON().parts;}finally{B=keep;}}
+function demoThumb(i){
+  if(demoThumbs[i])return demoThumbs[i];
+  try{var d=TB_DEMOS[i],parts=demoParts(d.src);
+    if(!demoR){demoR=new THREE.WebGLRenderer({antialias:true,preserveDrawingBuffer:true});demoR.setSize(640,400);demoR.shadowMap.enabled=true;}
+    var s=new THREE.Scene();s.background=new THREE.Color(0x8fb4d8);s.fog=new THREE.Fog(0x8fb4d8,90,220);
+    s.add(new THREE.HemisphereLight(0xcfe4ff,0x55663f,0.75));var sun=new THREE.DirectionalLight(0xfff1dc,0.9);sun.position.set(25,45,18);sun.castShadow=true;
+    sun.shadow.mapSize.set(1024,1024);var sc=sun.shadow.camera;sc.left=-70;sc.right=70;sc.top=70;sc.bottom=-70;sc.far=180;s.add(sun);
+    var ground=new THREE.Mesh(new THREE.PlaneGeometry(300,300),new THREE.MeshStandardMaterial({color:0x5d7048,roughness:0.95}));ground.rotation.x=-Math.PI/2;ground.receiveShadow=true;s.add(ground);
+    var g=new THREE.Group();parts.forEach(function(p){if(p.hidden||p.shape==='pointlight')return;var z=p.size||[1,1,1],geo;
+      if(p.shape==='cylinder')geo=new THREE.CylinderGeometry(z[0],z[1],z[2],z[3]||12);else if(p.shape==='plane')geo=new THREE.PlaneGeometry(z[0],z[1]);else geo=new THREE.BoxGeometry(z[0],z[1],z[2]);
+      var m=new THREE.Mesh(geo,new THREE.MeshStandardMaterial({color:p.color||'#999',roughness:0.8,transparent:p.opacity!==undefined&&p.opacity<1,opacity:p.opacity!==undefined?+p.opacity:1,side:p.shape==='plane'?THREE.DoubleSide:THREE.FrontSide}));
+      if(p.position)m.position.fromArray(p.position);if(p.rotation)m.rotation.set(p.rotation[0],p.rotation[1],p.rotation[2]);m.castShadow=!(p.opacity<1);m.receiveShadow=true;g.add(m);});
+    s.add(g);var bb=new THREE.Box3().setFromObject(g),ctr=bb.getCenter(new THREE.Vector3()),sz=bb.getSize(new THREE.Vector3()),R=Math.max(sz.x,sz.z,sz.y*1.2);
+    var cam=new THREE.PerspectiveCamera(40,1.6,0.5,500);cam.position.set(ctr.x+R*0.95,ctr.y+R*0.8,ctr.z+R*1.05);cam.lookAt(ctr.x,ctr.y*0.6,ctr.z);
+    demoR.render(s,cam);var url=demoR.domElement.toDataURL('image/jpeg',0.86);
+    g.traverse(function(o){if(o.geometry)o.geometry.dispose();if(o.material)o.material.dispose();});ground.geometry.dispose();ground.material.dispose();
+    demoThumbs[i]=url;return url;}catch(e){console.warn('demo podgląd',e);return null;}}
+document.getElementById('demo-btn').onclick=function(){
+  var ov=document.createElement('div');ov.id='demo-ov';
+  ov.style.cssText="position:fixed;inset:0;z-index:999;overflow:auto;color:#f4efe6;font-family:'Nunito','Segoe UI',system-ui,sans-serif;"+
+    "background:radial-gradient(ellipse 120% 60% at 20% 110%,rgba(240,163,94,.28),transparent 60%),linear-gradient(#0a0e2a 0%,#141a44 55%,#2a2150 100%);padding:28px clamp(18px,5vw,64px) 48px";
+  var disp="'Fredoka','Trebuchet MS','Segoe UI',system-ui,sans-serif";
+  var h='<div style="max-width:1120px;margin:0 auto">'+
+    '<div style="display:flex;align-items:center;gap:20px;flex-wrap:wrap;margin-bottom:10px"><button data-x style="font:inherit;font-size:15px;color:#f4efe6;background:none;border:1px solid rgba(255,243,212,.16);border-radius:999px;padding:9px 18px;cursor:pointer">← Wróć</button>'+
+    '<h1 style="margin:0;font-family:'+disp+';font-weight:500;font-size:clamp(32px,4.4vw,46px);color:#fff3d4">Wybierz demo</h1></div>'+
+    '<p style="margin:0 0 30px;color:#b8b2cf;font-size:16px">Kliknij budynek, aby wczytać go jako projekt — obejrzysz go, przejdziesz się po nim albo przerobisz po swojemu. Wczytanie zastąpi obecny projekt.</p>'+
+    '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:24px">';
+  TB_DEMOS.forEach(function(d,i){var fl=d.src.floors.length,lf=(d.src.lifts||[]).length,st=(d.src.stairs||[]).length;
+    var info=(d.src.mode==='labirynt'?'🧩 Labirynt':'🏠 Budynki')+' • '+fl+' '+(fl===1?'kondygnacja':(fl<5?'kondygnacje':'kondygnacji'))+(lf?' • winda':'')+(st?' • schody':'');
+    h+='<button data-i="'+i+'" class="demo-tile" style="display:block;width:100%;padding:0;text-align:left;cursor:pointer;font:inherit;color:inherit;background:rgba(22,27,69,.9);border:1px solid rgba(255,243,212,.16);border-radius:18px;overflow:hidden;transition:border-color .2s">'+
+      '<div class="demo-shot" style="position:relative;aspect-ratio:16/10;background:#232a5c"><div style="position:absolute;inset:0;display:grid;place-items:center;color:#b8b2cf;font-size:14px">Rysuję podgląd…</div></div>'+
+      '<div style="padding:16px 18px 20px"><h3 style="margin:0 0 6px;font-family:'+disp+';font-weight:500;font-size:21px">'+d.name+'</h3>'+
+      '<p style="margin:0 0 12px;font-size:14.5px;line-height:1.5;color:#b8b2cf">'+d.desc+'</p><small style="font-size:13px;color:#f0a35e">'+info+'</small></div></button>';});
+  ov.innerHTML=h+'</div></div>';document.body.appendChild(ov);
+  ov.querySelectorAll('.demo-tile').forEach(function(t,i){t.onmouseenter=function(){t.style.borderColor='rgba(255,243,212,.5)';};t.onmouseleave=function(){t.style.borderColor='rgba(255,243,212,.16)';};
+    setTimeout(function(){var url=demoThumb(i),sh=t.querySelector('.demo-shot');if(url){sh.innerHTML='<img alt="" src="'+url+'" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block">';}else sh.firstChild.textContent='Podgląd niedostępny';},40+i*80);});
+  var esc=function(e){if(e.key==='Escape'){ov.remove();document.removeEventListener('keydown',esc);}};document.addEventListener('keydown',esc);
+  ov.onclick=function(e){if(e.target.closest('[data-x]')){ov.remove();document.removeEventListener('keydown',esc);return;}var b=e.target.closest('[data-i]');if(!b)return;var d=TB_DEMOS[+b.dataset.i];
+    if(!confirm('Wczytać demo „'+d.name+'”? Obecny projekt zostanie zastąpiony.'))return;prjOpen(JSON.parse(JSON.stringify(d.src)));};};
 document.getElementById('link-btn').onclick=function(){ // adres gry: w arenie adres areny (z kodem pokoju), osobno — adres tej strony
   var u='';try{if(window.parent!==window&&window.parent.tbArenaLink)u=window.parent.tbArenaLink();}catch(e){}
   if(!u)u=location.href.split('#')[0].replace(/[?&]arena=1/,'').replace(/\?$/,'');
@@ -885,7 +967,7 @@ document.getElementById('prj-file').onchange=function(){var f=this.files&&this.f
   var inArena=window.parent!==window&&/[?&]arena=1/.test(location.search);if(!inArena)return;
   var b=document.getElementById('arena-back');b.style.display='block';
   document.querySelectorAll('.hint').forEach(function(h){if(/Tabby Editor otwórz/.test(h.textContent))h.textContent='Kliknij „Wróć do pokoju” — budynek stanie na placu i poleci do wszystkich graczy w pokoju.';});
-  b.onclick=function(){try{window.parent.postMessage({tabbyArena:'building',data:exportJSON()},'*');}catch(e){alert('Nie udało się wysłać budynku: '+e.message);}};
+  b.onclick=function(){try{var o=exportJSON();o.src=JSON.parse(JSON.stringify(B));window.parent.postMessage({tabbyArena:'building',data:o},'*');}catch(e){alert('Nie udało się wysłać budynku: '+e.message);}};
   try{window.parent.postMessage({tabbyArena:'ready'},'*');}catch(e){}
 })();
 document.getElementById('copy-btn').onclick=function(){
