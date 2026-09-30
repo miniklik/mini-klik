@@ -83,6 +83,13 @@ input[type=text]{width:100%;background:rgba(255,255,255,.06);border:1px solid rg
 
     <!-- KROK 1 -->
     <div class="pane" data-pane="1">
+      <div class="sec"><h2>Projekt</h2>
+        <div class="row">
+          <button class="btn" id="prj-save" title="Zapisz projekt na dysku — potem wczytasz go i dalej edytujesz">💾 Zapisz projekt</button>
+          <button class="btn" id="prj-load" title="Wczytaj zapisany projekt (plik .json z Tabby budynki)">📂 Wczytaj projekt</button>
+        </div>
+        <input type="file" id="prj-file" accept=".json,application/json" style="display:none">
+      </div>
       <div class="sec"><h2>Narzędzie</h2>
         <div class="row">
           <button class="btn tool active" data-tool="draw">Rysuj</button>
@@ -219,8 +226,10 @@ function liftAt(r,c){for(var i=0;i<B.lifts.length;i++){var l=B.lifts[i];if(l.r==
 function applyLifts(){B.lifts=B.lifts.filter(function(l){return inGrid(l.r,l.c);});B.lifts.forEach(function(l){B.floors.forEach(function(g){g[l.r][l.c]=1;});});}
 function liftBlocked(r,c){for(var f=0;f<B.floors.length;f++){if(stairAt(f,r,c)||hole(f,r,c)||landAt(f,r,c))return true;}return false;}
 function liftDir(l,f){return l.dd&&l.dd[f]!==undefined?l.dd[f]:l.d;} // 🚪 strona drzwi windy na danym piętrze
-function terDoor(l,f){ // 🏙 wyjście z windy na niższy dach (taras): przed drzwiami nie ma pomieszczenia, ale piętro niżej jest — pod nogami dach
-  if(!B.roof||f<1)return false;var q=DIRS[liftDir(l,f)],nr=l.r+q[1],nc=l.c+q[0];return !open(f,nr,nc)&&open(f-1,nr,nc)&&!liftAt(nr,nc);}
+function terDoor(l,f){ // 🚪 wyjście z windy na zewnątrz: na parterze na ziemię (np. dziedziniec), wyżej na niższy dach (taras)
+  var q=DIRS[liftDir(l,f)],nr=l.r+q[1],nc=l.c+q[0];if(open(f,nr,nc)||liftAt(nr,nc))return false;
+  if(f===0)return true; // parter: przed drzwiami ziemia (dziedziniec albo zewnątrz budynku) — zawsze da się wyjść
+  return B.roof&&open(f-1,nr,nc);}
 function roofWalk(f){ // czy po dachu nad piętrem f da się chodzić (taras)
   if(!B.roof)return false;if(f===B.floors.length-1)return !!B.terrace;for(var i=0;i<B.lifts.length;i++)if(terDoor(B.lifts[i],f+1))return true;return false;}
 function terEdge(f,h,r,c){ // czy ta krawędź to drzwi windy na taras (tam nie stawiamy zwykłej ściany)
@@ -851,7 +860,21 @@ if(!B.colors.cab)B.colors.cab='#b08d57';if(!B.colors.door)B.colors.door='#5f7f99
 var nameEl=document.getElementById('name');nameEl.value=B.name||'Budynek';nameEl.oninput=function(){B.name=nameEl.value;save();};
 
 // eksport
-function jsonText(){return JSON.stringify(exportJSON(),null,2);}
+function jsonText(){var o=exportJSON();o.src=JSON.parse(JSON.stringify(B));return JSON.stringify(o,null,2);} // .json z projektem w środku — da się go potem wczytać i edytować
+// === 💾 PROJEKT: zapis na dysk i wczytanie (ten sam plik działa też w Tabby Editor) ===
+function prjName(){var n=(document.getElementById('name').value||B.name||'budynek');return n.toLowerCase().replace(/[^a-z0-9ąćęłńóśźż]+/gi,'-').replace(/^-|-$/g,'')||'budynek';}
+document.getElementById('prj-save').onclick=function(){
+  var a=document.createElement('a');a.href=URL.createObjectURL(new Blob([jsonText()],{type:'application/json'}));
+  a.download=prjName()+'.json';a.click();setTimeout(function(){URL.revokeObjectURL(a.href);},500);toast('💾 Projekt zapisany — wczytasz go przyciskiem „Wczytaj projekt”');};
+document.getElementById('prj-load').onclick=function(){document.getElementById('prj-file').click();};
+document.getElementById('prj-file').onchange=function(){var f=this.files&&this.files[0];this.value='';if(!f)return;
+  var rd=new FileReader();rd.onload=function(){var d;try{d=JSON.parse(rd.result);}catch(e){alert('To nie jest plik projektu (zły JSON).');return;}
+    var src=d&&d.src?d.src:(d&&d.floors&&d.w?d:null);
+    if(!src||!src.floors||!src.w){alert('Ten plik to gotowy budynek bez projektu (zapisany starszą wersją Tabby budynki), więc nie da się go edytować.\n\nOd teraz „Zapisz projekt” i „Pobierz .json” zapisują też projekt — takie pliki wczytasz bez problemu.');return;}
+    if(!confirm('Wczytać projekt „'+(src.name||d.name||'Budynek')+'”? Obecny projekt zostanie zastąpiony.'))return;
+    try{localStorage.setItem('tabby-budynki',JSON.stringify(src));}catch(e){alert('Nie udało się wczytać: '+e.message);return;}
+    location.reload();};
+  rd.readAsText(f);};
 // === 🌐 ARENA: Tabby budynki otwarte z pokoju gry — gotowy budynek wraca do pokoju ===
 (function(){
   var inArena=window.parent!==window&&/[?&]arena=1/.test(location.search);if(!inArena)return;
