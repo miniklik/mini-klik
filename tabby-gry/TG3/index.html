@@ -3722,7 +3722,7 @@ function mpGo(){ // wspólny start: wszyscy na pole gry
   mpLobbyDestroy();MP.phase='game';MP.ready=false;MP.cd=-1;
   var hid=MP.host?MP.me.id:null;for(var q in MP.rem)if(MP.rem[q].host)hid=q;
   var ids=Object.keys(MP.rem).concat([MP.me.id]).filter(function(x){return x!==hid;}).sort();if(hid)ids.unshift(hid); // gospodarz = punkt 1
-  var k=ids.indexOf(MP.me.id),H=MP.home||{x:0,z:0,yaw:Math.PI,ang:0};
+  var k=(typeof ARENA!=='undefined'&&ARENA.padAtGo>=0)?ARENA.padAtGo:ids.indexOf(MP.me.id),H=MP.home||{x:0,z:0,yaw:Math.PI,ang:0}; // arena: miejsce startu = pole, na którym stoisz
   if(typeof TB_SPAWNS!=='undefined'&&TB_SPAWNS.length){var S=TB_SPAWNS[k%TB_SPAWNS.length],ex=Math.floor(k/TB_SPAWNS.length)*1.4; // każdy na swój punkt startowy
     charX=S.x+Math.cos(S.yaw)*ex;charZ=S.z-Math.sin(S.yaw)*ex;charY=S.y||0;camYaw=S.yaw;charAng=S.yaw;if(typeof tgtAng!=='undefined')tgtAng=S.yaw;}
   else{var off=(k-(ids.length-1)/2)*1.6;charX=H.x+Math.cos(H.yaw)*off;charZ=H.z-Math.sin(H.yaw)*off;charY=0;camYaw=H.yaw;charAng=H.ang;}
@@ -3984,7 +3984,10 @@ function arBuild(data,v){ // postaw budynek na placu (u każdego gracza tak samo
     wCols.push(c);});
   // miejsca startu: przed wejściem (przed budynkiem, twarzą do niego)
   var B2=new THREE.Box3().setFromObject(g),fz=B2.max.z+5;
-  if(typeof TB_SPAWNS!=='undefined')TB_SPAWNS.forEach(function(sp,i){sp.x=ARENA.cx+(i-(TB_SPAWNS.length-1)/2)*2;sp.z=fz;sp.y=0;sp.yaw=0;});
+  ARENA.off={x:ox,z:oz};
+  if(typeof TB_SPAWNS!=='undefined')TB_SPAWNS.forEach(function(sp,i){var P=data.players&&data.players.length?data.players[i%data.players.length]:null;
+    if(P){sp.x=P.x+ox+(i>=data.players.length?1.2:0);sp.z=P.z+oz;sp.y=P.y||0;sp.yaw=P.yaw||0;} // 🧍 gracze postawieni w Tabby budynki
+    else{sp.x=ARENA.cx+(i-(TB_SPAWNS.length-1)/2)*2;sp.z=fz;sp.y=0;sp.yaw=0;}});
   if(typeof arClearBots==='function'&&ARENA.bots&&MP.phase==='solo'){arClearBots();ARENA.bots=null;ARENA.botKey='';} // nowy budynek = nowe boty
   if(MP.phase==='solo'&&typeof TB_SPAWNS!=='undefined'&&TB_SPAWNS[0]){var S0=TB_SPAWNS[0];charX=S0.x;charZ=S0.z;charY=0;velY=0;camYaw=S0.yaw;charAng=S0.yaw;if(charGroup){charGroup.position.set(charX,charY,charZ);charGroup.rotation.y=charAng;}ENM.ply.sp={x:charX,y:0,z:charZ};} // gra w pojedynkę: od razu przed budynkiem
   arUI();
@@ -4027,6 +4030,7 @@ setInterval(function(){try{arUI();}catch(e){}},500);
 // ===== 🤖 BOTY W BUDYNKU (na początek: kule bojowe). Miejsca losuje gospodarz i wysyła wszystkim — kolejność botów u wszystkich ta sama =====
 ARENA.nb=8;ARENA.bots=null;ARENA.botKey='';ARENA.won=false;
 function arPickSpots(n){
+  var J=ARENA.json;if(J&&J.enemies&&J.enemies.length&&ARENA.off)return J.enemies.map(function(e){return [+(e.x+ARENA.off.x).toFixed(2),+(e.y||0).toFixed(2),+(e.z+ARENA.off.z).toFixed(2)];}); // 🤖 wrogowie postawieni w Tabby budynki
   var fl=wCols.filter(function(w){return w._ar&&!w.ramp&&(w.h||0)<=0.6&&w.hw>=1.2&&w.hd>=1.2;}),out=[],sp=(typeof TB_SPAWNS!=='undefined'&&TB_SPAWNS[0])||{x:ARENA.cx,z:ARENA.cz+20};
   var maxTop=-1e9;fl.forEach(function(w){maxTop=Math.max(maxTop,(w.y||0)+w.h);});
   if(fl.length>1){var lv={};fl.forEach(function(w){lv[((w.y||0)+w.h).toFixed(1)]=1;});if(Object.keys(lv).length>1)fl=fl.filter(function(w){return (w.y||0)+w.h<maxTop-0.3;});} // bez dachu
@@ -4091,7 +4095,7 @@ function arSetChanged(wpnChanged){
   var _ui=arUI;arUI=function(){_ui();var u=ARENA.ui;if(!u||u.style.display==='none')return;
     var mine=arCanBuild(),bs='padding:3px 9px;border-radius:7px;border:0;background:rgba(255,255,255,.14);color:#fff;font-weight:bold;cursor:pointer';
     var h='<div style="margin-top:9px;padding-top:8px;border-top:1px solid rgba(255,255,255,.14)"><b>🎯 Polowanie</b>'+
-      '<div style="display:flex;align-items:center;gap:6px;margin-top:5px">🤖 Boty:'+(mine?' <button data-a="n-" style="'+bs+'">−</button>':'')+' <b style="min-width:20px;text-align:center">'+ARENA.nb+'</b>'+(mine?'<button data-a="n+" style="'+bs+'">+</button>':'')+'</div>'+
+      (ARENA.json&&ARENA.json.enemies&&ARENA.json.enemies.length?'<div style="margin-top:5px">🤖 Boty: <b>'+ARENA.json.enemies.length+'</b> <span style="font-size:11px;color:#9aa4b2">(postawione w budynku)</span></div>':'<div style="display:flex;align-items:center;gap:6px;margin-top:5px">🤖 Boty:'+(mine?' <button data-a="n-" style="'+bs+'">−</button>':'')+' <b style="min-width:20px;text-align:center">'+ARENA.nb+'</b>'+(mine?'<button data-a="n+" style="'+bs+'">+</button>':'')+'</div>')+
       '<div style="margin-top:5px">Trudność: '+(mine?'<button data-a="d" style="'+bs+'">'+AR_DN[ARENA.diff]+'</button>':'<b>'+AR_DN[ARENA.diff]+'</b>')+'</div>'+
       '<div style="margin-top:5px">🔫 Broń: '+(mine?'<button data-a="w" style="'+bs+'">'+ARENA.wpn+'</button>':'<b>'+ARENA.wpn+'</b>')+'</div>'+
       (mine?'<div style="font-size:11px;color:#9aa4b2;margin-top:5px">Esc — odblokuj myszkę, żeby kliknąć</div>':'')+'</div>';
@@ -4121,6 +4125,51 @@ function arCopyLink(){var u=window.tbArenaLink();var ok=function(){if(typeof drn
       b.onclick=function(e){e.stopPropagation();arCopyLink();};u.appendChild(b);}
     else if(!show&&b)b.remove();};
 })();
+// ===== 🗺 PLAN PARTERU W POCZEKALNI: tablica z rzutem parteru i numerami graczy; pole, na którym stoisz = Twoje miejsce startu =====
+ARENA.padAtGo=-1;
+function arPlanDraw(){
+  var L=MP.L;if(!L)return;
+  if(!L.plan){var cv=document.createElement('canvas');cv.width=1024;cv.height=1024;var tx=new THREE.CanvasTexture(cv);
+    var m=new THREE.Mesh(new THREE.PlaneGeometry(7.6,7.6),new THREE.MeshBasicMaterial({map:tx}));m.position.set(0,4.6,-8.95);L.G.add(m);
+    var fr=new THREE.Mesh(new THREE.BoxGeometry(7.9,7.9,0.06),new THREE.MeshStandardMaterial({color:0x23272e}));fr.position.set(0,4.6,-8.99);L.G.add(fr);
+    L.plan={cv:cv,tx:tx};
+    L.pads.forEach(function(p,i){ // numer nad każdym polem
+      var c2=document.createElement('canvas');c2.width=128;c2.height=128;var x=c2.getContext('2d');x.fillStyle=i===0?'#3fb950':'#58a6ff';x.beginPath();x.arc(64,64,58,0,Math.PI*2);x.fill();
+      x.fillStyle='#fff';x.font='bold 80px sans-serif';x.textAlign='center';x.textBaseline='middle';x.fillText(String(i+1),64,70);
+      var sp=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(c2),depthTest:true}));sp.scale.set(0.9,0.9,1);sp.position.set(p.x,2.9,p.z);scene.add(sp);p.num=sp;});}
+  var cv=L.plan.cv,x=cv.getContext('2d'),S=ARENA.json&&ARENA.json.src,P=ARENA.json&&ARENA.json.players;
+  x.fillStyle='#10151d';x.fillRect(0,0,1024,1024);x.fillStyle='#f0a35e';x.fillRect(0,0,1024,12);
+  x.textAlign='center';x.textBaseline='alphabetic';x.fillStyle='#fff3d4';x.font='bold 46px sans-serif';x.fillText('🗺 PARTER — miejsca startu',512,72);
+  x.fillStyle='#b8b2cf';x.font='28px sans-serif';x.fillText('Stań na polu z numerem swojego miejsca i naciśnij E',512,114);
+  if(!S||!S.floors){x.fillStyle='#ffd24a';x.font='36px sans-serif';x.fillText(ARENA.hostBusy?'⏳ Gospodarz buduje budynek…':'Brak budynku — gospodarz go zbuduje',512,540);L.plan.tx.needsUpdate=true;return;}
+  var g=S.floors[0],H=g.length,W=g[0].length,cs=Math.floor(Math.min(900/W,820/H)),x0=Math.round((1024-cs*W)/2),y0=150+Math.round((850-cs*H)/2);
+  var op=function(r,c){return r>=0&&c>=0&&r<H&&c<W&&!!g[r][c];};
+  x.fillStyle='#2a3a25';x.fillRect(x0,y0,cs*W,cs*H); // teren
+  for(var r=0;r<H;r++)for(var c=0;c<W;c++)if(op(r,c)){x.fillStyle=S.colors&&S.colors.floor||'#8a6a48';x.fillRect(x0+c*cs,y0+r*cs,cs,cs);}
+  (S.stairs||[]).forEach(function(st){if(st.f!==0)return;var d=[[0,-1],[1,0],[0,1],[-1,0]][st.d];for(var i=0;i<3;i++){var rr=st.r+d[1]*i,cc=st.c+d[0]*i;x.fillStyle='#9c7a55';x.fillRect(x0+cc*cs+3,y0+rr*cs+3,cs-6,cs-6);
+    x.strokeStyle='rgba(0,0,0,.35)';x.lineWidth=2;for(var k=1;k<4;k++){x.beginPath();if(d[0]){x.moveTo(x0+cc*cs+k*cs/4,y0+rr*cs+3);x.lineTo(x0+cc*cs+k*cs/4,y0+rr*cs+cs-3);}else{x.moveTo(x0+cc*cs+3,y0+rr*cs+k*cs/4);x.lineTo(x0+cc*cs+cs-3,y0+rr*cs+k*cs/4);}x.stroke();}}});
+  (S.lifts||[]).forEach(function(l){x.fillStyle='#2f6fb8';x.fillRect(x0+l.c*cs+3,y0+l.r*cs+3,cs-6,cs-6);x.fillStyle='#fff';x.font='bold '+Math.round(cs*0.42)+'px sans-serif';x.textAlign='center';x.textBaseline='middle';x.fillText('🛗',x0+l.c*cs+cs/2,y0+l.r*cs+cs/2);});
+  x.strokeStyle=S.colors&&S.colors.wall||'#e8dcc6';x.lineWidth=Math.max(4,cs*0.09);x.lineCap='square'; // ściany: granica pomieszczeń
+  for(var r2=0;r2<=H;r2++)for(var c2=0;c2<W;c2++)if(op(r2-1,c2)!==op(r2,c2)){x.beginPath();x.moveTo(x0+c2*cs,y0+r2*cs);x.lineTo(x0+(c2+1)*cs,y0+r2*cs);x.stroke();}
+  for(var c3=0;c3<=W;c3++)for(var r3=0;r3<H;r3++)if(op(r3,c3-1)!==op(r3,c3)){x.beginPath();x.moveTo(x0+c3*cs,y0+r3*cs);x.lineTo(x0+c3*cs,y0+(r3+1)*cs);x.stroke();}
+  var pl=S.players||[];
+  if(!pl.length){x.fillStyle='#ffd24a';x.font='30px sans-serif';x.textAlign='center';x.textBaseline='alphabetic';x.fillText('Budynek bez ustawionych graczy — wszyscy startują przed wejściem',512,1000);}
+  pl.forEach(function(p,i){var cx=x0+p.c*cs+cs/2,cy=y0+p.r*cs+cs/2,rr=Math.max(18,cs*0.36),d=[[0,-1],[1,0],[0,1],[-1,0]][p.d||0],nx=-d[1],ny=d[0];
+    x.fillStyle='#ffcc33';x.beginPath();x.moveTo(cx+d[0]*rr*1.55,cy+d[1]*rr*1.55);x.lineTo(cx+d[0]*rr*0.95+nx*rr*0.5,cy+d[1]*rr*0.95+ny*rr*0.5);x.lineTo(cx+d[0]*rr*0.95-nx*rr*0.5,cy+d[1]*rr*0.95-ny*rr*0.5);x.closePath();x.fill();
+    x.fillStyle=i===0?'#3fb950':'#58a6ff';x.beginPath();x.arc(cx,cy,rr,0,Math.PI*2);x.fill();x.strokeStyle='#fff';x.lineWidth=3;x.stroke();
+    x.fillStyle='#fff';x.font='bold '+Math.round(rr*1.1)+'px sans-serif';x.textAlign='center';x.textBaseline='middle';x.fillText(String(i+1),cx,cy+2);});
+  L.plan.tx.needsUpdate=true;
+  // pola bez odpowiadającego gracza — przygaszone numery
+  L.pads.forEach(function(p,i){if(p.num)p.num.material.opacity=pl.length&&i>=pl.length?0.35:1;p.num.material.transparent=true;});
+}
+(function(){
+  var _b=arBuild;arBuild=function(){var r=_b.apply(this,arguments);try{arPlanDraw();}catch(e){}return r;};
+  var _e=mpEnterLobby;mpEnterLobby=function(){var r=_e.apply(this,arguments);try{arPlanDraw();}catch(e){}return r;};
+  var _d=mpLobbyDestroy;mpLobbyDestroy=function(){var L=MP.L;if(L)L.pads.forEach(function(p){if(p.num){scene.remove(p.num);p.num.material.map.dispose();p.num.material.dispose();}});return _d.apply(this,arguments);};
+  var _g=mpGo;mpGo=function(){ARENA.padAtGo=(MP.phase==='lobby'&&MP.ready)?mpMyPad():-1;var r=_g.apply(this,arguments);ARENA.padAtGo=-1;return r;}; // miejsce startu = numer pola
+  var _st=arClose;arClose=function(){var r=_st.apply(this,arguments);try{arPlanDraw();}catch(e){}return r;};
+})();
+setInterval(function(){try{if(MP.L&&MP.L.plan&&ARENA._hb!==ARENA.hostBusy){ARENA._hb=ARENA.hostBusy;arPlanDraw();}}catch(e){}},700);
 
 //@@MP_CORE_END
 
