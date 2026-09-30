@@ -133,7 +133,7 @@ input[type=text]{width:100%;background:rgba(255,255,255,.06);border:1px solid rg
         <p class="stat" id="stat"></p>
       </div>
       <div class="sec">
-        <button class="btn go big" id="prj-save" title="Zapisz projekt na dysku — potem wczytasz go i dalej edytujesz">💾 Zapisz projekt</button>
+        <button class="btn go big" id="prj-save" title="Zapisz projekt na dysku — wybierzesz folder i nazwę, potem wczytasz go i dalej edytujesz">💾 Zapisz projekt</button>
         <button class="btn big" id="prj-load" title="Wczytaj zapisany projekt (plik .json z Tabby budynki)">📂 Wczytaj projekt</button>
         <button class="btn big" id="link-btn" title="Skopiuj adres i wyślij komuś — otworzy go i gotowe">🔗 Skopiuj adres gry</button>
         <input type="file" id="prj-file" accept=".json,application/json" style="display:none">
@@ -859,9 +859,13 @@ var nameEl=document.getElementById('name');nameEl.value=B.name||'Budynek';nameEl
 function jsonText(){var o=exportJSON();o.src=JSON.parse(JSON.stringify(B));return JSON.stringify(o,null,2);} // .json z projektem w środku — da się go potem wczytać i edytować
 // === 💾 PROJEKT: zapis na dysk i wczytanie (ten sam plik działa też w Tabby Editor) ===
 function prjName(){var n=(document.getElementById('name').value||B.name||'budynek');return n.toLowerCase().replace(/[^a-z0-9ąćęłńóśźż]+/gi,'-').replace(/^-|-$/g,'')||'budynek';}
-document.getElementById('prj-save').onclick=function(){
-  var a=document.createElement('a');a.href=URL.createObjectURL(new Blob([jsonText()],{type:'application/json'}));
-  a.download=prjName()+'.json';a.click();setTimeout(function(){URL.revokeObjectURL(a.href);},500);toast('💾 Projekt zapisany — wczytasz go przyciskiem „Wczytaj projekt”');};
+function prjDownload(){var a=document.createElement('a');a.href=URL.createObjectURL(new Blob([jsonText()],{type:'application/json'}));
+  a.download=prjName()+'.json';a.click();setTimeout(function(){URL.revokeObjectURL(a.href);},500);toast('💾 Projekt zapisany w „Pobranych” — wczytasz go przyciskiem „Wczytaj projekt”');}
+document.getElementById('prj-save').onclick=function(){ // pyta, do jakiego folderu i pod jaką nazwą zapisać (Chrome, Edge); inne przeglądarki: do „Pobranych”
+  if(!window.showSaveFilePicker){prjDownload();return;}
+  window.showSaveFilePicker({id:'tabby-budynki',suggestedName:prjName()+'.json',types:[{description:'Projekt Tabby budynki',accept:{'application/json':['.json']}}]})
+    .then(function(h){return h.createWritable().then(function(w){return w.write(jsonText()).then(function(){return w.close();});}).then(function(){toast('💾 Zapisano: '+h.name+' — wczytasz go przyciskiem „Wczytaj projekt”');});})
+    .catch(function(e){if(e&&e.name==='AbortError')return;prjDownload();});}; // anulowane okno = nic; inny błąd = zapis do „Pobranych”
 document.getElementById('prj-load').onclick=function(){document.getElementById('prj-file').click();};
 document.getElementById('link-btn').onclick=function(){ // adres gry: w arenie adres areny (z kodem pokoju), osobno — adres tej strony
   var u='';try{if(window.parent!==window&&window.parent.tbArenaLink)u=window.parent.tbArenaLink();}catch(e){}
