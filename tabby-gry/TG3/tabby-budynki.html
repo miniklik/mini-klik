@@ -112,7 +112,7 @@ input[type=text]{width:100%;background:rgba(255,255,255,.06);border:1px solid rg
     <div class="pane" data-pane="2" hidden>
       <div class="sec"><h2>Wygląd</h2>
         <label class="tog" style="margin-bottom:6px"><input type="checkbox" id="roof"> Dach</label>
-        <label class="tog" style="margin-bottom:12px" title="Dach najwyższego piętra staje się tarasem z barierką, a winda wyjeżdża na dach i ma tam drzwi"><input type="checkbox" id="terrace"> Tarasy na dachach (winda wysiada też na niższy dach)</label>
+        <label class="tog" style="margin-bottom:12px" title="Dach najwyższego piętra staje się tarasem z barierką, a winda wyjeżdża na dach. Wyjście na niższy dach robi się samo: obróć drzwi windy w stronę dachu."><input type="checkbox" id="terrace"> Taras na najwyższym dachu (winda wyjeżdża na dach)</label>
         <div class="sw">Ściany <input type="color" id="c-wall" value="#d9cfbd"></div>
         <div class="sw">Podłogi <input type="color" id="c-floor" value="#8a6a48"></div>
         <div class="sw">Schody <input type="color" id="c-stairs" value="#9c7a55"></div>
@@ -220,7 +220,9 @@ function applyLifts(){B.lifts=B.lifts.filter(function(l){return inGrid(l.r,l.c);
 function liftBlocked(r,c){for(var f=0;f<B.floors.length;f++){if(stairAt(f,r,c)||hole(f,r,c)||landAt(f,r,c))return true;}return false;}
 function liftDir(l,f){return l.dd&&l.dd[f]!==undefined?l.dd[f]:l.d;} // 🚪 strona drzwi windy na danym piętrze
 function terDoor(l,f){ // 🏙 wyjście z windy na niższy dach (taras): przed drzwiami nie ma pomieszczenia, ale piętro niżej jest — pod nogami dach
-  if(!(B.roof&&B.terrace)||f<1)return false;var q=DIRS[liftDir(l,f)],nr=l.r+q[1],nc=l.c+q[0];return !open(f,nr,nc)&&open(f-1,nr,nc)&&!liftAt(nr,nc);}
+  if(!B.roof||f<1)return false;var q=DIRS[liftDir(l,f)],nr=l.r+q[1],nc=l.c+q[0];return !open(f,nr,nc)&&open(f-1,nr,nc)&&!liftAt(nr,nc);}
+function roofWalk(f){ // czy po dachu nad piętrem f da się chodzić (taras)
+  if(!B.roof)return false;if(f===B.floors.length-1)return !!B.terrace;for(var i=0;i<B.lifts.length;i++)if(terDoor(B.lifts[i],f+1))return true;return false;}
 function terEdge(f,h,r,c){ // czy ta krawędź to drzwi windy na taras (tam nie stawiamy zwykłej ściany)
   for(var i=0;i<B.lifts.length;i++){var l=B.lifts[i];if(!terDoor(l,f))continue;var q=DIRS[liftDir(l,f)];
     if(h&&q[1]!==0&&l.c===c&&Math.max(l.r,l.r+q[1])===r)return true;if(!h&&q[0]!==0&&l.r===r&&Math.max(l.c,l.c+q[0])===c)return true;}return false;}
@@ -426,7 +428,7 @@ function buildParts(){
     // dach nad komórkami, nad którymi nic już nie ma (zachodzi na ściany, żeby nie było szpar)
     if(B.roof)rects(function(r,c){return open(f,r,c)&&!open(f+1,r,c)&&!(B.terrace&&f===B.floors.length-1&&liftAt(r,c));}).forEach(function(q){ // taras: nad szybem windy otwór (winda wyjeżdża na dach)
       var w=(q[3]-q[1])*CELL+WT,d=(q[2]-q[0])*CELL+WT;
-      box(w,ROOF,d,X(q[1])+(q[3]-q[1])*CELL/2,base+WH+ROOF/2,Z(q[0])+(q[2]-q[0])*CELL/2,C.roof,f,'roof',!BLD,BLD?NS:null);
+      box(w,ROOF,d,X(q[1])+(q[3]-q[1])*CELL/2,base+WH+ROOF/2,Z(q[0])+(q[2]-q[0])*CELL/2,C.roof,f,'roof',!BLD&&!roofWalk(f),BLD?NS:null); // taras: dach z kolizją także w Labiryncie
       if(BLD)box((q[3]-q[1])*CELL,0.02,(q[2]-q[0])*CELL,X(q[1])+(q[3]-q[1])*CELL/2,base+WH-0.012,Z(q[0])+(q[2]-q[0])*CELL/2,C.ceil||'#f3efe6',f,'ceil',true,NS);}); // w Budynkach dach to zwykły sufit (z kolizją), od spodu jasny
   }
   // windy: ściany szybu (od strony pomieszczeń), na każdym piętrze otwór na drzwi (drzwi i kabinę dokłada gra)
@@ -448,16 +450,16 @@ function buildParts(){
     }
   });
   // 🏙 TARAS: dach najwyższego piętra z barierką; winda wyjeżdża na dach do nadbudówki z drzwiami
-  if(B.roof&&B.terrace){
+  if(B.roof){
     var tf=B.floors.length-1,rt=tf*FH+WH+ROOF;
     var isRoof=function(f,r,c){return open(f,r,c)&&!open(f+1,r,c)&&!liftAt(r,c);};
-    for(var tfl=0;tfl<=tf;tfl++){var rtl=tfl*FH+WH+ROOF; // barierki na każdym dachu (taras nad niższym piętrem też)
+    for(var tfl=0;tfl<=tf;tfl++){if(!roofWalk(tfl))continue;var rtl=tfl*FH+WH+ROOF; // barierki na każdym dachu, na który da się wyjść z windy
     for(var tr=0;tr<B.h;tr++)for(var tc=0;tc<B.w;tc++){if(!isRoof(tfl,tr,tc))continue;
       for(var tk=0;tk<4;tk++){var tq=DIRS[tk],nr2=tr+tq[1],nc2=tc+tq[0];if(isRoof(tfl,nr2,nc2)||open(tfl+1,nr2,nc2)||liftAt(nr2,nc2))continue; // barierka tylko na krawędzi dachu
         var ecx=X(tc)+CELL/2+tq[0]*(CELL/2-RAIL_T/2),ecz=Z(tr)+CELL/2+tq[1]*(CELL/2-RAIL_T/2);
         if(tq[1]!==0){box(CELL+RAIL_T,RAIL_H,RAIL_T,X(tc)+CELL/2,rtl+RAIL_H/2,ecz,C.wall,tfl,'wall');box(CELL+RAIL_T+0.06,0.08,RAIL_T+0.08,X(tc)+CELL/2,rtl+RAIL_H+0.04,ecz,C.roof,tfl,'wall',true);}
         else{box(RAIL_T,RAIL_H,CELL+RAIL_T,ecx,rtl+RAIL_H/2,Z(tr)+CELL/2,C.wall,tfl,'wall');box(RAIL_T+0.08,0.08,CELL+RAIL_T+0.06,ecx,rtl+RAIL_H+0.04,Z(tr)+CELL/2,C.roof,tfl,'wall',true);}}}}
-    B.lifts.forEach(function(l){ // nadbudówka nad szybem: 4 ściany, drzwi od strony tarasu, daszek
+    if(B.terrace)B.lifts.forEach(function(l){ // nadbudówka nad szybem: 4 ściany, drzwi od strony tarasu, daszek
       var ccx=X(l.c)+CELL/2,ccz=Z(l.r)+CELL/2,DW=1.9,DH=Math.min(2.7,WH-0.3),top=rt+WH,Lw=CELL+WT,dq=DIRS[liftDir(l,tf)],out=open(tf,l.r+dq[1],l.c+dq[0]);
       for(var k=0;k<4;k++){var q=DIRS[k],hz=q[1]!==0,wx=ccx+q[0]*CELL/2,wz=ccz+q[1]*CELL/2;
         var pc3=function(a0,a1,y0,y1,col,kind,noCol,ex,th){var la=a1-a0,ca=(a0+a1)/2,t=th||WT+0.02;if(la<=0.01||y1-y0<=0.01)return;
