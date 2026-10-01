@@ -151,7 +151,7 @@ canvas{display:block;position:absolute;top:0;left:0}
         <h3>🎮 Sterowanie</h3>
         <div class="mp-row"><span class="mp-icon">↔️</span><span><span class="mp-key">← →</span> / <span class="mp-key">A D</span> — ruch na boki 📱 ◀ ▶ pod lewym kciukiem</span></div>
         <div class="mp-row"><span class="mp-icon">🚀</span><span><span class="mp-key">↑</span> / <span class="mp-key">W</span> — turbo! 📱 ▲ pod prawym kciukiem</span></div>
-        <div class="mp-row"><span class="mp-icon">🔫</span><span><span class="mp-key">Spacja</span> — laser — niszczy mosty! 📱 🔫 pod ▲</span></div>
+        <div class="mp-row"><span class="mp-icon">🔫</span><span><span class="mp-key">Spacja</span> — laser — niszczy mosty! 📱 🔫 nad ◀ ▶</span></div>
       </div>
       <div class="mp-section">
         <h3>💎 Zbieraj</h3>
@@ -281,8 +281,9 @@ canvas{display:block;position:absolute;top:0;left:0}
   <span class="swipe-label">przesuń palcem</span>
 </div>
 <div id="mc">
-  <div class="tpad row"><div class="tb" data-k="L"><svg viewBox="0 0 24 24"><path d="M3 12 19 2v20z"/></svg></div><div class="tb" data-k="R"><svg viewBox="0 0 24 24"><path d="M21 12 5 2v20z"/></svg></div></div>
-  <div class="tpad"><div class="tb boost" data-k="B"><svg viewBox="0 0 24 24"><path d="M12 3 22 19H2z"/></svg></div><div class="tb fire" data-k="F">🔫</div></div>
+  <div class="tpad"><div class="tb fire" data-k="F">🔫</div>
+    <div class="tpad row"><div class="tb" data-k="L"><svg viewBox="0 0 24 24"><path d="M3 12 19 2v20z"/></svg></div><div class="tb" data-k="R"><svg viewBox="0 0 24 24"><path d="M21 12 5 2v20z"/></svg></div></div></div>
+  <div class="tpad"><div class="tb boost" data-k="B"><svg viewBox="0 0 24 24"><path d="M12 3 22 19H2z"/></svg></div></div>
 </div>
 <script>
 const C=document.getElementById('game'),G=C.getContext('2d');
@@ -710,16 +711,16 @@ function update(){
   // Gear system — auto shift while holding turbo
   if(braking){
     turboTimer=(turboTimer||0)+1;
-    if(turboTimer>180)gear=3;       // 3 sec → gear 3
-    else if(turboTimer>90)gear=2;   // 1.5 sec → gear 2
+    if(turboTimer>120)gear=3;       // 2 sec → gear 3
+    else if(turboTimer>55)gear=2;   // ~1 sec → gear 2
     else gear=1;
   } else {
     turboTimer=0;gear=0;
   }
-  const gearMul=[.35, 1, 1.35, 1.7][gear]; // 0=idle, 1=turbo, 2=fast, 3=max
+  const gearMul=[.35, 1.25, 1.7, 2.2][gear]; // 0=idle, 1=turbo, 2=fast, 3=max
   baseSpd=2.2*S.spdMul*(1+loopCount*.25);
   const tgt=Math.max(1,baseSpd*gearMul);
-  spd+=(tgt-spd)*.1;
+  spd+=(tgt-spd)*(tgt>spd?.16:.1);
   dist+=spd;stageDist+=spd;totalDist+=spd*.5;
 
   if(stageDist>=STAGE_LEN){
@@ -888,12 +889,12 @@ function update(){
     touchDeltaX=0;touchDeltaY=0;
   } else if(inputX!==0){
     // Keyboard: acceleration
-    const accel=.45;
+    const accel=.56;
     P.vx+=inputX*accel;
   }
 
   // Friction & clamp
-  const friction=.88,maxVel=5.2;
+  const friction=.88,maxVel=6.2;
   P.vx*=friction;
   if(Math.abs(P.vx)>maxVel)P.vx=Math.sign(P.vx)*maxVel;
   if(Math.abs(P.vx)<.05)P.vx=0;
