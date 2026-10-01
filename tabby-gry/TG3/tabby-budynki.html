@@ -694,7 +694,7 @@ function init3D(){
   renderer=new THREE.WebGLRenderer({antialias:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));
   renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;host.prepend(renderer.domElement);
   scene=new THREE.Scene();scene.background=new THREE.Color(0x6f9fd0);scene.fog=new THREE.Fog(0x6f9fd0,90,220);
-  cam=new THREE.PerspectiveCamera(55,1,0.1,400);
+  cam=new THREE.PerspectiveCamera(55,1,0.05,400); // bliska płaszczyzna 5 cm: kamera przy ścianie nie „widzi przez mur”
   scene.add(new THREE.HemisphereLight(0xcfe4ff,0x55663f,0.55));scene.add(new THREE.AmbientLight(0x8899aa,0.35));
   var sun=new THREE.DirectionalLight(0xfff1dc,0.85);sun.position.set(30,50,20);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);sun.shadow.bias=-0.0006;sun.shadow.normalBias=0.03;
   var sc=sun.shadow.camera;sc.left=-60;sc.right=60;sc.top=60;sc.bottom=-60;sc.far=160;scene.add(sun);
@@ -712,7 +712,8 @@ function resize(){if(!renderer)return;var h=document.getElementById('view');rend
 // Gdy za plecami jest ściana, kamera szuka najbliższego wolnego miejsca obok (obraca się wokół ludzika w bok),
 // a dopiero gdy nigdzie nie ma miejsca — lekko się podnosi. Nigdy nie podjeżdża bliżej niż ~1,9 m (nie widać „środka” ludzika).
 var CCL={ya:0,yt:0,pa:0,k:1,t:0,side:0,off:false};
-function camRay(px,py,pz,dx,dy,dz){var wCols=walk.cols; // jaka część odcinka pivot→kamera jest wolna (0..1)
+// ☀ KAMERA NA ZEWNĄTRZ — pierwsza wersja (z GitHuba), bez zmian
+function camRayOut(px,py,pz,dx,dy,dz){var wCols=walk.cols; // jaka część odcinka pivot→kamera jest wolna (0..1)
   var m=0.25,best=1,cx=px+dx,cy=py+dy,cz=pz+dz,sx0=Math.min(px,cx)-m,sx1=Math.max(px,cx)+m,sz0=Math.min(pz,cz)-m,sz1=Math.max(pz,cz)+m,sy0=Math.min(py,cy)-m,sy1=Math.max(py,cy)+m;
   for(var i=0;i<wCols.length;i++){var w=wCols[i];if(w.ramp)continue;
     var x0=w.x-w.hw-m,x1=w.x+w.hw+m,z0=w.z-w.hd-m,z1=w.z+w.hd+m,y0=(w.y||0)-m,y1=(w.y||0)+(w.h||3)+m;
@@ -724,15 +725,15 @@ function camRay(px,py,pz,dx,dy,dz){var wCols=walk.cols; // jaka część odcinka
     if(ok&&t0<best)best=t0;}
   return best;
 }
-function camClip(px,py,pz,aim){
+function camClipOut(px,py,pz,aim){
   var wCols=walk.cols;if(CCL.off||!wCols||!wCols.length)return;
   var now=performance.now(),gap=now-(CCL.t||0),dt=Math.min(0.1,(now-(CCL.t||now))/1000);CCL.t=now;
   var sw=gap>250; // pierwsza klatka po przełączeniu z widoku z oczu (wyjście z windy, ze stanowiska, Tab): kamera startuje tuż za głową i jednym płynnym ruchem odjeżdża do tyłu
   var dx=cam.position.x-px,dy=cam.position.y-py,dz=cam.position.z-pz,L=Math.sqrt(dx*dx+dy*dy+dz*dz);if(L<0.4)return;
-  if(aim){var fa=camRay(px,py,pz,dx,dy,dz);if(fa<1){var ka=Math.max(fa,0.3/L);cam.position.set(px+dx*ka,py+dy*ka,pz+dz*ka);}return;} // celowanie przez ramię
+  if(aim){var fa=camRayOut(px,py,pz,dx,dy,dz);if(fa<1){var ka=Math.max(fa,0.3/L);cam.position.set(px+dx*ka,py+dy*ka,pz+dz*ka);}return;} // celowanie przez ramię
   var h=Math.sqrt(dx*dx+dz*dz),a0=Math.atan2(dx,dz),MIN=Math.min(L,1.9);
   function pos(off,up){var a=a0+off,hh=h,yy=dy;if(up){var ang=Math.atan2(dy,h)+up;hh=Math.cos(ang)*L;yy=Math.sin(ang)*L;}return [Math.sin(a)*hh,yy,Math.cos(a)*hh];}
-  function room(off,up){var p=pos(off,up);return camRay(px,py,pz,p[0],p[1],p[2])*L;}
+  function room(off,up){var p=pos(off,up);return camRayOut(px,py,pz,p[0],p[1],p[2])*L;}
   // 1) prosto za plecami jest dość miejsca? zostajemy (co najwyżej lekko bliżej)
   var tgt=0,up=0,r0=room(0,0);
   if(r0<Math.max(MIN,L*0.6)){
@@ -748,9 +749,73 @@ function camClip(px,py,pz,aim){
   var sp=Math.abs(tgt)>Math.abs(CCL.ya)?9:5,ns=Math.ceil(dt/0.016),hd=dt/Math.max(1,ns);CCL.yv=CCL.yv||0;
   for(var si=0;si<ns;si++){CCL.yv+=((tgt-CCL.ya)*sp*sp-2*sp*CCL.yv)*hd;CCL.ya+=CCL.yv*hd;}
   CCL.pa+=(up-CCL.pa)*(1-Math.exp(-dt*3));
-  var p=pos(CCL.ya,CCL.pa),f=camRay(px,py,pz,p[0],p[1],p[2]),k=Math.max(f,MIN/L); // na wszelki wypadek nie wchodzimy w mur w trakcie ruchu
+  var p=pos(CCL.ya,CCL.pa),f=camRayOut(px,py,pz,p[0],p[1],p[2]),k=Math.max(f,MIN/L); // na wszelki wypadek nie wchodzimy w mur w trakcie ruchu
   if(sw)CCL.k=MIN/L;else CCL.k+=(k-CCL.k)*(1-Math.exp(-dt*(k<CCL.k?12:(now<(CCL.snapT||0)?3.5:2.5))));if(CCL.k>f&&f>=MIN/L)CCL.k=f;if(CCL.k>f&&f>=MIN/L)CCL.k=f; // do ściany szybko, od ściany powoli; nigdy w mur
   cam.position.set(px+p[0]*CCL.k,py+p[1]*CCL.k,pz+p[2]*CCL.k);
+}
+// 🏠 kamera w budynku (Opcja 2: „przez ramię”) — liczby do dostrajania
+var IN_DIST=2.8,IN_SHOULDER=0.55,IN_UP=0.15,IN_FOV=72,CAM_FOV=55,IN_RATE=3; // odległość, przesunięcie w prawo, podniesienie, kąt widzenia, szybkość przejścia
+var CAM_GAP=0.5; // 🎥 odstęp kamery od ściany (m) — kamera trzyma się tyle od muru
+function camRay(px,py,pz,dx,dy,dz){var wCols=walk.cols; // jaka część odcinka pivot→kamera jest wolna (0..1)
+  var m=CAM_GAP,best=1,cx=px+dx,cy=py+dy,cz=pz+dz,sx0=Math.min(px,cx)-m,sx1=Math.max(px,cx)+m,sz0=Math.min(pz,cz)-m,sz1=Math.max(pz,cz)+m,sy0=Math.min(py,cy)-m,sy1=Math.max(py,cy)+m;
+  camRay.hitW=null;
+  for(var i=0;i<wCols.length;i++){var w=wCols[i];if(w.ramp||w._see)continue;
+    var x0=w.x-w.hw-m,x1=w.x+w.hw+m,z0=w.z-w.hd-m,z1=w.z+w.hd+m,y0=(w.y||0)-m,y1=(w.y||0)+(w.h||3)+m;
+    if(CCL.cut!==undefined){if((w.y||0)>=CCL.cut)continue;y1=Math.min(y1,CCL.cut+m);} // w budynku: wszystko nad stropem jest „przycięte” — kamera może wznieść się nad pokój
+    if(x1<sx0||x0>sx1||z1<sz0||z0>sz1||y1<sy0||y0>sy1)continue;
+    if(px>=x0&&px<=x1&&py>=y0&&py<=y1&&pz>=z0&&pz<=z1){ // głowa ludzika w pasie odstępu tej bryły (stoi tuż przy ścianie)
+      var wy0=w.y||0,wy1=wy0+(w.h||3);if(Math.abs(px-w.x)<w.hw&&Math.abs(pz-w.z)<w.hd&&py>wy0&&py<wy1)continue; // stoi w bryle (schody) — pomijamy
+      var qx=Math.max(w.x-w.hw,Math.min(px,w.x+w.hw)),qy=Math.max(wy0,Math.min(py,wy1)),qz=Math.max(w.z-w.hd,Math.min(pz,w.z+w.hd));
+      var mm=Math.max(0,Math.min(m,Math.max(Math.abs(qx-px),Math.abs(qy-py),Math.abs(qz-pz)))-0.01); // odstęp tej bryły zmniejszony tak, żeby głowa była tuż poza nim
+      x0=w.x-w.hw-mm;x1=w.x+w.hw+mm;z0=w.z-w.hd-mm;z1=w.z+w.hd+mm;y0=wy0-mm;y1=Math.min(wy1+mm,CCL.cut!==undefined?CCL.cut+mm:1e9);} // dalej zwykły test — liczy się tylko, jeśli kamera naprawdę idzie w tę bryłę
+    var t0=0,t1=best,o=[px,py,pz],d=[dx,dy,dz],lo=[x0,y0,z0],hi=[x1,y1,z1],ok=true;
+    for(var a=0;a<3&&ok;a++){if(Math.abs(d[a])<1e-6){if(o[a]<lo[a]||o[a]>hi[a])ok=false;continue;}
+      var ta=(lo[a]-o[a])/d[a],tb=(hi[a]-o[a])/d[a];if(ta>tb){var q=ta;ta=tb;tb=q;}if(ta>t0)t0=ta;if(tb<t1)t1=tb;if(t0>=t1-1e-4)ok=false;}
+    if(ok&&t0<best){best=t0;camRay.hitW=w;}}
+  return best;
+}
+var SEE_ON=false; // 👻 przezroczyste ściany — odłożone na później (true = włączone)
+var SEE_R=1.2,SEE_OP=0.18; // 👻 ściany dalej niż 1,2 m od ludzika zasłaniające kamerę → przezroczyste (18%)
+function seeFade(now,dt){ // płynne znikanie i pojawianie się zasłaniających ścian
+  var a=1-Math.exp(-dt*10),b=1-Math.exp(-dt*4);
+  walk.cols.forEach(function(w){if(!w.m)return;var m=w.m,o0=m.userData.op0,on=now-(w._seeT||-1e9)<120,tg=on?Math.min(o0,SEE_OP):o0,cur=m.userData.opc===undefined?o0:m.userData.opc;
+    if(Math.abs(cur-tg)<0.005){if(cur!==tg){cur=tg;}else if(!on&&cur===o0&&m.userData.opc===undefined)return;}
+    cur+=(tg-cur)*(tg<cur?a:b);if(Math.abs(cur-tg)<0.005)cur=tg;m.userData.opc=cur;
+    var tr=cur<0.999;m.material.transparent=tr||o0<1;m.material.opacity=cur;m.material.depthWrite=!tr&&o0>=1;m.castShadow=!tr&&o0>=1;
+    if(cur===o0&&!on)delete m.userData.opc;});}
+function walkFade(){ // kamera tuż przy ludziku → ludzik półprzezroczysty, żeby nie zasłaniał widoku
+  if(!walk.ch)return;var op=CCL.near===undefined?1:Math.max(0.2,Math.min(1,(CCL.near-0.6)/1.2));if(walk._op===op)return;walk._op=op;
+  walk.ch.traverse(function(o){if(o.isMesh&&o.material){o.material.transparent=op<1;o.material.opacity=op;o.material.depthWrite=op>=1;}});}
+function camClip(px,py,pz,aim){
+  var wCols=walk.cols;if(CCL.off||!wCols||!wCols.length)return;
+  var now=performance.now(),gap=now-(CCL.t||0),dt=Math.min(0.1,(now-(CCL.t||now))/1000);CCL.t=now;
+  var sw=gap>250; // pierwsza klatka po przełączeniu z widoku z oczu (wyjście z windy, ze stanowiska, Tab): kamera startuje tuż za głową i jednym płynnym ruchem odjeżdża do tyłu
+  var dx=cam.position.x-px,dy=cam.position.y-py,dz=cam.position.z-pz,L=Math.sqrt(dx*dx+dy*dy+dz*dz);if(L<0.4)return;
+  // 🏠 w pomieszczeniu (strop nad głową): widok z góry z przyciętym stropem i wyższymi piętrami
+  var ceil=Infinity,fy=py-1.4;for(var ci=0;ci<wCols.length;ci++){var cw=wCols[ci];if(cw.ramp||cw._enm)continue;var cb=cw.y||0;if(cb<fy+2.0||cb>=ceil)continue;if(Math.abs(px-cw.x)<cw.hw&&Math.abs(pz-cw.z)<cw.hd)ceil=cb;}
+  CCL.cut=ceil<Infinity?ceil-0.05:undefined;
+  if(typeof renderer!=='undefined'&&renderer){if(!CCL.pl)CCL.pl=new THREE.Plane(new THREE.Vector3(0,-1,0),0);
+    if(CCL.cut!==undefined&&!aim&&(py+Math.sin(Math.atan2(dy,Math.sqrt(dx*dx+dz*dz))+(CCL.pa||0))*L>CCL.cut-0.3)){CCL.pl.constant=CCL.cut;if(renderer.clippingPlanes[0]!==CCL.pl)renderer.clippingPlanes=[CCL.pl];}
+    else if(renderer.clippingPlanes.length)renderer.clippingPlanes=[];}
+  if(aim){var fa=camRay(px,py,pz,dx,dy,dz);if(fa<1){var ka=Math.max(fa,0.3/L);cam.position.set(px+dx*ka,py+dy*ka,pz+dz*ka);}return;} // celowanie przez ramię
+  // 🎥 SPRĘŻYNOWE RAMIĘ — tak jak Spring Arm w Unreal i Cinemachine w Unity:
+  // kamera zawsze na tej samej linii za plecami (nie ucieka w bok ani do góry);
+  // gdy coś ją zasłania, od razu podjeżdża bliżej, trzymając CAM_GAP (50 cm) od muru; gdy przeszkoda znika, łagodnie wraca.
+  // 👻 ściana między kamerą a ludzikiem, ale dalej niż SEE_R od ludzika → robi się przezroczysta (kamera zostaje w normalnej odległości);
+  // ściana tuż za plecami (obracanie się przy murze) → kamera podjeżdża bliżej, jak dotąd
+  var now2=performance.now(),f=1;walk.cols.forEach(function(w){w._see=false;});
+  for(var it=0;it<8;it++){f=camRay(px,py,pz,dx,dy,dz);var hw=camRay.hitW;if(f>=1||!hw||!hw.m||!SEE_ON)break;
+    var ex=Math.max(0,Math.abs(px-hw.x)-hw.hw),ez=Math.max(0,Math.abs(pz-hw.z)-hw.hd);if(Math.sqrt(ex*ex+ez*ez)<SEE_R)break; // za blisko ludzika — przybliżamy
+    hw._see=true;hw._seeT=now2;}
+  walk.cols.forEach(function(w){w._see=false;}); // oznaczenie tylko na obliczenie tej klatki — przezroczystość gaśnie płynnie w seeFade
+  seeFade(now2,dt);
+  var MIN=Math.min(L,0.45),k=Math.max(f,MIN/L); // najbliżej 45 cm od głowy — odstęp od muru ważniejszy
+  CCL.pa=0;
+  if(sw||CCL.k===undefined)CCL.k=k;
+  else if(k<CCL.k)CCL.k=k; // do ściany: natychmiast — nigdy nie wchodzi w mur
+  else CCL.k+=(k-CCL.k)*(1-Math.exp(-dt*3.5)); // od ściany: płynnie
+  cam.position.set(px+dx*CCL.k,py+dy*CCL.k,pz+dz*CCL.k);
+  CCL.near=CCL.k*L; // jak blisko ludzika jest kamera (do półprzezroczystości)
 }
 function rebuild(){
   if(root){scene.remove(root);root.traverse(function(o){if(o.geometry)o.geometry.dispose();if(o.material)o.material.dispose();});}
@@ -762,7 +827,7 @@ function rebuild(){
     m.position.fromArray(p.position);m.castShadow=p.shadow!==false&&p.opacity===undefined;m.receiveShadow=true;m.userData.f=p._f;m.userData.k=p._k;root.add(m);
     maxY=Math.max(maxY,p.position[1]+p.size[1]/2);
     if(p.col){var g=p.ramp||p,c={x:g.position[0],z:g.position[2],hw:g.size[0]/2,hd:g.size[2]/2,y:g.position[1]-g.size[1]/2,h:g.size[1]};
-      if(p.ramp)c.ramp=[p.ramp.dir[0],p.ramp.dir[1],Math.abs(p.ramp.dir[0])?g.size[0]/2:g.size[2]/2];walk.cols.push(c);}
+      if(p.ramp)c.ramp=[p.ramp.dir[0],p.ramp.dir[1],Math.abs(p.ramp.dir[0])?g.size[0]/2:g.size[2]/2];else c.m=m;m.userData.op0=p.opacity!==undefined?p.opacity:1;walk.cols.push(c);}
   });
   scene.add(root);walk.box=new THREE.Box3().setFromObject(root);
   var ex=exportJSON();if(ex.lifts){root.userData.lifts=ex.lifts;LIFT.scanT=0;} // kabina i drzwi windy — jak w grze
@@ -857,8 +922,16 @@ function stepWalk(dt){
   var bx=walk.box,inside=!walk.fps&&bx&&walk.x>bx.min.x&&walk.x<bx.max.x&&walk.z>bx.min.z&&walk.z<bx.max.z;
   if(B.mode!=='budynki')root.children.forEach(function(m){var f=m.userData.f,kd=m.userData.k,above=inside&&(f>lvl||(kd==='roof'&&f>=lvl)); // Budynki: zwykły sufit, nic nie znika
     if(kd==='roof'){m.visible=!above;}else ghost(m,above);});
-  if(walk.fps){var ey=walk.y+1.6;cam.position.set(walk.x,ey,walk.z);cam.lookAt(walk.x-Math.sin(y)*Math.cos(walk.pitch)*10,ey-Math.sin(walk.pitch)*10,walk.z-Math.cos(y)*Math.cos(walk.pitch)*10);}
-  else{var pv=walk.y+CPIVY;cam.position.set(walk.x+Math.sin(y)*Math.cos(walk.pitch)*CDIST,pv+Math.sin(walk.pitch)*CDIST,walk.z+Math.cos(y)*Math.cos(walk.pitch)*CDIST);camClip(walk.x,pv,walk.z);cam.lookAt(walk.x,pv,walk.z);}
+  if(walk.fps){var ey=walk.y+1.6;if(cam.fov!==CAM_FOV){cam.fov=CAM_FOV;cam.updateProjectionMatrix();}if(renderer.clippingPlanes.length)renderer.clippingPlanes=[];cam.position.set(walk.x,ey,walk.z);cam.lookAt(walk.x-Math.sin(y)*Math.cos(walk.pitch)*10,ey-Math.sin(walk.pitch)*10,walk.z-Math.cos(y)*Math.cos(walk.pitch)*10);}
+  else{ // 🎥 na zewnątrz: kamera z GitHuba; w budynku: bliżej, przez prawe ramię, szerszy kąt — płynne przejście
+    var pv=walk.y+CPIVY,tb=inside?1:0;walk.inB=(walk.inB===undefined?tb:walk.inB)+(tb-(walk.inB===undefined?tb:walk.inB))*(1-Math.exp(-dt*IN_RATE));var b=walk.inB;
+    var dist=CDIST+(IN_DIST-CDIST)*b,fx=-Math.sin(y),fz=-Math.cos(y),rx=Math.cos(y),rz=-Math.sin(y),sh=IN_SHOULDER*b,py2=pv+IN_UP*b;
+    if(sh>0.01){var fs=camRay(walk.x,py2,walk.z,rx*sh,0,rz*sh);sh*=Math.max(0,fs);} // ramię nie wchodzi w ścianę obok
+    var px2=walk.x+rx*sh,pz2=walk.z+rz*sh;
+    cam.position.set(px2+Math.sin(y)*Math.cos(walk.pitch)*dist,py2+Math.sin(walk.pitch)*dist,pz2+Math.cos(y)*Math.cos(walk.pitch)*dist);
+    if(b>0.5)camClip(px2,py2,pz2);else{camClipOut(px2,py2,pz2);CCL.near=undefined;if(renderer.clippingPlanes.length)renderer.clippingPlanes=[];}walkFade();
+    var fov=CAM_FOV+(IN_FOV-CAM_FOV)*b;if(Math.abs(cam.fov-fov)>0.05){cam.fov=fov;cam.updateProjectionMatrix();}
+    cam.lookAt(px2,py2,pz2);}
 }
 function loop(){
   requestAnimationFrame(loop);var dt=Math.min(clock.getDelta(),0.05);
