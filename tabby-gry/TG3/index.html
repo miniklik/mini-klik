@@ -69,7 +69,7 @@ var placedActions=[];
 var nearIdx=-1,INTERACT_DIST=3,textPopupOpen=false;
 var driveTarget=null,driveCamMode='chase';
 var camAdjust=false;
-var camOff={chase:{y:0,angle:0,dist:0},cabin:{y:0,angle:0,dist:0},aim:{y:0,angle:0,dist:0}};
+var camOff={chase:{y:0,angle:0,dist:0},cabin:{y:0,angle:0,dist:0},aim:{y:0,angle:0,dist:0},indoor:{y:0,angle:0,dist:0,fov:0}};
 //@@DRIVE_CORE_START
 // ===== DRIVE CORE — wspólny kod jazdy (edytor + eksportowana gra) =====
 // Wymaga zmiennych: THREE, scene, cam, keys, wCols.
@@ -1276,7 +1276,7 @@ function wpnUpdate(dt,offs){
     h.rotation.set(k*(WPN.rifle?0.06:0.22)+WPN.swY*1.1*(1-a*0.7)+0.55*rk,WPN.swX*1.1*(1-a*0.7),bbx*1.5+0.7*rk);h.position.y-=0.07*rk;
   }
   wpnLaser(fps);
-  var tf=WPN.fov0*(1-WPN.aimT*(fps?0.3:0.1));
+  var tf=(CCL.fovT||WPN.fov0)*(1-WPN.aimT*(fps?0.3:0.1)); // kąt bazowy: w budynku szerszy
   if(Math.abs(cam.fov-tf)>0.01){cam.fov=tf;cam.updateProjectionMatrix();}
   wpnHud(true);
 }
@@ -2007,7 +2007,7 @@ function drnFlipCam(){ // kamera FPV kręci się razem z dronem; kamera zza dron
 }
 function drnTricksTick(){ // FOV przy turbo + pasek energii w panelu drona
   if(!cam)return;if(!DRT.fov0)DRT.fov0=cam.fov;
-  var fl=drnFlying()&&DRN.stage!=='landed',f=DRT.fov0+(fl?14*DRT.bst:0);
+  var fl=drnFlying()&&DRN.stage!=='landed',f=(fl?DRT.fov0:(CCL.fovT||DRT.fov0))+(fl?14*DRT.bst:0); // pieszo w budynku — szerszy kąt
   if(Math.abs(cam.fov-f)>0.05){cam.fov=f;cam.updateProjectionMatrix();}
   if(!DRN.ui)return;var a=drnAct(),has=drvNum(a.turbo,1)>1;
   if(!DRT.ui){var d=document.createElement('div');d.className='tb';d.innerHTML='⚡ Turbo <span class="tbb"><i></i></span>';
@@ -2311,6 +2311,79 @@ function camClip(px,py,pz,aim){
   if(sw)CCL.k=MIN/L;else CCL.k+=(k-CCL.k)*(1-Math.exp(-dt*(k<CCL.k?12:(now<(CCL.snapT||0)?3.5:2.5))));if(CCL.k>f&&f>=MIN/L)CCL.k=f;if(CCL.k>f&&f>=MIN/L)CCL.k=f; // do ściany szybko, od ściany powoli; nigdy w mur
   cam.position.set(px+p[0]*CCL.k,py+p[1]*CCL.k,pz+p[2]*CCL.k);
 }
+// ===== 🎥 KAMERA W BUDYNKU („przez ramię”): na zewnątrz zwykła kamera, pod stropem bliżej, nad prawym ramieniem, szerszy kąt =====
+var CAM_GAP=0.5,SEE_ON=false,SEE_R=1.2,SEE_OP=0.18; // odstęp kamery od muru; przezroczyste ściany (odłożone)
+var IN_DIST=2.8,IN_SHOULDER=0.55,IN_UP=0.15,IN_FOV=72,IN_RATE=3; // w budynku: odległość, ramię w prawo, podniesienie, kąt widzenia, szybkość przejścia
+function camRayIn(px,py,pz,dx,dy,dz){ // jaka część odcinka pivot→kamera jest wolna (0..1)
+  var m=CAM_GAP,best=1,cx=px+dx,cy=py+dy,cz=pz+dz,sx0=Math.min(px,cx)-m,sx1=Math.max(px,cx)+m,sz0=Math.min(pz,cz)-m,sz1=Math.max(pz,cz)+m,sy0=Math.min(py,cy)-m,sy1=Math.max(py,cy)+m;
+  camRay.hitW=null;
+  for(var i=0;i<wCols.length;i++){var w=wCols[i];if(w.ramp||w._see)continue;
+    var x0=w.x-w.hw-m,x1=w.x+w.hw+m,z0=w.z-w.hd-m,z1=w.z+w.hd+m,y0=(w.y||0)-m,y1=(w.y||0)+(w.h||3)+m;
+    if(CCL.cut!==undefined){if((w.y||0)>=CCL.cut)continue;y1=Math.min(y1,CCL.cut+m);} // w budynku: wszystko nad stropem jest „przycięte” — kamera może wznieść się nad pokój
+    if(x1<sx0||x0>sx1||z1<sz0||z0>sz1||y1<sy0||y0>sy1)continue;
+    if(px>=x0&&px<=x1&&py>=y0&&py<=y1&&pz>=z0&&pz<=z1){ // głowa ludzika w pasie odstępu tej bryły (stoi tuż przy ścianie)
+      var wy0=w.y||0,wy1=wy0+(w.h||3);if(Math.abs(px-w.x)<w.hw&&Math.abs(pz-w.z)<w.hd&&py>wy0&&py<wy1)continue; // stoi w bryle (schody) — pomijamy
+      var qx=Math.max(w.x-w.hw,Math.min(px,w.x+w.hw)),qy=Math.max(wy0,Math.min(py,wy1)),qz=Math.max(w.z-w.hd,Math.min(pz,w.z+w.hd));
+      var mm=Math.max(0,Math.min(m,Math.max(Math.abs(qx-px),Math.abs(qy-py),Math.abs(qz-pz)))-0.01); // odstęp tej bryły zmniejszony tak, żeby głowa była tuż poza nim
+      x0=w.x-w.hw-mm;x1=w.x+w.hw+mm;z0=w.z-w.hd-mm;z1=w.z+w.hd+mm;y0=wy0-mm;y1=Math.min(wy1+mm,CCL.cut!==undefined?CCL.cut+mm:1e9);} // dalej zwykły test — liczy się tylko, jeśli kamera naprawdę idzie w tę bryłę
+    var t0=0,t1=best,o=[px,py,pz],d=[dx,dy,dz],lo=[x0,y0,z0],hi=[x1,y1,z1],ok=true;
+    for(var a=0;a<3&&ok;a++){if(Math.abs(d[a])<1e-6){if(o[a]<lo[a]||o[a]>hi[a])ok=false;continue;}
+      var ta=(lo[a]-o[a])/d[a],tb=(hi[a]-o[a])/d[a];if(ta>tb){var q=ta;ta=tb;tb=q;}if(ta>t0)t0=ta;if(tb<t1)t1=tb;if(t0>=t1-1e-4)ok=false;}
+    if(ok&&t0<best){best=t0;camRay.hitW=w;}}
+  return best;
+}
+function seeFade(now,dt){ // płynne znikanie i pojawianie się zasłaniających ścian
+  var a=1-Math.exp(-dt*10),b=1-Math.exp(-dt*4);
+  wCols.forEach(function(w){if(!w.m)return;var m=w.m,o0=m.userData.op0,on=now-(w._seeT||-1e9)<120,tg=on?Math.min(o0,SEE_OP):o0,cur=m.userData.opc===undefined?o0:m.userData.opc;
+    if(Math.abs(cur-tg)<0.005){if(cur!==tg){cur=tg;}else if(!on&&cur===o0&&m.userData.opc===undefined)return;}
+    cur+=(tg-cur)*(tg<cur?a:b);if(Math.abs(cur-tg)<0.005)cur=tg;m.userData.opc=cur;
+    var tr=cur<0.999;m.material.transparent=tr||o0<1;m.material.opacity=cur;m.material.depthWrite=!tr&&o0>=1;m.castShadow=!tr&&o0>=1;
+    if(cur===o0&&!on)delete m.userData.opc;});}
+function camClipIn(px,py,pz,aim){
+  if(CCL.off||!wCols||!wCols.length)return;
+  var now=performance.now(),gap=now-(CCL.t||0),dt=Math.min(0.1,(now-(CCL.t||now))/1000);CCL.t=now;
+  var sw=gap>250; // pierwsza klatka po przełączeniu z widoku z oczu (wyjście z windy, ze stanowiska, Tab): kamera startuje tuż za głową i jednym płynnym ruchem odjeżdża do tyłu
+  var dx=cam.position.x-px,dy=cam.position.y-py,dz=cam.position.z-pz,L=Math.sqrt(dx*dx+dy*dy+dz*dz);if(L<0.4)return;
+  // 🏠 w pomieszczeniu (strop nad głową): widok z góry z przyciętym stropem i wyższymi piętrami
+  var ceil=Infinity,fy=py-1.4;for(var ci=0;ci<wCols.length;ci++){var cw=wCols[ci];if(cw.ramp||cw._enm)continue;var cb=cw.y||0;if(cb<fy+2.0||cb>=ceil)continue;if(Math.abs(px-cw.x)<cw.hw&&Math.abs(pz-cw.z)<cw.hd)ceil=cb;}
+  CCL.cut=ceil<Infinity?ceil-0.05:undefined;
+  if(typeof renderer!=='undefined'&&renderer){if(!CCL.pl)CCL.pl=new THREE.Plane(new THREE.Vector3(0,-1,0),0);
+    if(CCL.cut!==undefined&&!aim&&(py+Math.sin(Math.atan2(dy,Math.sqrt(dx*dx+dz*dz))+(CCL.pa||0))*L>CCL.cut-0.3)){CCL.pl.constant=CCL.cut;if(renderer.clippingPlanes[0]!==CCL.pl)renderer.clippingPlanes=[CCL.pl];}
+    else if(renderer.clippingPlanes.length)renderer.clippingPlanes=[];}
+  if(aim){var fa=camRayIn(px,py,pz,dx,dy,dz);if(fa<1){var ka=Math.max(fa,0.3/L);cam.position.set(px+dx*ka,py+dy*ka,pz+dz*ka);}return;} // celowanie przez ramię
+  // 🎥 SPRĘŻYNOWE RAMIĘ — tak jak Spring Arm w Unreal i Cinemachine w Unity:
+  // kamera zawsze na tej samej linii za plecami (nie ucieka w bok ani do góry);
+  // gdy coś ją zasłania, od razu podjeżdża bliżej, trzymając CAM_GAP (50 cm) od muru; gdy przeszkoda znika, łagodnie wraca.
+  // 👻 ściana między kamerą a ludzikiem, ale dalej niż SEE_R od ludzika → robi się przezroczysta (kamera zostaje w normalnej odległości);
+  // ściana tuż za plecami (obracanie się przy murze) → kamera podjeżdża bliżej, jak dotąd
+  var now2=performance.now(),f=1;wCols.forEach(function(w){w._see=false;});
+  for(var it=0;it<8;it++){f=camRayIn(px,py,pz,dx,dy,dz);var hw=camRay.hitW;if(f>=1||!hw||!hw.m||!SEE_ON)break;
+    var ex=Math.max(0,Math.abs(px-hw.x)-hw.hw),ez=Math.max(0,Math.abs(pz-hw.z)-hw.hd);if(Math.sqrt(ex*ex+ez*ez)<SEE_R)break; // za blisko ludzika — przybliżamy
+    hw._see=true;hw._seeT=now2;}
+  wCols.forEach(function(w){w._see=false;}); // oznaczenie tylko na obliczenie tej klatki — przezroczystość gaśnie płynnie w seeFade
+  seeFade(now2,dt);
+  var MIN=Math.min(L,0.45),k=Math.max(f,MIN/L); // najbliżej 45 cm od głowy — odstęp od muru ważniejszy
+  CCL.pa=0;
+  if(sw||CCL.k===undefined)CCL.k=k;
+  else if(k<CCL.k)CCL.k=k; // do ściany: natychmiast — nigdy nie wchodzi w mur
+  else CCL.k+=(k-CCL.k)*(1-Math.exp(-dt*3.5)); // od ściany: płynnie
+  cam.position.set(px+dx*CCL.k,py+dy*CCL.k,pz+dz*CCL.k);
+  CCL.near=CCL.k*L; // jak blisko ludzika jest kamera (do półprzezroczystości)
+}
+function camCeil(px,py,pz){var c=Infinity,fy=py-1.4;for(var i=0;i<wCols.length;i++){var w=wCols[i];if(w.ramp||w._enm||w._mpL)continue;var b=w.y||0;if(b<fy+2.0||b>=c||b>fy+8)continue;if(Math.abs(px-w.x)<w.hw&&Math.abs(pz-w.z)<w.hd)c=b;}return c;}
+function camTPS(cx,cy,cz,yaw,pitch,dist,io,oy){ // kamera zza pleców: na zewnątrz zwykła, w budynku „przez ramię” — płynne przejście
+  io=io||{};if(CCL.fov0===undefined)CCL.fov0=cam.fov;
+  var now=performance.now(),dt=Math.min(0.1,(now-(CCL.tt||now))/1000);CCL.tt=now;
+  var tb=camCeil(cx,cy,cz)<Infinity?1:0;if(CCL.inB===undefined)CCL.inB=tb;CCL.inB+=(tb-CCL.inB)*(1-Math.exp(-dt*IN_RATE));if(Math.abs(CCL.inB-tb)<0.002)CCL.inB=tb;var b=CCL.inB;
+  var dIn=Math.max(0.8,IN_DIST+(io.dist||0)),D=dist+(dIn-dist)*b,sh=(IN_SHOULDER-(io.angle||0))*b,py2=cy+(IN_UP+(io.y||0))*b;
+  var rx=Math.cos(yaw),rz=-Math.sin(yaw);
+  if(Math.abs(sh)>0.01){var fs=camRayIn(cx,py2,cz,rx*sh,0,rz*sh);sh*=Math.max(0,fs);} // ramię nie wchodzi w ścianę obok
+  var px2=cx+rx*sh,pz2=cz+rz*sh;
+  cam.position.set(px2+Math.sin(yaw)*Math.cos(pitch)*D,py2+Math.sin(pitch)*D+(oy||0)*(1-b),pz2+Math.cos(yaw)*Math.cos(pitch)*D);
+  if(b>0.5)camClipIn(px2,py2,pz2);else{camClip(px2,py2,pz2);if(renderer.clippingPlanes.length)renderer.clippingPlanes=[];}
+  var fov=CCL.fov0+((IN_FOV+(io.fov||0))-CCL.fov0)*b;CCL.fovT=b>0.001?fov:undefined;if(Math.abs(cam.fov-fov)>0.05){cam.fov=fov;cam.updateProjectionMatrix();}
+  cam.lookAt(px2,py2,pz2);}
+
 //@@LIFT_CORE_START
 // ===== 🪟 SZYBY DO WYBICIA: części z "glass": true pękają od strzału — dopiero wtedy da się wyskoczyć przez okno =====
 var GLS={broken:[],fx:[]};
@@ -4346,13 +4419,11 @@ function update(dt){
     charGroup.rotation.y=charAng;
   }
   if(camStyle==='fps'){
-    var eyeY=charY+1.6,ld=10;
+    var eyeY=charY+1.6,ld=10;CCL.fovT=undefined;if(renderer.clippingPlanes.length)renderer.clippingPlanes=[]; // widok z oczu: bez przycinania stropu
     cam.position.set(charX,eyeY,charZ);
     cam.lookAt(charX-Math.sin(camYaw)*Math.cos(camPitch)*ld,eyeY-Math.sin(camPitch)*ld,charZ-Math.cos(camYaw)*Math.cos(camPitch)*ld);
   } else {
-    cam.position.set(charX+Math.sin(camYaw)*Math.cos(camPitch)*CDIST,pivY+Math.sin(camPitch)*CDIST,charZ+Math.cos(camYaw)*Math.cos(camPitch)*CDIST);
-    camClip(charX,pivY,charZ); // kamera nie wychodzi za ściany
-    cam.lookAt(charX,pivY,charZ);
+    camTPS(charX,pivY,charZ,camYaw,camPitch,CDIST,camOff.indoor); // 🎥 na zewnątrz zwykła kamera, w budynku „przez ramię”
   }
   wpnUpdate(dt,camOff.aim);
 }
@@ -4419,7 +4490,7 @@ function initTouch(){
 function init(){
   scene=new THREE.Scene();scene.background=new THREE.Color(0x667799);
   scene.fog=new THREE.Fog(0x667799,40,120);
-  cam=new THREE.PerspectiveCamera(58,innerWidth/innerHeight,0.1,200);
+  cam=new THREE.PerspectiveCamera(58,innerWidth/innerHeight,0.05,200);
   renderer=new THREE.WebGLRenderer({antialias:true});
   renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,2));
   renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
@@ -4560,6 +4631,7 @@ var stG=new THREE.BufferGeometry();var stV=[];for(var si=0;si<600;si++){var th=M
 function dnUpdate(dt){if(dnPaused){if(!dnDirty)return;dnDirty=false;}else{dnTime+=dt*dnSpeed;if(dnTime>=24)dnTime-=24;}var t=dnTime,s,f,a,si,hi,so,g,sy,sx,d=dnC;if(t>=22||t<4){s=d.night.sky;f=d.night.fog;a=d.night.amb;si=0;hi=d.night.hemi;so=0.9;g=d.night.gnd;sy=-10;sx=0;}else if(t<7){var p=(t-4)/3;s=lerpC(d.night.sky,d.dawn.sky,p);f=lerpC(d.night.fog,d.dawn.fog,p);a=lerpC(d.night.amb,d.dawn.amb,p);si=p*d.dawn.sun;hi=d.night.hemi+(d.dawn.hemi-d.night.hemi)*p;so=0.9*(1-p);g=lerpC(d.night.gnd,d.dawn.gnd,p);sy=p*15;sx=-20+p*10;}else if(t<10){var p=(t-7)/3;s=lerpC(d.dawn.sky,d.day.sky,p);f=lerpC(d.dawn.fog,d.day.fog,p);a=lerpC(d.dawn.amb,d.day.amb,p);si=d.dawn.sun+(d.day.sun-d.dawn.sun)*p;hi=d.dawn.hemi+(d.day.hemi-d.dawn.hemi)*p;so=0;g=lerpC(d.dawn.gnd,d.day.gnd,p);sy=15+p*20;sx=-10+p*30;}else if(t<17){s=d.day.sky;f=d.day.fog;a=d.day.amb;si=d.day.sun;hi=d.day.hemi;so=0;g=d.day.gnd;sy=35;sx=20-(t-10)/7*10;}else if(t<20){var p=(t-17)/3;s=lerpC(d.day.sky,d.dusk.sky,p);f=lerpC(d.day.fog,d.dusk.fog,p);a=lerpC(d.day.amb,d.dusk.amb,p);si=d.day.sun+(d.dusk.sun-d.day.sun)*p;hi=d.day.hemi+(d.dusk.hemi-d.day.hemi)*p;so=0;g=lerpC(d.day.gnd,d.dusk.gnd,p);sy=35-p*20;sx=10+p*10;}else{var p=(t-20)/2;s=lerpC(d.dusk.sky,d.night.sky,p);f=lerpC(d.dusk.fog,d.night.fog,p);a=lerpC(d.dusk.amb,d.night.amb,p);si=d.dusk.sun*(1-p);hi=d.dusk.hemi+(d.night.hemi-d.dusk.hemi)*p;so=p*0.9;g=lerpC(d.dusk.gnd,d.night.gnd,p);sy=15-p*25;sx=20;}scene.background.copy(s);scene.fog.color.copy(f);if(dnAmbient)dnAmbient.color.copy(a);if(dnSun){dnSun.intensity=si;dnSun.position.y=sy;dnSun.position.x=sx;}if(dnHemi)dnHemi.intensity=hi;if(dnStars)dnStars.material.opacity=so;var gm=scene.children.find(function(c){return c.isMesh&&c.geometry&&c.geometry.type==='PlaneGeometry'&&c.rotation.x<-1;});if(gm)gm.material.color.copy(g);}
 dnTick=dnUpdate;
 camOff.aim={"y":0,"angle":0,"dist":0};
+camOff.indoor={"y":0,"angle":0,"dist":0,"fov":0};
 
 
 // === TABBY INSTANCING: takie same statyczne obiekty rysowane jednym poleceniem ===
@@ -4658,6 +4730,6 @@ init();
 })();
 </script>
 
-<script type="application/json" id="editor-data">{"objects":[{"name":"Gracz","parts":[{"shape":"cylinder","size":[0.7,0.7,0.02,32],"color":"#3fb950","position":[0,0.01,0],"opacity":0.5},{"shape":"cone","size":[0.2,0.5,12],"color":"#3fb950","position":[0,0.05,-1],"rotation":[-1.5708,0,0]},{"shape":"box","size":[0.55,0.6,0.55],"color":"#ffcc88","position":[0,1.74,0]},{"shape":"box","size":[0.58,0.15,0.58],"color":"#443322","position":[0,2.06,0]},{"shape":"box","size":[0.58,0.35,0.12],"color":"#443322","position":[0,1.84,0.28]},{"shape":"box","size":[0.08,0.06,0.03],"color":"#222222","position":[-0.12,1.79,-0.28]},{"shape":"box","size":[0.08,0.06,0.03],"color":"#222222","position":[0.12,1.79,-0.28]},{"shape":"box","size":[0.6,0.7,0.35],"color":"#3366cc","position":[0,1.19,0],"role":"pshirt"},{"shape":"box","size":[0.2,0.45,0.22],"color":"#3366cc","position":[-0.42,1.22,0],"role":"pshirt"},{"shape":"box","size":[0.2,0.45,0.22],"color":"#3366cc","position":[0.42,1.22,0],"role":"pshirt"},{"shape":"box","size":[0.18,0.4,0.2],"color":"#ffcc88","position":[-0.42,0.89,0]},{"shape":"box","size":[0.18,0.4,0.2],"color":"#ffcc88","position":[0.42,0.89,0]},{"shape":"box","size":[0.22,0.42,0.24],"color":"#444455","position":[-0.15,0.6,0]},{"shape":"box","size":[0.22,0.42,0.24],"color":"#444455","position":[0.15,0.6,0]},{"shape":"box","size":[0.2,0.38,0.22],"color":"#444455","position":[-0.15,0.26,0]},{"shape":"box","size":[0.2,0.38,0.22],"color":"#444455","position":[0.15,0.26,0]},{"shape":"box","size":[0.22,0.1,0.32],"color":"#553322","position":[-0.15,0.05,-0.04]},{"shape":"box","size":[0.22,0.1,0.32],"color":"#553322","position":[0.15,0.05,-0.04]}],"action":{"type":"player"}}],"placed":[{"oi":0,"x":-3,"z":14,"rotY":0,"col":false,"action":{"type":"player","wpn":"M9","ammo":60}},{"oi":0,"x":-1,"z":14,"rotY":0,"col":false,"action":{"type":"player","wpn":"M9","ammo":60}},{"oi":0,"x":1,"z":14,"rotY":0,"col":false,"action":{"type":"player","wpn":"M9","ammo":60}},{"oi":0,"x":3,"z":14,"rotY":0,"col":false,"action":{"type":"player","wpn":"M9","ammo":60}}],"dn":{"time":12,"speed":0.15,"auto":false,"fog":0,"season":"summer","snow":0.5,"snowH":0.2},"mp":1}</script>
+<script type="application/json" id="editor-data">{"objects":[{"name":"Gracz","parts":[{"shape":"cylinder","size":[0.7,0.7,0.02,32],"color":"#3fb950","position":[0,0.01,0],"opacity":0.5},{"shape":"cone","size":[0.2,0.5,12],"color":"#3fb950","position":[0,0.05,-1],"rotation":[-1.5708,0,0]},{"shape":"box","size":[0.55,0.6,0.55],"color":"#ffcc88","position":[0,1.74,0]},{"shape":"box","size":[0.58,0.15,0.58],"color":"#443322","position":[0,2.06,0]},{"shape":"box","size":[0.58,0.35,0.12],"color":"#443322","position":[0,1.84,0.28]},{"shape":"box","size":[0.08,0.06,0.03],"color":"#222222","position":[-0.12,1.79,-0.28]},{"shape":"box","size":[0.08,0.06,0.03],"color":"#222222","position":[0.12,1.79,-0.28]},{"shape":"box","size":[0.6,0.7,0.35],"color":"#3366cc","position":[0,1.19,0],"role":"pshirt"},{"shape":"box","size":[0.2,0.45,0.22],"color":"#3366cc","position":[-0.42,1.22,0],"role":"pshirt"},{"shape":"box","size":[0.2,0.45,0.22],"color":"#3366cc","position":[0.42,1.22,0],"role":"pshirt"},{"shape":"box","size":[0.18,0.4,0.2],"color":"#ffcc88","position":[-0.42,0.89,0]},{"shape":"box","size":[0.18,0.4,0.2],"color":"#ffcc88","position":[0.42,0.89,0]},{"shape":"box","size":[0.22,0.42,0.24],"color":"#444455","position":[-0.15,0.6,0]},{"shape":"box","size":[0.22,0.42,0.24],"color":"#444455","position":[0.15,0.6,0]},{"shape":"box","size":[0.2,0.38,0.22],"color":"#444455","position":[-0.15,0.26,0]},{"shape":"box","size":[0.2,0.38,0.22],"color":"#444455","position":[0.15,0.26,0]},{"shape":"box","size":[0.22,0.1,0.32],"color":"#553322","position":[-0.15,0.05,-0.04]},{"shape":"box","size":[0.22,0.1,0.32],"color":"#553322","position":[0.15,0.05,-0.04]}],"action":{"type":"player"}}],"placed":[{"oi":0,"x":-3,"z":14,"rotY":0,"col":false,"action":{"type":"player","wpn":"M9","ammo":60}},{"oi":0,"x":-1,"z":14,"rotY":0,"col":false,"action":{"type":"player","wpn":"M9","ammo":60}},{"oi":0,"x":1,"z":14,"rotY":0,"col":false,"action":{"type":"player","wpn":"M9","ammo":60}},{"oi":0,"x":3,"z":14,"rotY":0,"col":false,"action":{"type":"player","wpn":"M9","ammo":60}}],"dn":{"time":12,"speed":0.15,"auto":false,"fog":0,"season":"summer","snow":0.5,"snowH":0.2},"mp":1,"camIn":{"y":0,"angle":0,"dist":0,"fov":0}}</script>
 </body>
 </html>
