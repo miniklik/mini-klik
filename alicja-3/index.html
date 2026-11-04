@@ -147,6 +147,7 @@
   #powitanie{position:fixed;inset:0;z-index:100;display:flex;align-items:center;justify-content:center;gap:6vw;
              background:radial-gradient(ellipse at 50% 0%,#1d3566,#0a0f1c 70%);cursor:pointer;transition:opacity 1.5s ease}
   #powitanie.znika{opacity:0;pointer-events:none}
+  #powitanie[hidden]{display:none}
   .powLewa{display:flex;flex-direction:column;align-items:center;gap:2.2vh}
   #powMiejsce{width:min(46vw,calc(62vh*1200/880));aspect-ratio:1200/880}      /* tu staje pomniejszona Alicja 3 */
   .powLewa h1{margin:0;font:700 clamp(28px,6vh,60px) "Segoe UI",Arial,sans-serif;letter-spacing:.12em;color:#d9e2f2;
@@ -181,6 +182,7 @@
       <div id="nazwaGora">Pryncypał 8'</div>
       <span class="strz" id="wstecz">◀</span><span class="strz" id="dalej">▶</span>
     </div>
+    <div class="guzG" id="doDomu" title="Dom — wróć do ekranu powitania z bankami"><span>🏠</span>DOM</div>
     <div class="guzG" id="wczytajBank" title="Wczytaj bank .alicja z „Alicja – sampler” (albo zestaw .organy)"><span>📂</span>BANK</div>
     <div class="guzG"><span>☰</span>BARWY</div>
     <div class="guzG"><span>✎</span>EDYTUJ</div>
@@ -1321,15 +1323,27 @@ function wejdz() {
   pw.classList.add("znika");
   $("skala").classList.add("jedzie");
   document.body.classList.remove("witaj"); dopasuj();
-  setTimeout(() => { pw.remove(); $("skala").classList.remove("jedzie"); dopasuj(); }, 1500);
+  clearTimeout(pw._czas);
+  pw._czas = setTimeout(() => { pw.hidden = true; $("skala").classList.remove("jedzie"); dopasuj(); }, 1500);   // nie usuwamy — 🏠 DOM pokaże je znowu
 }
+/* 🏠 DOM: Alicja maleje na lewo, foldery wracają. Nic się nie przeładowuje — szufladki, Aura i bank zostają */
+function doDomu() {
+  const pw = $("powitanie"); if (!pw.hidden && !pw.classList.contains("znika")) return;
+  clearTimeout(pw._czas);
+  pw.hidden = false; pw.offsetWidth;                  // najpierw pokaż przezroczyste, potem płynnie rozjaśnij
+  $("skala").classList.add("jedzie");
+  document.body.classList.add("witaj"); dopasuj();
+  pw.classList.remove("znika");
+  pw._czas = setTimeout(() => $("skala").classList.remove("jedzie"), 1500);
+}
+$("doDomu").addEventListener("click", doDomu);
 $("powitanie").addEventListener("click", wejdz);
 $("powPrawa").addEventListener("click", e => e.stopPropagation());   // klik w foldery nie wchodzi
 document.querySelectorAll("#powPrawa .folder").forEach(b => b.addEventListener("click", () => {
   const s = b.querySelector("span"); b.classList.add("wkr"); s.textContent = "wkrótce";
   clearTimeout(b._czas); b._czas = setTimeout(() => { b.classList.remove("wkr"); s.textContent = "pusty folder"; }, 2000);
 }));
-addEventListener("keydown", e => { if ($("powitanie")) { e.preventDefault(); e.stopImmediatePropagation(); wejdz(); } }, true);   // klawisze nie grają pod zasłoną
+addEventListener("keydown", e => { const pw = $("powitanie"); if (!pw.hidden && !pw.classList.contains("znika")) { e.preventDefault(); e.stopImmediatePropagation(); wejdz(); } }, true);   // klawisze nie grają pod zasłoną
 requestAnimationFrame(dopasuj);
 </script>
 </body>
