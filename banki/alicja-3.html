@@ -1,0 +1,1265 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<title>Alicja 3 — graj</title>
+<style>
+  :root{
+    --nieb:#1f5fd0; --nieb2:#2c72e6; --nieb3:#164bb0; --ciemny:#0d2f74;
+    --panel:#1b56c4; --linia:#7fb1ff; --napis:#eaf2ff; --szary:#202430;
+    --ekran:#0e1622; --ekranNapis:#7fb8ff; --zloto:#ffd25a; --lampka:#b6ff5a;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:#15171d;font-family:"Segoe UI",Arial,sans-serif;color:var(--napis);user-select:none}
+  body{display:flex;align-items:center;justify-content:center;overflow:hidden}
+  #skala{transform-origin:center center}
+  #prog{width:1200px;height:880px;background:#1c1f27;border-radius:8px;box-shadow:0 10px 40px #0009;position:relative;overflow:hidden}
+
+  /* ---------- górny pasek ---------- */
+  #gora{height:56px;display:flex;align-items:center;gap:14px;padding:0 16px;background:linear-gradient(#2a2e38,#1e2129);border-bottom:1px solid #000}
+  #logo{font-size:30px;font-weight:700;letter-spacing:1px;color:#d9e2f2}
+  #logo b{color:var(--zloto)}
+  #brzmienieBox{flex:0 0 520px;height:40px;background:#12141a;border-radius:6px;display:flex;align-items:center;padding:0 12px;gap:10px;border:1px solid #000}
+  #brzmienieBox .kat{background:#3a4152;color:#cfd8ea;font-size:11px;font-weight:700;padding:2px 6px;border-radius:3px}
+  #nazwaGora{flex:1;font-size:18px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .strz{cursor:pointer;font-size:18px;color:#e6ecf8;padding:0 4px}
+  .strz:hover{color:var(--zloto)}
+  .guzG{height:40px;min-width:54px;background:#12141a;border:1px solid #000;border-radius:6px;font-size:11px;color:#c9d3e6;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer}
+  .guzG span{font-size:16px}
+  .guzG:hover{color:#fff}
+  #wyjGora{margin-left:auto;display:flex;flex-direction:column;align-items:center;font-size:11px;color:#c9d3e6}
+
+  /* ---------- niebieska bryła ---------- */
+  #bryla{position:absolute;left:10px;right:10px;top:64px;height:676px;border-radius:12px;
+         background:linear-gradient(160deg,var(--nieb2) 0%,var(--nieb) 45%,var(--nieb3) 100%);
+         box-shadow:inset 0 2px 0 #ffffff40, inset 0 -3px 0 #00000040, 0 4px 14px #0008}
+  .sruba{position:absolute;width:30px;height:30px;border-radius:50%;background:radial-gradient(circle at 40% 35%,#e9eef6,#7d8796 60%,#3b424d);box-shadow:0 1px 3px #0009}
+  .sruba::after{content:"";position:absolute;left:8px;top:8px;width:14px;height:14px;border-radius:50%;background:#2a2f37;box-shadow:inset 0 1px 2px #000}
+
+  .ramka{position:absolute;background:linear-gradient(#2463d3,#1a52bb);border-radius:8px;box-shadow:inset 0 1px 0 #ffffff30, 0 2px 6px #0006}
+  .tytul{position:absolute;left:8px;top:8px;right:8px;height:22px;display:flex;align-items:center}
+  .tytul b{background:#f2f6fd;color:#1a3f86;font-size:15px;font-weight:600;padding:1px 10px 1px 8px;clip-path:polygon(0 0,100% 0,92% 100%,0 100%);min-width:150px}
+  .tytul i{flex:1;height:2px;background:#e8f0ff;margin-left:-6px;align-self:flex-start;margin-top:0}
+
+  /* gałki */
+  .galka{position:absolute;width:64px;text-align:center}
+  .galka .kolo{width:52px;height:52px;margin:0 auto;border-radius:50%;position:relative;cursor:ns-resize;
+               background:radial-gradient(circle at 40% 32%,#8b95a5,#4b5361 55%,#2a2f39);
+               box-shadow:0 0 0 4px #1a4cb0, 0 0 0 6px #e8f0ff55, 0 3px 6px #0009}
+  .galka .kolo::before{content:"";position:absolute;inset:-9px;border-radius:50%;border:3px dotted #e8f0ffcc}
+  .galka .wsk{position:absolute;left:50%;top:6px;width:3px;height:15px;margin-left:-1.5px;background:#fff;border-radius:2px;transform-origin:50% 20px}
+  .galka .op{font-size:15px;color:#cfe0ff;margin-top:6px}
+  .guzik{position:absolute;width:44px;height:44px;background:linear-gradient(#3a3f4a,#22262e);border-radius:3px;box-shadow:0 2px 3px #0009, inset 0 1px 0 #ffffff20;cursor:pointer}
+  .guzik + .op{position:absolute;font-size:15px;color:#e8f0ff}
+  .lamp{position:absolute;width:12px;height:12px;border-radius:50%;background:#2f3d1c;box-shadow:inset 0 1px 2px #000}
+  .lamp.wl{background:var(--lampka);box-shadow:0 0 8px var(--lampka)}
+
+  /* ekran */
+  #obudowa{position:absolute;left:338px;top:12px;width:500px;height:470px;border-radius:14px;
+           background:linear-gradient(#2d6fe3,#1748a8);box-shadow:inset 0 2px 0 #ffffff50, 0 4px 10px #0008}
+  #obudowa .nap{position:absolute;left:0;right:0;top:20px;text-align:center;font-size:30px;font-weight:700;letter-spacing:4px;color:#fff;
+                text-shadow:0 0 0 #fff;font-style:italic}
+  #obudowa .nap span{color:var(--zloto)}
+  #obudowa .midi{position:absolute;right:36px;top:66px;font-size:15px;display:flex;align-items:center;gap:6px}
+  #ekran{position:absolute;left:30px;top:96px;width:440px;height:330px;background:var(--ekran);border:6px solid #0a0d12;border-radius:3px;box-shadow:0 0 0 3px #3c7df0}
+  .kolumna{position:absolute;top:12px;height:236px}
+  .kolumna .glowa{height:18px;display:flex;align-items:center;margin-bottom:4px}
+  .kolumna .glowa b{background:#b9d3f5;color:#0e1d33;font-size:11px;font-weight:600;padding:0 14px 0 8px;clip-path:polygon(0 0,100% 0,88% 100%,0 100%)}
+  .kolumna .glowa i{flex:1;height:1px;background:#b9d3f5;align-self:flex-start}
+  .lista{height:210px;overflow-y:auto;font-size:14px;line-height:19px;color:var(--ekranNapis);scrollbar-width:thin;scrollbar-color:#b9d3f5 transparent}
+  .lista div{cursor:pointer;white-space:nowrap;padding:0 4px;border-radius:2px}
+  .lista div:hover{background:#1d2a3d}
+  .lista div.wyb{background:#2c4a78;color:#fff}
+  .lista .zapomnij{float:right;color:#5f7da8;font-size:11px;padding:0 3px;border-radius:2px}
+  .lista .zapomnij:hover{color:#fff;background:#c0392b}
+  .lista .ik{display:inline-block;width:12px;height:12px;margin-right:6px;background:#b9d3f5;clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%);vertical-align:-1px}
+  #kolKat{left:10px;width:200px}
+  #kolBrz{left:220px;width:200px}
+  #dol{position:absolute;left:10px;right:10px;bottom:10px;height:60px}
+  #dol .glowa{display:flex;align-items:center;height:16px}
+  #dol .glowa b{background:#b9d3f5;color:#0e1d33;font-size:11px;font-weight:600;padding:0 14px 0 8px;clip-path:polygon(0 0,100% 0,88% 100%,0 100%)}
+  #nazwaEkran{font-size:22px;color:var(--ekranNapis);margin-top:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;width:250px}
+  #info{position:absolute;right:0;top:0;width:150px;font-size:11px;color:#b9d3f5}
+  #zapisWiersz{display:flex;gap:5px;margin-top:8px}
+  #nazwaBarwy{width:118px;height:22px;background:#0b1220;border:1px solid #3d5d8f;border-radius:3px;color:#fff;font-size:12px;padding:0 5px;outline:none}
+  #nazwaBarwy:focus{border-color:#b9d3f5}
+  #nazwaBarwy::placeholder{color:#4f6a96}
+  #zapiszBarwe{width:22px;height:22px;padding:0;background:#13203a;border:1px solid #3d5d8f;border-radius:3px;color:#b9d3f5;font-size:14px;line-height:20px;cursor:pointer}
+  #zapiszBarwe:hover{border-color:var(--lampka);color:var(--lampka);text-shadow:0 0 4px var(--lampka)}
+  #info .pasek{height:6px;background:#22344d;margin:6px 0 0}
+  .wskaz{position:absolute;top:52px;width:16px;height:22px;display:flex;flex-direction:column;gap:4px}
+  .wskaz i{display:block;height:3px;background:#0f1d3c}
+
+  /* szufladki */
+  .szuf{position:absolute;top:36px;width:186px;height:166px;border-radius:6px;background:#123f99;box-shadow:inset 0 2px 5px #0008, inset 0 0 0 1px #6fa2ff55}
+  .szuf .nr{position:absolute;left:8px;top:6px;font-size:12px;color:#a9c8ff}
+  .szuf .wl{position:absolute;right:8px;top:6px;width:12px;height:12px;border-radius:50%;background:#2f3d1c;box-shadow:inset 0 1px 2px #000;cursor:pointer}
+  .szuf .wl.on{background:var(--lampka);box-shadow:0 0 8px var(--lampka)}
+  .szuf .miejsce{position:absolute;left:30px;right:8px;top:24px;height:46px;border:2px dashed #6fa2ff88;border-radius:5px;
+                 display:flex;align-items:center;justify-content:center;font-size:13px;color:#a9c8ff;text-align:center;padding:0 6px}
+  .szuf .miejsce.pelna{border-style:solid;border-color:#b9d3f5;background:#0e1622;color:#fff;font-size:14px}
+  .szuf .miejsce.nad{background:#1d55c4;border-color:#fff}
+  .szuf.nad{box-shadow:0 0 0 3px var(--lampka), inset 0 2px 5px #0008}
+  .szuf .x{position:absolute;right:12px;top:28px;font-size:13px;color:#a9c8ff;cursor:pointer;display:none}
+  .szuf .x:hover{color:#fff}
+  .suw{position:absolute;left:8px;right:8px;display:flex;align-items:center;gap:5px;font-size:11px;color:#d6e6ff}
+  .suw label{width:54px;flex:none}
+  .suw output{width:24px;flex:none;text-align:right;font-size:11px;color:#a9c8ff}
+  input[type=range]{-webkit-appearance:none;appearance:none;flex:1;min-width:0;height:6px;border-radius:3px;background:#0a2a6b;box-shadow:inset 0 1px 2px #000;outline:none}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:radial-gradient(circle at 40% 35%,#ffffff,#a9b4c4);box-shadow:0 1px 3px #000;cursor:pointer}
+  input[type=range]::-moz-range-thumb{width:16px;height:16px;border:0;border-radius:50%;background:radial-gradient(circle at 40% 35%,#ffffff,#a9b4c4);box-shadow:0 1px 3px #000;cursor:pointer}
+
+  /* wyjście */
+  .miernik{position:absolute;display:grid;grid-template-columns:12px 12px;gap:3px 4px}
+  .miernik i{width:12px;height:9px;border-radius:2px;background:#3b0f12;box-shadow:inset 0 1px 1px #000}
+  .miernik i.z{background:#1d3a12}
+
+  /* pasek pod bryłą */
+  #pasek{position:absolute;left:0;right:0;top:748px;height:30px;display:flex;align-items:center;gap:10px;padding:0 16px;font-size:11px;color:#8d96a8}
+  .makro{height:22px;padding:0 10px;white-space:nowrap;flex:none;background:#262a33;border:1px solid #101217;border-radius:11px;display:flex;align-items:center;gap:8px;color:#c4ccdb}
+  .makro i{width:14px;height:14px;border-radius:50%;background:#14161b;box-shadow:inset 0 0 0 2px #3a404c}
+
+  /* klawiatura */
+  #klawisze{position:absolute;left:10px;right:10px;top:782px;height:90px;background:#101217;border-radius:6px;display:flex;align-items:stretch;padding:6px}
+  #kolka{width:70px;display:flex;gap:8px;justify-content:center;padding:4px 0}
+  .kolko{width:22px;background:linear-gradient(90deg,#14161b,#30343e,#14161b);border-radius:3px;position:relative;box-shadow:inset 0 0 0 1px #000}
+  .kolko i{position:absolute;left:2px;right:2px;height:10px;background:#d9e2f2;border-radius:2px;top:50%;margin-top:-5px}
+  #klaw{flex:1;position:relative}
+  #klaw .b{position:absolute;top:0;bottom:0;background:linear-gradient(#cdd8ec,#eef3fb);border:1px solid #6f7d96;border-radius:0 0 3px 3px;cursor:pointer}
+  #klaw .c{position:absolute;top:0;height:58%;background:linear-gradient(#1f2430,#3a4050);border-radius:0 0 2px 2px;cursor:pointer;z-index:2;box-shadow:0 2px 2px #0008}
+  #klaw .b.wc{background:linear-gradient(#9fc0f5,#cfe0fb)}
+  #klaw .c.wc{background:linear-gradient(#2c72e6,#5a96f5)}
+  .usbGuz{white-space:nowrap;flex:none;margin-left:14px;height:22px;padding:0 10px;background:#262a33;border:1px solid #101217;border-radius:11px;color:#c4ccdb;font-size:11px;cursor:pointer}
+  .usbGuz:hover{color:#fff;background:#2f3440}
+  #status b{color:#ffd25a}
+  .okt{position:absolute;left:6px;top:24px;width:20px;height:46px;display:flex;flex-direction:column;align-items:center;justify-content:space-between}
+  .okt span{font-size:9px;line-height:12px;color:#5f86c8;cursor:pointer;width:20px;text-align:center;border-radius:3px}
+  .okt span:hover{color:#fff;background:#1d55c4}
+  .okt b{font-size:13px;font-weight:700;color:#7f9fd6;line-height:16px}
+  .okt b.zm{color:var(--lampka);text-shadow:0 0 4px var(--lampka)}
+  .strefy{position:absolute;left:8px;right:8px;top:140px;display:flex;gap:6px}
+  .strefy span{flex:1;height:16px;border-radius:8px;background:#0a2a6b;box-shadow:inset 0 1px 2px #000;font-size:11px;line-height:16px;text-align:center;color:#2f4f86;cursor:pointer}
+  .strefy span.on{color:var(--lampka);text-shadow:0 0 4px var(--lampka),0 0 9px var(--lampka)}
+  #pasekKl{position:absolute;left:86px;right:16px;top:778px;height:4px;display:flex}
+  #pasekKl i{flex:1}
+</style>
+</head>
+<body>
+<div id="skala">
+<div id="prog">
+
+  <!-- górny pasek -->
+  <div id="gora">
+    <div id="logo">ALICJA <b>3</b></div>
+    <div id="brzmienieBox">
+      <span class="kat" id="katGora">ORG</span>
+      <div id="nazwaGora">Pryncypał 8'</div>
+      <span class="strz" id="wstecz">◀</span><span class="strz" id="dalej">▶</span>
+    </div>
+    <div class="guzG" id="wczytajBank" title="Wczytaj bank .alicja z „Alicja – sampler” (albo zestaw .organy)"><span>📂</span>BANK</div>
+    <div class="guzG"><span>☰</span>BARWY</div>
+    <div class="guzG"><span>✎</span>EDYTUJ</div>
+    <div class="guzG"><span>▤</span>SZUFLADY</div>
+    <div class="guzG"><span>⚙</span>USTAW.</div>
+    <div id="wyjGora" style="gap:6px">
+      <div class="galka" style="position:relative;width:34px"><div class="kolo" style="width:24px;height:24px;box-shadow:0 0 0 2px #444,0 2px 3px #000"><div class="wsk" style="height:8px;top:3px;transform-origin:50% 9px;width:2px"></div></div></div>
+      Wyjście
+    </div>
+  </div>
+
+  <!-- niebieska bryła -->
+  <div id="bryla">
+    <div class="sruba" style="left:16px;top:90px"></div>
+    <div class="sruba" style="right:16px;top:90px"></div>
+    <div class="sruba" style="left:16px;top:500px"></div>
+    <div class="sruba" style="right:16px;top:500px"></div>
+
+    <!-- lewy panel: Barwa -->
+    <div class="ramka" id="lewy" style="left:60px;top:40px;width:256px;height:400px">
+      <div class="tytul"><b>Barwa</b><i></i></div>
+    </div>
+
+    <!-- prawy panel: Głośność -->
+    <div class="ramka" id="prawy" style="right:60px;top:40px;width:256px;height:400px">
+      <div class="tytul"><b>Aura</b><i></i></div>
+    </div>
+
+    <!-- ekran w środku -->
+    <div id="obudowa">
+      <div class="wskaz" style="left:18px"><i></i><i></i><i></i></div>
+      <div class="wskaz" style="right:18px"><i></i><i></i><i></i></div>
+      <div class="nap">ALICJA <span>3</span></div>
+      <div class="midi"><span class="lamp" id="lampMidi" style="position:relative"></span>midi</div>
+      <div id="ekran">
+        <div class="kolumna" id="kolKat"><div class="glowa"><b>kategoria</b><i></i></div><div class="lista" id="listaKat"></div></div>
+        <div class="kolumna" id="kolBrz"><div class="glowa"><b>dźwięk</b><i></i></div><div class="lista" id="listaBrz"></div></div>
+        <div id="dol">
+          <div class="glowa"><b>nazwa</b></div>
+          <div id="nazwaEkran">Pryncypał 8'</div>
+          <div id="info"><div class="glowa" style="display:flex"><b>zapisz barwę</b></div>
+            <div id="zapisWiersz"><input id="nazwaBarwy" maxlength="28" placeholder="nazwa barwy…" title="wpisz nazwę i kliknij kopertkę (albo Enter)"><button id="zapiszBarwe" title="zapisz wszystkie szufladki i Aurę do „Moje barwy”">✉</button></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- dolny rząd -->
+    <div class="ramka" id="filtrGl" style="left:60px;top:452px;width:256px;height:210px">
+      <div class="tytul"><b>Filtr główny</b><i></i></div>
+    </div>
+
+    <div class="ramka" id="szuflady" style="left:328px;top:452px;width:680px;height:210px">
+      <div class="tytul"><b>Szufladki</b><i></i></div>
+    </div>
+
+  </div>
+
+  <!-- pasek pod bryłą -->
+  <div id="pasek">
+    <span id="status" style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#b9c6dd" title=""></span>
+        <div class="makro"><i></i>Makro 1</div>
+    <div class="makro"><i></i>Makro 2</div>
+    <div class="makro"><i></i>Makro 3</div>
+    <div class="makro"><i></i>Makro 4</div>
+    <button id="szukajUsb" class="usbGuz">🔌 Szukaj USB</button><span class="lamp" style="position:relative" id="lampUsb"></span>
+  </div>
+
+  <div id="pasekKl"><i style="background:#5ad38a"></i><i style="background:#6e8df5"></i></div>
+  <div id="klawisze">
+    <div id="kolka"><div class="kolko"><i></i></div><div class="kolko"><i style="top:auto;bottom:4px;margin:0"></i></div></div>
+    <div id="klaw"></div>
+  </div>
+</div>
+</div>
+
+<input type="file" id="bankInput" accept=".alicja,.organy" hidden>
+<script>
+// ===== dźwięki na ekranie — prawdziwe nazwy z mini-organy.html i piano-pro-barwy.html =====
+const $ = id => document.getElementById(id);
+const esc = t => String(t).replace(/[&<>"]/g, z => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[z]));
+
+/* =====================================================================
+   WSPÓLNE: jedno AudioContext, szufladki zbiegają się w jednym wyjściu
+   ===================================================================== */
+let audio = null, wyjscieAlicji = null, ogrWspolny = null, pogWyslij = null, pogSplot = null;
+// pokrętło Pogłos: JEDYNY pogłos w Alicji 3. 0 = zupełnie sucho, na maksa — wyraźnie, ale nie za dużo
+let pogloWart = 0, pogloWl = true;
+const POGLOS_MAKS = 1.4;              // na maksa: pogłos trochę głośniejszy od czystego dźwięku — jak średni kościół, nie katedra
+/* =====================================================================
+   PRZESTRZEŃ (po swojemu) — jeden ruch myszką ustawia trzy rzeczy naraz:
+   1. ODBICIA: 6 wczesnych odbić od ścian (11–59 ms, im głębiej tym dalej), na zmianę lewo / prawo
+   2. GŁĘBIA: długi, ciemny ogon sali — od 1,2 s do 10 s; czysty dźwięk lekko się oddala (cichnie)
+   3. SZEROKOŚĆ: stereo środek / boki (M/S) — boki głośniej, plus delikatne rozsunięcie środka (efekt Haasa)
+   0 = nic nie dodaje (dźwięk jak bez przestrzeni)
+   ===================================================================== */
+const PRZ = { v: 0 };
+function zbudujPrzestrzen() {
+  const A = audio, g = v => { const n = A.createGain(); n.gain.value = v; return n; };
+  PRZ.przed = g(1);                                    // tu wpada wszystko: czysty dźwięk, pogłos, odbicia, głębia
+  PRZ.sucho = g(1); wyjscieAlicji.connect(PRZ.sucho).connect(PRZ.przed);
+  // 1. odbicia
+  PRZ.mono = g(1); PRZ.mono.channelCount = 1; PRZ.mono.channelCountMode = 'explicit'; wyjscieAlicji.connect(PRZ.mono);
+  PRZ.odbicia = [0.011, 0.017, 0.023, 0.031, 0.043, 0.059].map((t, i) => {
+    const d = A.createDelay(0.2), gn = g(0), p = A.createStereoPanner(), ton = A.createBiquadFilter();
+    ton.type = 'lowpass'; ton.frequency.value = 6000 - i * 700;            // dalsze odbicie = ciemniejsze
+    d.delayTime.value = t; PRZ.mono.connect(d).connect(ton).connect(gn).connect(p).connect(PRZ.przed);
+    return { d, gn, p, t, sila: [0.5, 0.42, 0.36, 0.3, 0.24, 0.18][i], strona: i % 2 ? 1 : -1 };
+  });
+  // 2. głębia: ciemny ogon sali
+  PRZ.ciemno = A.createBiquadFilter(); PRZ.ciemno.type = 'lowpass'; PRZ.ciemno.frequency.value = 4500;
+  PRZ.sala = A.createConvolver(); PRZ.salaGl = g(0);
+  wyjscieAlicji.connect(PRZ.ciemno).connect(PRZ.sala).connect(PRZ.salaGl).connect(PRZ.przed);
+  // 3. szerokość: środek / boki
+  const roz = A.createChannelSplitter(2), zl = A.createChannelMerger(2);
+  PRZ.przed.connect(roz);
+  const srodek = g(1), bok = g(1), ujemny = g(-1);
+  const lP = g(0.5), pP = g(0.5), lB = g(0.5), pB = g(-0.5);
+  roz.connect(lP, 0); roz.connect(pP, 1); lP.connect(srodek); pP.connect(srodek);
+  roz.connect(lB, 0); roz.connect(pB, 1); lB.connect(bok); pB.connect(bok);
+  PRZ.bok = g(1); bok.connect(PRZ.bok);
+  // Haas: ze środka robię trochę „boku” (dwa różne malutkie opóźnienia)
+  const dA = A.createDelay(0.05), dB = A.createDelay(0.05); dA.delayTime.value = 0.007; dB.delayTime.value = 0.013;
+  PRZ.haas = g(0); const minus = g(-1);
+  srodek.connect(dA).connect(PRZ.haas); srodek.connect(dB).connect(minus).connect(PRZ.haas);
+  const boki = g(1); PRZ.bok.connect(boki); PRZ.haas.connect(boki);
+  srodek.connect(zl, 0, 0); srodek.connect(zl, 0, 1);
+  boki.connect(zl, 0, 0); boki.connect(ujemny).connect(zl, 0, 1);
+  zl.connect(ogrWspolny);
+  PRZ.dlSali = -1; ustawPrzestrzen(PRZ.v, true);
+}
+function salaPrzestrzeni(sek) {                         // ogon sali: szum, który gaśnie i ciemnieje (jak pogłos barw Alicji)
+  const sr = audio.sampleRate, dl = Math.floor(sr * sek), imp = audio.createBuffer(2, dl, sr);
+  for (let k = 0; k < 2; k++) { const d = imp.getChannelData(k); let c = 0;
+    for (let i = 0; i < dl; i++) { const t = i / sr, gas = Math.pow(1 - i / dl, 1.9) * Math.exp(-t * .45), j = Math.max(.04, .55 * Math.exp(-t * .6));
+      c += ((Math.random() * 2 - 1) - c) * j; d[i] = t < .03 ? 0 : c * gas; } }
+  PRZ.sala.buffer = imp;
+}
+function ustawPrzestrzen(v, liczSale) {
+  PRZ.v = v; if (!audio || !PRZ.przed) return;
+  const zapamietane = v; v = pogloWl ? v : 0;                       // panel wyłączony: przestrzeń nic nie dodaje
+  const t = audio.currentTime, gl = (a, x) => a.setTargetAtTime(x, t, 0.04);
+  gl(PRZ.sucho.gain, 1 - v * 0.25);                                 // czysty dźwięk lekko się oddala
+  PRZ.odbicia.forEach(o => { gl(o.d.delayTime, o.t * (0.6 + v * 1.6)); gl(o.gn.gain, o.sila * v * 0.6); gl(o.p.pan, o.strona * (0.25 + v * 0.65)); });
+  gl(PRZ.salaGl.gain, v * 0.38);
+  gl(PRZ.bok.gain, 1 + v * 0.55);                                   // boki głośniej = szerzej (z umiarem, żeby nie brzmiało pusto)
+  gl(PRZ.haas.gain, v * 0.18);
+  if (liczSale && pogloWl) { const dl = 1.2 + zapamietane * 8.8; if (Math.abs(dl - PRZ.dlSali) > 0.2) { PRZ.dlSali = dl; salaPrzestrzeni(dl); } }
+}
+
+/* =====================================================================
+   ECHO (ping-pong) — odbicia skaczą na zmianę: lewo, prawo, lewo…
+   ekranik: w górę = głośniejsze echo i więcej powtórzeń; suwak = szybkość (czas między odbiciami)
+   ===================================================================== */
+const ECH = { v: 0, ms: 375 };
+function zbudujEcho() {
+  const A = audio, g = v => { const n = A.createGain(); n.gain.value = v; return n; };
+  ECH.wej = g(0); ECH.wej.channelCount = 1; ECH.wej.channelCountMode = 'explicit';   // echo z całości (mono), potem rozrzucone na boki
+  ECH.dL = A.createDelay(2.5); ECH.dP = A.createDelay(2.5);
+  ECH.ton = A.createBiquadFilter(); ECH.ton.type = 'lowpass'; ECH.ton.frequency.value = 4000;   // każde odbicie trochę ciemniejsze (jak w barwach Alicji)
+  ECH.fb = g(0);
+  const zl = A.createChannelMerger(2);
+  wyjscieAlicji.connect(ECH.wej).connect(ECH.dL);
+  ECH.dL.connect(zl, 0, 0);                                       // pierwsze odbicie: lewo
+  ECH.dL.connect(ECH.dP); ECH.dP.connect(zl, 0, 1);               // drugie: prawo
+  ECH.dP.connect(ECH.ton).connect(ECH.fb).connect(ECH.dL);        // i wraca — coraz ciszej
+  zl.connect(PRZ.przed);                                          // echo też przechodzi przez przestrzeń
+  ustawEcho();
+}
+function ustawEcho() {
+  if (!audio || !ECH.wej) return;
+  const t = audio.currentTime, gl = (a, x) => a.setTargetAtTime(x, t, 0.04), v = pogloWl ? ECH.v : 0, sek = ECH.ms / 1000;
+  gl(ECH.wej.gain, v * 0.55);
+  gl(ECH.fb.gain, v < 0.01 ? 0 : 0.15 + v * 0.6);                 // powtórzenia: od kilku do bardzo wielu (najwyżej 0,75 — nigdy się nie „zawiesi”)
+  gl(ECH.dL.delayTime, sek); gl(ECH.dP.delayTime, sek);
+}
+
+function ustawWspolnyPoglos() { if (pogWyslij) pogWyslij.gain.setTargetAtTime(pogloWl ? pogloWart * POGLOS_MAKS : 0, audio.currentTime, 0.05); }
+function startAudio() {
+  if (audio) { if (audio.state === 'suspended') audio.resume(); return; }
+  audio = new (window.AudioContext || window.webkitAudioContext)();
+  wyjscieAlicji = audio.createGain(); wyjscieAlicji.gain.value = 1;
+  // ogranicznik na samym końcu: cztery szufladki naraz nie mogą przesterować (tak samo ustawiony jak w organach)
+  ogrWspolny = audio.createDynamicsCompressor();
+  ogrWspolny.threshold.value = -4; ogrWspolny.knee.value = 0; ogrWspolny.ratio.value = 20; ogrWspolny.attack.value = 0.001; ogrWspolny.release.value = 0.15;
+  ogrWspolny.connect(audio.destination);
+  zbudujPrzestrzen();                                  // wyjście Alicji → PRZESTRZEŃ (odbicia, głębia, szerokość) → ogranicznik
+  zbudujEcho();
+  // WSPÓLNY POGŁOS dla wszystkich szufladek — „nasz” pogłos kościoła Alicji (ten sam przepis co w organach, kaplica–katedra na 33)
+  pogWyslij = audio.createGain(); pogWyslij.gain.value = 0; pogSplot = audio.createConvolver();
+  { const p = 0.33, sek = 1.2 + p * 5.3, sr = audio.sampleRate, dl = Math.floor(sr * sek), imp = audio.createBuffer(2, dl, sr);
+    for (let k = 0; k < 2; k++) { const d = imp.getChannelData(k); let c = 0;
+      for (let i = 0; i < dl; i++) { const t = i / sr, g = Math.pow(1 - i / dl, 2.2) * Math.exp(-t * 1.1);
+        c += ((Math.random() * 2 - 1) - c) * Math.max(0.04, 0.55 * Math.exp(-t * 0.9)); d[i] = t < 0.018 ? 0 : c * g; } }
+    pogSplot.buffer = imp; }
+  wyjscieAlicji.connect(pogWyslij).connect(pogSplot).connect(PRZ.przed);   // pogłos też idzie przez przestrzeń (szerokość)
+  ustawWspolnyPoglos();
+  szuflady.forEach(s => { if (s.dzwiek && !s.inst) zbuduj(s); });
+}
+
+/* =====================================================================
+   ORGANY ALICJI — przepisane z mini-organy.html bez zmian w dźwięku.
+   Każda szufladka z głosem organów dostaje swój komplet: kompresor, głośność 70 %,
+   ogranicznik i pogłos kościoła Alicji (33 — jak na start w organach).
+   ===================================================================== */
+const REJESTRY = [
+  { id: 'bourdon',     nazwa: 'Bourdon',     stopy: "16'", rzad: 'B', przes: -12, glosnosc: 0.63, alicja: 0.82 },
+  { id: 'pryncypal',   nazwa: 'Pryncypał',   stopy: "8'",  rzad: 'A', przes: 0,   glosnosc: 1.16, alicja: 0.74 },
+  { id: 'gedakt',      nazwa: 'Gedakt',      stopy: "8'",  rzad: 'B', przes: 0,   glosnosc: 0.60, alicja: 0.82 },
+  { id: 'salicjonal',  nazwa: 'Salicjonał',  stopy: "8'",  rzad: 'D', przes: 0,   glosnosc: 0.66, alicja: 1.09 },
+  { id: 'oktawa',      nazwa: 'Oktawa',      stopy: "4'",  rzad: 'A', przes: 12,  glosnosc: 0.79, alicja: 0.73 },
+  { id: 'flet4',       nazwa: 'Flet',        stopy: "4'",  rzad: 'B', przes: 12,  glosnosc: 0.46, alicja: 0.83 },
+  { id: 'kwinta',      nazwa: 'Kwinta',      stopy: "2⅔'", rzad: 'A', przes: 19,  glosnosc: 0.44, alicja: 0.83 },
+  { id: 'superoktawa', nazwa: 'Superoktawa', stopy: "2'",  rzad: 'A', przes: 24,  glosnosc: 0.59, alicja: 0.75 },
+  { id: 'mixtura',     nazwa: 'Mixtura',     stopy: 'III', rzad: 'C', przes: 0,   glosnosc: 0.61, alicja: 1.08 },
+  { id: 'trabka',      nazwa: 'Trąbka',      stopy: "8'",  rzad: 'E', przes: 0,   glosnosc: 1.29, alicja: 1.30 },
+  { id: 'oboj',        nazwa: 'Obój',        stopy: "8'",  rzad: 'F', przes: 0,   glosnosc: 0.87, alicja: 1.17 },
+  { id: 'subbas',      nazwa: 'Subbas',      stopy: "16'", rzad: 'B', przes: -12, glosnosc: 0.67, alicja: 0.83, doNuty: 54 },
+  { id: 'traverso',    nazwa: 'Traverso',    stopy: "8'",   rzad: 'G', przes: 0,   glosnosc: 0.68, alicja: 1.00 },
+  { id: 'trompeta',    nazwa: 'Trompeta',    stopy: "8'",   rzad: 'H', przes: 0,   glosnosc: 1.04, alicja: 1.00 },
+  { id: 'sesquialtera', nazwa: 'Sesquialtera', stopy: 'II', rzad: 'J', przes: 0,   glosnosc: 0.80, alicja: 1.00 },
+  { id: 'flet2',       nazwa: 'Flet',        stopy: "2'",  rzad: 'B', przes: 24,  glosnosc: 0.35, alicja: 0.83 }
+];
+const ZAKRES_RZEDU = { A: [36, 108], B: [24, 108], C: [36, 96], D: [36, 96], E: [36, 96], F: [36, 96], G: [36, 108], H: [36, 96], J: [36, 96] };
+function celNuta(R, n) { let c = n + R.przes; const [od, doN] = ZAKRES_RZEDU[R.rzad]; while (c > doN + 1) c -= 12; while (c < od - 1) c += 12; return c; }
+const STROJ_WIATR = 0.9;
+const hz = n => 440 * Math.pow(2, (n - 69) / 12);
+const PRZEPISY = {
+  A: { alikwoty: [1, 0.62, 0.42, 0.30, 0.20, 0.15, 0.10, 0.08, 0.06, 0.045, 0.035, 0.025], wejscie: 0.045, oddech: 0.10 },
+  B: { alikwoty: [1, 0.10, 0.05, 0.015], wejscie: 0.05, oddech: 0.45, oddechStaly: 0.05, pasmo: 5, szerokosc: 0.7 },
+  C: { rzedy: [[4, 0.9], [6, 0.75], [8, 0.65]], alikwoty: [1, 0.35, 0.18], wejscie: 0.03, oddech: 0.06 },
+  D: { alikwoty: [1, 0.59, 0.44, 0.35, 0.30, 0.26, 0.23, 0.21, 0.19, 0.18, 0.17, 0.16, 0.15, 0.14, 0.13, 0.12], wejscie: 0.09, oddech: 0.05 },
+  E: { formanta: [1500, 900, 30], wejscie: 0.02, oddech: 0 },
+  F: { formanta: [1100, 450, 22], nieparzyste: 1.3, wejscie: 0.03, oddech: 0 },
+  G: { alikwoty: [1, 0.292, 0.087, 0.165, 0.037, 0.014, 0.007, 0.004, 0.004, 0.003], wejscie: 0.22, lagodnie: true, oddech: 0.18,
+       vibrato: 6, vibratoHz: 4.6, falowanie: 10 },
+  H: { formanta: [2800, 2200, 40], wejscie: 0.012, oddech: 0, przestrzal: 1.25, opad: 0.06, brzek: 35, chrapliwosc: 0.35, zPrzodu: 0.5 },
+  J: { rzedy: [[3, 1], [5, 0.667]], alikwoty: [1, 0.04, 0.06, 0.02, 0.10], wejscie: 0.05, oddech: 0.30, oddechStaly: 0.04, pasmo: 5, szerokosc: 0.7 }
+};
+function alikwotyRzedu(P, f) {
+  if (!P.formanta) return P.alikwoty;
+  const [srodek, szer, ile] = P.formanta, a = [];
+  for (let k = 1; k < ile; k++) a.push((1 / Math.pow(k, 0.35)) * (0.25 + Math.exp(-Math.pow((f * k - srodek) / szer, 2))) * (P.nieparzyste ? (k % 2 ? P.nieparzyste : 0.8) : 1));
+  return a;
+}
+let FALE = null, SZUM = null;
+function przygotujOrgany() {
+  if (FALE) return; FALE = {};
+  SZUM = audio.createBuffer(1, audio.sampleRate, audio.sampleRate);
+  const d = SZUM.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+}
+function falaRzedu(r, f) {
+  const P = PRZEPISY[r], klucz = P.formanta ? r + Math.round(f) : r;
+  if (!FALE[klucz]) { const a = alikwotyRzedu(P, f), re = new Float32Array(a.length + 1), im = new Float32Array(a.length + 1); a.forEach((x, i) => im[i + 1] = x); FALE[klucz] = audio.createPeriodicWave(re, im); }
+  return FALE[klucz];
+}
+const KRZYWE_CHRAPANIA = {};
+function krzywaChrapania(ch) {
+  const k = ch.toFixed(2); if (KRZYWE_CHRAPANIA[k]) return KRZYWE_CHRAPANIA[k];
+  const n = 1024, c = new Float32Array(n), d = 1 + ch * 4; for (let i = 0; i < n; i++) { const x = i / (n - 1) * 2 - 1; c[i] = Math.tanh(x * d) / Math.tanh(d); }
+  return KRZYWE_CHRAPANIA[k] = c;
+}
+
+// jeden głos organów w szufladce — łańcuch jak w startAudio() i ustawPoglos() z mini-organy.html
+function nowyGlosOrganow(R, wyjscie) {
+  przygotujOrgany();
+  const kompresor = audio.createDynamicsCompressor(); kompresor.threshold.value = -14; kompresor.ratio.value = 4;
+  const wyjscieGl = audio.createGain(); wyjscieGl.gain.value = 70 / 100 * 0.9;          // głośność organów na start: 70 % × 0,9
+  const ogranicznik = audio.createDynamicsCompressor();
+  ogranicznik.threshold.value = -4; ogranicznik.knee.value = 0; ogranicznik.ratio.value = 20; ogranicznik.attack.value = 0.001; ogranicznik.release.value = 0.15;
+  kompresor.connect(wyjscieGl).connect(ogranicznik).connect(wyjscie);
+  const sucho = audio.createGain(), mokro = audio.createGain(), poglos = audio.createConvolver();
+  sucho.connect(kompresor); mokro.connect(poglos).connect(kompresor);
+  // Alicja 3: głos organów gra NA SUCHO (jak w organach z wyłączonym pogłosem: sucho 1, mokro 0).
+  // Cały pogłos daje jedno wspólne pokrętło „pogłos” w prawym panelu.
+  sucho.gain.value = 1; mokro.gain.value = 0;
+
+  function dzwiek(n) {                                    // = glosAlicji(R, n) z mini-organy.html
+    if (R.doNuty && n > R.doNuty) return () => {};
+    const P = PRZEPISY[R.rzad], t = audio.currentTime, f = hz(celNuta(R, n));
+    const v = 0.15 * 0.7 * R.glosnosc * R.alicja * Math.min(1.1, Math.pow(261.6 / f, 0.18));
+    const osc0 = [];
+    const strona = n % 2 === 0 ? -1 : 1, szer = 0.6 - 0.4 * Math.max(0, Math.min(1, (n - 36) / 60));
+    const przes = ((R.id || '').split('').reduce((h, z) => (h * 31 + z.charCodeAt(0)) | 0, 7) % 9) / 100;
+    const pan = audio.createStereoPanner(); pan.pan.value = Math.max(-1, Math.min(1, strona * szer + przes));
+    const nuta = audio.createGain(); nuta.gain.value = 0;
+    const doSucho = audio.createGain(), doMokro = audio.createGain();
+    doSucho.gain.value = 1 + (P.zPrzodu || 0) * 0.25; doMokro.gain.value = 1 - (P.zPrzodu || 0) * 0.7;
+    pan.connect(doSucho).connect(sucho); doMokro.connect(mokro);
+    let wyjscieNuty = nuta;
+    if (P.chrapliwosc) { const ws = audio.createWaveShaper(); ws.curve = krzywaChrapania(P.chrapliwosc); ws.oversample = '2x'; nuta.connect(ws); wyjscieNuty = ws; }
+    wyjscieNuty.connect(pan); wyjscieNuty.connect(doMokro);
+    let zrodloOsc = nuta;
+    if (P.falowanie) { const fal = audio.createGain(), fo = audio.createOscillator(), fg = audio.createGain();
+      fal.gain.value = 1; fo.frequency.value = 2.6; fg.gain.value = P.falowanie / 100; fo.connect(fg).connect(fal.gain); fal.connect(nuta); fo.start(t); zrodloOsc = fal; osc0.push(fo); }
+    const osc = [];
+    const skladniki = P.rzedy ? P.rzedy.map(([k, a]) => { let kk = k; while (f * kk > 4200) kk /= 2; return [kk, a * 0.45]; }) : [[1, 1]];
+    for (const [k, a] of skladniki) {
+      const o = audio.createOscillator(), g = audio.createGain(), wiatr = audio.createOscillator(), wg = audio.createGain();
+      o.setPeriodicWave(falaRzedu(R.rzad, f)); o.frequency.value = f * k; o.detune.value = (Math.random() * 2 - 1) * 1.5;
+      if (P.brzek) { o.detune.setValueAtTime(P.brzek + o.detune.value, t); o.detune.setTargetAtTime((Math.random() * 2 - 1) * 1.5, t + 0.004, 0.012); }
+      wiatr.frequency.value = 3.3 + Math.random() * 1.2; wg.gain.value = STROJ_WIATR; wiatr.connect(wg).connect(o.detune);
+      if (P.vibrato) { const vo = audio.createOscillator(), vg = audio.createGain(); vo.frequency.value = P.vibratoHz || 4.5; vg.gain.value = P.vibrato; vo.connect(vg).connect(o.detune); vo.start(t); osc.push(vo); }
+      g.gain.value = a; o.connect(g).connect(zrodloOsc); o.start(t); wiatr.start(t); osc.push(o, wiatr);
+    }
+    osc.push(...osc0);
+    nuta.gain.setValueAtTime(0, t);
+    if (P.lagodnie) nuta.gain.setTargetAtTime(v, t, P.wejscie / 3);
+    else { nuta.gain.linearRampToValueAtTime(v * (P.przestrzal || 1.12), t + P.wejscie); nuta.gain.linearRampToValueAtTime(v, t + P.wejscie + (P.opad || 0.09)); }
+    if (P.brzek) {
+      const tz = audio.createBufferSource(), tf = audio.createBiquadFilter(), tg = audio.createGain();
+      tz.buffer = SZUM; tf.type = 'highpass'; tf.frequency.value = Math.min(8000, f * 6); tg.gain.setValueAtTime(0, t); tg.gain.linearRampToValueAtTime(0.35, t + 0.003); tg.gain.exponentialRampToValueAtTime(0.0001, t + 0.035);
+      tz.connect(tf).connect(tg).connect(nuta); tz.start(t, Math.random() * 0.9); tz.stop(t + 0.05); }
+    // oddech: w organach przy kilku rejestrach naraz każdy „pluje” ciszej — tu każda szufladka ma jeden głos
+    const ileDmucha = 1, cichszy = Math.pow(ileDmucha, -0.6);
+    const s = audio.createBufferSource(), filtr = audio.createBiquadFilter(), sg = audio.createGain();
+    s.buffer = SZUM; s.loop = true; filtr.type = 'bandpass'; filtr.frequency.value = Math.min(9000, f * (P.pasmo || 3)); filtr.Q.value = P.szerokosc || 2.5;
+    if (P.lagodnie) { filtr.frequency.value = Math.min(9000, f * 4); filtr.Q.value = 0.7;
+      sg.gain.setValueAtTime(0, t); sg.gain.linearRampToValueAtTime(P.oddech * 0.5 * cichszy + 0.0001, t + 0.03); sg.gain.exponentialRampToValueAtTime(P.oddech * 0.12 * cichszy + 0.0001, t + 0.25); }
+    else { sg.gain.setValueAtTime(0, t); sg.gain.linearRampToValueAtTime(P.oddech * 6 * cichszy + 0.0001, t + 0.012); sg.gain.exponentialRampToValueAtTime((P.oddechStaly || P.oddech * 0.25) * cichszy + 0.0001, t + 0.09); }
+    s.connect(filtr).connect(sg).connect(nuta); s.start(t, Math.random() * 0.9);
+    return () => {
+      const k = audio.currentTime;
+      nuta.gain.cancelScheduledValues(k); nuta.gain.setValueAtTime(nuta.gain.value, k); nuta.gain.linearRampToValueAtTime(0, k + 0.07);
+      osc.forEach(o => o.stop(k + 0.12)); s.stop(k + 0.12);
+    };
+  }
+  return { dzwiek, organy: true, zniszcz() { setTimeout(() => { try { ogranicznik.disconnect(); } catch (e) {} }, 400); } };
+}
+
+/* =====================================================================
+   BARWY ALICJI — silnik i 12 przepisów przepisane z piano-pro-barwy.html bez zmian w dźwięku.
+   Każda szufladka z barwą to osobny komplet: 3 warstwy, ruch, przester, chorus, echo, pogłos, ogranicznik.
+   Gałki makr stoją na środku (0,5) — tak jak w Piano Pro po wybraniu barwy.
+   ===================================================================== */
+const GW = {
+  osc1: [['o1_oct', 'Oktawa', -2, 2, 0, 'int', ''], ['o1_semi', 'Półtony', -12, 12, 0, 'int', ''], ['o1_fine', 'Strój', -50, 50, 0, '', 'ct'],
+         ['o1_uni', 'Unison', 1, 7, 1, 'int', ''], ['o1_spread', 'Rozstrój', 0, 60, 15, '', 'ct'], ['o1_lvl', 'Poziom', 0, 1, .8, '', '']],
+  osc2: [['o2_oct', 'Oktawa', -2, 2, 0, 'int', ''], ['o2_semi', 'Półtony', -12, 12, 0, 'int', ''], ['o2_fine', 'Strój', -50, 50, 0, '', 'ct'],
+         ['o2_uni', 'Unison', 1, 7, 1, 'int', ''], ['o2_spread', 'Rozstrój', 0, 60, 15, '', 'ct'], ['o2_lvl', 'Poziom', 0, 1, 0, '', '']],
+  sz:   [['noise', 'Szum', 0, 1, 0, '', ''], ['fm', 'FM 2→1', 0, 1, 0, '', '']],
+  fil:  [['f_cut', 'Cutoff', 30, 18000, 18000, 'log', 'Hz'], ['f_res', 'Rezonans', .3, 20, .7, 'log', ''], ['f_env', 'Obwiednia', -1, 1, 0, '', ''], ['f_key', 'Za klaw.', 0, 1, 0, '', '']],
+  amp:  [['a_A', 'Atak', .001, 6, .005, 'log', 's'], ['a_D', 'Opad', .005, 5, .3, 'log', 's'], ['a_S', 'Trwanie', 0, 1, .8, '', ''], ['a_R', 'Wybrzm.', .005, 10, .3, 'log', 's']],
+  fenv: [['fe_A', 'Atak', .001, 6, .005, 'log', 's'], ['fe_D', 'Opad', .005, 5, .4, 'log', 's'], ['fe_S', 'Trwanie', 0, 1, 0, '', ''], ['fe_R', 'Wybrzm.', .005, 10, .3, 'log', 's']],
+  lfo:  [['lfo_rate', 'Tempo', .05, 20, 5, 'log', 'Hz'], ['lfo_pitch', '→Wys.', 0, 100, 0, '', 'ct'], ['lfo_filter', '→Filtr', 0, 2400, 0, '', 'ct'], ['lfo_amp', '→Głośn.', 0, 1, 0, '', '']],
+  ruch: [['r_glab', 'Siła ruchu', 0, 1, 0, '', '']]
+};
+const GMIX = [['lvl', 'Poziom', 0, 1, .8, '', ''], ['pan', 'Panorama', -1, 1, 0, '', '']];
+const GFX = [['drive', 'Przester', 0, 1, 0, '', ''], ['chorus', 'Chorus', 0, 1, 0, '', ''], ['dl_mix', 'Echo', 0, 1, 0, '', ''], ['dl_fb', 'Echo powt.', 0, .85, .4, '', ''],
+             ['rv_size', 'Przestrzeń', .3, 12, 2.5, 'log', 's'], ['rv_mix', 'Pogłos', 0, 1, .15, '', ''], ['jasn', 'Jasność', -1, 1, 0, '', ''],
+             ['tempo', 'Tempo', 40, 180, 100, 'int', 'BPM'], ['glide', 'Glide', 0, .5, 0, '', 's'], ['vol', 'Głośność', 0, 1, .7, '', '']];
+const GMAK = [['m_jasn', 'Jasność', 0, 1, .5, '', ''], ['m_ruch', 'Ruch', 0, 1, .5, '', ''], ['m_prz', 'Przestrzeń', 0, 1, .5, '', ''], ['m_szer', 'Szerokość', 0, 1, .5, '', '']];
+const OPIS = {};
+const dodaj = (id, [, nap, min, max, def, sk, jed]) => OPIS[id] = { nap, min, max, def, sk, jed };
+[0, 1, 2].forEach(i => { Object.values(GW).flat().forEach(g => dodaj(`L${i}_${g[0]}`, g)); GMIX.forEach(g => dodaj(`L${i}_${g[0]}`, g)); });
+GFX.forEach(g => dodaj(g[0], g)); GMAK.forEach(g => dodaj(g[0], g));
+const kroki = s => s.split('').map(c => '0123456789'.indexOf(c) / 9);
+function BAZA() { const p = {}; for (const id in OPIS) p[id] = OPIS[id].def;
+  [0, 1, 2].forEach(i => { Object.assign(p, { [`L${i}_on`]: i === 0, [`L${i}_solo`]: false, [`L${i}_o1_wave`]: 'sine', [`L${i}_o2_wave`]: 'sawtooth', [`L${i}_f_type`]: 'lowpass',
+    [`L${i}_lfo_wave`]: 'sine', [`L${i}_r_cel`]: 'gl', [`L${i}_r_krok`]: '.5', [`L${i}_r`]: kroki('9999999999999999'), [`L${i}_nazwa`]: '' }); });
+  return p; }
+const naA = o => Object.fromEntries(Object.entries(o).map(([k, v]) => [/^(drive|chorus|dl_|rv_|jasn|tempo|glide|vol|m_)/.test(k) ? k : 'L0_' + k, v]));
+const PRESETY = {
+  'Elektryczne piano': naA({ o1_wave: 'sine', o2_wave: 'sine', o2_oct: 2, o2_lvl: 0, fm: .22, f_cut: 6000, a_A: .002, a_D: 1.4, a_S: .25, a_R: .5, lfo_rate: 4.5, lfo_amp: .25, chorus: .5, rv_mix: .2, vol: .65 }),
+  'Pluck': naA({ o1_wave: 'sawtooth', o1_uni: 3, o1_spread: 10, o2_wave: 'square', o2_oct: 1, o2_lvl: .25, f_cut: 380, f_res: 3, f_env: .75, a_A: .001, a_D: .4, a_S: 0, a_R: .35,
+    fe_A: .001, fe_D: .22, fe_S: 0, fe_R: .2, dl_mix: .3, dl_fb: .4, rv_mix: .22, vol: .65 }),
+  'Bas — gruby': naA({ o1_wave: 'sawtooth', o1_oct: -1, o1_lvl: .8, o2_wave: 'square', o2_oct: -2, o2_lvl: .5, o2_fine: -6, f_cut: 260, f_res: 4, f_env: .45, a_A: .003, a_D: .3, a_S: .7, a_R: .12,
+    fe_D: .25, fe_S: .1, drive: .35, rv_mix: 0, glide: .06, vol: .5 }),
+  'Smyczki': naA({ o1_wave: 'sawtooth', o1_uni: 6, o1_spread: 22, o2_wave: 'sawtooth', o2_oct: 1, o2_uni: 4, o2_spread: 18, o2_lvl: .3, f_cut: 2600, a_A: .45, a_D: .6, a_S: .85, a_R: .9,
+    lfo_rate: 5, lfo_pitch: 8, chorus: .45, rv_mix: .4, rv_size: 4, vol: .55 }),
+  'Dęte — brass': naA({ o1_wave: 'sawtooth', o1_uni: 3, o1_spread: 8, o2_wave: 'sawtooth', o2_fine: 7, o2_lvl: .6, f_cut: 700, f_res: 1.4, f_env: .55, a_A: .06, a_D: .3, a_S: .75, a_R: .2,
+    fe_A: .08, fe_D: .35, fe_S: .45, lfo_rate: 5.5, lfo_pitch: 6, rv_mix: .25, vol: .6 }),
+  'Supersaw Lead': naA({ o1_wave: 'sawtooth', o1_uni: 7, o1_spread: 28, o1_lvl: .8, o2_wave: 'sawtooth', o2_oct: 1, o2_uni: 5, o2_spread: 20, o2_lvl: .35, f_cut: 5200, f_res: 1.2, f_env: .25,
+    a_A: .005, a_D: .3, a_S: .85, a_R: .35, fe_D: .5, fe_S: .3, chorus: .3, dl_mix: .22, dl_fb: .35, rv_mix: .25, rv_size: 2.8, glide: .04, vol: .55 }),
+  'Lead + pad pod spodem': { L0_o1_wave: 'sawtooth', L0_o1_uni: 5, L0_o1_spread: 20, L0_f_cut: 4200, L0_f_env: .2, L0_a_A: .01, L0_a_S: .8, L0_a_R: .4, L0_lvl: .6, L0_lfo_rate: 5.5, L0_lfo_pitch: 8,
+    L1_on: true, L1_o1_wave: 'triangle', L1_o1_oct: -1, L1_o1_uni: 4, L1_o1_spread: 16, L1_f_cut: 1200, L1_a_A: 1.5, L1_a_S: 1, L1_a_R: 3, L1_lvl: .45, L1_r_cel: 'fil', L1_r_glab: .5, L1_r_krok: '1', L1_r: kroki('3579753135797531'),
+    tempo: 96, chorus: .4, dl_mix: .25, rv_mix: .45, rv_size: 5, vol: .6 },
+  'Chmura': { L0_o1_wave: 'sawtooth', L0_o1_uni: 6, L0_o1_spread: 22, L0_f_cut: 1500, L0_a_A: 2, L0_a_S: 1, L0_a_R: 4, L0_lvl: .6, L0_pan: -.3,
+    L1_on: true, L1_o1_wave: 'triangle', L1_o1_oct: 1, L1_o1_uni: 4, L1_o1_spread: 12, L1_f_cut: 5000, L1_a_A: 3, L1_a_S: 1, L1_a_R: 5, L1_lvl: .45, L1_pan: .35,
+      L1_r_cel: 'pan', L1_r_glab: .8, L1_r_krok: '1', L1_r: kroki('0123456789876543'),
+    L2_on: true, L2_o1_lvl: 0, L2_noise: 1, L2_f_type: 'bandpass', L2_f_key: 1, L2_f_cut: 700, L2_f_res: 4, L2_a_A: 3, L2_a_S: 1, L2_a_R: 4, L2_lvl: .35,
+      L2_r_cel: 'fil', L2_r_glab: .7, L2_r_krok: '2', L2_r: kroki('2468976420246897'),
+    tempo: 90, rv_size: 9, rv_mix: .6, chorus: .7, dl_mix: .3, dl_fb: .5, vol: .65 },
+  'Oddychający pad': { L0_o1_wave: 'sawtooth', L0_o1_uni: 5, L0_o1_spread: 18, L0_f_cut: 900, L0_f_res: 2, L0_a_A: 1, L0_a_S: 1, L0_a_R: 3, L0_r_cel: 'fil', L0_r_glab: .85, L0_r: kroki('9306930693069306'),
+    L1_on: true, L1_o1_wave: 'square', L1_o1_oct: -1, L1_o1_uni: 3, L1_f_cut: 600, L1_a_A: 1.5, L1_a_S: 1, L1_a_R: 3, L1_lvl: .45, tempo: 84, rv_mix: .5, rv_size: 6, chorus: .5, vol: .65 },
+  'Szkło': { L0_o1_wave: 'triangle', L0_o1_oct: 1, L0_o1_uni: 5, L0_o1_spread: 9, L0_f_cut: 9000, L0_a_A: .5, L0_a_S: 1, L0_a_R: 5, L0_lvl: .55, L0_r_cel: 'pan', L0_r_glab: .9, L0_r: kroki('0918273645546372'),
+    L1_on: true, L1_o1_wave: 'sine', L1_o1_oct: 2, L1_o1_uni: 2, L1_o1_spread: 4, L1_a_A: .05, L1_a_D: 2, L1_a_S: .4, L1_a_R: 6, L1_lvl: .35, L1_r_cel: 'gl', L1_r_glab: .9, L1_r_krok: '.25', L1_r: kroki('9000500030009000'),
+    rv_size: 11, rv_mix: .7, dl_mix: .4, dl_fb: .6, jasn: .3, chorus: .5, vol: .65 },
+  'Ciemna przestrzeń': { L0_o1_wave: 'sawtooth', L0_o1_oct: -1, L0_o1_uni: 6, L0_o1_spread: 30, L0_f_cut: 500, L0_f_res: 3, L0_a_A: 3, L0_a_S: 1, L0_a_R: 6, L0_r_cel: 'fil', L0_r_glab: .6, L0_r_krok: '2', L0_r: kroki('1357975313579753'),
+    L1_on: true, L1_o1_wave: 'square', L1_o1_oct: -2, L1_o1_uni: 2, L1_f_cut: 300, L1_a_A: 4, L1_a_S: 1, L1_a_R: 6, L1_lvl: .5,
+    L2_on: true, L2_o1_lvl: 0, L2_noise: 1, L2_f_type: 'bandpass', L2_f_key: 1, L2_f_cut: 400, L2_f_res: 8, L2_a_A: 4, L2_a_S: 1, L2_a_R: 5, L2_lvl: .4, L2_r_cel: 'fil', L2_r_glab: .9, L2_r_krok: '1', L2_r: kroki('0247976420135864'),
+    tempo: 60, rv_size: 12, rv_mix: .7, jasn: -.4, chorus: .4, vol: .7 },
+  'Pulsujące szesnastki': { L0_o1_wave: 'sawtooth', L0_o1_uni: 4, L0_o1_spread: 15, L0_f_cut: 2600, L0_a_A: .3, L0_a_S: 1, L0_a_R: 2, L0_r_cel: 'gl', L0_r_glab: 1, L0_r_krok: '.25', L0_r: kroki('9050905090509359'),
+    L1_on: true, L1_o1_wave: 'sine', L1_o1_oct: -1, L1_a_A: .8, L1_a_S: 1, L1_a_R: 2, L1_lvl: .5, tempo: 110, dl_mix: .45, dl_fb: .55, rv_mix: .4, rv_size: 5, chorus: .4, vol: .65 }
+};
+
+// jedna barwa w szufladce — silnik z piano-pro-barwy.html, tylko zamknięty w „pudełku” (każda szufladka ma swoje)
+function nowaBarwa(nazwa, wyjscie) {
+  const P = Object.assign(BAZA(), JSON.parse(JSON.stringify(PRESETY[nazwa])));
+  P.rv_mix = 0;                      // Alicja 3: barwa bez własnego pogłosu — pogłos daje wspólne pokrętło
+  const L = (i, k) => P[`L${i}_${k}`];
+  const M = {};
+  M.bus = audio.createGain(); M.drive = audio.createWaveShaper(); M.drive.oversample = '2x';
+  M.jasn = audio.createBiquadFilter(); M.jasn.type = 'highshelf'; M.jasn.frequency.value = 3000;
+  M.suchy = audio.createGain(); M.chW = audio.createGain(); M.mix = audio.createGain();
+  M.dl = audio.createDelay(3); M.dlFb = audio.createGain(); M.dlW = audio.createGain(); M.dlTon = audio.createBiquadFilter(); M.dlTon.type = 'lowpass'; M.dlTon.frequency.value = 4000;
+  M.rv = audio.createConvolver(); M.rvW = audio.createGain();
+  M.master = audio.createGain(); M.lim = audio.createDynamicsCompressor(); M.lim.threshold.value = -7; M.lim.ratio.value = 12; M.lim.attack.value = .003;
+  M.bus.connect(M.drive).connect(M.jasn); M.jasn.connect(M.suchy).connect(M.mix);
+  const chorusOsc = [];
+  [0, 1].forEach(k => { const d = audio.createDelay(.06); d.delayTime.value = .019 + k * .008; const o = audio.createOscillator(), g = audio.createGain();
+    o.frequency.value = .23 + k * .12; g.gain.value = .0032; o.connect(g).connect(d.delayTime); o.start(); chorusOsc.push(o);
+    const p = audio.createStereoPanner(); p.pan.value = k ? .8 : -.8; M.jasn.connect(d).connect(p).connect(M.chW); });
+  M.chW.connect(M.mix);
+  M.mix.connect(M.dl); M.dl.connect(M.dlTon).connect(M.dlFb).connect(M.dl); M.dlTon.connect(M.dlW).connect(M.master);
+  M.mix.connect(M.rv); M.rv.connect(M.rvW).connect(M.master); M.mix.connect(M.master);
+  M.master.connect(M.lim).connect(wyjscie);
+  const W = [0, 1, 2].map(() => { const w = { in: audio.createGain(), trem: audio.createGain(), ruch: audio.createGain(), pan: audio.createStereoPanner(), lvl: audio.createGain(),
+      lfo: audio.createOscillator(), lWys: audio.createGain(), lFil: audio.createGain(), lGl: audio.createGain(), rFil: audio.createConstantSource() };
+    w.in.connect(w.trem).connect(w.ruch).connect(w.pan).connect(w.lvl).connect(M.bus);
+    w.lfo.connect(w.lWys); w.lfo.connect(w.lFil); w.lfo.connect(w.lGl); w.lGl.connect(w.trem.gain); w.lfo.start();
+    w.rFil.offset.value = 0; w.rFil.start(); return w; });
+
+  const krzywa = k => { const c = new Float32Array(1024); for (let i = 0; i < 1024; i++) { const x = i / 1023 * 2 - 1; c[i] = Math.tanh(x * k) / Math.tanh(k); } return c; };
+  let rvRozm = P.rv_size, ostDrive = -1;   // własnego pogłosu barwy nie liczę (i tak jest wyłączony)
+  function poglos(sek) { const sr = audio.sampleRate, dl = Math.floor(sr * sek), imp = audio.createBuffer(2, dl, sr);
+    for (let k = 0; k < 2; k++) { const d = imp.getChannelData(k); let c = 0;
+      for (let i = 0; i < dl; i++) { const t = i / sr, gas = Math.pow(1 - i / dl, 1.9) * Math.exp(-t * .45), j = Math.max(.04, .55 * Math.exp(-t * .6)); c += ((Math.random() * 2 - 1) - c) * j; d[i] = t < .018 ? 0 : c * gas; } }
+    M.rv.buffer = imp; }
+  const mak = k => P[k] * 2;
+  const cutoffDla = (i, n) => Math.min(20000, L(i, 'f_cut') * Math.pow(2, L(i, 'f_key') * (n - 60) / 12) * Math.pow(2, (P.m_jasn - .5) * 4));
+  const silaRuchu = i => Math.min(1, L(i, 'r_glab') * mak('m_ruch'));
+  const slychac = i => L(i, 'on') && (![0, 1, 2].some(j => L(j, 'solo')) || L(i, 'solo'));
+  let glosy = [], szumB = null, ostatnia = null;
+  function ustaw() {
+    const t = audio.currentTime, gl = (a, v) => a.setTargetAtTime(v, t, .03);
+    if (ostDrive !== P.drive) { ostDrive = P.drive; M.drive.curve = krzywa(1 + P.drive * 16); }
+    const ch = Math.min(1, P.chorus * mak('m_szer'));
+    gl(M.suchy.gain, 1 - ch * .4); gl(M.chW.gain, ch * .9);
+    gl(M.dl.delayTime, 60 / P.tempo * .75); gl(M.dlFb.gain, P.dl_fb); gl(M.dlW.gain, Math.min(1, P.dl_mix * mak('m_prz')) * .7);
+    if (Math.abs(rvRozm - P.rv_size) > .1) { rvRozm = P.rv_size; poglos(P.rv_size); }
+    gl(M.rvW.gain, Math.min(1, P.rv_mix * mak('m_prz')) * 1.7); gl(M.jasn.gain, P.jasn * 12 + (P.m_jasn - .5) * 8); gl(M.master.gain, P.vol * (1 - P.drive * .3));
+    W.forEach((w, i) => {
+      gl(w.lvl.gain, slychac(i) ? L(i, 'lvl') : 0);
+      const r = mak('m_ruch'); w.lfo.type = L(i, 'lfo_wave'); gl(w.lfo.frequency, L(i, 'lfo_rate'));
+      gl(w.lWys.gain, L(i, 'lfo_pitch') * r); gl(w.lFil.gain, L(i, 'lfo_filter') * r); const ta = Math.min(1, L(i, 'lfo_amp') * r) * .5; gl(w.lGl.gain, ta); gl(w.trem.gain, 1 - ta);
+      const s = silaRuchu(i);
+      if (!(L(i, 'r_cel') === 'gl' && s > 0)) gl(w.ruch.gain, 1);
+      if (!(L(i, 'r_cel') === 'fil' && s > 0)) gl(w.rFil.offset, 0);
+      if (!(L(i, 'r_cel') === 'pan' && s > 0)) gl(w.pan.pan, L(i, 'pan'));
+    });
+  }
+  // RUCH: 16 kroków na warstwę
+  const krokNr = [0, 0, 0]; let nastKrok = [0, 0, 0].map(() => audio.currentTime + .05);
+  const sekw = setInterval(() => { const doCzasu = audio.currentTime + .15, cw = 60 / P.tempo;
+    W.forEach((w, i) => { while (nastKrok[i] < doCzasu) {
+      const t = nastKrok[i], nr = krokNr[i] % 16, v = L(i, 'r')[nr], s = silaRuchu(i), dl = cw * parseFloat(L(i, 'r_krok')), pl = Math.min(.08, dl * .25);
+      if (s > 0) { const c = L(i, 'r_cel');
+        if (c === 'gl') w.ruch.gain.setTargetAtTime(1 - s + s * v, t, pl);
+        else if (c === 'fil') w.rFil.offset.setTargetAtTime((v - .5) * 6 * s * 1200, t, pl * 2);
+        else w.pan.pan.setTargetAtTime(Math.max(-1, Math.min(1, L(i, 'pan') + (v * 2 - 1) * s)), t, pl * 2); }
+      krokNr[i]++; nastKrok[i] = Math.max(nastKrok[i] + dl, audio.currentTime); } }); }, 30);
+
+  const MAKS = 8;
+  function oscylatory(i, n, nr, wyj, t) {
+    const w = L(i, `o${nr}_wave`), ile = Math.round(L(i, `o${nr}_uni`)), roz = L(i, `o${nr}_spread`) * mak('m_szer');
+    const przes = L(i, `o${nr}_oct`) * 1200 + L(i, `o${nr}_semi`) * 100 + L(i, `o${nr}_fine`), lista = [];
+    for (let k = 0; k < ile; k++) {
+      const o = audio.createOscillator(), poz = ile === 1 ? 0 : k / (ile - 1) * 2 - 1; o.type = w;
+      o.detune.value = przes + poz * roz;
+      const st = P.glide > 0 && ostatnia != null ? hz(ostatnia) : hz(n); o.frequency.setValueAtTime(st, t); if (P.glide > 0) o.frequency.exponentialRampToValueAtTime(hz(n), t + P.glide);
+      const p = audio.createStereoPanner(); p.pan.value = poz * .8 * Math.min(1, mak('m_szer'));
+      o.connect(p).connect(wyj); W[i].lWys.connect(o.detune); o.start(t + Math.random() * .003); lista.push(o); }
+    return lista;
+  }
+  function glosWarstwy(i, n, sila, t) {
+    const g = { i, p1: audio.createGain(), p2: audio.createGain(), fil: audio.createBiquadFilter(), amp: audio.createGain(), osc: [] };
+    g.p1.gain.value = L(i, 'o1_lvl') / Math.sqrt(L(i, 'o1_uni')); g.p2.gain.value = L(i, 'o2_lvl') / Math.sqrt(L(i, 'o2_uni'));
+    g.p1.connect(g.fil); g.p2.connect(g.fil);
+    g.o1 = L(i, 'o1_lvl') > 0 ? oscylatory(i, n, 1, g.p1, t) : []; g.o2 = L(i, 'o2_lvl') > 0 ? oscylatory(i, n, 2, g.p2, t) : []; g.osc = [...g.o1, ...g.o2];
+    if (L(i, 'fm') > 0) { const m = audio.createOscillator(), mg = audio.createGain();
+      m.frequency.value = hz(n) * Math.pow(2, (L(i, 'o2_oct') * 1200 + L(i, 'o2_semi') * 100 + L(i, 'o2_fine')) / 1200); mg.gain.value = L(i, 'fm') * hz(n) * 6;
+      m.connect(mg); g.o1.forEach(o => mg.connect(o.frequency)); m.start(t); g.osc.push(m); }
+    if (L(i, 'noise') > 0) { if (!szumB) { szumB = audio.createBuffer(2, audio.sampleRate * 3, audio.sampleRate); for (let c = 0; c < 2; c++) { const d = szumB.getChannelData(c); for (let j = 0; j < d.length; j++) d[j] = Math.random() * 2 - 1; } }
+      const s = audio.createBufferSource(), sg = audio.createGain(); s.buffer = szumB; s.loop = true; sg.gain.value = L(i, 'noise') * .5; s.connect(sg).connect(g.fil); s.start(t, Math.random() * 2); g.osc.push(s); }
+    const f = g.fil; f.type = L(i, 'f_type'); f.Q.value = L(i, 'f_res'); W[i].lFil.connect(f.detune); W[i].rFil.connect(f.detune);
+    const baza = cutoffDla(i, n), szczyt = Math.min(20000, Math.max(20, baza * Math.pow(2, L(i, 'f_env') * 6))), trw = baza + (szczyt - baza) * L(i, 'fe_S');
+    f.frequency.setValueAtTime(baza, t); f.frequency.linearRampToValueAtTime(szczyt, t + L(i, 'fe_A')); f.frequency.setTargetAtTime(trw, t + L(i, 'fe_A'), L(i, 'fe_D') / 3);
+    const v = .3 * (.3 + sila * .7), a = g.amp.gain;
+    a.setValueAtTime(0, t); a.linearRampToValueAtTime(v, t + L(i, 'a_A')); a.setTargetAtTime(v * L(i, 'a_S'), t + L(i, 'a_A'), L(i, 'a_D') / 3);
+    f.connect(g.amp).connect(W[i].in);
+    return g;
+  }
+  function zakoncz(nuta, szybko = false) { if (nuta.koniec) return; nuta.koniec = true; const t = audio.currentTime; let maks = 0;
+    nuta.cz.forEach(g => { const r = szybko ? .015 : L(g.i, 'a_R'), fr = szybko ? .015 : L(g.i, 'fe_R'); maks = Math.max(maks, r);
+      g.amp.gain.cancelScheduledValues(t); g.amp.gain.setValueAtTime(g.amp.gain.value, t); g.amp.gain.setTargetAtTime(0, t, r / 4);
+      g.fil.frequency.cancelScheduledValues(t); g.fil.frequency.setValueAtTime(g.fil.frequency.value, t); g.fil.frequency.setTargetAtTime(cutoffDla(g.i, nuta.n), t, fr / 3);
+      g.osc.forEach(o => { try { o.stop(t + r * 1.6 + .05); } catch (e) {} }); });
+    setTimeout(() => { glosy = glosy.filter(x => x !== nuta); nuta.cz.forEach(g => { try { g.amp.disconnect(); } catch (e) {} }); }, (maks * 1.6 + .25) * 1000); }
+  function dzwiek(n, sila) {
+    const graja = glosy.filter(x => !x.koniec); if (graja.length >= MAKS) zakoncz(graja[0], true);
+    const t = audio.currentTime + .005, cz = [];
+    [0, 1, 2].forEach(i => { if (slychac(i)) cz.push(glosWarstwy(i, n, sila, t)); });
+    const nuta = { n, cz, koniec: false }; glosy.push(nuta); ostatnia = n;
+    return szybko => zakoncz(nuta, szybko);
+  }
+  ustaw();
+  return { dzwiek, organy: false,
+    zniszcz() { clearInterval(sekw); glosy.forEach(x => zakoncz(x, true));
+      setTimeout(() => { try { M.lim.disconnect(); } catch (e) {} chorusOsc.forEach(o => { try { o.stop(); } catch (e) {} }); W.forEach(w => { try { w.lfo.stop(); w.rFil.stop(); } catch (e) {} }); }, 400); } };
+}
+
+/* =====================================================================
+   EKRAN: kategorie i dźwięki
+   ===================================================================== */
+/* =====================================================================
+   BANKI z „Alicja – sampler” (.alicja) i zestawy organów (.organy)
+   Bank wczytuje się „wstępnie”: program czyta tylko OPIS (nazwy głosów, gdzie leżą nagrania).
+   Kliknięcie głosu = wycinam z pliku i gram tylko jego nagranie próbne (★).
+   Głos w szufladce = dopiero wtedy wczytuję wszystkie jego nagrania. ✕ w szufladce zwalnia pamięć.
+   Granie nagrania (pętla, wybrzmienie, sąsiad, żywe rozstrojenie) — tak samo jak w samplerze i w organach.
+   ===================================================================== */
+const MAGIA_ALICJA = 'ALICJA01', MAGIA_ORGANY = 'ORGANY01';
+async function czytajNaglowekBanku(plik) {
+  const p = new Uint8Array(await plik.slice(0, 12).arrayBuffer());
+  const znak = p.length >= 12 ? new TextDecoder().decode(p.slice(0, 8)) : '';
+  if (znak !== MAGIA_ALICJA && znak !== MAGIA_ORGANY) throw new Error('to nie jest bank .alicja ani zestaw .organy');
+  const dl = new DataView(p.buffer).getUint32(8, true), opis = JSON.parse(await plik.slice(12, 12 + dl).text());
+  const glosy = (znak === MAGIA_ORGANY ? opis.rejestry : opis.glosy) || [];
+  return { opis, baza: 12 + dl, glosy: glosy.filter(g => Object.keys(g.nuty || {}).length), organy: znak === MAGIA_ORGANY };
+}
+async function dekodujOpus(bajty, op) {                 // z samplera / organów, bez zmian
+  const kawalki = []; let blad = null;
+  const dec = new AudioDecoder({ output: a => { const kan = []; for (let k = 0; k < a.numberOfChannels; k++) { const t = new Float32Array(a.numberOfFrames); a.copyTo(t, { planeIndex: k, format: 'f32-planar' }); kan.push(t); } kawalki.push(kan); a.close(); }, error: e => blad = e });
+  dec.configure({ codec: 'opus', sampleRate: 48000, numberOfChannels: op.ch });
+  let o = 0, t = 0;
+  op.rozmiary.forEach((r, i) => { dec.decode(new EncodedAudioChunk({ type: 'key', timestamp: t, duration: op.dlugosci[i], data: bajty.subarray(o, o + r) })); o += r; t += op.dlugosci[i] || 20000; });
+  await dec.flush(); dec.close(); if (blad) throw blad;
+  const razem = kawalki.reduce((s, k) => s + k[0].length, 0), n = Math.max(1, Math.min(op.ramki, razem - op.pomin));
+  const buf = new AudioBuffer({ length: n, numberOfChannels: op.ch, sampleRate: 48000 });
+  for (let k = 0; k < op.ch; k++) { const cel = buf.getChannelData(k); let poz = -op.pomin;
+    for (const kan of kawalki) { const z = kan[Math.min(k, kan.length - 1)], od = Math.max(0, -poz), ile = Math.min(z.length - od, n - Math.max(0, poz)); if (ile > 0) cel.set(z.subarray(od, od + ile), Math.max(0, poz)); poz += z.length; } }
+  return buf;
+}
+function sasiadNuty(nuty, n) { let naj = null; for (const k in nuty) { const d = Math.abs(k - n); if (naj == null || d < Math.abs(naj - n) || (d === Math.abs(naj - n) && +k < naj)) naj = +k; } return naj; }
+function losCenty(ziarno, n) {
+  let h = ((ziarno | 0) ^ Math.imul(n + 1, 0x9E3779B1)) | 0;
+  h = Math.imul(h ^ (h >>> 15), 0x85EBCA6B); h = Math.imul(h ^ (h >>> 13), 0xC2B2AE35); h ^= h >>> 16;
+  return ((h >>> 0) / 4294967296 * 2 - 1) * 1.5;
+}
+const SREDNIA_ROZSTR = new Map();
+function centyKlawisza(g, n) {
+  if (!g.zyweRozstrojenie) return 0;
+  if (!SREDNIA_ROZSTR.has(g.ziarno)) { let s = 0; for (let k = 36; k <= 96; k++) s += losCenty(g.ziarno, k); SREDNIA_ROZSTR.set(g.ziarno, s / 61); }
+  return losCenty(g.ziarno, n) - SREDNIA_ROZSTR.get(g.ziarno);
+}
+const klawiszProbki = g => g.probka != null && g.nuty[g.probka] ? +g.probka : sasiadNuty(g.nuty, 60);
+/* ---------- GRANIE NAGRANIA z EDYCJĄ DŹWIĘKU (wspólne dla samplera i Alicji 3 — ten sam kod w obu plikach) ----------
+   Edycja klawisza (wszystko liczone na żywo, nagranie zostaje nietknięte):
+   obwiednia jak w FL Studio — opóźnienie, atak, trzymanie, opadanie, poziom, wygasanie (po puszczeniu klawisza),
+   jasność (półka wysokich tonów od 3 kHz, dB), głośność (dB), strój (centy), cisza (ile sekund pominąć na początku).
+   Ustawienia domyślne dają dokładnie to samo granie co wcześniej (wejście 5 ms, wygasanie „naturalne”). */
+const EDYCJA_DOM = { opoz: 0, atak: 0.005, trzym: 0, opad: 0.3, poziom: 1, wyg: null, jasnosc: 0, glosnosc: 0, stroj: 0, cisza: 0, bezOgona: false };   // bezOgona: nie graj wybrzmienia zapisanego w nagraniu
+function zagrajNagranie(buf, d, edycja, szyb, cel) {
+  const E = { ...EDYCJA_DOM, ...(edycja || {}) }, t = audio.currentTime, fr = d.czest || buf.sampleRate;
+  szyb *= Math.pow(2, (E.stroj || 0) / 1200);
+  const pet = d.petla && d.petla[1] > d.petla[0] ? [d.petla[0] / fr, d.petla[1] / fr] : null;
+  const od = Math.max(0, Math.min(E.cisza || 0, pet ? pet[0] - 0.01 : buf.duration - 0.05));   // cisza: tyle pomijam na początku
+  // tor: nagranie → (jasność) → głośność → obwiednia → cel
+  const tor = () => { const we = audio.createGain(); let x = we;
+    if (E.jasnosc) { const f = audio.createBiquadFilter(); f.type = 'highshelf'; f.frequency.value = 3000; f.gain.value = E.jasnosc; x.connect(f); x = f; }
+    const v = audio.createGain(); v.gain.value = Math.pow(10, (E.glosnosc || 0) / 20); x.connect(v); return { we, wy: v }; };
+  const a = tor(), env = audio.createGain(); a.wy.connect(env); env.connect(cel);
+  const t0 = t + (E.opoz || 0), tA = t0 + Math.max(0.001, E.atak), tH = tA + (E.trzym || 0);
+  env.gain.setValueAtTime(0, t); env.gain.setValueAtTime(0, t0); env.gain.linearRampToValueAtTime(1, tA); env.gain.setValueAtTime(1, tH);
+  if (E.poziom < 1) env.gain.setTargetAtTime(Math.max(0, E.poziom), tH, Math.max(0.003, E.opad) / 3);
+  const s = audio.createBufferSource(); s.buffer = buf; s.playbackRate.value = szyb;
+  if (pet) { s.loop = true; s.loopStart = pet[0]; s.loopEnd = pet[1]; }
+  s.connect(a.we); s.start(t0, od);
+  return () => {
+    const k = audio.currentTime, X = .04, poz = env.gain.value;
+    env.gain.cancelScheduledValues(k); env.gain.setValueAtTime(poz, k);
+    if (d.wybrzmienie != null && !E.bezOgona && d.wybrzmienie / fr < buf.duration && k >= t0) {     // naturalne wybrzmienie z pliku: przenikanie z pętli w ogon nagrania
+      const b = tor(), g2 = audio.createGain(); b.wy.connect(g2); g2.connect(cel);
+      g2.gain.setValueAtTime(0, k); g2.gain.linearRampToValueAtTime(poz, k + X);
+      if (E.wyg != null) g2.gain.setTargetAtTime(0, k + X, E.wyg / 4);               // wygasanie ustawione ręcznie: ścisza też ogon
+      const r = audio.createBufferSource(); r.buffer = buf; r.playbackRate.value = szyb; r.connect(b.we); r.start(k, d.wybrzmienie / fr);
+      if (E.wyg != null) r.stop(k + X + E.wyg * 1.6 + .05);
+      env.gain.linearRampToValueAtTime(0, k + X); s.stop(k + X + .02);
+    } else if (E.wyg != null) { env.gain.setTargetAtTime(0, k, E.wyg / 4); s.stop(k + E.wyg * 1.6 + .05); }
+    else { env.gain.linearRampToValueAtTime(0, k + .25); s.stop(k + .3); }        // bez znacznika: łagodne wyciszenie (jak dotąd)
+  };
+}
+
+// jeden głos z banku — łańcuch jak w samplerze: kompresor → głośność (70 % × 0,9) → ogranicznik
+function nowyGlosSampli(B, g, wyjscie, tylkoProbka = false) {
+  const kompresor = audio.createDynamicsCompressor(); kompresor.threshold.value = -14; kompresor.ratio.value = 4;
+  const gl = audio.createGain(); gl.gain.value = 70 / 100 * 0.9;
+  const ogr = audio.createDynamicsCompressor(); ogr.threshold.value = -4; ogr.knee.value = 0; ogr.ratio.value = 20; ogr.attack.value = 0.001; ogr.release.value = 0.15;
+  kompresor.connect(gl).connect(ogr).connect(wyjscie);
+  const BUF = new Map(), GOT = new Map(); let zywy = true;
+  const zaladuj = n => { n = +n; if (!BUF.has(n)) { const w = g.nuty[n], kawalek = B.plik.slice(B.baza + w.od, B.baza + w.od + w.dl);
+      BUF.set(n, kawalek.arrayBuffer().then(ab => w.kodek === 'opus' ? dekodujOpus(new Uint8Array(ab), w.opus) : audio.decodeAudioData(ab)).then(b => { if (zywy) GOT.set(n, b); return b; })); }
+    return BUF.get(n); };
+  const wszystkie = Object.keys(g.nuty);
+  const gotowe = tylkoProbka ? null : (async () => { let k = 0;
+    for (const n of wszystkie) { try { await zaladuj(n); } catch (e) { status(`✖ ${esc(g.nazwa)}: nie umiem odczytać nagrania ${n} (${esc(e.message)})`); } k++;
+      if (k % 4 === 0 || k === wszystkie.length) status(`Wczytuję głos <b>${esc(g.nazwa)}</b>: ${k} z ${wszystkie.length} nagrań${k === wszystkie.length ? ' — gotowe, graj!' : '…'}`); } })();
+  function dzwiek(n) {
+    const zr = g.nuty[n] ? n : g.uzupelniaj ? sasiadNuty(g.nuty, n) : null; if (zr == null) return () => {};
+    const w = g.nuty[zr], buf = GOT.get(+zr); if (!buf) { zaladuj(zr); return () => {}; }      // jeszcze się wczytuje
+    const szyb = Math.pow(2, (n - zr) / 12 + centyKlawisza(g, n) / 1200);
+    return zagrajNagranie(buf, { petla: w.petla, czest: w.czestotliwosc, wybrzmienie: w.wybrzmienie }, w.edycja, szyb, kompresor);   // edycja dźwięku z samplera
+  }
+  return { dzwiek, organy: false, zaladuj, gotowe,
+    zniszcz() { zywy = false; GOT.clear(); BUF.clear(); setTimeout(() => { try { ogr.disconnect(); } catch (e) {} }, 600); } };
+}
+
+// ---------- lista banków: wczytane w tej chwili + zapamiętane (Chrome, Edge: uchwyt do pliku w pamięci przeglądarki) ----------
+const BANKI = [];                                          // { id, nazwa, nazwaPliku, glosy:[opis głosu], plik, baza, uchwyt }
+function bazaBankow() { return new Promise((ok, zle) => { const r = indexedDB.open('alicja3', 1);
+  r.onupgradeneeded = () => r.result.createObjectStore('banki'); r.onsuccess = () => ok(r.result); r.onerror = () => zle(r.error); }); }
+async function zapamietajBank(B) { if (!B.uchwyt) return;
+  try { const db = await bazaBankow(); db.transaction('banki', 'readwrite').objectStore('banki').put({ nazwa: B.nazwa, nazwaPliku: B.nazwaPliku, glosy: B.glosy.map(g => ({ nazwa: g.nazwa, probka: klawiszProbki(g) })), uchwyt: B.uchwyt }, B.id); } catch (e) {} }
+async function zapomnijBank(B) { try { const db = await bazaBankow(); db.transaction('banki', 'readwrite').objectStore('banki').delete(B.id); } catch (e) {} }
+function kategoriaBanku(B) {
+  return { nazwa: '🎼 ' + B.nazwa, skrot: 'BANK', bank: B,
+    dzwieki: B.glosy.map((g, gi) => ({ nazwa: g.nazwa || ('Głos ' + (gi + 1)), typ: 'sample', bank: B, gi })) };
+}
+function dodajBankDoListy(B, wybierz) {
+  const stary = BANKI.findIndex(x => x.id === B.id);
+  if (stary >= 0) { BANKI[stary] = B; KATEGORIE[3 + stary] = kategoriaBanku(B); }
+  else { BANKI.push(B); KATEGORIE.push(kategoriaBanku(B)); }
+  if (wybierz) { katNr = 3 + BANKI.indexOf(B); dzwNr = 0; }
+  rysujKategorie(); rysujDzwieki(); pokazNazwe();
+}
+async function bankZPliku(plik, uchwyt) {
+  const { opis, baza, glosy, organy } = await czytajNaglowekBanku(plik);
+  return { id: (opis.nazwa || plik.name) + '|' + plik.name, nazwa: opis.nazwa || plik.name.replace(/\.\w+$/, ''), nazwaPliku: plik.name, glosy, plik, baza, uchwyt, organy };
+}
+// bank zapamiętany, ale jeszcze nie otwarty w tej sesji: przeglądarka raz pyta o zgodę na odczyt pliku
+async function otworzBank(B) {
+  if (B.plik) return true;
+  if (!B.uchwyt) { status(`Bank <b>${esc(B.nazwa)}</b> trzeba wczytać od nowa — kliknij <b>📂 BANK</b>.`); return false; }
+  try {
+    let zgoda = await B.uchwyt.queryPermission({ mode: 'read' });
+    if (zgoda !== 'granted') zgoda = await B.uchwyt.requestPermission({ mode: 'read' });
+    if (zgoda !== 'granted') { status(`Bez zgody przeglądarki nie odczytam banku <b>${esc(B.nazwa)}</b>.`); return false; }
+    const nowy = await bankZPliku(await B.uchwyt.getFile(), B.uchwyt);
+    Object.assign(B, { plik: nowy.plik, baza: nowy.baza, glosy: nowy.glosy });
+    // podmieniam tylko dane głosów — lista na ekranie zostaje (przerysowanie pod myszką zrywało przeciąganie)
+    const kat = KATEGORIE[3 + BANKI.indexOf(B)], swieza = kategoriaBanku(B);
+    if (kat.dzwieki.length === swieza.dzwieki.length) swieza.dzwieki.forEach((d, j) => Object.assign(kat.dzwieki[j], d)); else { KATEGORIE[3 + BANKI.indexOf(B)] = swieza; rysujDzwieki(); }
+    return true;
+  } catch (e) { status(`✖ Nie mogę otworzyć banku <b>${esc(B.nazwa)}</b> (${esc(e.message)}). Może plik został przeniesiony — wczytaj go od nowa przyciskiem <b>📂 BANK</b>.`); return false; }
+}
+async function wczytajBankPlik(plik, uchwyt) {
+  try { const B = await bankZPliku(plik, uchwyt); dodajBankDoListy(B, true); zapamietajBank(B);
+    status(`📂 Wczytany ${B.organy ? 'zestaw organów' : 'bank'} <b>${esc(B.nazwa)}</b>: ${B.glosy.length} ${B.glosy.length === 1 ? 'głos' : B.glosy.length < 5 ? 'głosy' : 'głosów'}. Kliknij głos — usłyszysz próbkę; przeciągnij do szufladki — wczyta się cały.`); }
+  catch (e) { status(`✖ <b>${esc(plik.name)}</b>: ${esc(e.message)}.`); }
+}
+async function przypomnijBanki() {
+  try { const db = await bazaBankow(); const st = db.transaction('banki').objectStore('banki');
+    const klucze = await new Promise(ok => { const r = st.getAllKeys(); r.onsuccess = () => ok(r.result); r.onerror = () => ok([]); });
+    const wpisy = await new Promise(ok => { const r = st.getAll(); r.onsuccess = () => ok(r.result); r.onerror = () => ok([]); });
+    wpisy.forEach((w, i) => { if (!w || !w.uchwyt) return;
+      dodajBankDoListy({ id: klucze[i], nazwa: w.nazwa, nazwaPliku: w.nazwaPliku, glosy: w.glosy.map(g => ({ nazwa: g.nazwa, probka: g.probka, nuty: {} })), plik: null, uchwyt: w.uchwyt }, false); });
+  } catch (e) {}
+}
+
+const KATEGORIE = [
+  { nazwa: "Organy Alicji", skrot: "ORG", dzwieki: REJESTRY.map(R => ({ nazwa: R.nazwa + ' ' + R.stopy, typ: 'organy', R })) },
+  { nazwa: "Barwy Alicji", skrot: "BAR", dzwieki: Object.keys(PRESETY).map(n => ({ nazwa: n, typ: 'barwa' })) },
+  { nazwa: "Moje barwy", skrot: "MOJE", dzwieki: [] },   // wypełniane z pamięci przeglądarki (niżej: MOJE BARWY)
+];
+let katNr = 0, dzwNr = 1;
+function rysujKategorie(){
+  $("listaKat").innerHTML = KATEGORIE.map((k, i) => `<div data-i="${i}" class="${i === katNr ? "wyb" : ""}"${k.bank ? ` title="${esc(k.bank.nazwaPliku || '')}"` : ''}><span class="ik"></span>${esc(k.nazwa)}${k.bank ? '<span class="zapomnij" title="usuń ten bank z listy (plik na dysku zostaje)">✕</span>' : ''}</div>`).join("");
+  $("listaKat").querySelectorAll("div").forEach(d => d.onclick = e => {
+    const i = +d.dataset.i;
+    if (e.target.classList.contains('zapomnij')) { const B = KATEGORIE[i].bank; zapomnijBank(B); BANKI.splice(BANKI.indexOf(B), 1); KATEGORIE.splice(i, 1);
+      if (katNr >= KATEGORIE.length || katNr === i) katNr = 0; dzwNr = 0; rysujKategorie(); rysujDzwieki(); pokazNazwe();
+      status(`Bank <b>${esc(B.nazwa)}</b> zniknął z listy. Plik na dysku został.`); return; }
+    katNr = i; dzwNr = 0; rysujKategorie(); rysujDzwieki(); pokazNazwe();
+    const B = KATEGORIE[i].bank;
+    if (B && !B.plik) otworzBank(B).then(ok => { if (ok) { rysujDzwieki(); status(`🔓 Bank <b>${esc(B.nazwa)}</b> otwarty: ${B.glosy.length} głosów. Kliknij głos — próbka; przeciągnij do szufladki — cały głos.`); } }); });
+}
+function rysujDzwieki(){
+  const k = KATEGORIE[katNr];
+  if (!k.dzwieki.length) { $("listaBrz").innerHTML = `<div style="color:#5f7da8;cursor:default">(na razie pusto)</div>`; return; }
+  $("listaBrz").innerHTML = k.dzwieki.map((d, i) => `<div draggable="${d.typ !== 'moja'}" data-i="${i}" class="${i === dzwNr ? "wyb" : ""}"${d.typ === 'moja' ? ' title="dwuklik = wczytaj tę barwę"' : ''}>${d.typ === 'moja' ? '✉ ' : ''}${d.nazwa}</div>`).join("");
+  $("listaBrz").querySelectorAll("div").forEach(d => {
+    d.onclick = () => { dzwNr = +d.dataset.i; rysujDzwieki(); pokazNazwe(); probka(); };
+    if (k.dzwieki[+d.dataset.i].typ === 'moja') d.ondblclick = () => wczytajBarwe(k.dzwieki[+d.dataset.i].dane);
+    d.ondragstart = e => { e.dataTransfer.setData("text/plain", katNr + ":" + d.dataset.i); e.dataTransfer.effectAllowed = "copy"; };
+  });
+}
+function pokazNazwe(){
+  const k = KATEGORIE[katNr], d = k.dzwieki[dzwNr];
+  $("nazwaEkran").textContent = d ? d.nazwa : "—"; $("nazwaGora").textContent = d ? d.nazwa : "—"; $("katGora").textContent = k.skrot;
+}
+$("wstecz").onclick = () => { const k = KATEGORIE[katNr]; if (!k.dzwieki.length) return; dzwNr = (dzwNr + k.dzwieki.length - 1) % k.dzwieki.length; rysujDzwieki(); pokazNazwe(); probka(); };
+$("dalej").onclick  = () => { const k = KATEGORIE[katNr]; if (!k.dzwieki.length) return; dzwNr = (dzwNr + 1) % k.dzwieki.length; rysujDzwieki(); pokazNazwe(); probka(); };
+
+// głos z banku: wycinam z pliku TYLKO nagranie próbne (★) i gram je przez 1,2 s — reszty głosu nie wczytuję
+async function probkaBanku(d) {
+  if (probkaStop) { probkaStop(true); probkaStop = null; } clearTimeout(probkaCzas);
+  if (!(await otworzBank(d.bank))) return;
+  const g = d.bank.glosy[d.gi], n = klawiszProbki(g); if (n == null) return;
+  const klucz = d.bank.id + '|' + d.gi;
+  if (probkaNazwa !== klucz) { if (probkaInst) probkaInst.zniszcz(); probkaInst = nowyGlosSampli(d.bank, g, wyjscieAlicji, true); probkaNazwa = klucz; }
+  const inst = probkaInst;
+  try { await inst.zaladuj(n); } catch (e) { status(`✖ Nie umiem odczytać próbki głosu <b>${esc(d.nazwa)}</b>: ${esc(e.message)}`); return; }
+  if (inst !== probkaInst) return;
+  probkaStop = inst.dzwiek(n); $("lampMidi").classList.add("wl");
+  status(`🔊 Próbka głosu <b>${esc(d.nazwa)}</b> z banku <b>${esc(d.bank.nazwa)}</b> (klawisz ${n}). Przeciągnij go do szufladki, żeby grać.`);
+  probkaCzas = setTimeout(() => { if (probkaStop) { probkaStop(); probkaStop = null; } if (!Object.keys(grajace).length) $("lampMidi").classList.remove("wl"); }, 1200);
+}
+// PRÓBKA: kliknięty dźwięk gra jedną nutę g¹ (67) — tak jak przy wyborze barwy w Piano Pro.
+// Barwa gra 350 ms (jak w Piano Pro), głos organów 600 ms (piszczałka potrzebuje chwili, żeby się „rozśpiewać”).
+// Próbka ma swój osobny dźwięk — nie rusza szufladek.
+let probkaInst = null, probkaNazwa = null, probkaStop = null, probkaCzas = null;
+function probka() {
+  const d = KATEGORIE[katNr].dzwieki[dzwNr]; if (!d || d.typ === 'moja') return;   // „Moja barwa” to cały zestaw — wczytuje się dwuklikiem
+  startAudio();
+  if (d.typ === 'sample') { probkaBanku(d); return; }
+  if (probkaStop) { probkaStop(true); probkaStop = null; } clearTimeout(probkaCzas);
+  if (probkaNazwa !== d.nazwa) {
+    if (probkaInst) probkaInst.zniszcz();
+    probkaInst = d.typ === 'organy' ? nowyGlosOrganow(d.R, wyjscieAlicji) : nowaBarwa(d.nazwa, wyjscieAlicji);
+    probkaNazwa = d.nazwa;
+  }
+  probkaStop = probkaInst.organy ? probkaInst.dzwiek(67) : probkaInst.dzwiek(67, .8);
+  $("lampMidi").classList.add("wl");
+  probkaCzas = setTimeout(() => { if (probkaStop) { probkaStop(); probkaStop = null; } if (!Object.keys(grajace).length) $("lampMidi").classList.remove("wl"); },
+                          probkaInst.organy ? 600 : 350);
+}
+
+/* ===== gałki (na razie tylko się kręcą — dźwięku jeszcze nie zmieniają) ===== */
+function galka(rodzic, x, y, opis, wartosc = 0.5, naZmiane = null){
+  const g = document.createElement("div"); g.className = "galka"; g.style.left = x + "px"; g.style.top = y + "px";
+  g.innerHTML = `<div class="kolo"><div class="wsk"></div></div><div class="op">${opis}</div>`;
+  rodzic.appendChild(g);
+  let v = wartosc; const wsk = g.querySelector(".wsk");
+  const ustawG = () => { wsk.style.transform = `rotate(${-135 + v * 270}deg)`; if (naZmiane) naZmiane(v); }; wsk.style.transform = `rotate(${-135 + v * 270}deg)`;
+  const kolo = g.querySelector(".kolo");
+  kolo.onpointerdown = e => {
+    kolo.setPointerCapture(e.pointerId); let y0 = e.clientY, v0 = v;
+    kolo.onpointermove = m => { v = Math.max(0, Math.min(1, v0 + (y0 - m.clientY) / (m.shiftKey ? 600 : 150))); ustawG(); };
+    kolo.onpointerup = () => { kolo.onpointermove = null; };
+  };
+  kolo.ondblclick = () => { v = wartosc; ustawG(); };
+  kolo.onwheel = e => { e.preventDefault(); v = Math.max(0, Math.min(1, v - Math.sign(e.deltaY) * 0.03)); ustawG(); };
+  return { ustaw: nv => { v = nv; ustawG(); } };
+}
+function guzikWl(rodzic, x, y, opis, wl = true, naZmiane = null){
+  const l = document.createElement("div"); l.className = "lamp" + (wl ? " wl" : ""); l.style.left = (x + 16) + "px"; l.style.top = (y - 20) + "px";
+  const b = document.createElement("div"); b.className = "guzik"; b.style.left = x + "px"; b.style.top = y + "px";
+  const o = document.createElement("div"); o.className = "op"; o.textContent = opis; o.style.position = "absolute"; o.style.left = (x + 8) + "px"; o.style.top = (y + 50) + "px"; o.style.fontSize = "15px";
+  b.onclick = () => { l.classList.toggle("wl"); if (naZmiane) naZmiane(l.classList.contains("wl")); };
+  rodzic.append(l, b, o);
+  return { ustaw: w => { l.classList.toggle("wl", w); if (naZmiane) naZmiane(w); } };
+}
+const PL = $("lewy");
+guzikWl(PL, 46, 70, "wł.");
+galka(PL, 146, 58, "obwiednia", 0.3);
+[["jasność", 0.6], ["rezonans", 0.2], ["atak", 0.1], ["opad", 0.4], ["trwanie", 0.8], ["wybrzm.", 0.3]].forEach(([n, v], i) =>
+  galka(PL, i % 2 ? 146 : 34, 150 + Math.floor(i / 2) * 82, n, v));
+const PP = $("prawy");
+// panel dla wszystkich szufladek. „wł.” włącza i wyłącza CAŁY panel: pogłos, przestrzeń i echo.
+// Po wyłączeniu ustawienia zostają zapamiętane — po włączeniu wraca wszystko, jak było.
+const PANEL_WL = guzikWl(PP, 46, 70, "wł.", true, w => {
+  pogloWl = w; ustawWspolnyPoglos(); ustawPrzestrzen(PRZ.v, true); ustawEcho();
+  PP.querySelectorAll('canvas, #echoSuw, .galka').forEach(el => el.style.opacity = w ? '' : '0.4');
+  status(`Panel (pogłos, przestrzeń, echo): <b>${w ? 'włączony' : 'wyłączony'}</b>`); });
+const GALKA_POGLOS = galka(PP, 146, 58, "pogłos", 0, v => { pogloWart = v; ustawWspolnyPoglos(); status(`Wspólny pogłos: <b>${Math.round(v * 100)}%</b>${pogloWl ? '' : ' (panel wyłączony przyciskiem wł.)'}`); });
+/* ===== EKRANIKI: siatka w głębi jak w tle u Alicji — złap i ciągnij w górę / w dół ===== */
+function ekranik({ top, napis, wartosc, rysujFale, zmiana, puszczenie, opisStatus, dymek }) {
+  const SZ = 228, WY = 84, c = document.createElement('canvas'), dpr = 2;
+  c.width = SZ * dpr; c.height = WY * dpr;
+  Object.assign(c.style, { position: 'absolute', left: '14px', top: top + 'px', width: SZ + 'px', height: WY + 'px', borderRadius: '6px', cursor: 'ns-resize',
+    boxShadow: 'inset 0 2px 5px #000, 0 0 0 2px #0a2a6b, 0 0 0 3px #6fa2ff55' });
+  c.title = dymek; PP.appendChild(c);
+  const x = c.getContext('2d'); x.scale(dpr, dpr);
+  let v = wartosc, faza = 0;
+  (function rysuj() {
+    faza += 0.02; x.clearRect(0, 0, SZ, WY);
+    const tlo = x.createLinearGradient(0, 0, 0, WY); tlo.addColorStop(0, '#05081c'); tlo.addColorStop(1, '#0d1846'); x.fillStyle = tlo; x.fillRect(0, 0, SZ, WY);
+    const hor = WY * (0.40 - v * 0.22), sx = SZ / 2;
+    x.save(); x.beginPath(); x.rect(0, hor, SZ, WY - hor); x.clip(); x.lineWidth = 1;
+    for (let k = -12; k <= 12; k++) { const dol = sx + k * (SZ / 8) * (1 + v * 0.8);
+      x.strokeStyle = k === 0 ? '#7fb1ffcc' : '#3a4fb0aa'; x.beginPath(); x.moveTo(sx + k * 2, hor); x.lineTo(dol, WY); x.stroke(); }
+    const ile = 7 + Math.round(v * 9), przesun = (faza * (0.3 + v)) % 1;
+    for (let k = 0; k < ile; k++) { const u = (k + przesun) / ile, y = hor + (WY - hor) * u * u;
+      x.strokeStyle = `rgba(90,120,230,${0.25 + 0.6 * u})`; x.beginPath(); x.moveTo(0, y); x.lineTo(SZ, y); x.stroke(); }
+    x.restore();
+    const blask = x.createLinearGradient(0, hor - 6, 0, hor + 6); blask.addColorStop(0, 'rgba(127,177,255,0)'); blask.addColorStop(.5, 'rgba(127,177,255,.55)'); blask.addColorStop(1, 'rgba(127,177,255,0)');
+    x.fillStyle = blask; x.fillRect(0, hor - 6, SZ, 12);
+    const luk = (cx, cy, strona, a, R = 15) => { x.strokeStyle = `rgba(182,255,90,${a})`; x.lineWidth = 2.5; x.shadowColor = '#b6ff5a'; x.shadowBlur = 10 * a;
+      x.beginPath(); x.arc(cx, cy, R, strona < 0 ? Math.PI * 0.7 : -Math.PI * 0.3, strona < 0 ? Math.PI * 1.3 : Math.PI * 0.3); x.stroke(); x.shadowBlur = 0; };
+    rysujFale(x, v, faza, luk, SZ, WY);
+    x.fillStyle = '#b9d3f5'; x.font = '10px Segoe UI, Arial'; x.textAlign = 'left'; x.fillText(napis, 6, 12);
+    x.textAlign = 'right'; x.fillText(Math.round(v * 100) + '%', SZ - 6, 12);
+    requestAnimationFrame(rysuj);
+  })();
+  const zmien = (nowa, koniec) => { v = Math.max(0, Math.min(1, nowa)); zmiana(v); if (koniec && puszczenie) puszczenie(v); status(opisStatus(v)); };
+  c.onpointerdown = e => { startAudio(); c.setPointerCapture(e.pointerId); const y0 = e.clientY, v0 = v;
+    c.onpointermove = m => zmien(v0 + (y0 - m.clientY) / (m.shiftKey ? 500 : 140), false);
+    c.onpointerup = () => { c.onpointermove = null; zmien(v, true); }; };
+  c.ondblclick = () => zmien(0, true);
+  c.onwheel = e => { e.preventDefault(); startAudio(); zmien(v - Math.sign(e.deltaY) * 0.04, true); };
+  c.ustaw = nv => { v = Math.max(0, Math.min(1, nv)); zmiana(v); if (puszczenie) puszczenie(v); };
+  return c;
+}
+
+// PRZESTRZEŃ: dwie fale ( ) rozchodzą się na boki
+const EK_PRZ = ekranik({ top: 152, napis: 'przestrzeń', wartosc: PRZ.v,
+  dymek: 'Przestrzeń: złap i ciągnij w górę (głębiej i szerzej) albo w dół. Dwuklik = bez przestrzeni.',
+  zmiana: v => ustawPrzestrzen(v, false), puszczenie: v => ustawPrzestrzen(v, true),   // ogon sali liczy się po puszczeniu
+  opisStatus: v => `Przestrzeń: <b>${Math.round(v * 100)}%</b> — sala ok. ${(1.2 + v * 8.8).toFixed(1).replace('.', ',')} s, ${v < .05 ? 'bez przestrzeni' : v < .4 ? 'trochę szerzej' : v < .75 ? 'szeroko i głęboko' : 'bardzo szeroko i głęboko'}`,
+  rysujFale(x, v, faza, luk, SZ, WY) {
+    const cy = WY * 0.62, roz = 7 + v * 78, sx = SZ / 2, slady = Math.round(v * 4);
+    for (let j = slady; j >= 1; j--) { const a = 0.5 * (1 - j / (slady + 1)) * (0.6 + 0.4 * Math.sin(faza * 3 - j)); luk(sx - roz + j * 9, cy, -1, a); luk(sx + roz - j * 9, cy, 1, a); }
+    luk(sx - roz, cy, -1, 1); luk(sx + roz, cy, 1, 1);
+  } }); EK_PRZ.id = 'przestrzen';
+
+// ECHO: od środka odbicia skaczą na zmianę w lewo i w prawo, coraz dalej i coraz słabsze
+const EK_ECH = ekranik({ top: 248, napis: 'echo', wartosc: ECH.v,
+  dymek: 'Echo: złap i ciągnij w górę (głośniej i więcej powtórzeń) albo w dół. Dwuklik = bez echa.',
+  zmiana: v => { ECH.v = v; ustawEcho(); },
+  opisStatus: v => `Echo: <b>${Math.round(v * 100)}%</b> — ${v < .01 ? 'bez echa' : 'powtórzenia gasną po ok. ' + Math.max(1, Math.round(Math.log(0.05) / Math.log(0.15 + v * 0.6))) + ' odbiciach'}, co ${ECH.ms} ms`,
+  rysujFale(x, v, faza, luk, SZ, WY) {
+    const cy = WY * 0.62, sx = SZ / 2, fb = v < 0.01 ? 0 : 0.15 + v * 0.6;
+    const krok = 8 + 22 * Math.log(ECH.ms / 60) / Math.log(1000 / 60);           // szybkie echo = odbicia gęsto, wolne = rzadko
+    const ruch = (faza * (420 / ECH.ms)) % 1;                                     // fala biegnie z prędkością echa
+    luk(sx - 7, cy, -1, 1, 11); luk(sx + 7, cy, 1, 1, 11);                        // źródło dźwięku na środku
+    if (v < 0.01) return;
+    let a = 0.95;
+    for (let j = 1; j <= 9 && a > 0.04; j++) {
+      const strona = j % 2 ? -1 : 1, dx = 7 + (Math.ceil(j / 2) - 1 + ruch) * krok + krok * 0.6;
+      if (dx > SZ / 2 - 6) break;
+      luk(sx + strona * dx, cy, strona, a * (0.55 + 0.45 * v), 11 + j * 0.8);
+      a *= j === 1 ? 1 : fb;
+    }
+  } });
+
+// SZYBKOŚĆ ECHA: suwak — od bardzo szybkiego (60 ms) do wolnego (1 s)
+PP.insertAdjacentHTML('beforeend', `
+  <div class="suw" id="echoSuw" style="top:346px;left:14px;right:14px">
+    <label style="width:88px;font-size:12px;white-space:nowrap">szybkość echa</label>
+    <input type="range" min="0" max="100" value="65"><output style="width:44px;font-size:11px">375 ms</output></div>`);
+(() => { const el = $('echoSuw'), i = el.querySelector('input'), o = el.querySelector('output');
+  const ms = u => Math.round(60 * Math.pow(1000 / 60, u / 100));
+  i.oninput = () => { ECH.ms = ms(+i.value); o.textContent = ECH.ms + ' ms'; ustawEcho();
+    status(`Szybkość echa: <b>${ECH.ms} ms</b> między odbiciami (${ECH.ms < 150 ? 'szybkie, jak trzepot' : ECH.ms < 450 ? 'średnie' : 'wolne, jak w górach'})`); };
+  i.ondblclick = () => { i.value = 65; i.oninput(); };
+  ECH.ustawSuwak = m => { ECH.ms = m; i.value = Math.round(100 * Math.log(m / 60) / Math.log(1000 / 60)); o.textContent = m + ' ms'; ustawEcho(); };
+})();
+const F = $("filtrGl");
+guzikWl(F, 24, 64, "wł.", false);
+galka(F, 96, 50, "jasność", 0.7);
+galka(F, 176, 50, "rezonans", 0.2);
+F.insertAdjacentHTML("beforeend", `
+  <div style="position:absolute;left:26px;top:150px;font-size:14px;line-height:19px">
+    <div><span class="lamp wl" style="position:relative;display:inline-block;vertical-align:-1px"></span> dolny</div>
+    <div><span class="lamp" style="position:relative;display:inline-block;vertical-align:-1px"></span> górny</div>
+  </div>`);
+
+/* =====================================================================
+   4 SZUFLADKI — przeciągnij dźwięk, a on gra; Głośność i Panorama dla każdej osobno
+   ===================================================================== */
+const szuflady = [];
+function zbuduj(s) {                                   // dźwięk szufladki: głośność → panorama → wspólne wyjście
+  if (!audio || !s.dzwiek) return;
+  s.gl = audio.createGain(); s.pan = audio.createStereoPanner();
+  s.gl.gain.value = s.wlaczona ? s.glosnosc : 0; s.pan.pan.value = s.panorama;
+  s.gl.connect(s.pan).connect(wyjscieAlicji);
+  if (s.dzwiek.typ === 'sample') {                    // głos z banku: wczytuje się cały dopiero teraz
+    const B = s.dzwiek.bank;
+    if (!B.plik) { status(`Głos <b>${esc(s.dzwiek.nazwa)}</b> czeka na bank <b>${esc(B.nazwa)}</b> — kliknij dowolny jego głos na liście, żeby go odblokować.`); return; }
+    s.inst = nowyGlosSampli(B, B.glosy[s.dzwiek.gi], s.gl); return;
+  }
+  s.inst = s.dzwiek.typ === 'organy' ? nowyGlosOrganow(s.dzwiek.R, s.gl) : nowaBarwa(s.dzwiek.nazwa, s.gl);
+}
+function oproznij(s) {
+  if (s.inst) { s.inst.zniszcz(); const g = s.gl; setTimeout(() => { try { g.disconnect(); } catch (e) {} }, 500); }
+  s.inst = null; s.gl = null; s.pan = null; s.dzwiek = null;
+  for (const n in grajace) { const st = grajace[n].get(s); if (st) { st(true); grajace[n].delete(s); } }
+}
+function ustawGlosnosc(s) { if (s.gl) s.gl.gain.setTargetAtTime(s.wlaczona ? s.glosnosc : 0, audio.currentTime, 0.02); }
+const S = $("szuflady");
+for (let i = 0; i < 4; i++) {
+  const el = document.createElement("div"); el.className = "szuf"; el.style.left = (10 + i * 167) + "px"; el.style.width = "160px";
+  el.innerHTML = `<span class="nr">szufladka ${i + 1}</span><span class="wl" title="włącz / wycisz"></span>
+    <div class="okt" title="oktawa: ▲ wyżej, ▼ niżej (dwuklik na cyfrze = 0)"><span class="oG">▲</span><b>0</b><span class="oD">▼</span></div>
+    <div class="miejsce">przeciągnij tu dźwięk</div><span class="x" title="opróżnij">✕</span>
+    <div class="suw" style="top:82px"><label>Głośność</label><input type="range" min="0" max="100" value="100"><output>100</output></div>
+    <div class="suw" style="top:112px"><label>Panorama</label><input type="range" min="-50" max="50" value="0"><output>Ś</output></div>
+    <div class="strefy"><span class="sL" title="ta szufladka gra tylko na lewej stronie klawiatury (poniżej c¹)">◀</span><span class="sP" title="ta szufladka gra tylko na prawej stronie klawiatury (od c¹ w górę)">▶</span></div>`;
+  S.appendChild(el);
+  const s = { el, dzwiek: null, inst: null, gl: null, pan: null, glosnosc: 1, panorama: 0, wlaczona: true, lewa: false, prawa: false, okt: 0 };
+  szuflady.push(s);
+  const m = el.querySelector(".miejsce"), x = el.querySelector(".x"), wl = el.querySelector(".wl");
+  // CAŁA szufladka przyjmuje upuszczony dźwięk (nie tylko przerywany prostokąt) i świeci, gdy jesteś nad nią
+  el.ondragover = e => { e.preventDefault(); e.dataTransfer.dropEffect = "copy"; el.classList.add("nad"); m.classList.add("nad"); };
+  el.ondragleave = e => { if (!e.relatedTarget || !el.contains(e.relatedTarget)) { el.classList.remove("nad"); m.classList.remove("nad"); } };
+  el.ondrop = async e => { e.preventDefault(); el.classList.remove("nad"); m.classList.remove("nad");
+    const [k, d] = (e.dataTransfer.getData("text/plain") || "").split(":").map(Number); let dz = KATEGORIE[k] && KATEGORIE[k].dzwieki[d];
+    if (!dz) { status(`Szufladka ${i + 1}: tu można upuścić tylko dźwięk z listy na ekranie.`); return; }
+    if (dz.typ === 'moja') { status(`„Moja barwa” to cały zestaw szufladek — wczytaj ją <b>dwuklikiem</b> na liście.`); return; }
+    if (dz.typ === 'sample' && !dz.bank.plik) {          // bank zapamiętany, jeszcze zamknięty: najpierw go odblokuj
+      status(`Odblokowuję bank <b>${esc(dz.bank.nazwa)}</b>…`);
+      if (!(await otworzBank(dz.bank))) { status(`Szufladka ${i + 1}: bank <b>${esc(dz.bank.nazwa)}</b> jest jeszcze zamknięty — <b>kliknij jego nazwę</b> w kategoriach (przeglądarka zapyta o zgodę) i przeciągnij jeszcze raz.`); return; }
+      dz = KATEGORIE[k].dzwieki[d]; }
+    oproznij(s); s.dzwiek = dz; s.wlaczona = true; startAudio(); zbuduj(s); s.odswiez();
+    status(`Szufladka ${i + 1}: <b>${esc(dz.nazwa)}</b>${dz.typ === 'sample' ? ' — wczytuję cały głos…' : '. Graj!'}`); };
+  x.onclick = () => { oproznij(s); m.textContent = "przeciągnij tu dźwięk"; m.classList.remove("pelna"); x.style.display = "none"; wl.classList.remove("on"); };
+  wl.onclick = () => { if (!s.dzwiek) return; s.wlaczona = !s.wlaczona; wl.classList.toggle("on", s.wlaczona); ustawGlosnosc(s); };
+  const [g, p] = el.querySelectorAll("input"), [og, op] = el.querySelectorAll("output");
+  g.oninput = () => { og.textContent = g.value; s.glosnosc = g.value / 100; ustawGlosnosc(s); };
+  p.oninput = () => { op.textContent = p.value == 0 ? "Ś" : (p.value < 0 ? "L" + (-p.value) : "P" + p.value); s.panorama = p.value / 50; if (s.pan) s.pan.pan.setTargetAtTime(s.panorama, audio.currentTime, 0.02); };
+  p.ondblclick = () => { p.value = 0; p.oninput(); };
+  g.ondblclick = () => { g.value = 100; g.oninput(); };
+  // podział klawiatury: lewa / prawa; oba włączone albo oba wyłączone = cała klawiatura
+  const bL = el.querySelector(".sL"), bP = el.querySelector(".sP");
+  const pokazStrefy = () => { bL.classList.toggle("on", s.lewa); bP.classList.toggle("on", s.prawa);
+    status(`Szufladka ${i + 1}: ${s.lewa === s.prawa ? 'cała klawiatura' : s.lewa ? 'lewa strona (poniżej c¹)' : 'prawa strona (od c¹ w górę)'}`); };
+  bL.onclick = () => { s.lewa = !s.lewa; pokazStrefy(); };
+  // transpozycja o oktawę: od −2 do +2
+  const oB = el.querySelector(".okt b");
+  const pokazOkt = () => { oB.textContent = s.okt > 0 ? '+' + s.okt : s.okt; oB.classList.toggle('zm', s.okt !== 0);
+    status(`Szufladka ${i + 1}: ${s.okt === 0 ? 'bez transpozycji' : (s.okt > 0 ? 'o ' + s.okt : 'o ' + (-s.okt)) + (Math.abs(s.okt) === 1 ? ' oktawę ' : ' oktawy ') + (s.okt > 0 ? 'w górę' : 'w dół')}`); };
+  el.querySelector(".oG").onclick = () => { s.okt = Math.min(2, s.okt + 1); pokazOkt(); };
+  el.querySelector(".oD").onclick = () => { s.okt = Math.max(-2, s.okt - 1); pokazOkt(); };
+  oB.ondblclick = () => { s.okt = 0; pokazOkt(); };
+  bP.onclick = () => { s.prawa = !s.prawa; pokazStrefy(); };
+  s.odswiez = () => {
+    if (s.dzwiek) { m.textContent = s.dzwiek.nazwa; m.classList.add("pelna"); x.style.display = "block"; }
+    else { m.textContent = "przeciągnij tu dźwięk"; m.classList.remove("pelna"); x.style.display = "none"; }
+    wl.classList.toggle("on", !!s.dzwiek && s.wlaczona);
+    g.value = Math.round(s.glosnosc * 100); og.textContent = g.value;
+    p.value = Math.round(s.panorama * 50); op.textContent = p.value == 0 ? "Ś" : (p.value < 0 ? "L" + (-p.value) : "P" + p.value);
+    bL.classList.toggle("on", s.lewa); bP.classList.toggle("on", s.prawa);
+    oB.textContent = s.okt > 0 ? '+' + s.okt : s.okt; oB.classList.toggle('zm', s.okt !== 0);
+  };
+}
+
+/* ===== Wyjście: miernik (na razie bez działania) ===== */
+const Wy = document.createElement("div"); Wy.className = "ramka"; Object.assign(Wy.style, { left: "1020px", top: "452px", width: "120px", height: "210px" });
+Wy.innerHTML = `<div class="tytul"><b style="min-width:90px">Wyjście</b><i></i></div>`;
+$("bryla").appendChild(Wy);
+const mier = document.createElement("div"); mier.className = "miernik"; mier.style.left = "44px"; mier.style.top = "40px";
+for (let r = 0; r < 6; r++) for (let k = 0; k < 2; k++) { const d = document.createElement("i"); if (r > 1) d.className = "z"; mier.appendChild(d); }
+Wy.appendChild(mier);
+galka(Wy, 28, 122, "głośność", 0.7);
+
+/* =====================================================================
+   GRANIE — kto trzyma nutę: mysz, klawiatura komputera, USB (jak w organach)
+   ===================================================================== */
+const grajace = {};          // nuta → Map(szufladka → stop)
+// PODZIAŁ KLAWIATURY: lewa strona to nuty poniżej c¹ (60), prawa — od c¹ w górę
+const PODZIAL = 60;
+const naStronie = (s, n) => s.lewa === s.prawa || (s.lewa ? n < PODZIAL : n >= PODZIAL);
+const zrodla = {};
+const trzymane = new Set(); let pedal = false;
+function wcisnij(n, z = 'mysz', sila = .8) {
+  startAudio(); (zrodla[n] = zrodla[n] || new Set()).add(z);
+  if (grajace[n]) return;
+  const m = new Map();
+  szuflady.forEach(s => { if (!s.inst || !naStronie(s, n)) return;
+    const nn = Math.max(0, Math.min(127, n + s.okt * 12));                     // transpozycja szufladki
+    m.set(s, s.inst.organy ? s.inst.dzwiek(nn) : s.inst.dzwiek(nn, sila)); });
+  grajace[n] = m; trzymane.add(n);
+  document.querySelectorAll(`#klaw [data-n="${n}"]`).forEach(k => k.classList.add("wc"));
+  $("lampMidi").classList.add("wl");
+}
+function pusc(n, z = 'mysz', szybko = false) {
+  if (zrodla[n]) { zrodla[n].delete(z); if (zrodla[n].size) return; delete zrodla[n]; }
+  trzymane.delete(n);
+  document.querySelectorAll(`#klaw [data-n="${n}"]`).forEach(k => k.classList.remove("wc"));
+  if (!grajace[n]) return;
+  if (pedal && !szybko) return;                        // pedał sustain trzyma dźwięk (jak w Piano Pro)
+  grajace[n].forEach(st => st(szybko)); delete grajace[n];
+  if (!Object.keys(grajace).length) $("lampMidi").classList.remove("wl");
+}
+function ustawPedal(w) {
+  pedal = w;
+  if (!pedal) for (const n in grajace) if (!trzymane.has(+n)) { grajace[n].forEach(st => st()); delete grajace[n]; }
+  if (!Object.keys(grajace).length) $("lampMidi").classList.remove("wl");
+}
+
+/* ===== klawiatura na ekranie: 61 klawiszy (C2–C7), można przeciągać po klawiszach ===== */
+const KL = $("klaw"), OD = 36, DO = 96, czarne = [1, 3, 6, 8, 10];
+const biale = []; for (let n = OD; n <= DO; n++) if (!czarne.includes(n % 12)) biale.push(n);
+const szer = 100 / biale.length;
+{ const ileLewych = biale.filter(n => n < PODZIAL).length, pk = document.querySelectorAll('#pasekKl i');
+  pk[0].style.flex = ileLewych; pk[1].style.flex = biale.length - ileLewych; }
+biale.forEach((n, i) => { const d = document.createElement("div"); d.className = "b"; d.dataset.n = n; d.style.left = (i * szer) + "%"; d.style.width = szer + "%"; KL.appendChild(d); });
+for (let n = OD; n <= DO; n++) if (czarne.includes(n % 12)) {
+  const i = biale.indexOf(n - 1); const d = document.createElement("div"); d.className = "c"; d.dataset.n = n;
+  d.style.left = ((i + 1) * szer - szer * 0.32) + "%"; d.style.width = (szer * 0.64) + "%"; KL.appendChild(d);
+}
+(() => { let mysz = false;
+  KL.addEventListener('pointerdown', e => { const k = e.target.closest('[data-n]'); if (!k) return; mysz = true; e.preventDefault(); KL.setPointerCapture(e.pointerId); wcisnij(+k.dataset.n, 'mysz'); });
+  KL.addEventListener('pointermove', e => { if (!mysz) return; const k = document.elementFromPoint(e.clientX, e.clientY)?.closest('#klaw [data-n]'), n = k ? +k.dataset.n : -1;
+    for (const g in zrodla) if (+g !== n && zrodla[g].has('mysz')) pusc(+g, 'mysz'); if (n >= 0) wcisnij(n, 'mysz'); });
+  const koniec = () => { mysz = false; for (const g in zrodla) if (zrodla[g].has('mysz')) pusc(+g, 'mysz'); };
+  KL.addEventListener('pointerup', koniec); KL.addEventListener('pointercancel', koniec);
+})();
+// klawiatura komputera — jak w organach: dolny rząd od c (48), górny od c¹ (60)
+const KOMPUTER = { KeyZ: 48, KeyS: 49, KeyX: 50, KeyD: 51, KeyC: 52, KeyV: 53, KeyG: 54, KeyB: 55, KeyH: 56, KeyN: 57, KeyJ: 58, KeyM: 59, Comma: 60,
+                   KeyQ: 60, Digit2: 61, KeyW: 62, Digit3: 63, KeyE: 64, KeyR: 65, Digit5: 66, KeyT: 67, Digit6: 68, KeyY: 69, Digit7: 70, KeyU: 71, KeyI: 72 };
+addEventListener('keydown', e => { if (e.target && e.target.id === 'nazwaBarwy') return; if (e.repeat || e.ctrlKey || e.altKey || e.metaKey) return; const n = KOMPUTER[e.code]; if (n == null) return; e.preventDefault(); wcisnij(n, 'klaw'); });
+addEventListener('keyup', e => { const n = KOMPUTER[e.code]; if (n == null) return; pusc(n, 'klaw'); });
+addEventListener('blur', () => { for (const g in zrodla) { pusc(+g, 'klaw'); pusc(+g, 'mysz'); } });
+
+/* ===== klawiatura sterująca USB (MIDI) — jak w Piano Pro: siła uderzenia i pedał sustain ===== */
+const status = t => { $("status").innerHTML = t; };
+let midi = null;
+$("szukajUsb").onclick = async () => {
+  startAudio();
+  if (!navigator.requestMIDIAccess) { status('Ta przeglądarka nie umie łączyć się z MIDI (np. Safari). Użyj <b>Chrome</b> albo <b>Edge</b>.'); return; }
+  status('Szukam urządzeń MIDI… (przeglądarka może zapytać o zgodę)');
+  try { midi = await navigator.requestMIDIAccess(); }
+  catch (e) { status('Nie dostałam dostępu do MIDI. Zezwól na to w przeglądarce.'); return; }
+  podlacz(); midi.onstatechange = podlacz;
+};
+function podlacz() {
+  const wejscia = [...midi.inputs.values()];
+  wejscia.forEach(w => w.onmidimessage = wiadomoscMidi);
+  $("lampUsb").classList.toggle('wl', wejscia.length > 0);
+  status(wejscia.length ? '✔ Wykryto: ' + wejscia.map(w => `<b>${w.name}</b>`).join(', ') + '. Graj!'
+                        : 'Nie widzę klawiatury MIDI. <b>Podłącz ją przez USB</b>, a wykryję ją sama.');
+}
+function wiadomoscMidi(e) {
+  const [bajt, nuta, wartosc] = e.data, rodzaj = bajt & 0xf0;
+  if (rodzaj === 0x90 && wartosc > 0) wcisnij(nuta, 'midi', wartosc / 127);
+  else if (rodzaj === 0x80 || (rodzaj === 0x90 && wartosc === 0)) pusc(nuta, 'midi');
+  else if (rodzaj === 0xb0 && nuta === 64) ustawPedal(wartosc >= 64);
+  else if (rodzaj === 0xb0 && (nuta === 120 || nuta === 123)) for (const g in grajace) { zrodla[g] = new Set(['midi']); pusc(+g, 'midi', true); }
+}
+
+/* =====================================================================
+   MOJE BARWY — zapis całego zestawu: 4 szufladki (dźwięk, głośność, panorama, wł., lewa/prawa, oktawa)
+   i Aura (wł., pogłos, przestrzeń, echo, szybkość echa). Leżą w pamięci tej przeglądarki.
+   ===================================================================== */
+const KLUCZ_MOICH = 'alicja3-moje-barwy';
+function czytajMoje() { try { return JSON.parse(localStorage.getItem(KLUCZ_MOICH) || '[]'); } catch (e) { return []; } }
+function pokazMoje() { KATEGORIE[2].dzwieki = czytajMoje().map(b => ({ nazwa: b.nazwa, typ: 'moja', dane: b })); }
+function zapiszBarwe() {
+  if (!szuflady.some(s => s.dzwiek)) { status('Najpierw przeciągnij dźwięk do szufladki — pusty zestaw nie ma czego zapisać.'); return; }
+  const lista = czytajMoje();
+  let nazwa = $('nazwaBarwy').value.trim(); if (!nazwa) { let k = lista.length + 1; while (lista.some(b => b.nazwa === 'Moja barwa ' + k)) k++; nazwa = 'Moja barwa ' + k; }
+  const barwa = { nazwa, wersja: 1,
+    szuflady: szuflady.map(s => ({ dzwiek: s.dzwiek ? { typ: s.dzwiek.typ, id: s.dzwiek.typ === 'organy' ? s.dzwiek.R.id : s.dzwiek.nazwa, ...(s.dzwiek.typ === 'sample' ? { bank: s.dzwiek.bank.nazwa } : {}) } : null,
+      glosnosc: s.glosnosc, panorama: s.panorama, wlaczona: s.wlaczona, lewa: s.lewa, prawa: s.prawa, okt: s.okt })),
+    aura: { wl: pogloWl, poglos: pogloWart, przestrzen: PRZ.v, echo: ECH.v, echoMs: ECH.ms } };
+  const byla = lista.findIndex(b => b.nazwa === nazwa);
+  if (byla >= 0) lista[byla] = barwa; else lista.push(barwa);
+  try { localStorage.setItem(KLUCZ_MOICH, JSON.stringify(lista)); }
+  catch (e) { status('Nie udało się zapisać — ta przeglądarka nie pozwala tu zapisywać.'); return; }
+  pokazMoje(); katNr = 2; dzwNr = KATEGORIE[2].dzwieki.findIndex(d => d.nazwa === nazwa); rysujKategorie(); rysujDzwieki(); pokazNazwe();
+  $('nazwaBarwy').value = '';
+  status(`✉ Zapisano <b>${nazwa}</b> w „Moje barwy”${byla >= 0 ? ' (podmieniona barwa o tej samej nazwie)' : ''}. Dwuklik na nazwie wczytuje.`);
+}
+async function wczytajBarwe(b) {
+  startAudio(); const brakuje = [];
+  // głosy z zapamiętanych banków: najpierw odblokowuję ich pliki
+  for (const z of b.szuflady || []) if (z && z.dzwiek && z.dzwiek.typ === 'sample') { const B = BANKI.find(x => x.nazwa === z.dzwiek.bank); if (B && !B.plik) await otworzBank(B); }
+  for (const n in grajace) { grajace[n].forEach(st => st(true)); delete grajace[n]; }
+  szuflady.forEach((s, i) => {
+    oproznij(s); const z = b.szuflady[i] || {};
+    s.glosnosc = z.glosnosc ?? 1; s.panorama = z.panorama ?? 0; s.wlaczona = z.wlaczona ?? true; s.lewa = !!z.lewa; s.prawa = !!z.prawa; s.okt = z.okt || 0;
+    if (z.dzwiek) s.dzwiek = z.dzwiek.typ === 'organy' ? KATEGORIE[0].dzwieki.find(d => d.R.id === z.dzwiek.id)
+      : z.dzwiek.typ === 'sample' ? (KATEGORIE.find(k => k.bank && k.bank.nazwa === z.dzwiek.bank) || { dzwieki: [] }).dzwieki.find(d => d.nazwa === z.dzwiek.id)
+      : KATEGORIE[1].dzwieki.find(d => d.nazwa === z.dzwiek.id);
+    if (z.dzwiek && !s.dzwiek && z.dzwiek.typ === 'sample') brakuje.push(`${z.dzwiek.id} (bank ${z.dzwiek.bank})`);
+    s.dzwiek = s.dzwiek || null; s.odswiez(); zbuduj(s);
+  });
+  const a = b.aura || {};
+  GALKA_POGLOS.ustaw(a.poglos ?? 0); ECH.ustawSuwak(a.echoMs ?? 375);
+  EK_PRZ.ustaw(a.przestrzen ?? 0); EK_ECH.ustaw(a.echo ?? 0); PANEL_WL.ustaw(a.wl ?? true);
+  status(`Wczytano <b>${b.nazwa}</b>: ${szuflady.filter(s => s.dzwiek).map(s => s.dzwiek.nazwa).join(' + ')}. Graj!` + (brakuje.length ? `<br>⚠ Brakuje głosów: ${brakuje.map(esc).join(', ')} — wczytaj ten bank przyciskiem 📂 BANK.` : ''));
+}
+$('zapiszBarwe').onclick = zapiszBarwe;
+$('nazwaBarwy').onkeydown = e => { if (e.key === 'Enter') zapiszBarwe(); };
+pokazMoje();
+
+$('wczytajBank').onclick = async () => {
+  startAudio();
+  if (window.showOpenFilePicker) {
+    let uchwyty; try { uchwyty = await showOpenFilePicker({ id: 'banki-alicji', multiple: true, types: [{ description: 'Bank Alicji / zestaw organów', accept: { 'application/octet-stream': ['.alicja', '.organy'] } }] }); }
+    catch (e) { if (e.name !== 'AbortError') $('bankInput').click(); return; }
+    for (const u of uchwyty) await wczytajBankPlik(await u.getFile(), u);
+  } else $('bankInput').click();
+};
+$('bankInput').onchange = async e => { for (const f of [...e.target.files]) await wczytajBankPlik(f, null); e.target.value = ''; };
+przypomnijBanki();
+
+/* ===== start ===== */
+rysujKategorie(); rysujDzwieki(); pokazNazwe();
+status('Przeciągnij dźwięk z ekranu do szufladki i graj: myszką, klawiszami Z S X… / Q 2 W… albo klawiaturą USB.');
+function dopasuj(){ const s = Math.min(1, innerWidth / 1220, innerHeight / 900); $("skala").style.transform = `scale(${s})`; }
+addEventListener("resize", dopasuj); dopasuj();
+</script>
+</body>
+</html>
